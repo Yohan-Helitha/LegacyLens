@@ -1,7 +1,3 @@
-# mobile-app — placeholder package.json
-# This will be replaced when you run: npx create-expo-app@latest . --template blank-typescript
-# Scripts listed below are the ones expected by the CI pipeline.
-
 {
   "name": "legacy-lens-mobile",
   "version": "0.0.1",
