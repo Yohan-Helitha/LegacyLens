@@ -1,0 +1,54 @@
+# CI — Admin Dashboard (Angular)
+# Runs on every push/PR targeting main or dev that touches admin-dashboard/** files.
+# Stages: lint (ESLint) → build → test (Karma/Jasmine)
+
+name: Admin Dashboard CI
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "admin-dashboard/**"
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "admin-dashboard/**"
+
+jobs:
+  lint-build-test:
+    name: Lint, Build & Test (Node 18 / Angular)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: admin-dashboard
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: npm
+          cache-dependency-path: admin-dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Build (production)
+        run: npm run build -- --configuration production
+
+      - name: Run tests (Karma headless)
+        run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-coverage
+          path: admin-dashboard/coverage/

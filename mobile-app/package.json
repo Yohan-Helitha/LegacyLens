@@ -1,0 +1,22 @@
+# mobile-app — placeholder package.json
+# This will be replaced when you run: npx create-expo-app@latest . --template blank-typescript
+# Scripts listed below are the ones expected by the CI pipeline.
+
+{
+  "name": "legacy-lens-mobile",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "lint": "eslint 'src/**/*.{ts,tsx}' '__tests__/**/*.{ts,tsx}'",
+    "lint:fix": "eslint 'src/**/*.{ts,tsx}' '__tests__/**/*.{ts,tsx}' --fix",
+    "type-check": "tsc --noEmit",
+    "test": "jest --passWithNoTests",
+    "test:coverage": "jest --coverage --passWithNoTests"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

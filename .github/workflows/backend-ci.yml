@@ -1,0 +1,46 @@
+# CI — Backend (Spring Boot)
+# Runs on every push/PR targeting main or dev that touches backend/** files.
+# Stages: lint (Checkstyle) → build → test (JUnit/Mockito)
+
+name: Backend CI
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "backend/**"
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "backend/**"
+
+jobs:
+  build-and-test:
+    name: Build & Test (Java 17 / Maven)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+          cache: maven
+
+      - name: Build with Maven (skip tests)
+        run: mvn -B package -DskipTests
+        working-directory: backend
+
+      - name: Run unit & integration tests
+        run: mvn -B test
+        working-directory: backend
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: backend/target/surefire-reports/

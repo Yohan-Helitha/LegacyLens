@@ -1,0 +1,20 @@
+# admin-dashboard — placeholder package.json
+# This will be replaced when you run: ng new admin-dashboard --routing --style=scss --skip-git
+# Scripts listed below are the ones expected by the CI pipeline.
+
+{
+  "name": "legacy-lens-admin",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "lint": "ng lint",
+    "lint:fix": "ng lint --fix"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

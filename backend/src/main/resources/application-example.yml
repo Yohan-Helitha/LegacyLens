@@ -1,0 +1,15 @@
+# Copy this file to application-local.yml and fill in your real values.
+# application-local.yml is gitignored — never commit real credentials.
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/legacylens
+    username: YOUR_DB_USERNAME
+    password: YOUR_DB_PASSWORD
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+server:
+  port: 8080
