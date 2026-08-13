@@ -7,6 +7,7 @@ dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
 
 # ─── Java / Spring Boot ───────────────────────────────────────────────────────
 target/
@@ -36,3 +37,8 @@ coverage/
 
 # ─── Angular ──────────────────────────────────────────────────────────────────
 .angular/
+
+# ─── Design prototypes ────────────────────────────────────────────────────────
+# HTML prototypes — production screens are React Native (.tsx) components
+mobile-app/src/screens/auth/code.html
+mobile-app/src/screens/onboarding/loading/loading.html
