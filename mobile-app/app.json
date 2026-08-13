@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Legacy Lens",
+    "slug": "legacy-lens",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#EDEFEE",
+    "splash": {
+      "backgroundColor": "#EDEFEE"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.legacylens.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#EDEFEE"
+      },
+      "package": "com.legacylens.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font"
+    ]
+  }
+}

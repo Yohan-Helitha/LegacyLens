@@ -1,1 +1,73 @@
-/* You can add global styles to this file, and also import other style files */
+/* ─── LegacyLens Global Styles ───────────────────────────────────────────── */
+
+/* 1. Monsoon Coast design tokens — CSS custom properties                     */
+@import '../../shared/tokens/colors.css';
+
+/* 2. Google Fonts                                                             */
+@import url('https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400..700&family=Work+Sans:wght@400;500;600&display=swap');
+
+/* 3. Base resets                                                              */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-dominant);
+  color: var(--color-text);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* 4. Typography utilities                                                     */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: var(--color-secondary);
+  line-height: 1.2;
+}
+
+a {
+  color: var(--color-secondary);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--color-accent);
+  }
+}
+
+/* 5. Scrollbar theming (Chromium)                                             */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-secondary-subtle);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-secondary);
+}
+
+/* 6. Focus ring                                                               */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* 7. Selection                                                                */
+::selection {
+  background: var(--color-secondary);
+  color: var(--color-white);
+}
