@@ -1,0 +1,56 @@
+/**
+ * LegacyLens — Monsoon Coast CSS Design Tokens
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Defines all brand colours as CSS custom properties.
+ *
+ * Usage (Angular SCSS):
+ *   @use 'path/to/shared/tokens/colors.css';   (or @import)
+ *   background: var(--color-dominant);
+ *
+ * Usage (plain HTML):
+ *   <link rel="stylesheet" href="path/to/shared/tokens/colors.css">
+ *   <style> body { background: var(--color-dominant); } </style>
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Palette role   Hex       Weight
+ * Dominant       #EDEFEE   60 %    background, surface
+ * Secondary      #0F5C5C   30 %    primary brand teal
+ * Accent         #E8792E   10 %    mango orange CTAs
+ * Text/Neutral   #202426   —       body copy
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+:root {
+  /* ── Core palette ──────────────────────────────────────────────────────── */
+  --color-dominant:        #EDEFEE;   /* 60 % — Indian Ocean mist            */
+  --color-secondary:       #0F5C5C;   /* 30 % — Monsoon cloud teal           */
+  --color-accent:          #E8792E;   /* 10 % — Mango orange                 */
+  --color-text:            #202426;   /*  —   — Near-black body text         */
+
+  /* ── Derived shades ────────────────────────────────────────────────────── */
+  --color-surface:         #E4E7E6;   /* Slightly darker dominant for cards  */
+  --color-text-muted:      #6B7178;   /* Muted secondary text                */
+  --color-white:           #FFFFFF;   /* Pure white                          */
+  --color-secondary-dark:  #0A3D3D;   /* Deep teal for inverted sections     */
+
+  /* ── Opacity variants ──────────────────────────────────────────────────── */
+  --color-secondary-subtle: rgba(15, 92, 92, 0.20);   /* Teal 20 % — borders */
+  --color-accent-subtle:    rgba(232, 121, 46, 0.20); /* Mango 20 % — glows  */
+
+  /* ── Typography scale ──────────────────────────────────────────────────── */
+  --font-display:   'Literata', Georgia, serif;
+  --font-body:      'Work Sans', system-ui, sans-serif;
+
+  /* ── Spacing / radius ──────────────────────────────────────────────────── */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:  12px;
+  --radius-full: 9999px;
+
+  --spacing-xs:  4px;
+  --spacing-sm:  8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 40px;
+  --spacing-2xl: 64px;
+}
