@@ -16,7 +16,7 @@ on:
 
 jobs:
   lint-typecheck-test:
-    name: Lint, Type-check & Test (Node 18)
+    name: Lint, Type-check & Test (Node 22)
     runs-on: ubuntu-latest
 
     defaults:
@@ -27,10 +27,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 18
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "22"
           cache: npm
           cache-dependency-path: mobile-app/package-lock.json
 
