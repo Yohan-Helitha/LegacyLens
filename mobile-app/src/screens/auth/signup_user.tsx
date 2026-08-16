@@ -17,13 +17,15 @@ import { Colors, Typography, Spacing, Radii } from '../../theme';
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-type Step = 'details' | 'set-pin' | 'confirm-pin';
+type Step = 'details';
 
 interface SignUpScreenProps {
   /** Called when registration is complete */
   onSignUpSuccess?: () => void;
   /** Navigate back to login */
   onLogin?: () => void;
+  /** Navigate to the set-photo screen */
+  onSetPhoto?: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,7 +43,7 @@ const NUM_PAD_KEYS = [
 // ─────────────────────────────────────────────────────────────────────────────
 // Step progress indicator
 // ─────────────────────────────────────────────────────────────────────────────
-const STEPS: Step[] = ['details', 'set-pin', 'confirm-pin'];
+const STEPS: Step[] = ['details'];
 
 const StepIndicator: React.FC<{ current: Step }> = ({ current }) => {
   const idx = STEPS.indexOf(current);
@@ -336,9 +338,10 @@ const numStyles = StyleSheet.create({
 export const SignUpScreen: React.FC<SignUpScreenProps> = ({
   onSignUpSuccess,
   onLogin,
+  onSetPhoto,
 }) => {
-  // ── Multi-step state ──────────────────────────────────────────────────────
-  const [step, setStep] = useState<Step>('details');
+  // ── State ─────────────────────────────────────────────────────────────────
+  const [step] = useState<Step>('details');
 
   // Step 1 – personal details
   const [fullName, setFullName]   = useState('');
@@ -346,29 +349,10 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
   const [nameErr,  setNameErr]    = useState('');
   const [phoneErr, setPhoneErr]   = useState('');
 
-  // Step 2 – set PIN
-  const [pin,       setPin]       = useState('');
-
-  // Step 3 – confirm PIN
-  const [confirm,   setConfirm]   = useState('');
-  const [pinErr,    setPinErr]    = useState(false);
-
   // Animations
-  const shakeAnim   = useRef(new Animated.Value(0)).current;
   const slideAnim   = useRef(new Animated.Value(0)).current;
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-  const triggerShake = () => {
-    shakeAnim.setValue(0);
-    Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 8,  duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 6,  duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -6, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 0,  duration: 40, useNativeDriver: true }),
-    ]).start();
-  };
-
   const slideIn = () => {
     slideAnim.setValue(40);
     Animated.spring(slideAnim, {
@@ -377,11 +361,6 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
       friction: 8,
       useNativeDriver: true,
     }).start();
-  };
-
-  const goToStep = (next: Step) => {
-    setStep(next);
-    slideIn();
   };
 
   // ── Step 1 validation ─────────────────────────────────────────────────────
@@ -400,43 +379,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
     } else {
       setPhoneErr('');
     }
-    if (valid) goToStep('set-pin');
-  };
-
-  // ── PIN step handlers ─────────────────────────────────────────────────────
-  const handleSetPinKey = (key: string) => {
-    if (key === '⌫') { setPin((p) => p.slice(0, -1)); return; }
-    if (pin.length >= PIN_LENGTH) return;
-    const next = pin + key;
-    setPin(next);
-    if (next.length === PIN_LENGTH) {
-      setTimeout(() => goToStep('confirm-pin'), 200);
-    }
-  };
-
-  const handleConfirmKey = (key: string) => {
-    if (key === '⌫') {
-      setConfirm((c) => c.slice(0, -1));
-      setPinErr(false);
-      return;
-    }
-    if (confirm.length >= PIN_LENGTH) return;
-    const next = confirm + key;
-    setConfirm(next);
-    if (next.length === PIN_LENGTH) {
-      setTimeout(() => {
-        if (next === pin) {
-          onSignUpSuccess?.();
-        } else {
-          setPinErr(true);
-          triggerShake();
-          setTimeout(() => {
-            setConfirm('');
-            setPinErr(false);
-          }, 700);
-        }
-      }, 200);
-    }
+    if (valid) onSetPhoto?.();
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -458,7 +401,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
 
               <View style={styles.headingBlock}>
                 <Text style={styles.headline} accessibilityRole="header">
-                  Create account
+                  Setup account
                 </Text>
                 <Text style={styles.subheadline}>
                   Start preserving voices, one story at a time.
@@ -502,71 +445,6 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
         </KeyboardAvoidingView>
       );
     }
-
-    // ── Step 2: Set PIN ──────────────────────────────────────────────────
-    if (step === 'set-pin') {
-      return (
-        <Animated.View
-          style={[styles.pinView, { transform: [{ translateY: slideAnim }] }]}
-        >
-          <View style={styles.headingBlock}>
-            <Text style={styles.headline} accessibilityRole="header">
-              Set your PIN
-            </Text>
-            <Text style={styles.subheadline}>
-              Choose a 4-digit PIN to secure your account.
-            </Text>
-          </View>
-
-          <PinDots filled={pin.length} />
-
-          <View style={styles.numPad}>
-            {NUM_PAD_KEYS.map((key, idx) => (
-              <NumKey key={idx} label={key} onPress={() => handleSetPinKey(key)} />
-            ))}
-          </View>
-        </Animated.View>
-      );
-    }
-
-    // ── Step 3: Confirm PIN ──────────────────────────────────────────────
-    return (
-      <Animated.View
-        style={[styles.pinView, { transform: [{ translateY: slideAnim }] }]}
-      >
-        <View style={styles.headingBlock}>
-          <Text style={styles.headline} accessibilityRole="header">
-            Confirm your PIN
-          </Text>
-          <Text style={styles.subheadline}>
-            {pinErr
-              ? "PINs don't match — try again."
-              : 'Re-enter the same 4-digit PIN.'}
-          </Text>
-        </View>
-
-        <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
-          <PinDots filled={confirm.length} error={pinErr} />
-        </Animated.View>
-
-        <View style={styles.numPad}>
-          {NUM_PAD_KEYS.map((key, idx) => (
-            <NumKey key={idx} label={key} onPress={() => handleConfirmKey(key)} />
-          ))}
-        </View>
-
-        {/* Back to set-pin */}
-        <Pressable
-          onPress={() => { setPin(''); setConfirm(''); setPinErr(false); goToStep('set-pin'); }}
-          accessibilityRole="button"
-          accessibilityLabel="Change PIN"
-          hitSlop={8}
-          style={{ marginTop: Spacing.md }}
-        >
-          <Text style={styles.forgotPin}>Change PIN</Text>
-        </Pressable>
-      </Animated.View>
-    );
   };
 
   return (

@@ -24,7 +24,15 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Legacy Lens needs access to your photos so you can set a profile picture.",
+          "cameraPermission": "Legacy Lens needs camera access so you can take a profile photo.",
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }
