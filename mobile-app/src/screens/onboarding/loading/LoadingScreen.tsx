@@ -279,7 +279,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onFinish }) => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <StatusBar style="dark" backgroundColor={Colors.dominant} />
+      <StatusBar style="dark" />
 
       {/* Ambient background glows — rendered as coloured blobs */}
       <View style={[styles.glow, styles.glowTopLeft]}  pointerEvents="none" />
