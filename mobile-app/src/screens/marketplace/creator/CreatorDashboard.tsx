@@ -11,6 +11,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Typography, Spacing, Radii } from '../../../theme';
+import { BottomNavBar } from '../../../components/BottomNavBar';
+import type { NavTab } from '../../../components/BottomNavBar';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -45,7 +47,6 @@ const D = {
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 type JobTab = 'active' | 'upcoming' | 'completed';
-type NavIconName = 'home' | 'explore' | 'bookings' | 'inbox' | 'person';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Minimal inline icons (emoji-based, zero extra dependencies)
@@ -53,14 +54,6 @@ type NavIconName = 'home' | 'explore' | 'bookings' | 'inbox' | 'person';
 const StarIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
   <Text style={{ fontSize: size, color, lineHeight: size + 2 }}>★</Text>
 );
-
-const NavIcon: React.FC<{ name: NavIconName; active: boolean }> = ({ name, active }) => {
-  const color = active ? D.onSecondaryContainer : D.onSurfaceVariant;
-  const icons: Record<NavIconName, string> = {
-    home: '🏠', explore: '🧭', bookings: '📅', inbox: '✉️', person: '👤',
-  };
-  return <Text style={{ fontSize: 20, color, lineHeight: 24 }}>{icons[name]}</Text>;
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TopAppBar
@@ -310,46 +303,12 @@ const RecentWorkSection: React.FC = () => (
   </View>
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BottomNavBar
-// ─────────────────────────────────────────────────────────────────────────────
-const BottomNavBar: React.FC = () => {
-  const tabs: { label: string; icon: NavIconName; active: boolean }[] = [
-    { label: 'Home',     icon: 'home',     active: true  },
-    { label: 'Market',   icon: 'explore',  active: false },
-    { label: 'Bookings', icon: 'bookings', active: false },
-    { label: 'Inbox',    icon: 'inbox',    active: false },
-    { label: 'Profile',  icon: 'person',   active: false },
-  ];
 
-  return (
-    <View style={s.navBar}>
-      {tabs.map((tab) => (
-        <Pressable
-          key={tab.label}
-          style={({ pressed }) => [
-            s.navItem,
-            tab.active && s.navItemActive,
-            pressed && s.pressed,
-          ]}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: tab.active }}
-          accessibilityLabel={tab.label}
-        >
-          <NavIcon name={tab.icon} active={tab.active} />
-          <Text style={[s.navLabel, tab.active && s.navLabelActive]}>
-            {tab.label}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
-export const CreatorDashboard: React.FC = () => {
+export const CreatorDashboard: React.FC<{ onNavigate: (tab: NavTab) => void }> = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState<JobTab>('active');
 
   return (
@@ -405,7 +364,7 @@ export const CreatorDashboard: React.FC = () => {
         <View style={{ height: 8 }} />
       </ScrollView>
 
-      <BottomNavBar />
+      <BottomNavBar activeTab="home" onNavigate={onNavigate} />
     </SafeAreaView>
   );
 };
@@ -593,21 +552,6 @@ const s = StyleSheet.create({
   galleryTypeIcon:        { position: 'absolute', bottom: 8, left: 8, fontSize: 18, color: '#fff' },
   playBtnWrapper:         { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   playBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.82)', alignItems: 'center', justifyContent: 'center' },
-
-  // ── Bottom Nav ─────────────────────────────────────────────────────────────
-  navBar: {
-    flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center',
-    paddingTop: 8, paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-    paddingHorizontal: Spacing.md,
-    backgroundColor: D.surfaceContainerLowest,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant,
-    shadowColor: D.primary, shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.04, shadowRadius: 12, elevation: 8,
-  },
-  navItem:        { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radii.xl, gap: 2 },
-  navItemActive:  { backgroundColor: D.secondaryContainer },
-  navLabel:       { fontFamily: Typography.fontBodyMed, fontSize: 10, color: D.onSurfaceVariant, letterSpacing: 0.2 },
-  navLabelActive: { color: D.onSecondaryContainer },
 
   // ── Press feedback ─────────────────────────────────────────────────────────
   pressed:      { opacity: 0.75 },

@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Typography, Spacing, Radii } from '../../../theme';
+import { BottomNavBar } from '../../../components/BottomNavBar';
+import type { NavTab } from '../../../components/BottomNavBar';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -48,18 +50,11 @@ const D = {
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 type FilterKey  = 'all' | 'nearby' | 'photography' | 'writing';
-type NavIconName = 'home' | 'market' | 'inbox' | 'person';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline icon helpers (emoji / primitive, zero extra dependencies)
 // ─────────────────────────────────────────────────────────────────────────────
-const NavIcon: React.FC<{ name: NavIconName; active: boolean }> = ({ name, active }) => {
-  const color = active ? D.onSecondaryContainer : D.onSurfaceVariant;
-  const icons: Record<NavIconName, string> = {
-    home: '\uD83C\uDFE0', market: '\uD83D\uDED8', inbox: '\u2709\uFE0F', person: '\uD83D\uDC64',
-  };
-  return <Text style={{ fontSize: 20, color, lineHeight: 24 }}>{icons[name]}</Text>;
-};
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TopAppBar
@@ -267,7 +262,7 @@ const UrgentSection: React.FC = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 // RecentSection
 // ─────────────────────────────────────────────────────────────────────────────
-const RecentSection: React.FC = () => (
+const RecentSection: React.FC<{ onApply: () => void }> = ({ onApply }) => (
   <View style={s.section}>
     <Text style={s.sectionTitle}>Recent Postings</Text>
 
@@ -315,6 +310,7 @@ const RecentSection: React.FC = () => (
         </Pressable>
         <Pressable
           style={({ pressed }) => [s.applyBtn, pressed && s.pressed]}
+          onPress={onApply}
           accessibilityRole="button"
           accessibilityLabel="Apply for Photograph Antique Mask Collection"
         >
@@ -325,47 +321,15 @@ const RecentSection: React.FC = () => (
   </View>
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BottomNavBar
-// ─────────────────────────────────────────────────────────────────────────────
-type NavTab = { label: string; icon: NavIconName; active: boolean };
 
-const BottomNavBar: React.FC = () => {
-  const tabs: NavTab[] = [
-    { label: 'Home',    icon: 'home',   active: false },
-    { label: 'Market',  icon: 'market', active: true  },
-    { label: 'Inbox',   icon: 'inbox',  active: false },
-    { label: 'Profile', icon: 'person', active: false },
-  ];
-
-  return (
-    <View style={s.navBar}>
-      {tabs.map(tab => (
-        <Pressable
-          key={tab.label}
-          style={({ pressed }) => [
-            s.navItem,
-            tab.active && s.navItemActive,
-            pressed && s.pressed,
-          ]}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: tab.active }}
-          accessibilityLabel={tab.label}
-        >
-          <NavIcon name={tab.icon} active={tab.active} />
-          <Text style={[s.navLabel, tab.active && s.navLabelActive]}>
-            {tab.label}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
-export const OpportunityPage: React.FC = () => {
+export const OpportunityPage: React.FC<{
+  onNavigate: (tab: NavTab) => void;
+  onApply: () => void;
+}> = ({ onNavigate, onApply }) => {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
 
   return (
@@ -385,11 +349,11 @@ export const OpportunityPage: React.FC = () => {
         <FilterBar active={activeFilter} onSelect={setActiveFilter} />
         <RecommendedCard />
         <UrgentSection />
-        <RecentSection />
+        <RecentSection onApply={onApply} />
         <View style={{ height: 8 }} />
       </ScrollView>
 
-      <BottomNavBar />
+      <BottomNavBar activeTab="market" onNavigate={onNavigate} />
     </SafeAreaView>
   );
 };
@@ -667,28 +631,6 @@ const s = StyleSheet.create({
     elevation: 3,
   },
   applyBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onPrimary },
-
-  // ── Bottom Nav ─────────────────────────────────────────────────────────────
-  navBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-    paddingHorizontal: Spacing.md,
-    backgroundColor: D.surfaceContainerLowest,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: D.surfaceVariant,
-    shadowColor: D.primary,
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  navItem:        { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radii.xl, gap: 2 },
-  navItemActive:  { backgroundColor: D.secondaryContainer },
-  navLabel:       { fontFamily: Typography.fontBodyMed, fontSize: 10, color: D.onSurfaceVariant, letterSpacing: 0.2 },
-  navLabelActive: { color: D.onSecondaryContainer },
 
   // ── Press feedback ─────────────────────────────────────────────────────────
   pressed: { opacity: 0.75 },
