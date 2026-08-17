@@ -18,29 +18,31 @@ import type { NavTab } from '../../../components/BottomNavBar';
 // Design tokens (HTML Tailwind colour system)
 // ─────────────────────────────────────────────────────────────────────────────
 const D = {
-  surface:                '#fbf9f4',
+  // Brand palette
+  surface:                '#EDEFEE',           // 60% dominant
   surfaceContainerLowest: '#ffffff',
-  surfaceContainerLow:    '#f5f3ee',
-  surfaceContainer:       '#f0eee9',
-  surfaceContainerHigh:   '#eae8e3',
-  surfaceVariant:         '#e4e2dd',
-  outlineVariant:         '#debfbd',
+  surfaceContainerLow:    '#f0f5f5',
+  surfaceContainer:       '#e4efef',
+  surfaceContainerHigh:   '#d8e8e8',
+  surfaceVariant:         '#c8dcdc',
+  outlineVariant:         '#a0c4c4',
 
-  primary:              '#9f3032',
+  primary:              '#0F5C5C',             // 30% teal
   onPrimary:            '#ffffff',
-  primaryContainer:     '#c04848',
-  onPrimaryContainer:   '#fff3f2',
+  primaryContainer:     '#0d4e4e',
+  onPrimaryContainer:   '#e0f4f4',
 
-  secondary:            '#336574',
-  secondaryContainer:   '#b8eafc',
-  onSecondaryContainer: '#3a6b7a',
+  secondary:            '#E8792E',             // 10% orange accent
+  onSecondary:          '#ffffff',
+  secondaryContainer:   '#fff0e6',
+  onSecondaryContainer: '#9e4a0d',
 
-  tertiary:          '#705400',
-  tertiaryFixedDim:  '#f5bf22',
+  tertiary:          '#202428',               // neutral dark
+  tertiaryFixedDim:  '#E8792E',
 
-  onSurface:        '#1b1c19',
-  onSurfaceVariant: '#574140',
-  outline:          '#8b716f',
+  onSurface:        '#202428',
+  onSurfaceVariant: '#4a5568',
+  outline:          '#718096',
 } as const;
 
 
@@ -310,12 +312,13 @@ const s = StyleSheet.create({
     paddingBottom: Spacing.lg,
   },
 
-  // ── Page heading ───────────────────────────────────────────────────────────
+  // ── Page heading — teal + bold (30% rule primary use)
   pageHeading: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeXL,
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeXL,      // 24sp — h1
     lineHeight: 32,
-    color: D.onSurface,
+    color: '#0F5C5C',
+    fontWeight: '700',
     marginBottom: Spacing.lg,
     letterSpacing: -0.2,
   },
@@ -358,11 +361,11 @@ const s = StyleSheet.create({
     backgroundColor: D.surfaceContainerHigh, flexShrink: 0,
   },
   holderInfo:      { flex: 1 },
-  holderName:      { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: D.onSurface, lineHeight: 22 },
+  holderName:      { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: D.onSurface, lineHeight: 24 },
   holderBadgeRow:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  verifiedStar:    { fontSize: 12, color: D.tertiaryFixedDim },
+  verifiedStar:    { fontSize: 14, color: '#E8792E' },
   holderBadgeText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
-  chevron:         { fontSize: 22, color: D.onSurfaceVariant, lineHeight: 28 },
+  chevron:         { fontSize: 22, color: '#0F5C5C', lineHeight: 28 },
   cardPressed:     { opacity: 0.9 },
 
   // ── Info Grid ──────────────────────────────────────────────────────────────
@@ -388,17 +391,17 @@ const s = StyleSheet.create({
   infoIconText:  { fontSize: 16, lineHeight: 20 },
   infoLabel: {
     fontFamily: Typography.fontBodySemi,
-    fontSize: 10,
+    fontSize: Typography.sizeXS,      // 12sp — label/caption
     color: D.onSurfaceVariant,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   infoValue: {
     fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeSM,
+    fontSize: Typography.sizeSM,      // 14sp
     color: D.onSurface,
-    marginLeft: 40, // aligns with text beside icon
-    lineHeight: 20,
+    marginLeft: 40,
+    lineHeight: 22,
   },
 
   // ── Preservation Quote card ────────────────────────────────────────────────
@@ -438,14 +441,14 @@ const s = StyleSheet.create({
   },
   quoteCardTitle: {
     fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeMD,
-    color: D.onSurface,
+    fontSize: Typography.sizeMD,      // 16sp
+    color: '#0F5C5C',                 // teal heading (30% rule)
     marginBottom: Spacing.sm,
     lineHeight: 24,
   },
   quoteCardText: {
     fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeMD,
+    fontSize: Typography.sizeMD,      // 16sp — body
     lineHeight: 26,
     color: D.onSurfaceVariant,
     fontStyle: 'italic',
@@ -456,23 +459,23 @@ const s = StyleSheet.create({
   tasksSection:      { gap: Spacing.sm },
   tasksSectionTitle: {
     fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeMD,
+    fontSize: Typography.sizeLG,      // 18sp — section heading
     color: D.onSurface,
-    lineHeight: 24,
+    lineHeight: 28,
     marginBottom: Spacing.xs,
   },
   taskRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   taskCheck: {
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: D.secondaryContainer,
+    width: 24, height: 24, borderRadius: 12,   // 24px icon box
+    backgroundColor: 'rgba(15, 92, 92, 0.12)', // teal tinted
     alignItems: 'center', justifyContent: 'center',
     flexShrink: 0, marginTop: 2,
   },
-  taskCheckMark: { fontSize: 11, color: D.onSecondaryContainer, lineHeight: 14, fontWeight: '700' },
+  taskCheckMark: { fontSize: 12, color: '#0F5C5C', lineHeight: 16, fontWeight: '700' },
   taskText: {
     fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeMD,
-    lineHeight: 24,
+    fontSize: Typography.sizeMD,      // 16sp — body
+    lineHeight: 26,
     color: D.onSurface,
     flex: 1,
   },
@@ -486,14 +489,14 @@ const s = StyleSheet.create({
   },
   applyBtn: {
     width: '100%',
-    backgroundColor: D.primary,
+    backgroundColor: '#0F5C5C',       // teal (30% — primary action)
     borderRadius: Radii.xl,
-    paddingVertical: 16,
+    paddingVertical: 16,              // 16+16+~24 line = 56pt — prominent CTA
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    shadowColor: D.primary,
+    shadowColor: '#0F5C5C',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
@@ -502,11 +505,11 @@ const s = StyleSheet.create({
   applyBtnPressed: { opacity: 0.88, elevation: 2 },
   applyBtnText: {
     fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeMD,
-    color: D.onPrimary,
+    fontSize: Typography.sizeMD,      // 16sp — button text
+    color: '#ffffff',
     letterSpacing: 0.2,
   },
-  applyArrow: { fontSize: 18, color: D.onPrimary, lineHeight: 22 },
+  applyArrow: { fontSize: 20, color: '#ffffff', lineHeight: 24 },
 
   // ── Press feedback ─────────────────────────────────────────────────────────
   pressed: { opacity: 0.72 },

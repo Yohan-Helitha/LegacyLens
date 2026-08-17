@@ -18,29 +18,31 @@ import type { NavTab } from '../../../components/BottomNavBar';
 // Local design tokens (mapped from HTML Tailwind config colour system)
 // ─────────────────────────────────────────────────────────────────────────────
 const D = {
-  // Surfaces
-  surface:                '#fbf9f4',
+  // ── 60% dominant — surfaces
+  surface:                '#EDEFEE',
   surfaceContainerLowest: '#ffffff',
-  surfaceContainerLow:    '#f5f3ee',
-  surfaceContainer:       '#f0eee9',
-  surfaceContainerHigh:   '#eae8e3',
-  surfaceVariant:         '#e4e2dd',
+  surfaceContainerLow:    '#f0f5f5',
+  surfaceContainer:       '#e4efef',
+  surfaceContainerHigh:   '#d8e8e8',
+  surfaceVariant:         '#c8dcdc',
 
-  // Brand
-  primary:              '#9f3032',
+  // ── 30% primary — teal
+  primary:              '#0F5C5C',
   onPrimary:            '#ffffff',
-  secondary:            '#336574',
-  secondaryContainer:   '#b8eafc',
-  onSecondaryContainer: '#3a6b7a',
+
+  // ── 10% accent — orange
+  secondary:            '#E8792E',
   onSecondary:          '#ffffff',
-  secondaryFixedDim:    '#9dcedf',
+  secondaryContainer:   '#fff0e6',
+  onSecondaryContainer: '#9e4a0d',
+  secondaryFixedDim:    'rgba(232,121,46,0.30)',
 
-  // Tertiary — gold / amber for star rating
-  tertiaryContainer: '#8e6c00',
+  // ── Tertiary — gold for star ratings
+  tertiaryContainer: '#E8792E',         // reuse orange for stars
 
-  // Text
-  onSurface:        '#1b1c19',
-  onSurfaceVariant: '#574140',
+  // ── Text
+  onSurface:        '#202428',
+  onSurfaceVariant: '#4a5568',
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -394,24 +396,22 @@ const s = StyleSheet.create({
     elevation: 2,
   },
   appBarIconBtn: {
-    width: 40, height: 40, borderRadius: Radii.full,
+    width: 44, height: 44, borderRadius: Radii.full,  // 44pt touch target
     alignItems: 'center', justifyContent: 'center',
   },
   appBarTitle: {
     fontFamily: Typography.fontDisplay,
-    fontSize: Typography.sizeLG,
+    fontSize: Typography.sizeLG,      // 18sp
     lineHeight: Typography.sizeLG * 1.4,
-    color: D.primary,
+    color: '#0F5C5C',                 // teal (30% rule)
     letterSpacing: -0.3,
   },
-  // Hamburger
   hamburger:     { gap: 4 },
-  hamburgerLine: { width: 18, height: 2, borderRadius: 1, backgroundColor: D.secondary },
-  // Bell
+  hamburgerLine: { width: 18, height: 2, borderRadius: 1, backgroundColor: '#0F5C5C' },
   bellWrapper: { alignItems: 'center' },
-  bellTop:     { width: 3, height: 3, borderRadius: 1.5, backgroundColor: D.secondary, marginBottom: 1 },
-  bellBody:    { width: 14, height: 13, borderWidth: 1.5, borderColor: D.secondary, borderRadius: 7, borderBottomWidth: 0 },
-  bellClapper: { width: 5, height: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: D.secondary },
+  bellTop:     { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#0F5C5C', marginBottom: 1 },
+  bellBody:    { width: 14, height: 13, borderWidth: 1.5, borderColor: '#0F5C5C', borderRadius: 7, borderBottomWidth: 0 },
+  bellClapper: { width: 5, height: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: '#0F5C5C' },
 
   // ── Scroll ─────────────────────────────────────────────────────────────────
   scroll: { flex: 1 },
@@ -437,7 +437,8 @@ const s = StyleSheet.create({
   },
   greetingSubtitle: {
     fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeSM, lineHeight: 20,
+    fontSize: Typography.sizeSM,
+    lineHeight: 22,
     color: D.onSurfaceVariant, marginTop: 2,
   },
 
@@ -452,46 +453,54 @@ const s = StyleSheet.create({
     shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
   },
   ratingRow:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  ratingValue:   { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: D.tertiaryContainer, lineHeight: 24 },
+  ratingValue:   { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: '#E8792E', lineHeight: 28 },
   statsRight:    { alignItems: 'flex-end' },
-  statsJobCount: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.secondary, letterSpacing: 0.5 },
-  statsContrib:  { fontFamily: Typography.fontBody, fontSize: 11, color: D.onSurfaceVariant, marginTop: 2 },
+  statsJobCount: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: '#0F5C5C', letterSpacing: 0.5 },
+  statsContrib:  { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, marginTop: 2 },
 
   balanceCard: {
-    backgroundColor: D.secondary, borderRadius: Radii.xl, padding: Spacing.md, overflow: 'hidden',
-    shadowColor: D.secondary, shadowOffset: { width: 0, height: 4 },
+    backgroundColor: '#0F5C5C',
+    borderRadius: Radii.xl, padding: Spacing.md, overflow: 'hidden',
+    shadowColor: '#0F5C5C', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25, shadowRadius: 10, elevation: 5,
   },
   balanceGlow: {
     position: 'absolute', top: -40, right: -40, width: 128, height: 128,
-    borderRadius: 64, backgroundColor: D.secondaryFixedDim, opacity: 0.1,
+    borderRadius: 64, backgroundColor: 'rgba(232,121,46,0.15)', opacity: 1,
   },
   balanceLabel: {
-    fontFamily: Typography.fontBodyMed, fontSize: 10, color: D.onSecondary,
-    letterSpacing: 1.2, opacity: 0.9, marginBottom: Spacing.xs,
+    fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: '#ffffff',
+    letterSpacing: 1.2, opacity: 0.85, marginBottom: Spacing.xs,
   },
   balanceAmount: {
     fontFamily: Typography.fontDisplay, fontSize: 32, lineHeight: 40,
-    letterSpacing: -0.5, color: D.onSecondary, fontWeight: '800', marginBottom: Spacing.md,
+    letterSpacing: -0.5, color: '#ffffff', fontWeight: '800', marginBottom: Spacing.md,
   },
   balanceBtnRow:         { flexDirection: 'row', gap: Spacing.sm },
   balanceBtnOutline: {
-    flex: 1, borderWidth: 1, borderColor: D.secondaryFixedDim, borderRadius: Radii.lg,
-    paddingVertical: 10, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.08)',
+    flex: 1, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', borderRadius: Radii.lg,
+    paddingVertical: 12, alignItems: 'center', justifyContent: 'center',
+    minHeight: 44, backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  balanceBtnOutlineText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSecondary },
+  balanceBtnOutlineText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
   balanceBtnFill: {
-    flex: 1, backgroundColor: D.primary, borderRadius: Radii.lg,
-    paddingVertical: 10, alignItems: 'center',
-    shadowColor: D.primary, shadowOffset: { width: 0, height: 2 },
+    flex: 1, backgroundColor: '#E8792E', borderRadius: Radii.lg,
+    paddingVertical: 12, alignItems: 'center', justifyContent: 'center',
+    minHeight: 44,
+    shadowColor: '#E8792E', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3, shadowRadius: 4, elevation: 3,
   },
-  balanceBtnFillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onPrimary },
+  balanceBtnFillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
 
   // ── Section ────────────────────────────────────────────────────────────────
   section:       { gap: Spacing.sm },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle:  { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: D.onSurface, lineHeight: 24 },
+  sectionTitle:  {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeLG,
+    color: D.onSurface,
+    lineHeight: 28,
+  },
 
   // ── Tabs ───────────────────────────────────────────────────────────────────
   tabsRow:           { flexDirection: 'row', gap: Spacing.sm, paddingBottom: 4 },
@@ -515,14 +524,14 @@ const s = StyleSheet.create({
   jobCardHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.sm },
   jobCardLeft:    { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, flex: 1 },
   jobIconBox:     { width: 40, height: 40, borderRadius: Radii.lg, backgroundColor: D.surfaceContainer, alignItems: 'center', justifyContent: 'center' },
-  jobTitle:       { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 20, color: D.onSurface, marginBottom: 2 },
-  jobClient:      { fontFamily: Typography.fontBodyMed, fontSize: 11, color: D.secondary },
+  jobTitle:       { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 24, color: D.onSurface, marginBottom: 2 },
+  jobClient:      { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: '#0F5C5C' },  // teal
   jobStatusBadge: { backgroundColor: D.surfaceContainerHigh, borderRadius: Radii.sm, paddingHorizontal: 7, paddingVertical: 3, marginTop: 2 },
-  jobStatusText:  { fontFamily: Typography.fontBodySemi, fontSize: 9, color: D.onSurfaceVariant, letterSpacing: 0.8 },
-  jobDesc:        { fontFamily: Typography.fontBody, fontSize: 13, lineHeight: 19, color: D.onSurfaceVariant },
+  jobStatusText:  { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, letterSpacing: 0.8 },
+  jobDesc:        { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: D.onSurfaceVariant },
   jobMeta:        { flexDirection: 'row', gap: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant, marginTop: 2 },
   jobMetaItem:    { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  jobMetaText:    { fontFamily: Typography.fontBodyMed, fontSize: 11, color: D.onSurfaceVariant, letterSpacing: 0.2 },
+  jobMetaText:    { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, letterSpacing: 0.2 },
 
   // ── Empty state ────────────────────────────────────────────────────────────
   emptyState:     { paddingVertical: Spacing.xl, alignItems: 'center' },

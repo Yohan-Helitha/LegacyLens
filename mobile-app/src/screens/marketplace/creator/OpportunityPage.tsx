@@ -19,31 +19,33 @@ import type { NavTab } from '../../../components/BottomNavBar';
 // Local design tokens (mapped from HTML Tailwind config colour system)
 // ─────────────────────────────────────────────────────────────────────────────
 const D = {
-  surface:                '#fbf9f4',
+  // Brand palette (from design system)
+  surface:                '#EDEFEE',          // Tertiary — page bg
   surfaceContainerLowest: '#ffffff',
   surfaceContainerLow:    '#f5f3ee',
-  surfaceContainer:       '#f0eee9',
-  surfaceContainerHigh:   '#eae8e3',
-  surfaceVariant:         '#e4e2dd',
-  outlineVariant:         '#debfbd',
+  surfaceContainer:       '#e8f2f2',          // tinted teal wash
+  surfaceContainerHigh:   '#d8e8e8',
+  surfaceVariant:         '#c8dcdc',
+  outlineVariant:         '#a0c4c4',
 
-  primary:              '#9f3032',
+  primary:              '#0F5C5C',            // Primary teal
   onPrimary:            '#ffffff',
-  primaryContainer:     '#c04848',
-  secondary:            '#336574',
-  secondaryContainer:   '#b8eafc',
-  onSecondaryContainer: '#3a6b7a',
+  primaryContainer:     '#0d4e4e',
+  onPrimaryContainer:   '#e0f4f4',
+
+  secondary:            '#E8792E',            // Secondary orange
   onSecondary:          '#ffffff',
-  secondaryFixedDim:    '#9dcedf',
+  secondaryContainer:   '#fff0e6',
+  onSecondaryContainer: '#9e4a0d',
 
-  tertiary:          '#705400',
-  tertiaryContainer: '#8e6c00',
-  tertiaryFixedDim:  '#f5bf22',
-  tertiaryFixed:     '#ffdf98',
+  tertiary:          '#202428',              // Neutral dark
+  tertiaryContainer: '#e8792e',
+  tertiaryFixedDim:  '#f5a55a',
+  tertiaryFixed:     '#fff0e6',
 
-  onSurface:        '#1b1c19',
-  onSurfaceVariant: '#574140',
-  outline:          '#8b716f',
+  onSurface:        '#202428',               // Neutral — text
+  onSurfaceVariant: '#4a5568',
+  outline:          '#718096',
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -159,7 +161,7 @@ const FilterBar: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 // RecommendedCard
 // ─────────────────────────────────────────────────────────────────────────────
-const RecommendedCard: React.FC = () => (
+const RecommendedCard: React.FC<{ onViewDetail: () => void }> = ({ onViewDetail }) => (
   <View style={s.section}>
     <Text style={s.sectionTitle}>Recommended For You</Text>
 
@@ -196,6 +198,7 @@ const RecommendedCard: React.FC = () => (
         </View>
         <View style={s.cardCta}>
           <Pressable
+            onPress={onViewDetail}
             style={({ pressed }) => pressed ? [s.pressed] : []}
             accessibilityRole="button"
           >
@@ -210,7 +213,7 @@ const RecommendedCard: React.FC = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 // UrgentSection
 // ─────────────────────────────────────────────────────────────────────────────
-const UrgentSection: React.FC = () => (
+const UrgentSection: React.FC<{ onViewDetail: () => void }> = ({ onViewDetail }) => (
   <View style={s.section}>
     <View style={s.sectionHeaderRow}>
       <View style={s.urgentTitleRow}>
@@ -248,6 +251,7 @@ const UrgentSection: React.FC = () => (
         </View>
         <View style={s.urgentCtaRow}>
           <Pressable
+            onPress={onViewDetail}
             style={({ pressed }) => pressed ? [s.pressed] : []}
             accessibilityRole="button"
           >
@@ -262,7 +266,7 @@ const UrgentSection: React.FC = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 // RecentSection
 // ─────────────────────────────────────────────────────────────────────────────
-const RecentSection: React.FC<{ onApply: () => void }> = ({ onApply }) => (
+const RecentSection: React.FC<{ onApply: () => void; onViewDetail: () => void }> = ({ onApply, onViewDetail }) => (
   <View style={s.section}>
     <Text style={s.sectionTitle}>Recent Postings</Text>
 
@@ -303,6 +307,7 @@ const RecentSection: React.FC<{ onApply: () => void }> = ({ onApply }) => (
 
       <View style={s.recentActions}>
         <Pressable
+          onPress={onViewDetail}
           style={({ pressed }) => pressed ? [s.pressed] : []}
           accessibilityRole="button"
         >
@@ -347,9 +352,9 @@ export const OpportunityPage: React.FC<{
         <HeroSection />
         <SearchBar />
         <FilterBar active={activeFilter} onSelect={setActiveFilter} />
-        <RecommendedCard />
-        <UrgentSection />
-        <RecentSection onApply={onApply} />
+        <RecommendedCard onViewDetail={onApply} />
+        <UrgentSection onViewDetail={onApply} />
+        <RecentSection onApply={onApply} onViewDetail={onApply} />
         <View style={{ height: 8 }} />
       </ScrollView>
 
@@ -415,15 +420,16 @@ const s = StyleSheet.create({
   heroSection: { gap: Spacing.xs },
   heroTitle: {
     fontFamily: Typography.fontDisplay,
-    fontSize: Typography.sizeXL,
+    fontSize: Typography.sizeXL,      // 24sp — standard h1 for mobile
     lineHeight: 32,
     letterSpacing: -0.3,
-    color: D.onSurface,
+    color: '#0F5C5C',                 // Primary teal (30% rule)
+    fontWeight: '700',
   },
   heroSubtitle: {
     fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeMD,
-    lineHeight: 24,
+    fontSize: Typography.sizeMD,      // 16sp — standard body
+    lineHeight: 26,
     color: D.onSurfaceVariant,
   },
 
@@ -454,22 +460,28 @@ const s = StyleSheet.create({
 
   // ── Filters ────────────────────────────────────────────────────────────────
   filterRow:            { flexDirection: 'row', gap: Spacing.sm, paddingBottom: 4 },
-  filterChip:           { paddingHorizontal: 16, paddingVertical: 8, borderRadius: Radii.lg },
-  filterChipActive:     { backgroundColor: D.onSurface },
+  filterChip:           {
+    paddingHorizontal: 16,
+    paddingVertical: 11,              // 11+11+11 line ≈ 44pt touch target
+    borderRadius: Radii.lg,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  filterChipActive:     { backgroundColor: '#0F5C5C' },  // teal (30% rule)
   filterChipInactive:   {
     backgroundColor: D.surfaceContainerLowest,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.outlineVariant,
   },
   filterChipText:       { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, letterSpacing: 0.4 },
-  filterChipTextActive: { color: D.surface },
+  filterChipTextActive: { color: '#ffffff' },
 
   // ── Section ────────────────────────────────────────────────────────────────
   section:          { gap: Spacing.md },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionTitle:     {
     fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeLG,
+    fontSize: Typography.sizeLG,      // 18sp — section heading
     lineHeight: 28,
     color: D.onSurface,
     letterSpacing: -0.1,
@@ -523,18 +535,34 @@ const s = StyleSheet.create({
     paddingTop: Spacing.sm,
     alignItems: 'flex-end',
   },
-  ctaTextPrimary:  { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: D.primary },
-  ctaTextSecondary:{ fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
-  ctaTextMuted:    { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+  // All three CTA link styles use orange (10% accent rule)
+  ctaTextPrimary:  {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeMD,      // 16sp
+    color: '#E8792E',                 // orange accent
+    minHeight: 44, textAlignVertical: 'center',
+  },
+  ctaTextSecondary: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeSM,      // 14sp
+    color: '#E8792E',                 // same orange for all View Opportunity links
+    minHeight: 44, textAlignVertical: 'center',
+  },
+  ctaTextMuted: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeSM,      // 14sp
+    color: '#E8792E',                 // orange (was muted gray — unified per request)
+    minHeight: 44, textAlignVertical: 'center',
+  },
   cardTitle: {
     fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeLG,
-    lineHeight: 24,
+    fontSize: Typography.sizeLG,      // 18sp — card title
+    lineHeight: 26,
     color: D.onSurface,
   },
   cardMeta: {
     fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeSM,
+    fontSize: Typography.sizeSM,      // 14sp — secondary info
     color: D.onSurfaceVariant,
     marginTop: 2,
   },
@@ -558,11 +586,11 @@ const s = StyleSheet.create({
   },
   urgentThumb:    { width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: Radii.xl, flexShrink: 0 },
   urgentBody:     { flex: 1, justifyContent: 'space-between', paddingVertical: 4 },
-  urgentTitle:    { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 22, color: D.onSurface },
+  urgentTitle:    { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 24, color: D.onSurface },
   urgentMeta:     { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs },
   urgentMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaIcon:       { fontSize: 13, lineHeight: 18 },
-  urgentMetaText: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: D.onSurfaceVariant },
+  metaIcon:       { fontSize: 14, lineHeight: 20 },
+  urgentMetaText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
   urgentCtaRow:   { alignItems: 'flex-end', marginTop: Spacing.xs },
 
   // ── Recent Card ────────────────────────────────────────────────────────────
@@ -589,21 +617,21 @@ const s = StyleSheet.create({
   authorLocation: { fontFamily: Typography.fontBody,     fontSize: 12, color: D.onSurfaceVariant, marginTop: 1 },
   tagsRow:        { flexDirection: 'row', gap: 6 },
   tagSecondary: {
-    backgroundColor: 'rgba(51,101,116,0.1)',
+    backgroundColor: 'rgba(15, 92, 92, 0.10)',  // teal at 10%
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(51,101,116,0.2)',
+    borderColor: 'rgba(15, 92, 92, 0.20)',
     borderRadius: Radii.md,
-    paddingHorizontal: 10, paddingVertical: 4,
+    paddingHorizontal: 10, paddingVertical: 5,
   },
-  tagSecondaryText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: D.secondary },
+  tagSecondaryText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#0F5C5C' },
   tagNeutral: {
     backgroundColor: D.surfaceContainer,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.outlineVariant,
     borderRadius: Radii.md,
-    paddingHorizontal: 10, paddingVertical: 4,
+    paddingHorizontal: 10, paddingVertical: 5,
   },
-  tagNeutralText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: D.onSurfaceVariant },
+  tagNeutralText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
   recentContent:  { gap: 6 },
   recentDesc: {
     fontFamily: Typography.fontBody,
@@ -620,17 +648,19 @@ const s = StyleSheet.create({
     paddingTop: Spacing.md,
   },
   applyBtn: {
-    backgroundColor: D.primary,
+    backgroundColor: '#0F5C5C',       // teal (30% — primary action)
     borderRadius: Radii.xl,
     paddingHorizontal: 24,
-    paddingVertical: 8,
-    shadowColor: D.primary,
+    paddingVertical: 12,              // 12+12+~20 line = 44pt touch target
+    minHeight: 44,
+    justifyContent: 'center',
+    shadowColor: '#0F5C5C',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 3,
   },
-  applyBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onPrimary },
+  applyBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: '#ffffff' },
 
   // ── Press feedback ─────────────────────────────────────────────────────────
   pressed: { opacity: 0.75 },

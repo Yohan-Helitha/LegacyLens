@@ -16,8 +16,7 @@ const D = {
   surface:                '#fbf9f4',
   surfaceContainerLowest: '#ffffff',
   surfaceVariant:         '#e4e2dd',
-  primary:                '#9f3032',
-  secondary:              '#336574',
+  primary:                '#0F5C5C',
   onSurfaceVariant:       '#574140',
   onSurface:              '#1b1c19',
 } as const;
@@ -50,22 +49,28 @@ const HomeIcon: React.FC<{ color: string }> = ({ color }) => (
   </View>
 );
 
-/** Compass / market icon — two concentric circles with a centre dot */
+/** Shop / storefront market icon */
 const MarketIcon: React.FC<{ color: string }> = ({ color }) => (
   <View style={iconS.marketWrap}>
-    <View style={[iconS.marketRing, { borderColor: color }]}>
-      <View style={[iconS.marketInner, { borderColor: color }]}>
-        <View style={[iconS.marketDot, { backgroundColor: color }]} />
-      </View>
+    {/* Awning roof */}
+    <View style={[iconS.marketAwning, { backgroundColor: color }]} />
+    {/* Shop front walls */}
+    <View style={[iconS.marketWalls, { borderColor: color }]}>
+      {/* Two small window panes */}
+      <View style={[iconS.marketWindow, { borderColor: color }]} />
+      <View style={[iconS.marketWindow, { borderColor: color }]} />
     </View>
   </View>
 );
 
-/** Speech-bubble inbox icon */
+/** Envelope / mail icon */
 const InboxIcon: React.FC<{ color: string }> = ({ color }) => (
   <View style={iconS.inboxWrap}>
-    <View style={[iconS.inboxBubble, { borderColor: color }]}>
-      <View style={[iconS.inboxTail, { borderTopColor: color }]} />
+    {/* Envelope body */}
+    <View style={[iconS.inboxEnv, { borderColor: color }]}>
+      {/* Flap chevron lines */}
+      <View style={[iconS.inboxFlapLeft,  { borderColor: color }]} />
+      <View style={[iconS.inboxFlapRight, { borderColor: color }]} />
     </View>
   </View>
 );
@@ -225,22 +230,35 @@ const iconS = StyleSheet.create({
     borderRadius: 1,
     marginBottom: -1,
   },
-  // Market
-  marketWrap:  { width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
-  marketRing:  { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  marketInner: { width: 12, height: 12, borderRadius: 6, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  marketDot:   { width: 4, height: 4, borderRadius: 2 },
-  // Inbox
-  inboxWrap:   { width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
-  inboxBubble: {
-    width: 20, height: 16, borderRadius: 6, borderWidth: 1.5,
-    position: 'relative',
+  // Market — shop/storefront
+  marketWrap:   { width: 22, height: 22, alignItems: 'center', justifyContent: 'flex-end' },
+  marketAwning: { width: 20, height: 5, borderRadius: 2, marginBottom: 0 },
+  marketWalls: {
+    width: 18, height: 12, borderWidth: 1.5, borderTopWidth: 0,
+    borderRadius: 1, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-evenly', paddingHorizontal: 2,
   },
-  inboxTail: {
-    position: 'absolute', bottom: -5, left: 5,
+  marketWindow: { width: 5, height: 6, borderWidth: 1.5, borderRadius: 1 },
+  // Inbox — envelope
+  inboxWrap:      { width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
+  inboxEnv: {
+    width: 20, height: 14, borderRadius: 2, borderWidth: 1.5,
+    overflow: 'hidden', alignItems: 'center', justifyContent: 'flex-start',
+    flexDirection: 'row',
+  },
+  inboxFlapLeft: {
+    position: 'absolute', top: 0, left: 0,
     width: 0, height: 0,
-    borderLeftWidth: 4, borderRightWidth: 0, borderTopWidth: 5,
-    borderLeftColor: 'transparent', borderRightColor: 'transparent',
+    borderRightWidth: 10, borderBottomWidth: 7,
+    borderRightColor: 'transparent', borderBottomColor: 'transparent',
+    borderTopWidth: 7,
+  },
+  inboxFlapRight: {
+    position: 'absolute', top: 0, right: 0,
+    width: 0, height: 0,
+    borderLeftWidth: 10, borderBottomWidth: 7,
+    borderLeftColor: 'transparent', borderBottomColor: 'transparent',
+    borderTopWidth: 7,
   },
   // Profile
   profileWrap:   { width: 22, height: 22, alignItems: 'center', justifyContent: 'flex-end' },
