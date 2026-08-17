@@ -21,6 +21,7 @@ target/
 .env.local
 *.env
 application-local.yml
+application-local.properties
 
 # ─── IDE ──────────────────────────────────────────────────────────────────────
 .vscode/
