@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { Sparkles, Mic } from 'lucide-react-native';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,6 +21,73 @@ interface OnBoarding1Props {
   onNext?: () => void;
   onSkip?: () => void;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Custom SVG Storybook Vector Illustration
+// ─────────────────────────────────────────────────────────────────────────────
+const StoryBookIllustration: React.FC<{ size: number }> = ({ size }) => {
+  const svgSize = size * 0.58;
+  return (
+    <Svg width={svgSize} height={svgSize} viewBox="0 0 100 100" fill="none">
+      <Defs>
+        <LinearGradient id="bookCover" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor="#0F5C5C" />
+          <Stop offset="100%" stopColor="#0A3D3D" />
+        </LinearGradient>
+        <LinearGradient id="pageGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#FFFFFF" />
+          <Stop offset="100%" stopColor="#F5F7F6" />
+        </LinearGradient>
+      </Defs>
+
+      {/* Book Cover */}
+      <Path
+        d="M10 24 C28 19, 42 20, 50 24 C58 20, 72 19, 90 24 L90 81 C72 76, 58 77, 50 81 C42 77, 28 76, 10 81 Z"
+        fill="url(#bookCover)"
+        stroke="#0A3D3D"
+        strokeWidth="2"
+      />
+
+      {/* Left Page */}
+      <Path
+        d="M14 25 C26 21, 38 21.5, 48 25 L48 77 C38 73.5, 26 73, 14 77 Z"
+        fill="url(#pageGrad)"
+        stroke="#D9E0DE"
+        strokeWidth="1.2"
+      />
+
+      {/* Right Page */}
+      <Path
+        d="M52 25 C62 21.5, 74 21, 86 25 L86 77 C74 73, 62 73.5, 52 77 Z"
+        fill="url(#pageGrad)"
+        stroke="#D9E0DE"
+        strokeWidth="1.2"
+      />
+
+      {/* Spine line */}
+      <Path d="M50 23 L50 82" stroke="#0A3D3D" strokeWidth="2.5" strokeLinecap="round" />
+
+      {/* Ribbon Bookmark in Accent Orange */}
+      <Path
+        d="M50 23 L50 63 L54 59 L58 63 L58 24"
+        fill={Colors.accent}
+        opacity={0.95}
+      />
+
+      {/* Story lines on left page */}
+      <Path d="M20 35 H42" stroke="#0F5C5C" strokeWidth="2.2" strokeLinecap="round" opacity={0.65} />
+      <Path d="M20 44 H42" stroke="#0F5C5C" strokeWidth="2" strokeLinecap="round" opacity={0.4} />
+      <Path d="M20 53 H38" stroke="#0F5C5C" strokeWidth="2" strokeLinecap="round" opacity={0.4} />
+      <Path d="M20 62 H32" stroke="#0F5C5C" strokeWidth="2" strokeLinecap="round" opacity={0.3} />
+
+      {/* Story lines on right page */}
+      <Path d="M58 35 H80" stroke="#0F5C5C" strokeWidth="2.2" strokeLinecap="round" opacity={0.65} />
+      <Path d="M58 44 H80" stroke="#0F5C5C" strokeWidth="2" strokeLinecap="round" opacity={0.4} />
+      <Path d="M58 53 H74" stroke="#0F5C5C" strokeWidth="2" strokeLinecap="round" opacity={0.4} />
+      <Path d="M58 62 H68" stroke="#0F5C5C" strokeWidth="2" strokeLinecap="round" opacity={0.3} />
+    </Svg>
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pagination dots (step 1 of 3 active)
@@ -52,7 +121,6 @@ const dotStyles = StyleSheet.create({
 // ─────────────────────────────────────────────────────────────────────────────
 export const OnBoarding1: React.FC<OnBoarding1Props> = ({ onNext, onSkip }) => {
   const { height } = useWindowDimensions();
-  // Illustration scales with screen height: 38% of height, clamped 140–220px
   const illSize = Math.max(140, Math.min(220, height * 0.38));
   const illMarginBottom = height < 700 ? Spacing.lg : Spacing.xl * 1.5;
 
@@ -108,26 +176,31 @@ export const OnBoarding1: React.FC<OnBoarding1Props> = ({ onNext, onSkip }) => {
         <Animated.View
           style={[
             styles.illustrationWrap,
-            { width: illSize, height: illSize, marginBottom: illMarginBottom,
-              transform: [{ translateY: floatAnim }] },
+            {
+              width: illSize,
+              height: illSize,
+              marginBottom: illMarginBottom,
+              transform: [{ translateY: floatAnim }],
+            },
           ]}
         >
-          {/* Glow halo */}
-          <View style={[styles.halo, { width: illSize + 28, height: illSize + 28 }]} />
+          {/* Multi-layered soft glow halos */}
+          <View style={[styles.haloOuter, { width: illSize + 48, height: illSize + 48 }]} />
+          <View style={[styles.halo, { width: illSize + 24, height: illSize + 24 }]} />
 
           {/* Main circle */}
           <View style={[styles.iconCircle, { width: illSize, height: illSize }]}>
-            <Text style={[styles.mainIcon, { fontSize: illSize * 0.375 }]}>📖</Text>
+            <StoryBookIllustration size={illSize} />
           </View>
 
-          {/* Accent badge — auto_awesome (top-right) */}
+          {/* Accent badge — Sparkles (top-right) */}
           <View style={[styles.badge, styles.badgeTR]}>
-            <Text style={styles.badgeIcon}>✨</Text>
+            <Sparkles size={18} color={Colors.white} strokeWidth={2.2} />
           </View>
 
-          {/* Accent badge — mic (bottom-left) */}
-          <View style={[styles.badge, styles.badgeBL, styles.badgeGreen]}>
-            <Text style={styles.badgeIcon}>🎙️</Text>
+          {/* Accent badge — Microphone (bottom-left) */}
+          <View style={[styles.badge, styles.badgeBL, styles.badgeTeal]}>
+            <Mic size={19} color={Colors.white} strokeWidth={2.2} />
           </View>
         </Animated.View>
 
@@ -167,9 +240,6 @@ export const OnBoarding1: React.FC<OnBoarding1Props> = ({ onNext, onSkip }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
-const TEAL   = '#0F5C5C';  // primary
-const ORANGE = '#E8792E';  // secondary / accent
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -220,61 +290,52 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
 
-  // ── Illustration — sizes injected inline via useWindowDimensions ────────────
+  // ── Illustration ───────────────────────────────────────────────────────────
   illustrationWrap: {
-    // width/height/marginBottom set inline
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
+  haloOuter: {
+    position: 'absolute',
+    borderRadius: Radii.full,
+    backgroundColor: 'rgba(15, 92, 92, 0.03)',
+  },
   halo: {
     position: 'absolute',
-    // width/height set inline
     borderRadius: Radii.full,
-    backgroundColor: 'rgba(15, 92, 92, 0.05)',
-    transform: [{ scale: 1.5 }],
+    backgroundColor: 'rgba(15, 92, 92, 0.06)',
   },
   iconCircle: {
-    // width/height set inline
     borderRadius: Radii.full,
     backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: 'rgba(232, 226, 210, 0.4)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(232, 226, 210, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: TEAL,
+    shadowColor: Colors.secondary,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 32,
-    elevation: 4,
-  },
-  mainIcon: {
-    // fontSize set inline
-    lineHeight: undefined,
-    ...Platform.select({ android: { includeFontPadding: false } }),
+    shadowOpacity: 0.1,
+    shadowRadius: 30,
+    elevation: 5,
   },
   badge: {
     position: 'absolute',
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: Radii.full,
-    backgroundColor: ORANGE,
+    backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.16,
+    shadowRadius: 5,
+    elevation: 4,
   },
-  badgeTR: { top: 4, right: 4 },
-  badgeBL: { bottom: -8, left: 16 },
-  badgeGreen: { backgroundColor: TEAL },
-  badgeIcon: {
-    fontSize: 16,
-    lineHeight: 20,
-    ...Platform.select({ android: { includeFontPadding: false } }),
-  },
+  badgeTR: { top: 2, right: 2 },
+  badgeBL: { bottom: -6, left: 12 },
+  badgeTeal: { backgroundColor: Colors.secondary },
 
   // ── Text ───────────────────────────────────────────────────────────────────
   textBlock: {
@@ -311,13 +372,13 @@ const styles = StyleSheet.create({
   primaryBtn: {
     width: '100%',
     minHeight: 56,
-    backgroundColor: TEAL,
+    backgroundColor: Colors.secondary,
     borderRadius: Radii.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: TEAL,
+    shadowColor: Colors.secondary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
     shadowRadius: 12,

@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { MapPin, Sparkles, Mountain, Waves, Palmtree } from 'lucide-react-native';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,6 +23,68 @@ interface OnBoarding3Props {
   /** Fired when user taps "Skip" */
   onSkip?: () => void;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Custom SVG Living Archive Map Vector Illustration
+// ─────────────────────────────────────────────────────────────────────────────
+const ArchiveMapIllustration: React.FC<{ size: number }> = ({ size }) => {
+  const svgSize = size * 0.58;
+  return (
+    <Svg width={svgSize} height={svgSize} viewBox="0 0 100 100" fill="none">
+      <Defs>
+        <LinearGradient id="mapGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor="#FFFFFF" />
+          <Stop offset="100%" stopColor="#EFF4F2" />
+        </LinearGradient>
+      </Defs>
+
+      {/* Folded Map Shape */}
+      <Path
+        d="M12 24 L36 18 L64 24 L88 18 V76 L64 82 L36 76 L12 82 Z"
+        fill="url(#mapGrad)"
+        stroke="#0F5C5C"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+
+      {/* Map Fold Crease lines */}
+      <Path d="M36 18 V76" stroke="#0F5C5C" strokeWidth="1.8" strokeDasharray="3 3" opacity={0.6} />
+      <Path d="M64 24 V82" stroke="#0F5C5C" strokeWidth="1.8" strokeDasharray="3 3" opacity={0.6} />
+
+      {/* Contour / Topographic lines */}
+      <Path
+        d="M20 40 C28 36, 42 42, 54 38 C68 34, 76 42, 82 40"
+        stroke="#0F5C5C"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        opacity={0.5}
+      />
+      <Path
+        d="M18 54 C30 50, 46 58, 58 52 C68 48, 76 56, 80 54"
+        stroke="#0F5C5C"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        opacity={0.4}
+      />
+      <Path
+        d="M22 66 C32 62, 44 68, 56 64 C66 60, 74 68, 80 66"
+        stroke="#0F5C5C"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        opacity={0.3}
+      />
+
+      {/* Compass Rose Accent in Center */}
+      <Circle cx="50" cy="50" r="10" stroke={Colors.accent} strokeWidth="1.5" opacity={0.7} />
+      <Path d="M50 36 L50 64 M36 50 L64 50" stroke={Colors.accent} strokeWidth="1.5" strokeLinecap="round" />
+      <Circle cx="50" cy="50" r="3.5" fill={Colors.accent} />
+
+      {/* Map waypoint pins on map */}
+      <Circle cx="28" cy="34" r="3" fill="#0F5C5C" />
+      <Circle cx="72" cy="62" r="3" fill="#0F5C5C" />
+    </Svg>
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pagination dots (step 3 of 3 active)
@@ -50,22 +114,22 @@ const dotStyles = StyleSheet.create({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Region cards — matching the "organized by region" theme from board3.html
+// Region chips with Lucide Vector Icons
 // ─────────────────────────────────────────────────────────────────────────────
-const REGIONS = [
-  { icon: '🏔️', name: 'Kandy' },
-  { icon: '🌊', name: 'Jaffna' },
-  { icon: '🌴', name: 'Galle' },
-];
-
 const RegionChips: React.FC = () => (
   <View style={chipStyles.row}>
-    {REGIONS.map((r) => (
-      <View key={r.name} style={chipStyles.chip}>
-        <Text style={chipStyles.icon}>{r.icon}</Text>
-        <Text style={chipStyles.label}>{r.name}</Text>
-      </View>
-    ))}
+    <View style={chipStyles.chip}>
+      <Mountain size={16} color={Colors.secondary} strokeWidth={2} />
+      <Text style={chipStyles.label}>Kandy</Text>
+    </View>
+    <View style={chipStyles.chip}>
+      <Waves size={16} color={Colors.secondary} strokeWidth={2} />
+      <Text style={chipStyles.label}>Jaffna</Text>
+    </View>
+    <View style={chipStyles.chip}>
+      <Palmtree size={16} color={Colors.secondary} strokeWidth={2} />
+      <Text style={chipStyles.label}>Galle</Text>
+    </View>
   </View>
 );
 
@@ -74,7 +138,7 @@ const chipStyles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     justifyContent: 'center',
-    marginTop: Spacing.xl,
+    marginTop: Spacing.lg,
   },
   chip: {
     flexDirection: 'row',
@@ -91,11 +155,6 @@ const chipStyles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 1,
-  },
-  icon: {
-    fontSize: 16,
-    lineHeight: 20,
-    ...Platform.select({ android: { includeFontPadding: false } }),
   },
   label: {
     fontFamily: Typography.fontBodyMed,
@@ -138,7 +197,7 @@ export const OnBoarding3: React.FC<OnBoarding3Props> = ({
       ]),
     ).start();
 
-    // CTA button pulse — subtle attention on last screen
+    // CTA button pulse
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.02, duration: 900, useNativeDriver: true }),
@@ -179,28 +238,35 @@ export const OnBoarding3: React.FC<OnBoarding3Props> = ({
       <Animated.View
         style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
       >
-        {/* Illustration — map + location_on + auto_awesome (from board3.html) */}
+        {/* Illustration */}
         <Animated.View
           style={[
             styles.illustrationWrap,
-            { width: illSize, height: illSize, marginBottom: illMarginBottom,
-              transform: [{ translateY: floatAnim }] },
+            {
+              width: illSize,
+              height: illSize,
+              marginBottom: illMarginBottom,
+              transform: [{ translateY: floatAnim }],
+            },
           ]}
         >
-          <View style={[styles.halo, { width: illSize + 28, height: illSize + 28 }]} />
+          {/* Halos */}
+          <View style={[styles.haloOuter, { width: illSize + 48, height: illSize + 48 }]} />
+          <View style={[styles.halo, { width: illSize + 24, height: illSize + 24 }]} />
 
+          {/* Main Circle */}
           <View style={[styles.iconCircle, { width: illSize, height: illSize }]}>
-            <Text style={[styles.mainIcon, { fontSize: illSize * 0.375 }]}>🗺️</Text>
+            <ArchiveMapIllustration size={illSize} />
           </View>
 
-          {/* location_on accent — bottom-right */}
-          <View style={[styles.badge, styles.badgeBR]}>
-            <Text style={styles.badgeIcon}>📍</Text>
+          {/* Badge Bottom-Right: MapPin */}
+          <View style={[styles.badge, styles.badgeBR, styles.badgeTeal]}>
+            <MapPin size={19} color={Colors.white} strokeWidth={2.2} />
           </View>
 
-          {/* auto_awesome accent — top-left */}
+          {/* Badge Top-Left: Sparkles */}
           <View style={[styles.badge, styles.badgeTL, styles.badgeOrange]}>
-            <Text style={styles.badgeIcon}>✨</Text>
+            <Sparkles size={18} color={Colors.white} strokeWidth={2.2} />
           </View>
         </Animated.View>
 
@@ -247,9 +313,6 @@ export const OnBoarding3: React.FC<OnBoarding3Props> = ({
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
-const TEAL   = '#0F5C5C';
-const ORANGE = '#E8792E';
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -298,63 +361,50 @@ const styles = StyleSheet.create({
   },
 
   illustrationWrap: {
-    width: 192,
-    height: 192,
-    marginBottom: Spacing.xl * 1.5,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
+  haloOuter: {
+    position: 'absolute',
+    borderRadius: Radii.full,
+    backgroundColor: 'rgba(15, 92, 92, 0.03)',
+  },
   halo: {
     position: 'absolute',
-    width: 220,
-    height: 220,
     borderRadius: Radii.full,
-    backgroundColor: 'rgba(15, 92, 92, 0.05)',
-    transform: [{ scale: 1.5 }],
+    backgroundColor: 'rgba(15, 92, 92, 0.06)',
   },
   iconCircle: {
-    width: 192,
-    height: 192,
     borderRadius: Radii.full,
     backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: 'rgba(232, 226, 210, 0.4)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(232, 226, 210, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: TEAL,
+    shadowColor: Colors.secondary,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 32,
-    elevation: 4,
-  },
-  mainIcon: {
-    fontSize: 72,
-    lineHeight: 88,
-    ...Platform.select({ android: { includeFontPadding: false } }),
+    shadowOpacity: 0.1,
+    shadowRadius: 30,
+    elevation: 5,
   },
   badge: {
     position: 'absolute',
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: Radii.full,
-    backgroundColor: TEAL,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.16,
+    shadowRadius: 5,
+    elevation: 4,
   },
-  badgeBR: { bottom: -8, right: 16 },
-  badgeTL: { top: -8, left: 16 },
-  badgeOrange: { backgroundColor: ORANGE },
-  badgeIcon: {
-    fontSize: 16,
-    lineHeight: 20,
-    ...Platform.select({ android: { includeFontPadding: false } }),
-  },
+  badgeBR: { bottom: -6, right: 12 },
+  badgeTL: { top: 2, left: 12 },
+  badgeTeal: { backgroundColor: Colors.secondary },
+  badgeOrange: { backgroundColor: Colors.accent },
 
   textBlock: {
     alignItems: 'center',
@@ -364,7 +414,7 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontDisplay,
     fontSize: Typography.size2XL,
     lineHeight: 40,
-    color: TEAL,
+    color: Colors.secondary,
     textAlign: 'center',
     letterSpacing: -0.5,
     marginBottom: Spacing.md,
@@ -389,11 +439,11 @@ const styles = StyleSheet.create({
   primaryBtn: {
     width: '100%',
     minHeight: 56,
-    backgroundColor: TEAL,
+    backgroundColor: Colors.secondary,
     borderRadius: Radii.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: TEAL,
+    shadowColor: Colors.secondary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.22,
     shadowRadius: 14,

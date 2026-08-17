@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { BookOpen, Sparkles, TreePine, Languages, ScrollText } from 'lucide-react-native';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,6 +21,62 @@ interface OnBoarding2Props {
   onNext?: () => void;
   onSkip?: () => void;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Custom SVG Heritage Roots Vector Illustration
+// ─────────────────────────────────────────────────────────────────────────────
+const RootsIllustration: React.FC<{ size: number }> = ({ size }) => {
+  const svgSize = size * 0.58;
+  return (
+    <Svg width={svgSize} height={svgSize} viewBox="0 0 100 100" fill="none">
+      <Defs>
+        <LinearGradient id="treeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <Stop offset="0%" stopColor="#0F5C5C" />
+          <Stop offset="100%" stopColor="#0A3D3D" />
+        </LinearGradient>
+        <LinearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor="#E8792E" />
+          <Stop offset="100%" stopColor="#C9611D" />
+        </LinearGradient>
+      </Defs>
+
+      {/* Ground / Open book foundation base */}
+      <Path
+        d="M20 78 C35 73, 45 74, 50 78 C55 74, 65 73, 80 78"
+        stroke="#0F5C5C"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <Path
+        d="M26 84 C38 80, 46 80.5, 50 84 C54 80.5, 62 80, 74 84"
+        stroke="#E8792E"
+        strokeWidth="2"
+        strokeLinecap="round"
+        opacity={0.8}
+      />
+
+      {/* Main Trunk */}
+      <Path
+        d="M50 78 V46 M46 62 C42 56, 32 52, 26 50 M54 58 C60 52, 70 48, 76 46 M48 48 C44 40, 36 34, 30 32 M52 46 C58 38, 66 34, 72 32 M50 46 V26"
+        stroke="url(#treeGrad)"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* Leaves & Blooms in Accent Orange & Teal */}
+      <Circle cx="50" cy="20" r="6" fill="#0F5C5C" />
+      <Circle cx="30" cy="28" r="5.5" fill="#E8792E" />
+      <Circle cx="70" cy="28" r="5.5" fill="#0F5C5C" />
+      <Circle cx="22" cy="46" r="5" fill="#0F5C5C" />
+      <Circle cx="78" cy="42" r="5" fill="#E8792E" />
+      <Circle cx="40" cy="24" r="4.5" fill="#E8792E" opacity={0.9} />
+      <Circle cx="60" cy="24" r="4.5" fill="#E8792E" opacity={0.9} />
+      <Circle cx="34" cy="38" r="4" fill="#0F5C5C" opacity={0.8} />
+      <Circle cx="66" cy="38" r="4" fill="#0F5C5C" opacity={0.8} />
+    </Svg>
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pagination dots (step 2 of 3 active)
@@ -48,22 +106,22 @@ const dotStyles = StyleSheet.create({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Decorative feature cards (matching the "learn your roots" theme)
+// Feature chips with Lucide Vector Icons
 // ─────────────────────────────────────────────────────────────────────────────
-const FEATURES = [
-  { icon: '🌳', label: 'Family roots' },
-  { icon: '🗣️', label: 'Dialects' },
-  { icon: '🎵', label: 'Traditions' },
-];
-
 const FeatureChips: React.FC = () => (
   <View style={chipStyles.row}>
-    {FEATURES.map((f) => (
-      <View key={f.label} style={chipStyles.chip}>
-        <Text style={chipStyles.icon}>{f.icon}</Text>
-        <Text style={chipStyles.label}>{f.label}</Text>
-      </View>
-    ))}
+    <View style={chipStyles.chip}>
+      <TreePine size={16} color={Colors.secondary} strokeWidth={2} />
+      <Text style={chipStyles.label}>Family roots</Text>
+    </View>
+    <View style={chipStyles.chip}>
+      <Languages size={16} color={Colors.secondary} strokeWidth={2} />
+      <Text style={chipStyles.label}>Dialects</Text>
+    </View>
+    <View style={chipStyles.chip}>
+      <ScrollText size={16} color={Colors.secondary} strokeWidth={2} />
+      <Text style={chipStyles.label}>Traditions</Text>
+    </View>
   </View>
 );
 
@@ -73,7 +131,7 @@ const chipStyles = StyleSheet.create({
     gap: 10,
     flexWrap: 'wrap',
     justifyContent: 'center',
-    marginTop: Spacing.xl,
+    marginTop: Spacing.lg,
   },
   chip: {
     flexDirection: 'row',
@@ -90,11 +148,6 @@ const chipStyles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 1,
-  },
-  icon: {
-    fontSize: 16,
-    lineHeight: 20,
-    ...Platform.select({ android: { includeFontPadding: false } }),
   },
   label: {
     fontFamily: Typography.fontBodyMed,
@@ -163,22 +216,31 @@ export const OnBoarding2: React.FC<OnBoarding2Props> = ({ onNext, onSkip }) => {
         <Animated.View
           style={[
             styles.illustrationWrap,
-            { width: illSize, height: illSize, marginBottom: illMarginBottom,
-              transform: [{ translateY: floatAnim }] },
+            {
+              width: illSize,
+              height: illSize,
+              marginBottom: illMarginBottom,
+              transform: [{ translateY: floatAnim }],
+            },
           ]}
         >
-          <View style={[styles.halo, { width: illSize + 28, height: illSize + 28 }]} />
+          {/* Halos */}
+          <View style={[styles.haloOuter, { width: illSize + 48, height: illSize + 48 }]} />
+          <View style={[styles.halo, { width: illSize + 24, height: illSize + 24 }]} />
 
+          {/* Main Circle */}
           <View style={[styles.iconCircle, { width: illSize, height: illSize }]}>
-            <Text style={[styles.mainIcon, { fontSize: illSize * 0.375 }]}>🌿</Text>
+            <RootsIllustration size={illSize} />
           </View>
 
+          {/* Badge Top-Right: Book */}
           <View style={[styles.badge, styles.badgeTR]}>
-            <Text style={styles.badgeIcon}>📚</Text>
+            <BookOpen size={18} color={Colors.white} strokeWidth={2.2} />
           </View>
 
+          {/* Badge Bottom-Left: Sparkles */}
           <View style={[styles.badge, styles.badgeBL, styles.badgeTeal]}>
-            <Text style={styles.badgeIcon}>⭐</Text>
+            <Sparkles size={18} color={Colors.white} strokeWidth={2.2} />
           </View>
         </Animated.View>
 
@@ -221,9 +283,6 @@ export const OnBoarding2: React.FC<OnBoarding2Props> = ({ onNext, onSkip }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
-const TEAL   = '#0F5C5C';
-const ORANGE = '#E8792E';
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -272,63 +331,50 @@ const styles = StyleSheet.create({
   },
 
   illustrationWrap: {
-    width: 192,
-    height: 192,
-    marginBottom: Spacing.xl * 1.5,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
+  haloOuter: {
+    position: 'absolute',
+    borderRadius: Radii.full,
+    backgroundColor: 'rgba(15, 92, 92, 0.03)',
+  },
   halo: {
     position: 'absolute',
-    width: 220,
-    height: 220,
     borderRadius: Radii.full,
-    backgroundColor: 'rgba(15, 92, 92, 0.05)',
-    transform: [{ scale: 1.5 }],
+    backgroundColor: 'rgba(15, 92, 92, 0.06)',
   },
   iconCircle: {
-    width: 192,
-    height: 192,
     borderRadius: Radii.full,
     backgroundColor: Colors.white,
-    borderWidth: 1,
-    borderColor: 'rgba(232, 226, 210, 0.4)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(232, 226, 210, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: TEAL,
+    shadowColor: Colors.secondary,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 32,
-    elevation: 4,
-  },
-  mainIcon: {
-    fontSize: 72,
-    lineHeight: 88,
-    ...Platform.select({ android: { includeFontPadding: false } }),
+    shadowOpacity: 0.1,
+    shadowRadius: 30,
+    elevation: 5,
   },
   badge: {
     position: 'absolute',
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: Radii.full,
-    backgroundColor: ORANGE,
+    backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.16,
+    shadowRadius: 5,
+    elevation: 4,
   },
-  badgeTR: { top: 4, right: 4 },
-  badgeBL: { bottom: -8, left: 16 },
-  badgeTeal: { backgroundColor: TEAL },
-  badgeIcon: {
-    fontSize: 16,
-    lineHeight: 20,
-    ...Platform.select({ android: { includeFontPadding: false } }),
-  },
+  badgeTR: { top: 2, right: 2 },
+  badgeBL: { bottom: -6, left: 12 },
+  badgeTeal: { backgroundColor: Colors.secondary },
 
   textBlock: {
     alignItems: 'center',
@@ -363,13 +409,13 @@ const styles = StyleSheet.create({
   primaryBtn: {
     width: '100%',
     minHeight: 56,
-    backgroundColor: TEAL,
+    backgroundColor: Colors.secondary,
     borderRadius: Radii.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: TEAL,
+    shadowColor: Colors.secondary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
     shadowRadius: 12,

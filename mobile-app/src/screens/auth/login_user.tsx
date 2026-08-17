@@ -3,6 +3,7 @@ import {
   Animated,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -10,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Smartphone, Delete, Fingerprint } from 'lucide-react-native';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,18 +33,22 @@ interface LoginScreenProps {
 // ─────────────────────────────────────────────────────────────────────────────
 const PIN_LENGTH = 4;
 
-const NUM_PAD_KEYS = [
-  '1', '2', '3',
-  '4', '5', '6',
-  '7', '8', '9',
-  '',  '0', '⌫',
+const PIN_ROWS = [
+  ['1', '2', '3'],
+  ['4', '5', '6'],
+  ['7', '8', '9'],
+  ['', '0', 'delete'],
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PIN dot indicator
 // ─────────────────────────────────────────────────────────────────────────────
 const PinDots: React.FC<{ filled: number }> = ({ filled }) => (
-  <View style={styles.pinDotsRow} accessible accessibilityLabel={`PIN: ${filled} of ${PIN_LENGTH} digits entered`}>
+  <View
+    style={styles.pinDotsRow}
+    accessible
+    accessibilityLabel={`PIN: ${filled} of ${PIN_LENGTH} digits entered`}
+  >
     {Array.from({ length: PIN_LENGTH }).map((_, i) => (
       <View
         key={i}
@@ -83,12 +89,14 @@ const NumKey: React.FC<{
         onPressOut={handlePressOut}
         style={styles.numKey}
         accessibilityRole="button"
-        accessibilityLabel={label === '⌫' ? 'Backspace' : label}
+        accessibilityLabel={label === 'delete' ? 'Backspace' : label}
         hitSlop={8}
       >
-        <Text style={label === '⌫' ? styles.numKeyBackspace : styles.numKeyLabel}>
-          {label}
-        </Text>
+        {label === 'delete' ? (
+          <Delete size={28} color={Colors.secondary} strokeWidth={1.8} />
+        ) : (
+          <Text style={styles.numKeyLabel}>{label}</Text>
+        )}
       </Pressable>
     </Animated.View>
   );
@@ -135,22 +143,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   const [activeTab, setActiveTab] = useState<AuthTab>('pin');
   const [pin, setPin] = useState('');
 
-  // Shake animation for wrong PIN
-  const shakeAnim = useRef(new Animated.Value(0)).current;
-
-  const triggerShake = () => {
-    shakeAnim.setValue(0);
-    Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 8,  duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 6,  duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -6, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 0,  duration: 40, useNativeDriver: true }),
-    ]).start();
-  };
-
   const handleNumKey = (key: string) => {
-    if (key === '⌫') {
+    if (key === 'delete') {
       setPin((p) => p.slice(0, -1));
       return;
     }
@@ -158,16 +152,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     const next = pin + key;
     setPin(next);
 
+    // When 4 digits are entered, immediately navigate to the next screen
     if (next.length === PIN_LENGTH) {
-      // TODO: validate PIN against backend
-      // For now, trigger shake to demonstrate wrong PIN UX
-      setTimeout(triggerShake, 100);
-      setTimeout(() => setPin(''), 600);
+      setTimeout(() => {
+        onLoginSuccess?.();
+      }, 250);
     }
   };
 
   const handleFingerprintPress = () => {
-    // TODO: call LocalAuthentication API
+    // Navigate on fingerprint simulation
+    onLoginSuccess?.();
   };
 
   return (
@@ -175,108 +170,120 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       <StatusBar style="dark" backgroundColor={Colors.dominant} />
 
       {/* ── Ambient glows ────────────────────────────────────────────────── */}
-      <View style={[styles.glow, styles.glowTopLeft]}  pointerEvents="none" />
+      <View style={[styles.glow, styles.glowTopLeft]} pointerEvents="none" />
       <View style={[styles.glow, styles.glowBottomRight]} pointerEvents="none" />
 
-      {/* ── Centred card container ────────────────────────────────────────── */}
-      <View style={styles.container}>
-
-        {/* Heading */}
-        <View style={styles.headingBlock}>
-          <Text style={styles.headline} accessibilityRole="header">
-            Welcome back
-          </Text>
-          <Text style={styles.subheadline}>
-            Log in to continue your curation.
-          </Text>
-        </View>
-
-        {/* Phone number field */}
-        <View style={styles.fieldBlock}>
-          <Text style={styles.fieldLabel}>Phone Number</Text>
-          <View style={styles.inputRow}>
-            <Text style={styles.inputIcon}>📱</Text>
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="(555) 123-4567"
-              placeholderTextColor={Colors.textMuted}
-              keyboardType="phone-pad"
-              textContentType="telephoneNumber"
-              autoComplete="tel"
-              accessibilityLabel="Phone number"
-              returnKeyType="done"
-              {...Platform.select({ android: { includeFontPadding: false } })}
-            />
-          </View>
-        </View>
-
-        {/* Segmented control */}
-        <SegmentedControl active={activeTab} onChange={setActiveTab} />
-
-        {/* ── PIN view ──────────────────────────────────────────────────── */}
-        {activeTab === 'pin' && (
-          <View style={styles.pinView}>
-            {/* PIN dots */}
-            <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
-              <PinDots filled={pin.length} />
-            </Animated.View>
-
-            {/* Numpad grid */}
-            <View style={styles.numPad}>
-              {NUM_PAD_KEYS.map((key, idx) => (
-                <NumKey
-                  key={idx}
-                  label={key}
-                  onPress={() => handleNumKey(key)}
-                />
-              ))}
-            </View>
-
-            {/* Forgot PIN */}
-            <Pressable
-              onPress={onForgotPin}
-              accessibilityRole="link"
-              accessibilityLabel="Forgot PIN?"
-              hitSlop={8}
-            >
-              <Text style={styles.forgotPin}>Forgot PIN?</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* ── Fingerprint view ──────────────────────────────────────────── */}
-        {activeTab === 'fingerprint' && (
-          <View style={styles.fingerprintView}>
-            <Pressable
-              onPress={handleFingerprintPress}
-              style={styles.fingerprintCircle}
-              accessibilityRole="button"
-              accessibilityLabel="Authenticate with fingerprint"
-            >
-              <Text style={styles.fingerprintIcon}>☟</Text>
-            </Pressable>
-            <Text style={styles.fingerprintHint}>
-              Touch the sensor to log in.
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        {/* ── Centred card container ────────────────────────────────────────── */}
+        <View style={styles.container}>
+          {/* Heading */}
+          <View style={styles.headingBlock}>
+            <Text style={styles.headline} accessibilityRole="header">
+              Welcome back
+            </Text>
+            <Text style={styles.subheadline}>
+              Log in to continue your curation.
             </Text>
           </View>
-        )}
 
-      </View>
+          {/* Phone number field */}
+          <View style={styles.fieldBlock}>
+            <Text style={styles.fieldLabel}>Phone Number</Text>
+            <View style={styles.inputRow}>
+              <Smartphone
+                size={22}
+                color={Colors.textMuted}
+                strokeWidth={1.75}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="(555) 123-4567"
+                placeholderTextColor={Colors.textMuted}
+                keyboardType="phone-pad"
+                textContentType="telephoneNumber"
+                autoComplete="tel"
+                accessibilityLabel="Phone number"
+                returnKeyType="done"
+                {...Platform.select({ android: { includeFontPadding: false } })}
+              />
+            </View>
+          </View>
 
-      {/* ── Sign-up footer — fixed at bottom ─────────────────────────────── */}
-      <View style={styles.signUpFooter}>
-        <Text style={styles.signUpPrompt}>Don't have an account? </Text>
-        <Pressable
-          onPress={onSignUp}
-          accessibilityRole="link"
-          accessibilityLabel="Sign up"
-          hitSlop={8}
-        >
-          <Text style={styles.signUpLink}>Sign up</Text>
-        </Pressable>
-      </View>
+          {/* Segmented control */}
+          <SegmentedControl active={activeTab} onChange={setActiveTab} />
+
+          {/* ── PIN view ──────────────────────────────────────────────────── */}
+          {activeTab === 'pin' && (
+            <View style={styles.pinView}>
+              {/* PIN dots */}
+              <PinDots filled={pin.length} />
+
+              {/* 3x4 Numpad Grid */}
+              <View style={styles.numPad}>
+                {PIN_ROWS.map((row, rIdx) => (
+                  <View key={rIdx} style={styles.numRow}>
+                    {row.map((key, kIdx) => (
+                      <NumKey
+                        key={kIdx}
+                        label={key}
+                        onPress={() => handleNumKey(key)}
+                      />
+                    ))}
+                  </View>
+                ))}
+              </View>
+
+              {/* Forgot PIN */}
+              <Pressable
+                onPress={onForgotPin}
+                accessibilityRole="link"
+                accessibilityLabel="Forgot PIN?"
+                hitSlop={8}
+              >
+                <Text style={styles.forgotPin}>Forgot PIN?</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* ── Fingerprint view ──────────────────────────────────────────── */}
+          {activeTab === 'fingerprint' && (
+            <View style={styles.fingerprintView}>
+              <Pressable
+                onPress={handleFingerprintPress}
+                style={styles.fingerprintCircle}
+                accessibilityRole="button"
+                accessibilityLabel="Authenticate with fingerprint"
+              >
+                <Fingerprint size={48} color={Colors.secondary} strokeWidth={1.5} />
+              </Pressable>
+              <Text style={styles.fingerprintHint}>
+                Touch the sensor to log in.
+              </Text>
+            </View>
+          )}
+
+          {/* ── Sign-up footer — directly below PIN / Fingerprint section ───── */}
+          <View style={styles.signUpFooter}>
+            <Text style={styles.signUpPrompt}>Don't have an account? </Text>
+            <Pressable
+              onPress={onSignUp}
+              accessibilityRole="link"
+              accessibilityLabel="Sign up"
+              hitSlop={8}
+            >
+              <Text style={styles.signUpLink}>Sign up</Text>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -288,6 +295,11 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.dominant,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
   },
 
   // ── Ambient glows ─────────────────────────────────────────────────────────
@@ -312,22 +324,25 @@ const styles = StyleSheet.create({
 
   // ── Layout ────────────────────────────────────────────────────────────────
   container: {
-    flex: 1,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
-    // Leave room for the sign-up footer
-    paddingBottom: 72,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
   },
 
   // ── Heading ───────────────────────────────────────────────────────────────
   headingBlock: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
+    width: '100%',
   },
   headline: {
     fontFamily: Typography.fontDisplay,
-    fontSize: Typography.size2XL,
-    lineHeight: 40,
+    fontSize: Typography.size3XL,
+    lineHeight: 44,
     color: Colors.text,
     textAlign: 'center',
     letterSpacing: -0.5,
@@ -345,7 +360,8 @@ const styles = StyleSheet.create({
 
   // ── Phone field ───────────────────────────────────────────────────────────
   fieldBlock: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
+    width: '100%',
   },
   fieldLabel: {
     fontFamily: Typography.fontBodyMed,
@@ -365,7 +381,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(195, 198, 207, 0.8)',
     borderRadius: Radii.lg,
     paddingHorizontal: Spacing.md,
-    height: 56,
+    height: 54,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -373,7 +389,6 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   inputIcon: {
-    fontSize: 20,
     marginRight: Spacing.sm,
   },
   input: {
@@ -391,7 +406,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#dde3ef', // surface-variant
     borderRadius: Radii.lg,
     padding: 4,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
+    width: '100%',
   },
   segmentTab: {
     flex: 1,
@@ -423,35 +439,41 @@ const styles = StyleSheet.create({
   // ── PIN view ──────────────────────────────────────────────────────────────
   pinView: {
     alignItems: 'center',
+    width: '100%',
   },
 
   // PIN dots
   pinDotsRow: {
     flexDirection: 'row',
     gap: 16,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
+    justifyContent: 'center',
   },
   pinDot: {
-    width: 16,
-    height: 16,
+    width: 14,
+    height: 14,
     borderRadius: Radii.full,
   },
   pinDotFilled: {
     backgroundColor: Colors.accent,
   },
   pinDotEmpty: {
-    backgroundColor: 'rgba(195, 198, 207, 0.8)', // outline-variant
+    backgroundColor: '#c3c6cf',
   },
 
-  // Numpad
+  // 3x4 Numpad
   numPad: {
+    width: '100%',
+    maxWidth: 280,
+    gap: 12,
+    marginBottom: Spacing.sm,
+    alignSelf: 'center',
+  },
+  numRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    width: 280,
-    rowGap: 12,
-    columnGap: 0,
-    marginBottom: Spacing.md,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
   },
   numKey: {
     width: 64,
@@ -459,18 +481,12 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 16,
   },
   numKeyLabel: {
     fontFamily: Typography.fontDisplay,
-    fontSize: Typography.sizeXL,
-    lineHeight: 32,
-    color: Colors.secondary,
-    ...Platform.select({ android: { includeFontPadding: false } }),
-  },
-  numKeyBackspace: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: 22,
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '600',
     color: Colors.secondary,
     ...Platform.select({ android: { includeFontPadding: false } }),
   },
@@ -482,7 +498,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     letterSpacing: 0.4,
     color: Colors.textMuted,
-    marginTop: Spacing.xs,
+    textAlign: 'center',
+    paddingVertical: Spacing.xs,
     ...Platform.select({ android: { includeFontPadding: false } }),
   },
 
@@ -495,9 +512,9 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: Radii.full,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: 'rgba(195, 198, 207, 0.4)',
+    backgroundColor: Colors.white,
+    borderWidth: 1.5,
+    borderColor: 'rgba(195, 198, 207, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
@@ -506,10 +523,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: 6,
     elevation: 2,
-  },
-  fingerprintIcon: {
-    fontSize: 44,
-    color: Colors.secondary,
   },
   fingerprintHint: {
     fontFamily: Typography.fontBody,
@@ -522,16 +535,12 @@ const styles = StyleSheet.create({
 
   // ── Sign-up footer ────────────────────────────────────────────────────────
   signUpFooter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: Platform.OS === 'ios' ? Spacing.lg : Spacing.md,
-    paddingTop: Spacing.md,
-    backgroundColor: 'transparent',
+    paddingTop: 24,
+    paddingBottom: Spacing.xs,
+    width: '100%',
   },
   signUpPrompt: {
     fontFamily: Typography.fontBody,

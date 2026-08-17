@@ -35,7 +35,7 @@ export const RootNavigator: React.FC = () => {
     >
       <Stack.Screen name="Loading">
         {({ navigation }) => (
-          <LoadingScreen onFinish={() => navigation.replace('Login')} />
+          <LoadingScreen onFinish={() => navigation.replace('Language')} />
         )}
       </Stack.Screen>
 

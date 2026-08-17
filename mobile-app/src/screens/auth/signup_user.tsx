@@ -1,7 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
-  Animated,
+  FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -12,13 +13,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import {
+  Landmark,
+  ChevronDown,
+  Calendar,
+  Lock,
+  Search,
+  X,
+  Check,
+} from 'lucide-react-native';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-type Step = 'details';
-
 interface SignUpScreenProps {
   /** Called when registration is complete */
   onSignUpSuccess?: () => void;
@@ -29,421 +37,302 @@ interface SignUpScreenProps {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Constants
+// Comprehensive Sri Lankan Cities List
 // ─────────────────────────────────────────────────────────────────────────────
-const PIN_LENGTH = 4;
-
-const NUM_PAD_KEYS = [
-  '1', '2', '3',
-  '4', '5', '6',
-  '7', '8', '9',
-  '',  '0', '⌫',
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Step progress indicator
-// ─────────────────────────────────────────────────────────────────────────────
-const STEPS: Step[] = ['details'];
-
-const StepIndicator: React.FC<{ current: Step }> = ({ current }) => {
-  const idx = STEPS.indexOf(current);
-  return (
-    <View style={stepStyles.row} accessibilityLabel={`Step ${idx + 1} of ${STEPS.length}`}>
-      {STEPS.map((s, i) => (
-        <View key={s} style={stepStyles.item}>
-          <View
-            style={[
-              stepStyles.dot,
-              i < idx  && stepStyles.dotDone,
-              i === idx && stepStyles.dotActive,
-              i > idx  && stepStyles.dotFuture,
-            ]}
-          />
-          {i < STEPS.length - 1 && (
-            <View style={[stepStyles.line, i < idx && stepStyles.lineDone]} />
-          )}
-        </View>
-      ))}
-    </View>
-  );
-};
-
-const stepStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.xl,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: Radii.full,
-  },
-  dotActive: {
-    backgroundColor: Colors.accent,
-    width: 12,
-    height: 12,
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  dotDone: {
-    backgroundColor: Colors.secondary,
-  },
-  dotFuture: {
-    backgroundColor: 'rgba(195, 198, 207, 0.8)',
-  },
-  line: {
-    width: 36,
-    height: 2,
-    backgroundColor: 'rgba(195, 198, 207, 0.8)',
-    marginHorizontal: 4,
-  },
-  lineDone: {
-    backgroundColor: Colors.secondary,
-  },
-});
+const SRI_LANKA_CITIES = [
+  'Ambalangoda',
+  'Ampara',
+  'Anuradhapura',
+  'Avissawella',
+  'Badulla',
+  'Balangoda',
+  'Bandarawela',
+  'Batticaloa',
+  'Bentota',
+  'Beruwala',
+  'Chilaw',
+  'Colombo',
+  'Dambulla',
+  'Dehiwala-Mount Lavinia',
+  'Embilipitiya',
+  'Eravur',
+  'Galle',
+  'Gampaha',
+  'Gampola',
+  'Hambantota',
+  'Haputale',
+  'Hatton',
+  'Hikkaduwa',
+  'Homagama',
+  'Horana',
+  'Ja-Ela',
+  'Jaffna',
+  'Kadawatha',
+  'Kalmunai',
+  'Kalutara',
+  'Kandy',
+  'Kattankudy',
+  'Kegalle',
+  'Kelaniya',
+  'Kesbewa',
+  'Kilinochchi',
+  'Kuliyapitiya',
+  'Kurunegala',
+  'Maharagama',
+  'Mahiyanganaya',
+  'Mannar',
+  'Matale',
+  'Matara',
+  'Mawanella',
+  'Minuwangoda',
+  'Monaragala',
+  'Moratuwa',
+  'Mullaitivu',
+  'Nawalapitiya',
+  'Negombo',
+  'Nugegoda',
+  'Nuwara Eliya',
+  'Panadura',
+  'Peliyagoda',
+  'Peradeniya',
+  'Point Pedro',
+  'Polonnaruwa',
+  'Puttalam',
+  'Ragama',
+  'Ratnapura',
+  'Seeduwa',
+  'Sri Jayawardenepura Kotte',
+  'Tangalle',
+  'Trincomalee',
+  'Valvettithurai',
+  'Vavuniya',
+  'Wattala',
+  'Weligama',
+].sort();
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Labelled text input field
+// City Selection Modal Subcomponent
 // ─────────────────────────────────────────────────────────────────────────────
-interface FieldProps {
-  label: string;
-  icon: string;
-  value: string;
-  onChangeText: (t: string) => void;
-  placeholder?: string;
-  keyboardType?: TextInput['props']['keyboardType'];
-  textContentType?: TextInput['props']['textContentType'];
-  autoComplete?: TextInput['props']['autoComplete'];
-  error?: string;
-  secureTextEntry?: boolean;
+interface CityModalProps {
+  visible: boolean;
+  selectedCity: string;
+  onSelect: (city: string) => void;
+  onClose: () => void;
 }
 
-const Field: React.FC<FieldProps> = ({
-  label,
-  icon,
-  value,
-  onChangeText,
-  placeholder,
-  keyboardType = 'default',
-  textContentType,
-  autoComplete,
-  error,
-  secureTextEntry,
+const CitySelectionModal: React.FC<CityModalProps> = ({
+  visible,
+  selectedCity,
+  onSelect,
+  onClose,
 }) => {
-  const [focused, setFocused] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const filtered = SRI_LANKA_CITIES.filter((c) =>
+    c.toLowerCase().includes(query.toLowerCase()),
+  );
 
   return (
-    <View style={fieldStyles.block}>
-      <Text style={fieldStyles.label}>{label}</Text>
-      <View
-        style={[
-          fieldStyles.row,
-          focused && fieldStyles.rowFocused,
-          !!error && fieldStyles.rowError,
-        ]}
-      >
-        <Text style={fieldStyles.icon}>{icon}</Text>
-        <TextInput
-          style={fieldStyles.input}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={Colors.textMuted}
-          keyboardType={keyboardType}
-          textContentType={textContentType}
-          autoComplete={autoComplete}
-          secureTextEntry={secureTextEntry}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          accessibilityLabel={label}
-          returnKeyType="next"
-          {...Platform.select({ android: { includeFontPadding: false } })}
-        />
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <View style={modalStyles.backdrop}>
+        <View style={modalStyles.container}>
+          {/* Header */}
+          <View style={modalStyles.header}>
+            <Text style={modalStyles.title}>Select City</Text>
+            <Pressable onPress={onClose} hitSlop={8} style={modalStyles.closeBtn}>
+              <X size={22} color={Colors.text} />
+            </Pressable>
+          </View>
+
+          {/* Search Box */}
+          <View style={modalStyles.searchRow}>
+            <Search size={18} color={Colors.textMuted} style={{ marginRight: 8 }} />
+            <TextInput
+              style={modalStyles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search city in Sri Lanka..."
+              placeholderTextColor={Colors.textMuted}
+              autoCapitalize="none"
+              returnKeyType="done"
+              clearButtonMode="while-editing"
+            />
+          </View>
+
+          {/* List */}
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => {
+              const isSelected = item === selectedCity;
+              return (
+                <Pressable
+                  onPress={() => {
+                    onSelect(item);
+                    onClose();
+                  }}
+                  style={[
+                    modalStyles.cityItem,
+                    isSelected && modalStyles.cityItemSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      modalStyles.cityText,
+                      isSelected && modalStyles.cityTextSelected,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                  {isSelected && <Check size={18} color={Colors.secondary} />}
+                </Pressable>
+              );
+            }}
+            ListEmptyComponent={
+              <View style={modalStyles.empty}>
+                <Text style={modalStyles.emptyText}>No city found matching "{query}"</Text>
+              </View>
+            }
+          />
+        </View>
       </View>
-      {!!error && <Text style={fieldStyles.errorText}>{error}</Text>}
-    </View>
+    </Modal>
   );
 };
 
-const fieldStyles = StyleSheet.create({
-  block: {
+const modalStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  container: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: Radii.xl,
+    borderTopRightRadius: Radii.xl,
+    height: '75%',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Platform.OS === 'ios' ? Spacing.xl : Spacing.md,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: Spacing.md,
   },
-  label: {
-    fontFamily: Typography.fontBodyMed,
-    fontSize: Typography.sizeSM,
-    lineHeight: 20,
-    letterSpacing: 0.5,
-    color: Colors.textMuted,
-    marginBottom: Spacing.xs,
-    marginLeft: 4,
-    ...Platform.select({ android: { includeFontPadding: false } }),
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.white,
-    borderWidth: 1.5,
-    borderColor: 'rgba(195, 198, 207, 0.8)',
-    borderRadius: Radii.lg,
-    paddingHorizontal: Spacing.md,
-    height: 56,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  rowFocused: {
-    borderColor: Colors.secondary,
-  },
-  rowError: {
-    borderColor: '#ba1a1a',
-  },
-  icon: {
-    fontSize: 20,
-    marginRight: Spacing.sm,
-  },
-  input: {
-    flex: 1,
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeLG,
-    lineHeight: 28,
-    color: Colors.text,
-    ...Platform.select({ android: { includeFontPadding: false } }),
-  },
-  errorText: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeSM,
-    lineHeight: 18,
-    color: '#ba1a1a',
-    marginTop: 4,
-    marginLeft: 4,
-    ...Platform.select({ android: { includeFontPadding: false } }),
-  },
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PIN dot indicator
-// ─────────────────────────────────────────────────────────────────────────────
-const PinDots: React.FC<{ filled: number; error?: boolean }> = ({ filled, error }) => (
-  <View
-    style={pinStyles.dotsRow}
-    accessible
-    accessibilityLabel={`PIN: ${filled} of ${PIN_LENGTH} digits entered`}
-  >
-    {Array.from({ length: PIN_LENGTH }).map((_, i) => (
-      <View
-        key={i}
-        style={[
-          pinStyles.dot,
-          i < filled
-            ? error
-              ? pinStyles.dotError
-              : pinStyles.dotFilled
-            : pinStyles.dotEmpty,
-        ]}
-      />
-    ))}
-  </View>
-);
-
-const pinStyles = StyleSheet.create({
-  dotsRow: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: Spacing.xl,
-  },
-  dot: {
-    width: 16,
-    height: 16,
-    borderRadius: Radii.full,
-  },
-  dotFilled: { backgroundColor: Colors.accent },
-  dotEmpty:  { backgroundColor: 'rgba(195, 198, 207, 0.8)' },
-  dotError:  { backgroundColor: '#ba1a1a' },
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Numpad key
-// ─────────────────────────────────────────────────────────────────────────────
-const NumKey: React.FC<{ label: string; onPress: () => void }> = ({
-  label,
-  onPress,
-}) => {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const pressIn  = () =>
-    Animated.timing(scale, { toValue: 0.88, duration: 80,  useNativeDriver: true }).start();
-  const pressOut = () =>
-    Animated.timing(scale, { toValue: 1,    duration: 120, useNativeDriver: true }).start();
-
-  if (label === '') return <View style={numStyles.key} />;
-
-  return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <Pressable
-        onPress={onPress}
-        onPressIn={pressIn}
-        onPressOut={pressOut}
-        style={numStyles.key}
-        accessibilityRole="button"
-        accessibilityLabel={label === '⌫' ? 'Backspace' : label}
-        hitSlop={8}
-      >
-        <Text style={label === '⌫' ? numStyles.backspace : numStyles.digit}>
-          {label}
-        </Text>
-      </Pressable>
-    </Animated.View>
-  );
-};
-
-const numStyles = StyleSheet.create({
-  key: {
-    width: 64,
-    height: 64,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 16,
-  },
-  digit: {
+  title: {
     fontFamily: Typography.fontDisplay,
     fontSize: Typography.sizeXL,
-    lineHeight: 32,
     color: Colors.secondary,
-    ...Platform.select({ android: { includeFontPadding: false } }),
   },
-  backspace: {
+  closeBtn: {
+    padding: 4,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.dominant,
+    borderRadius: Radii.md,
+    paddingHorizontal: Spacing.md,
+    height: 48,
+    marginBottom: Spacing.md,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeMD,
+    color: Colors.text,
+  },
+  cityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(195, 198, 207, 0.4)',
+  },
+  cityItemSelected: {
+    backgroundColor: 'rgba(15, 92, 92, 0.05)',
+    borderRadius: Radii.sm,
+  },
+  cityText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeMD,
+    color: Colors.text,
+  },
+  cityTextSelected: {
     fontFamily: Typography.fontBodySemi,
-    fontSize: 22,
     color: Colors.secondary,
-    ...Platform.select({ android: { includeFontPadding: false } }),
+  },
+  empty: {
+    paddingVertical: Spacing.xl,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeMD,
+    color: Colors.textMuted,
   },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main screen
+// Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
 export const SignUpScreen: React.FC<SignUpScreenProps> = ({
   onSignUpSuccess,
   onLogin,
   onSetPhoto,
 }) => {
-  // ── State ─────────────────────────────────────────────────────────────────
-  const [step] = useState<Step>('details');
+  // Form State
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [city, setCity] = useState('');
+  const [dob, setDob] = useState('');
+  const [nic, setNic] = useState('');
 
-  // Step 1 – personal details
-  const [fullName, setFullName]   = useState('');
-  const [phone,    setPhone]      = useState('');
-  const [nameErr,  setNameErr]    = useState('');
-  const [phoneErr, setPhoneErr]   = useState('');
+  // Modal State
+  const [cityModalVisible, setCityModalVisible] = useState(false);
 
-  // Animations
-  const slideAnim   = useRef(new Animated.Value(0)).current;
+  // Errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  const slideIn = () => {
-    slideAnim.setValue(40);
-    Animated.spring(slideAnim, {
-      toValue: 0,
-      tension: 60,
-      friction: 8,
-      useNativeDriver: true,
-    }).start();
+  // Auto-format Date of Birth (mm/dd/yyyy)
+  const handleDobChange = (text: string) => {
+    // Strip non-digits
+    const cleaned = text.replace(/\D/g, '');
+    let formatted = cleaned;
+    if (cleaned.length > 2 && cleaned.length <= 4) {
+      formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+    } else if (cleaned.length > 4) {
+      formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
+    }
+    setDob(formatted);
   };
 
-  // ── Step 1 validation ─────────────────────────────────────────────────────
-  const handleDetailsContinue = () => {
-    let valid = true;
-    if (!fullName.trim()) {
-      setNameErr('Full name is required.');
-      valid = false;
-    } else {
-      setNameErr('');
-    }
-    const digitsOnly = phone.replace(/\D/g, '');
-    if (digitsOnly.length < 7) {
-      setPhoneErr('Enter a valid phone number.');
-      valid = false;
-    } else {
-      setPhoneErr('');
-    }
-    if (valid) onSetPhoto?.();
-  };
+  // Validation & Submission
+  const handleCreateAccount = () => {
+    const newErrors: Record<string, string> = {};
 
-  // ── Render ────────────────────────────────────────────────────────────────
-  const renderContent = () => {
-    // ── Step 1: Personal details ─────────────────────────────────────────
-    if (step === 'details') {
-      return (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1 }}
-        >
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <Animated.View style={{ transform: [{ translateY: slideAnim }] }}>
+    if (!fullName.trim()) newErrors.fullName = 'Full name is required';
+    if (!phone.trim()) newErrors.phone = 'Phone number is required';
+    if (!city.trim()) newErrors.city = 'Please select your city';
+    if (!dob.trim()) newErrors.dob = 'Date of birth is required';
+    if (!nic.trim()) newErrors.nic = 'NIC number is required';
 
-              <View style={styles.headingBlock}>
-                <Text style={styles.headline} accessibilityRole="header">
-                  Setup account
-                </Text>
-                <Text style={styles.subheadline}>
-                  Start preserving voices, one story at a time.
-                </Text>
-              </View>
+    setErrors(newErrors);
 
-              <Field
-                label="Full Name"
-                icon="👤"
-                value={fullName}
-                onChangeText={setFullName}
-                placeholder="Your full name"
-                textContentType="name"
-                autoComplete="name"
-                error={nameErr}
-              />
-
-              <Field
-                label="Phone Number"
-                icon="📱"
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="(555) 123-4567"
-                keyboardType="phone-pad"
-                textContentType="telephoneNumber"
-                autoComplete="tel"
-                error={phoneErr}
-              />
-
-              <Pressable
-                onPress={handleDetailsContinue}
-                style={styles.primaryBtn}
-                accessibilityRole="button"
-                accessibilityLabel="Continue"
-              >
-                <Text style={styles.primaryBtnText}>Continue</Text>
-              </Pressable>
-
-            </Animated.View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      );
+    if (Object.keys(newErrors).length === 0) {
+      onSetPhoto?.();
+      onSignUpSuccess?.();
     }
   };
 
@@ -452,31 +341,225 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
       <StatusBar style="dark" backgroundColor={Colors.dominant} />
 
       {/* ── Ambient glows ─────────────────────────────────────────────────── */}
-      <View style={[styles.glow, styles.glowTopLeft]}  pointerEvents="none" />
+      <View style={[styles.glow, styles.glowTopLeft]} pointerEvents="none" />
       <View style={[styles.glow, styles.glowBottomRight]} pointerEvents="none" />
 
-      {/* ── Step indicator ─────────────────────────────────────────────────── */}
-      <View style={styles.stepRow}>
-        <StepIndicator current={step} />
-      </View>
-
-      {/* ── Page content (per-step) ─────────────────────────────────────────── */}
-      <View style={styles.body}>
-        {renderContent()}
-      </View>
-
-      {/* ── "Already have an account? Log in" footer ─────────────────────── */}
-      <View style={styles.loginFooter}>
-        <Text style={styles.loginPrompt}>Already have an account? </Text>
-        <Pressable
-          onPress={onLogin}
-          accessibilityRole="link"
-          accessibilityLabel="Log in"
-          hitSlop={8}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.loginLink}>Log in</Text>
-        </Pressable>
-      </View>
+          {/* Top Brand Header */}
+          <View style={styles.brandHeader}>
+            <Landmark size={26} color={Colors.secondary} strokeWidth={2} style={styles.brandIcon} />
+            <Text style={styles.brandTitle}>Legacy Lens</Text>
+          </View>
+
+          {/* Main Card Container */}
+          <View style={styles.card}>
+            {/* Card Header */}
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>Create your account</Text>
+              <Text style={styles.cardSubtitle}>
+                This helps us keep Legacy Lens safe for everyone.
+              </Text>
+            </View>
+
+            {/* Field 1: Full Name */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Full Name</Text>
+              <View
+                style={[
+                  styles.inputBox,
+                  !!errors.fullName && styles.inputBoxError,
+                ]}
+              >
+                <TextInput
+                  style={styles.textInput}
+                  value={fullName}
+                  onChangeText={(t) => {
+                    setFullName(t);
+                    if (errors.fullName) setErrors((e) => ({ ...e, fullName: '' }));
+                  }}
+                  placeholder="Enter your full name"
+                  placeholderTextColor={Colors.textMuted}
+                  autoCapitalize="words"
+                  autoComplete="name"
+                  textContentType="name"
+                  returnKeyType="next"
+                  {...Platform.select({ android: { includeFontPadding: false } })}
+                />
+              </View>
+              {!!errors.fullName && (
+                <Text style={styles.errorMsg}>{errors.fullName}</Text>
+              )}
+            </View>
+
+            {/* Field 2: Phone Number */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Phone Number</Text>
+              <View
+                style={[
+                  styles.inputBox,
+                  !!errors.phone && styles.inputBoxError,
+                ]}
+              >
+                <TextInput
+                  style={styles.textInput}
+                  value={phone}
+                  onChangeText={(t) => {
+                    setPhone(t);
+                    if (errors.phone) setErrors((e) => ({ ...e, phone: '' }));
+                  }}
+                  placeholder="Enter your phone number"
+                  placeholderTextColor={Colors.textMuted}
+                  keyboardType="phone-pad"
+                  autoComplete="tel"
+                  textContentType="telephoneNumber"
+                  returnKeyType="next"
+                  {...Platform.select({ android: { includeFontPadding: false } })}
+                />
+              </View>
+              {!!errors.phone && (
+                <Text style={styles.errorMsg}>{errors.phone}</Text>
+              )}
+            </View>
+
+            {/* Field 3: City Dropdown */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>City</Text>
+              <Pressable
+                onPress={() => {
+                  setCityModalVisible(true);
+                  if (errors.city) setErrors((e) => ({ ...e, city: '' }));
+                }}
+                style={[
+                  styles.inputBox,
+                  styles.dropdownBox,
+                  !!errors.city && styles.inputBoxError,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Select City"
+              >
+                <Text
+                  style={[
+                    styles.dropdownText,
+                    !city && styles.placeholderText,
+                  ]}
+                >
+                  {city || 'Select your city'}
+                </Text>
+                <ChevronDown size={20} color={Colors.accent} strokeWidth={2.2} />
+              </Pressable>
+              {!!errors.city && (
+                <Text style={styles.errorMsg}>{errors.city}</Text>
+              )}
+            </View>
+
+            {/* Field 4: Date of Birth */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Date of Birth</Text>
+              <View
+                style={[
+                  styles.inputBox,
+                  !!errors.dob && styles.inputBoxError,
+                ]}
+              >
+                <TextInput
+                  style={styles.textInput}
+                  value={dob}
+                  onChangeText={(t) => {
+                    handleDobChange(t);
+                    if (errors.dob) setErrors((e) => ({ ...e, dob: '' }));
+                  }}
+                  placeholder="mm/dd/yyyy"
+                  placeholderTextColor={Colors.textMuted}
+                  keyboardType="numeric"
+                  maxLength={10}
+                  returnKeyType="next"
+                  {...Platform.select({ android: { includeFontPadding: false } })}
+                />
+                <Calendar size={19} color={Colors.text} strokeWidth={1.75} style={{ marginRight: 2 }} />
+              </View>
+              {!!errors.dob && (
+                <Text style={styles.errorMsg}>{errors.dob}</Text>
+              )}
+            </View>
+
+            {/* Field 5: NIC Number */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>NIC Number</Text>
+              <View
+                style={[
+                  styles.inputBox,
+                  !!errors.nic && styles.inputBoxError,
+                ]}
+              >
+                <TextInput
+                  style={styles.textInput}
+                  value={nic}
+                  onChangeText={(t) => {
+                    setNic(t);
+                    if (errors.nic) setErrors((e) => ({ ...e, nic: '' }));
+                  }}
+                  placeholder="Enter your NIC number"
+                  placeholderTextColor={Colors.textMuted}
+                  autoCapitalize="characters"
+                  returnKeyType="done"
+                  {...Platform.select({ android: { includeFontPadding: false } })}
+                />
+              </View>
+              {!!errors.nic && (
+                <Text style={styles.errorMsg}>{errors.nic}</Text>
+              )}
+
+              {/* NIC privacy note */}
+              <View style={styles.privacyNoteRow}>
+                <Lock size={13} color={Colors.accent} strokeWidth={2} style={{ marginTop: 2, marginRight: 6 }} />
+                <Text style={styles.privacyNoteText}>
+                  Used only to verify you're a valid citizen — never shown publicly.
+                </Text>
+              </View>
+            </View>
+
+            {/* Submit CTA Button */}
+            <Pressable
+              onPress={handleCreateAccount}
+              style={styles.submitBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Create Account"
+            >
+              <Text style={styles.submitBtnText}>Create Account</Text>
+            </Pressable>
+
+            {/* Card Footer: Already have an account? Log in. */}
+            <View style={styles.cardFooter}>
+              <Text style={styles.footerPrompt}>Already have an account? </Text>
+              <Pressable
+                onPress={onLogin}
+                accessibilityRole="link"
+                accessibilityLabel="Log in"
+                hitSlop={8}
+              >
+                <Text style={styles.footerLink}>Log in.</Text>
+              </Pressable>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Sri Lanka City Selection Modal */}
+      <CitySelectionModal
+        visible={cityModalVisible}
+        selectedCity={city}
+        onSelect={setCity}
+        onClose={() => setCityModalVisible(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -489,6 +572,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.dominant,
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xl,
+    alignItems: 'center',
+  },
 
   // ── Ambient glows ─────────────────────────────────────────────────────────
   glow: {
@@ -496,137 +588,187 @@ const styles = StyleSheet.create({
     borderRadius: Radii.full,
   },
   glowTopLeft: {
-    width: 300,
-    height: 300,
+    width: 320,
+    height: 320,
     top: -80,
     left: -80,
     backgroundColor: 'rgba(15, 92, 92, 0.07)',
   },
   glowBottomRight: {
-    width: 260,
-    height: 260,
+    width: 280,
+    height: 280,
     bottom: -60,
     right: -60,
     backgroundColor: 'rgba(232, 121, 46, 0.06)',
   },
 
-  // ── Step indicator wrapper ─────────────────────────────────────────────────
-  stepRow: {
-    paddingTop: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-  },
-
-  // ── Body ──────────────────────────────────────────────────────────────────
-  body: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
-    // bottom room for footer
-    paddingBottom: 72,
-  },
-
-  // ── Scroll (Step 1) ────────────────────────────────────────────────────────
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: Spacing.xl,
-  },
-
-  // ── Heading ───────────────────────────────────────────────────────────────
-  headingBlock: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  headline: {
-    fontFamily: Typography.fontDisplay,
-    fontSize: Typography.size2XL,
-    lineHeight: 40,
-    color: Colors.text,
-    textAlign: 'center',
-    letterSpacing: -0.5,
-    marginBottom: Spacing.xs,
-    ...Platform.select({ android: { includeFontPadding: false } }),
-  },
-  subheadline: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeLG,
-    lineHeight: 28,
-    color: Colors.textMuted,
-    textAlign: 'center',
-    ...Platform.select({ android: { includeFontPadding: false } }),
-  },
-
-  // ── Primary CTA (step 1) ───────────────────────────────────────────────────
-  primaryBtn: {
-    width: '100%',
-    minHeight: 56,
-    backgroundColor: Colors.secondary,
-    borderRadius: Radii.lg,
+  // ── Brand Header ──────────────────────────────────────────────────────────
+  brandHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: Spacing.md,
+    marginBottom: Spacing.lg,
+    marginTop: Spacing.xs,
+  },
+  brandIcon: {
+    marginRight: Spacing.sm,
+  },
+  brandTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: 24,
+    lineHeight: 30,
+    color: Colors.secondary,
+    letterSpacing: -0.4,
+    ...Platform.select({ android: { includeFontPadding: false } }),
+  },
+
+  // ── White Card ────────────────────────────────────────────────────────────
+  card: {
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    width: '100%',
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: 'rgba(195, 198, 207, 0.35)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  cardHeader: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  cardTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: 26,
+    lineHeight: 34,
+    color: Colors.secondary,
+    textAlign: 'center',
+    marginBottom: 6,
+    ...Platform.select({ android: { includeFontPadding: false } }),
+  },
+  cardSubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    maxWidth: 280,
+    ...Platform.select({ android: { includeFontPadding: false } }),
+  },
+
+  // ── Field Groups ──────────────────────────────────────────────────────────
+  fieldGroup: {
+    marginBottom: 16,
+    width: '100%',
+  },
+  fieldLabel: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.text,
+    marginBottom: 6,
+    marginLeft: 2,
+    ...Platform.select({ android: { includeFontPadding: false } }),
+  },
+  inputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderWidth: 1.5,
+    borderColor: 'rgba(195, 198, 207, 0.8)',
+    borderRadius: Radii.md,
+    paddingHorizontal: 14,
+    height: 50,
+  },
+  inputBoxError: {
+    borderColor: '#ba1a1a',
+  },
+  textInput: {
+    flex: 1,
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeMD,
+    color: Colors.text,
+    ...Platform.select({ android: { includeFontPadding: false } }),
+  },
+  dropdownBox: {
+    justifyContent: 'space-between',
+  },
+  dropdownText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeMD,
+    color: Colors.text,
+    ...Platform.select({ android: { includeFontPadding: false } }),
+  },
+  placeholderText: {
+    color: Colors.textMuted,
+  },
+  errorMsg: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeXS,
+    color: '#ba1a1a',
+    marginTop: 4,
+    marginLeft: 4,
+  },
+
+  // ── NIC Privacy Note ──────────────────────────────────────────────────────
+  privacyNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 6,
+    paddingHorizontal: 2,
+  },
+  privacyNoteText: {
+    flex: 1,
+    fontFamily: Typography.fontBody,
+    fontSize: 11,
+    lineHeight: 16,
+    color: Colors.textMuted,
+    ...Platform.select({ android: { includeFontPadding: false } }),
+  },
+
+  // ── Submit Button ─────────────────────────────────────────────────────────
+  submitBtn: {
+    backgroundColor: Colors.secondary,
+    height: 52,
+    borderRadius: Radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: Spacing.lg,
     shadowColor: Colors.secondary,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  primaryBtnText: {
+  submitBtnText: {
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeMD,
-    lineHeight: 24,
-    letterSpacing: 0.5,
     color: Colors.white,
-    ...Platform.select({ android: { includeFontPadding: false } }),
-  },
-
-  // ── PIN view (steps 2 & 3) ─────────────────────────────────────────────────
-  pinView: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  numPad: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    width: 280,
-    rowGap: 12,
-    columnGap: 0,
-  },
-  forgotPin: {
-    fontFamily: Typography.fontBodyMed,
-    fontSize: Typography.sizeSM,
-    lineHeight: 20,
     letterSpacing: 0.4,
-    color: Colors.textMuted,
     ...Platform.select({ android: { includeFontPadding: false } }),
   },
 
-  // ── Login footer ──────────────────────────────────────────────────────────
-  loginFooter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  // ── Card Footer ───────────────────────────────────────────────────────────
+  cardFooter: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: Platform.OS === 'ios' ? Spacing.lg : Spacing.md,
-    paddingTop: Spacing.md,
-    backgroundColor: 'transparent',
   },
-  loginPrompt: {
+  footerPrompt: {
     fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeMD,
-    lineHeight: 24,
+    fontSize: 14,
     color: Colors.textMuted,
     ...Platform.select({ android: { includeFontPadding: false } }),
   },
-  loginLink: {
+  footerLink: {
     fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeMD,
-    lineHeight: 24,
+    fontSize: 14,
     color: Colors.accent,
     ...Platform.select({ android: { includeFontPadding: false } }),
   },
