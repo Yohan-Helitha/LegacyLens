@@ -1,10 +1,12 @@
 package lk.ac.sliit.legacylens.auth.service;
 
 import lk.ac.sliit.legacylens.auth.dto.AuthResponse;
+import lk.ac.sliit.legacylens.auth.dto.ForgotPinRequest;
 import lk.ac.sliit.legacylens.auth.dto.LoginRequest;
 import lk.ac.sliit.legacylens.auth.dto.RegisterRequest;
 import lk.ac.sliit.legacylens.auth.dto.RegisterResponse;
 import lk.ac.sliit.legacylens.auth.dto.ResendOtpRequest;
+import lk.ac.sliit.legacylens.auth.dto.ResetPinRequest;
 import lk.ac.sliit.legacylens.auth.dto.VerifyOtpRequest;
 import lk.ac.sliit.legacylens.auth.entity.OtpPurpose;
 import lk.ac.sliit.legacylens.auth.security.JwtService;
@@ -14,6 +16,7 @@ import lk.ac.sliit.legacylens.common.exception.DuplicatePhoneNumberException;
 import lk.ac.sliit.legacylens.common.exception.InvalidCredentialsException;
 import lk.ac.sliit.legacylens.common.exception.InvalidOtpException;
 import lk.ac.sliit.legacylens.common.exception.PhoneNotVerifiedException;
+import lk.ac.sliit.legacylens.common.exception.PinMismatchException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.users.entity.AccountStatus;
 import lk.ac.sliit.legacylens.users.entity.RoleStatus;
@@ -33,7 +36,7 @@ import java.util.stream.Collectors;
 
 /**
  * Orchestrates registration, OTP-gated activation, and login.
- * Delegates OTP mechanics to OtpService and token creation to JwtService
+ * Delegates OTP mechanics to OtpService and token creation to JwtService —
  * this class only coordinates them (Single Responsibility).
  */
 @Service
@@ -146,6 +149,34 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidCredentialsException("Invalid phone number or PIN");
         }
 
+        user.setFailedPinAttempts(0);
+        userRepository.save(user);
+
+        return buildAuthResponse(user);
+    }
+
+    @Override
+    public void forgotPin(ForgotPinRequest request) {
+        // Deliberately silent on whether the phone number exists — we only
+        // send an OTP if it does, but the caller sees the same response
+        // either way, so we don't leak which numbers are registered.
+        userRepository.findByPhoneNumber(request.getPhoneNumber())
+                .ifPresent(user -> otpService.issueOtp(user.getPhoneNumber(), OtpPurpose.PIN_RESET));
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse resetPin(ResetPinRequest request) {
+        if (!request.getNewPin().equals(request.getConfirmNewPin())) {
+            throw new PinMismatchException("New PIN and confirmation do not match");
+        }
+
+        otpService.verifyOtp(request.getPhoneNumber(), request.getOtpCode(), OtpPurpose.PIN_RESET);
+
+        User user = userRepository.findByPhoneNumber(request.getPhoneNumber())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        user.setPinHash(passwordEncoder.encode(request.getNewPin()));
         user.setFailedPinAttempts(0);
         userRepository.save(user);
 
