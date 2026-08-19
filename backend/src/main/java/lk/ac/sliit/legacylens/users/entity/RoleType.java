@@ -8,11 +8,11 @@ package lk.ac.sliit.legacylens.users.entity;
 public enum RoleType {
     /** Default role assigned at registration. */
     GENERAL_USER,
-    /** Elder / knowledge-holder — can record and share stories. */
+    /** Elder / knowledge-holder can record and share stories. */
     ELDER,
-    /** Youth content creator — can take on marketplace jobs. */
+    /** Youth content creator can take on marketplace jobs. */
     YOUTH_CREATOR,
-    /** Youth learner — consumes archived content and lessons. */
+    /** Youth learner consumes archived content and lessons. */
     YOUTH_LEARNER,
     /** Platform administrator / moderator. */
     ADMIN

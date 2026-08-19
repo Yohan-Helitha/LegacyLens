@@ -12,8 +12,8 @@ import java.util.UUID;
 
 /**
  * Extended profile for users who hold the ELDER role (knowledge holders).
- * One-to-one relationship with the `users` table.
- * Maps to the `knowledge_holder_profiles` table.
+ * One to one relationship with the `users` table.
+ * Maps to the `knowledg holder profiles` table.
  */
 @Entity
 @Table(name = "knowledge_holder_profiles")
@@ -27,7 +27,7 @@ public class KnowledgeHolderProfile {
     @Column(columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID id;
 
-    /** Back-reference to the owning user. Each user may have at most one elder profile. */
+    /** Back reference to the owning user. Each user may have at most one elder profile. */
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
@@ -37,14 +37,14 @@ public class KnowledgeHolderProfile {
     private String primaryRegion;
 
     /**
-     * Comma-separated or free-text description of topics the elder can speak about.
+     * Comma separated or free-text description of topics the elder can speak about.
      * Stored as TEXT to allow long lists.
      */
     @Column(name = "known_topics", columnDefinition = "TEXT")
     private String knownTopics;
 
     /**
-     * Platform-computed trust score (0.00–100.00).
+     * Platform-computed trust score (0.00 100.00).
      * Increases as content is validated by the community.
      */
     @Column(name = "trust_score", nullable = false, precision = 5, scale = 2)

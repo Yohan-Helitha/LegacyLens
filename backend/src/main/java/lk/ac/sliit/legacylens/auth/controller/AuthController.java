@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Public auth endpoints — all permitted without a token (see SecurityConfig).
+ * Public auth endpoints all permitted without a token (see SecurityConfig).
  * Thin by design: validates input via @Valid, delegates everything to AuthService.
  */
 @RestController

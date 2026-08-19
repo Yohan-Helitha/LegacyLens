@@ -12,8 +12,8 @@ import java.util.UUID;
 
 /**
  * Extended profile for users who hold the YOUTH_CREATOR role.
- * One-to-one relationship with the `users` table.
- * Maps to the `creator_profiles` table.
+ * One to one relationship with the `users` table.
+ * Maps to the `creator profiles` table.
  */
 @Entity
 @Table(name = "creator_profiles")
@@ -27,20 +27,20 @@ public class CreatorProfile {
     @Column(columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID id;
 
-    /** Back-reference to the owning user. Each user may have at most one creator profile. */
+    /** Back reference to the owning user. Each user may have at most one creator profile. */
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
     /**
-     * Comma-separated or free-text list of skills the creator offers
+     * Comma separated or free text list of skills the creator offers
      * (e.g. "Video Editing, Photography, Translation").
      */
     @Column(columnDefinition = "TEXT")
     private String skills;
 
     /**
-     * Comma-separated or free-text list of the creator's cultural/domain interests.
+     * Comma separated or free text list of the creator's cultural/domain interests.
      */
     @Column(columnDefinition = "TEXT")
     private String interests;
@@ -54,7 +54,7 @@ public class CreatorProfile {
     private VerificationStatus verificationStatus = VerificationStatus.PENDING;
 
     /**
-     * Aggregate star rating from job completions (0.00–5.00).
+     * Aggregate star rating from job completions (0.00 5.00).
      * Nullable until the creator completes at least one job.
      */
     @Column(precision = 3, scale = 2)

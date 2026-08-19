@@ -13,7 +13,7 @@ import java.util.UUID;
  * Loads a User for Spring Security given the user's UUID as a string.
  *
  * Note: the "username" here is the JWT subject (user id), not the phone
- * number — this service is only ever called by JwtAuthenticationFilter
+ * number this service is only ever called by JwtAuthenticationFilter
  * after a token has already been cryptographically validated.
  */
 @Service

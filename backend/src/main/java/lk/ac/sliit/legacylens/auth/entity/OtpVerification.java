@@ -12,9 +12,9 @@ import java.util.UUID;
 /**
  * A single OTP challenge issued to a phone number.
  * Maps to the `otp_verifications` table (auto-created by Hibernate since
- * ddl-auto=update — no manual migration needed in dev).
+ * ddl-auto=update no manual migration needed in dev).
  *
- * The code itself is stored hashed (BCrypt), the same way PINs are —
+ * The code itself is stored hashed (BCrypt), the same way
  * never in plain text, even for something this short-lived.
  */
 @Entity

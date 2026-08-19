@@ -11,7 +11,7 @@ import java.util.UUID;
 /**
  * Join table between users and their roles.
  * A single user can hold multiple roles (e.g. GENERAL_USER + ELDER).
- * Maps to the `user_roles` table.
+ * Maps to the `user roles` table.
  */
 @Entity
 @Table(
@@ -35,7 +35,7 @@ public class UserRole {
 
     /**
      * The role being assigned.
-     * Stored as a STRING so the DB column holds the human-readable enum name.
+     * Stored as a STRING so the DB column holds the human readable enum name.
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "role_type", nullable = false, length = 30)

@@ -16,7 +16,7 @@ import java.util.UUID;
 /**
  * Core user record.  Maps to the `users` table.
  *
- * Auth credentials: phone_number (unique login ID) + pin_hash (BCrypt).
+ * Auth credentials: phone number (unique login ID) + pin hash (BCrypt).
  * City is stored as a FK to the `cities` table for cleaner frontend selects.
  */
 @Entity
@@ -34,7 +34,7 @@ public class User {
     @Column(name = "full_name", nullable = false, length = 150)
     private String fullName;
 
-    /** Primary login identifier — must be unique across the platform. */
+    /** Primary login identifier must be unique across the platform. */
     @Column(name = "phone_number", nullable = false, unique = true, length = 15)
     private String phoneNumber;
 
@@ -49,7 +49,7 @@ public class User {
     @Column(name = "date_of_birth", nullable = false)
     private LocalDate dateOfBirth;
 
-    /** National Identity Card number — used for verification only, never exposed publicly. */
+    /** National Identity Card number used for verification only, never exposed publicly. */
     @Column(name = "nic_number", nullable = false, unique = true, length = 20)
     private String nicNumber;
 

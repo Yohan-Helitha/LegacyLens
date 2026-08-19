@@ -18,6 +18,6 @@ public interface UserRoleRepository extends JpaRepository<UserRole, UUID> {
     /** Check whether a user already has a specific role (avoids duplicates). */
     boolean existsByUserIdAndRoleType(UUID userId, RoleType roleType);
 
-    /** Find all active roles for a user — used in JWT claim generation. */
+    /** Find all active roles for a user used in JWT claim generation. */
     List<UserRole> findByUserIdAndStatus(UUID userId, RoleStatus status);
 }

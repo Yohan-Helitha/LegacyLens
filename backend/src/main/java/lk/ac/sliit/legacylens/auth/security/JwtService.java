@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 /**
  * Responsible only for creating and validating JWTs.
  * Knows nothing about HTTP, Spring Security context, or the database
- * (Single Responsibility) — that's JwtAuthenticationFilter's job.
+ * (Single Responsibility) that's JwtAuthenticationFilter's job.
  */
 @Component
 public class JwtService {

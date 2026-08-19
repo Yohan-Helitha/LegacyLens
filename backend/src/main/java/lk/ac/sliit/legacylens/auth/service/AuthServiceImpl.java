@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 
 /**
  * Orchestrates registration, OTP-gated activation, and login.
- * Delegates OTP mechanics to OtpService and token creation to JwtService —
+ * Delegates OTP mechanics to OtpService and token creation to JwtService
  * this class only coordinates them (Single Responsibility).
  */
 @Service

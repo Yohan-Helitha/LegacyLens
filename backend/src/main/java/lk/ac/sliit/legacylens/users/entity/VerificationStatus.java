@@ -2,7 +2,7 @@ package lk.ac.sliit.legacylens.users.entity;
 
 /**
  * Verification lifecycle for creator profiles.
- * Stored as a VARCHAR in the `creator_profiles.verification_status` column.
+ * Stored as a VARCHAR in the `creatorprofiles.verification status` column.
  */
 public enum VerificationStatus {
     PENDING,

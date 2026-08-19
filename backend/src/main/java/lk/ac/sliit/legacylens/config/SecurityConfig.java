@@ -12,9 +12,9 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Spring Security configuration.
- * - Auth endpoints are public.
- * - All other API endpoints require a valid JWT.
- * - Sessions are stateless (JWT-based).
+ * Auth endpoints are public.
+ * All other API endpoints require a valid JWT.
+ * Sessions are stateless (JWT based).
  */
 @Configuration
 @EnableWebSecurity
@@ -37,7 +37,7 @@ public class SecurityConfig {
     }
 
     /**
-     * BCrypt password encoder — used to hash PINs before storing them.
+     * BCrypt password encoder used to hash PINs before storing them.
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
