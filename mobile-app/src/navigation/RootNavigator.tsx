@@ -18,6 +18,7 @@ import { PrivacyDataScreen } from '../screens/profile/PrivacyDataScreen';
 import { ChangePhoneScreen } from '../screens/profile/ChangePhoneScreen';
 import { ChangeNicScreen } from '../screens/profile/ChangeNicScreen';
 import LearningNavigator from './LearningNavigator';
+import { CreatorNavigator, CreatorScreen } from './CreatorNavigator';
 import { authApi } from '../services/api/authApi';
 import { profileApi } from '../services/api/profileApi';
 import { useAuthStore } from '../store/authStore';
@@ -49,6 +50,7 @@ export type RootStackParamList = {
   ChangePin: undefined;
   ChangePinVerify: { pin: string };
   Learning: undefined;
+  Creator: { initialScreen?: CreatorScreen } | undefined;
 };
 
 /** True only when the device has fingerprint/biometric hardware with at least one enrolled credential. */
@@ -247,9 +249,11 @@ export const RootNavigator: React.FC = () => {
               navigation.replace('Login');
             }}
             onTabPress={(tab) => {
-              // Home/Market have no screens yet — only Learn and Profile are real.
+              // Home has no screen yet — Learn, Market, and Profile are real.
               if (tab === 'learn') navigation.navigate('Learning');
+              if (tab === 'market') navigation.navigate('Creator');
             }}
+            onBecomeFreelancer={() => navigation.navigate('Creator', { initialScreen: 'apply' })}
           />
         )}
       </Stack.Screen>
@@ -365,6 +369,11 @@ export const RootNavigator: React.FC = () => {
 
       {/* ── Learning Engine ────────────────────────────────────────────────── */}
       <Stack.Screen name="Learning" component={LearningNavigator} />
+
+      {/* ── Creator marketplace ────────────────────────────────────────────── */}
+      <Stack.Screen name="Creator">
+        {({ route }) => <CreatorNavigator initialScreen={route.params?.initialScreen} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 };

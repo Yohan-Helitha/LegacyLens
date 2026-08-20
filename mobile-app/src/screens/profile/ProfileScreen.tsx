@@ -34,6 +34,8 @@ interface ProfileScreenProps {
   onOpenSettings?: () => void;
   onLogout?: () => void;
   onTabPress?: (tab: NavTab) => void;
+  /** "Become a Freelancer" card CTA — opens the creator application form. */
+  onBecomeFreelancer?: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -60,6 +62,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onOpenSettings,
   onLogout,
   onTabPress,
+  onBecomeFreelancer,
 }) => {
   const cachedUser = useAuthStore((s) => s.user);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -153,6 +156,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               title="Become a Freelancer"
               description="Get hired by elders to help record and preserve their stories."
               hint="Earn credits and build your reputation."
+              onPress={onBecomeFreelancer}
             />
           </View>
         </View>
