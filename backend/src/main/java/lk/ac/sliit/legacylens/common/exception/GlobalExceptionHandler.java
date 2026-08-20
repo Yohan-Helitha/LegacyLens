@@ -82,6 +82,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(DuplicateCreatorApplicationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDuplicateCreatorApplication(
+            DuplicateCreatorApplicationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidFileUploadException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidFileUpload(InvalidFileUploadException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(PinMismatchException.class)
     public ResponseEntity<ApiResponse<Void>> handlePinMismatch(PinMismatchException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ex.getMessage()));
