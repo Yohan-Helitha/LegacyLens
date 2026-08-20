@@ -1,6 +1,8 @@
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LoadingScreen } from './src/screens/onboarding';
+import { NavigationContainer } from '@react-navigation/native';
+import LearningNavigator from './src/navigation/LearningNavigator';
 
 /**
  * Root entry point.
@@ -14,7 +16,9 @@ import { LoadingScreen } from './src/screens/onboarding';
 export default function App() {
   return (
     <SafeAreaProvider>
-      <LoadingScreen />
+      <NavigationContainer>
+        <LearningNavigator />
+      </NavigationContainer>
     </SafeAreaProvider>
   );
 }
