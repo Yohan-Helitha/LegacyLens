@@ -4,7 +4,6 @@
     "slug": "legacy-lens",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "backgroundColor": "#EDEFEE",
     "splash": {
@@ -20,11 +19,11 @@
       },
       "package": "com.legacylens.app"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
+    "web": {},
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-speech-recognition",
+      "@rnmapbox/maps"
     ]
   }
 }
