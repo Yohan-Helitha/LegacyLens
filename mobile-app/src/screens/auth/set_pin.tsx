@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { BackButton, SuccessMark } from '../../components/common';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -174,54 +175,6 @@ const numStyles = StyleSheet.create({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Success check mark component
-// ─────────────────────────────────────────────────────────────────────────────
-const SuccessMark: React.FC = () => {
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      tension: 80,
-      friction: 6,
-      useNativeDriver: true,
-    }).start();
-  }, [scaleAnim]);
-
-  return (
-    <Animated.View
-      style={[successStyles.circle, { transform: [{ scale: scaleAnim }] }]}
-    >
-      <Text style={successStyles.checkmark}>✓</Text>
-    </Animated.View>
-  );
-};
-
-const successStyles = StyleSheet.create({
-  circle: {
-    width: 80,
-    height: 80,
-    borderRadius: Radii.full,
-    backgroundColor: Colors.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
-    shadowColor: Colors.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  checkmark: {
-    fontSize: 36,
-    color: Colors.white,
-    fontFamily: Typography.fontBodySemi,
-    lineHeight: 42,
-    ...Platform.select({ android: { includeFontPadding: false } }),
-  },
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Main screen
 // ─────────────────────────────────────────────────────────────────────────────
 export const SetPinScreen: React.FC<SetPinScreenProps> = ({
@@ -353,15 +306,7 @@ export const SetPinScreen: React.FC<SetPinScreenProps> = ({
       {/* ── Back button ────────────────────────────────────────────────────── */}
       {!success && (
         <View style={styles.topBar}>
-          <Pressable
-            onPress={handleBack}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            hitSlop={12}
-            style={styles.backBtn}
-          >
-            <Text style={styles.backIcon}>{'\u2190'}</Text>
-          </Pressable>
+          <BackButton onPress={handleBack} />
         </View>
       )}
 
@@ -468,21 +413,6 @@ const styles = StyleSheet.create({
   topBar: {
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(195, 198, 207, 0.15)',
-  },
-  backIcon: {
-    fontSize: 22,
-    color: Colors.secondary,
-    fontFamily: Typography.fontBodySemi,
-    lineHeight: 28,
-    ...Platform.select({ android: { includeFontPadding: false } }),
   },
 
   // ── Container ──────────────────────────────────────────────────────────────

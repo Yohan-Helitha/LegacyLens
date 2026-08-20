@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { MapPin, Sparkles, Mountain, Waves, Palmtree } from 'lucide-react-native';
+import { HeroIllustrationFrame, PaginationDots } from '../../../components/common';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,33 +86,6 @@ const ArchiveMapIllustration: React.FC<{ size: number }> = ({ size }) => {
     </Svg>
   );
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Pagination dots (step 3 of 3 active)
-// ─────────────────────────────────────────────────────────────────────────────
-const PaginationDots: React.FC<{ active: number }> = ({ active }) => (
-  <View style={dotStyles.row}>
-    {[0, 1, 2].map((i) => (
-      <View
-        key={i}
-        style={[
-          dotStyles.dot,
-          i === active ? dotStyles.dotActive : dotStyles.dotInactive,
-        ]}
-      />
-    ))}
-  </View>
-);
-
-const dotStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dot: { height: 8, borderRadius: Radii.full },
-  dotActive: { width: 28, backgroundColor: Colors.accent },
-  dotInactive: {
-    width: 8,
-    backgroundColor: 'rgba(107, 113, 120, 0.3)',
-  },
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Region chips with Lucide Vector Icons
@@ -239,36 +213,25 @@ export const OnBoarding3: React.FC<OnBoarding3Props> = ({
         style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
       >
         {/* Illustration */}
-        <Animated.View
-          style={[
-            styles.illustrationWrap,
+        <HeroIllustrationFrame
+          size={illSize}
+          marginBottom={illMarginBottom}
+          floatOffset={floatAnim}
+          badges={[
             {
-              width: illSize,
-              height: illSize,
-              marginBottom: illMarginBottom,
-              transform: [{ translateY: floatAnim }],
+              corner: 'bottomRight',
+              tint: 'teal',
+              icon: <MapPin size={19} color={Colors.white} strokeWidth={2.2} />,
+            },
+            {
+              corner: 'topLeft',
+              tint: 'orange',
+              icon: <Sparkles size={18} color={Colors.white} strokeWidth={2.2} />,
             },
           ]}
         >
-          {/* Halos */}
-          <View style={[styles.haloOuter, { width: illSize + 48, height: illSize + 48 }]} />
-          <View style={[styles.halo, { width: illSize + 24, height: illSize + 24 }]} />
-
-          {/* Main Circle */}
-          <View style={[styles.iconCircle, { width: illSize, height: illSize }]}>
-            <ArchiveMapIllustration size={illSize} />
-          </View>
-
-          {/* Badge Bottom-Right: MapPin */}
-          <View style={[styles.badge, styles.badgeBR, styles.badgeTeal]}>
-            <MapPin size={19} color={Colors.white} strokeWidth={2.2} />
-          </View>
-
-          {/* Badge Top-Left: Sparkles */}
-          <View style={[styles.badge, styles.badgeTL, styles.badgeOrange]}>
-            <Sparkles size={18} color={Colors.white} strokeWidth={2.2} />
-          </View>
-        </Animated.View>
+          <ArchiveMapIllustration size={illSize} />
+        </HeroIllustrationFrame>
 
         {/* Text */}
         <View style={styles.textBlock}>
@@ -359,52 +322,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
   },
-
-  illustrationWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  haloOuter: {
-    position: 'absolute',
-    borderRadius: Radii.full,
-    backgroundColor: 'rgba(15, 92, 92, 0.03)',
-  },
-  halo: {
-    position: 'absolute',
-    borderRadius: Radii.full,
-    backgroundColor: 'rgba(15, 92, 92, 0.06)',
-  },
-  iconCircle: {
-    borderRadius: Radii.full,
-    backgroundColor: Colors.white,
-    borderWidth: 1.5,
-    borderColor: 'rgba(232, 226, 210, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.secondary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 30,
-    elevation: 5,
-  },
-  badge: {
-    position: 'absolute',
-    width: 38,
-    height: 38,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.16,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-  badgeBR: { bottom: -6, right: 12 },
-  badgeTL: { top: 2, left: 12 },
-  badgeTeal: { backgroundColor: Colors.secondary },
-  badgeOrange: { backgroundColor: Colors.accent },
 
   textBlock: {
     alignItems: 'center',

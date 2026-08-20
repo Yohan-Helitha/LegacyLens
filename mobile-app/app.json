@@ -32,6 +32,12 @@
           "cameraPermission": "Legacy Lens needs camera access so you can take a profile photo.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Legacy Lens uses Face ID so you can log in quickly and securely."
+        }
       ]
     ]
   }

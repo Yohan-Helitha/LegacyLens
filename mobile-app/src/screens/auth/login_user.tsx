@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Smartphone, Delete, Fingerprint } from 'lucide-react-native';
+import { SegmentedControl } from '../../components/common';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -103,35 +104,6 @@ const NumKey: React.FC<{
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Segmented tab control
-// ─────────────────────────────────────────────────────────────────────────────
-const SegmentedControl: React.FC<{
-  active: AuthTab;
-  onChange: (t: AuthTab) => void;
-}> = ({ active, onChange }) => (
-  <View style={styles.segmentedControl} accessibilityRole="tablist">
-    {(['pin', 'fingerprint'] as AuthTab[]).map((tab) => {
-      const isActive = active === tab;
-      const label = tab === 'pin' ? 'Use PIN' : 'Use Fingerprint';
-      return (
-        <Pressable
-          key={tab}
-          onPress={() => onChange(tab)}
-          style={[styles.segmentTab, isActive && styles.segmentTabActive]}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: isActive }}
-          accessibilityLabel={label}
-        >
-          <Text style={[styles.segmentTabText, isActive && styles.segmentTabTextActive]}>
-            {label}
-          </Text>
-        </Pressable>
-      );
-    })}
-  </View>
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Main screen
 // ─────────────────────────────────────────────────────────────────────────────
 export const LoginScreen: React.FC<LoginScreenProps> = ({
@@ -218,7 +190,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           </View>
 
           {/* Segmented control */}
-          <SegmentedControl active={activeTab} onChange={setActiveTab} />
+          <View style={{ width: '100%', marginBottom: Spacing.md }}>
+            <SegmentedControl
+              tabs={[
+                { key: 'pin', label: 'Use PIN' },
+                { key: 'fingerprint', label: 'Use Fingerprint' },
+              ]}
+              active={activeTab}
+              onChange={setActiveTab}
+            />
+          </View>
 
           {/* ── PIN view ──────────────────────────────────────────────────── */}
           {activeTab === 'pin' && (
@@ -398,42 +379,6 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     color: Colors.text,
     ...Platform.select({ android: { includeFontPadding: false } }),
-  },
-
-  // ── Segmented control ─────────────────────────────────────────────────────
-  segmentedControl: {
-    flexDirection: 'row',
-    backgroundColor: '#dde3ef', // surface-variant
-    borderRadius: Radii.lg,
-    padding: 4,
-    marginBottom: Spacing.md,
-    width: '100%',
-  },
-  segmentTab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radii.md,
-  },
-  segmentTabActive: {
-    backgroundColor: Colors.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  segmentTabText: {
-    fontFamily: Typography.fontBodyMed,
-    fontSize: Typography.sizeSM,
-    lineHeight: 20,
-    letterSpacing: 0.5,
-    color: Colors.textMuted,
-    ...Platform.select({ android: { includeFontPadding: false } }),
-  },
-  segmentTabTextActive: {
-    color: Colors.accent,
   },
 
   // ── PIN view ──────────────────────────────────────────────────────────────

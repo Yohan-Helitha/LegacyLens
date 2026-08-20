@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { Sparkles, Mic } from 'lucide-react-native';
+import { HeroIllustrationFrame, PaginationDots } from '../../../components/common';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -90,33 +91,6 @@ const StoryBookIllustration: React.FC<{ size: number }> = ({ size }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pagination dots (step 1 of 3 active)
-// ─────────────────────────────────────────────────────────────────────────────
-const PaginationDots: React.FC<{ active: number }> = ({ active }) => (
-  <View style={dotStyles.row}>
-    {[0, 1, 2].map((i) => (
-      <View
-        key={i}
-        style={[
-          dotStyles.dot,
-          i === active ? dotStyles.dotActive : dotStyles.dotInactive,
-        ]}
-      />
-    ))}
-  </View>
-);
-
-const dotStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dot: { height: 8, borderRadius: Radii.full },
-  dotActive: { width: 28, backgroundColor: Colors.accent },
-  dotInactive: {
-    width: 8,
-    backgroundColor: 'rgba(107, 113, 120, 0.3)',
-  },
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Main screen
 // ─────────────────────────────────────────────────────────────────────────────
 export const OnBoarding1: React.FC<OnBoarding1Props> = ({ onNext, onSkip }) => {
@@ -173,36 +147,24 @@ export const OnBoarding1: React.FC<OnBoarding1Props> = ({ onNext, onSkip }) => {
         style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
       >
         {/* Illustration */}
-        <Animated.View
-          style={[
-            styles.illustrationWrap,
+        <HeroIllustrationFrame
+          size={illSize}
+          marginBottom={illMarginBottom}
+          floatOffset={floatAnim}
+          badges={[
             {
-              width: illSize,
-              height: illSize,
-              marginBottom: illMarginBottom,
-              transform: [{ translateY: floatAnim }],
+              corner: 'topRight',
+              icon: <Sparkles size={18} color={Colors.white} strokeWidth={2.2} />,
+            },
+            {
+              corner: 'bottomLeft',
+              tint: 'teal',
+              icon: <Mic size={19} color={Colors.white} strokeWidth={2.2} />,
             },
           ]}
         >
-          {/* Multi-layered soft glow halos */}
-          <View style={[styles.haloOuter, { width: illSize + 48, height: illSize + 48 }]} />
-          <View style={[styles.halo, { width: illSize + 24, height: illSize + 24 }]} />
-
-          {/* Main circle */}
-          <View style={[styles.iconCircle, { width: illSize, height: illSize }]}>
-            <StoryBookIllustration size={illSize} />
-          </View>
-
-          {/* Accent badge — Sparkles (top-right) */}
-          <View style={[styles.badge, styles.badgeTR]}>
-            <Sparkles size={18} color={Colors.white} strokeWidth={2.2} />
-          </View>
-
-          {/* Accent badge — Microphone (bottom-left) */}
-          <View style={[styles.badge, styles.badgeBL, styles.badgeTeal]}>
-            <Mic size={19} color={Colors.white} strokeWidth={2.2} />
-          </View>
-        </Animated.View>
+          <StoryBookIllustration size={illSize} />
+        </HeroIllustrationFrame>
 
         {/* Text */}
         <View style={styles.textBlock}>
@@ -289,53 +251,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
   },
-
-  // ── Illustration ───────────────────────────────────────────────────────────
-  illustrationWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  haloOuter: {
-    position: 'absolute',
-    borderRadius: Radii.full,
-    backgroundColor: 'rgba(15, 92, 92, 0.03)',
-  },
-  halo: {
-    position: 'absolute',
-    borderRadius: Radii.full,
-    backgroundColor: 'rgba(15, 92, 92, 0.06)',
-  },
-  iconCircle: {
-    borderRadius: Radii.full,
-    backgroundColor: Colors.white,
-    borderWidth: 1.5,
-    borderColor: 'rgba(232, 226, 210, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.secondary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 30,
-    elevation: 5,
-  },
-  badge: {
-    position: 'absolute',
-    width: 38,
-    height: 38,
-    borderRadius: Radii.full,
-    backgroundColor: Colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.16,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-  badgeTR: { top: 2, right: 2 },
-  badgeBL: { bottom: -6, left: 12 },
-  badgeTeal: { backgroundColor: Colors.secondary },
 
   // ── Text ───────────────────────────────────────────────────────────────────
   textBlock: {

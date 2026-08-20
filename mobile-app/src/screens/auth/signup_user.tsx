@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   FlatList,
+  findNodeHandle,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -305,6 +306,29 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
   // Errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Refs used to scroll a focused field above the keyboard — the Date of
+  // Birth and NIC fields sit low enough in the form that the keyboard
+  // otherwise covers them while typing.
+  const scrollRef = useRef<ScrollView>(null);
+  const dobFieldRef = useRef<View>(null);
+  const nicFieldRef = useRef<View>(null);
+
+  const scrollFieldIntoView = (fieldRef: React.RefObject<View | null>) => {
+    // Small delay lets the keyboard-open animation start first, so the
+    // scroll lands after layout has settled instead of racing it.
+    setTimeout(() => {
+      const scrollNode = findNodeHandle(scrollRef.current);
+      if (!scrollNode || !fieldRef.current) return;
+      fieldRef.current.measureLayout(
+        scrollNode,
+        (_x: number, y: number) => {
+          scrollRef.current?.scrollTo({ y: Math.max(y - Spacing.md, 0), animated: true });
+        },
+        () => {},
+      );
+    }, 100);
+  };
+
   // Auto-format Date of Birth (mm/dd/yyyy)
   const handleDobChange = (text: string) => {
     // Strip non-digits
@@ -349,6 +373,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
         style={{ flex: 1 }}
       >
         <ScrollView
+          ref={scrollRef}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -462,7 +487,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
             </View>
 
             {/* Field 4: Date of Birth */}
-            <View style={styles.fieldGroup}>
+            <View ref={dobFieldRef} style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Date of Birth</Text>
               <View
                 style={[
@@ -477,6 +502,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
                     handleDobChange(t);
                     if (errors.dob) setErrors((e) => ({ ...e, dob: '' }));
                   }}
+                  onFocus={() => scrollFieldIntoView(dobFieldRef)}
                   placeholder="mm/dd/yyyy"
                   placeholderTextColor={Colors.textMuted}
                   keyboardType="numeric"
@@ -492,7 +518,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
             </View>
 
             {/* Field 5: NIC Number */}
-            <View style={styles.fieldGroup}>
+            <View ref={nicFieldRef} style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>NIC Number</Text>
               <View
                 style={[
@@ -507,6 +533,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
                     setNic(t);
                     if (errors.nic) setErrors((e) => ({ ...e, nic: '' }));
                   }}
+                  onFocus={() => scrollFieldIntoView(nicFieldRef)}
                   placeholder="Enter your NIC number"
                   placeholderTextColor={Colors.textMuted}
                   autoCapitalize="characters"

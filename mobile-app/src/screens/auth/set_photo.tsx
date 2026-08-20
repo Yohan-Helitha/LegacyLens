@@ -13,6 +13,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
+import { BackButton, GhostButton } from '../../components/common';
+import { usePressScale } from '../../hooks/usePressScale';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,10 +95,9 @@ export const SetPhotoScreen: React.FC<SetPhotoScreenProps> = ({
   const [uploading, setUploading] = useState(false);
 
   // Animations
-  const avatarScale  = useRef(new Animated.Value(1)).current;
-  const btnUploadAnim = useRef(new Animated.Value(1)).current;
-  const btnSkipAnim  = useRef(new Animated.Value(1)).current;
-  const slideAnim    = useRef(new Animated.Value(0)).current;
+  const avatarScale = useRef(new Animated.Value(1)).current;
+  const slideAnim   = useRef(new Animated.Value(0)).current;
+  const uploadPress = usePressScale();
 
   React.useEffect(() => {
     // Entrance slide-up
@@ -123,14 +124,6 @@ export const SetPhotoScreen: React.FC<SetPhotoScreenProps> = ({
       duration: 150,
       useNativeDriver: true,
     }).start();
-
-  // ── Button press animations ───────────────────────────────────────────────
-  const makePressHandlers = (anim: Animated.Value) => ({
-    onPressIn: () =>
-      Animated.timing(anim, { toValue: 0.97, duration: 80, useNativeDriver: true }).start(),
-    onPressOut: () =>
-      Animated.timing(anim, { toValue: 1,    duration: 120, useNativeDriver: true }).start(),
-  });
 
   // ── Request permissions helper ────────────────────────────────────────────
   const requestPermission = async (
@@ -236,15 +229,7 @@ export const SetPhotoScreen: React.FC<SetPhotoScreenProps> = ({
 
       {/* ── Back button ────────────────────────────────────────────────────── */}
       <View style={styles.topBar}>
-        <Pressable
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          hitSlop={12}
-          style={styles.backBtn}
-        >
-          <Text style={styles.backIcon}>{'\u2190'}</Text>
-        </Pressable>
+        <BackButton onPress={onBack} />
       </View>
 
       {/* ── Content ────────────────────────────────────────────────────────── */}
@@ -298,7 +283,7 @@ export const SetPhotoScreen: React.FC<SetPhotoScreenProps> = ({
         <View style={styles.actions}>
           {/* Upload Photo */}
           <Animated.View
-            style={{ transform: [{ scale: btnUploadAnim }], width: '100%' }}
+            style={{ transform: [{ scale: uploadPress.scale }], width: '100%' }}
           >
             <Pressable
               onPress={handleUpload}
@@ -308,7 +293,8 @@ export const SetPhotoScreen: React.FC<SetPhotoScreenProps> = ({
                 styles.primaryBtn,
                 pressed && styles.primaryBtnPressed,
               ]}
-              {...makePressHandlers(btnUploadAnim)}
+              onPressIn={uploadPress.onPressIn}
+              onPressOut={uploadPress.onPressOut}
             >
               {uploading ? (
                 <Text style={styles.primaryBtnText}>Uploading…</Text>
@@ -321,22 +307,7 @@ export const SetPhotoScreen: React.FC<SetPhotoScreenProps> = ({
           </Animated.View>
 
           {/* Skip */}
-          <Animated.View
-            style={{ transform: [{ scale: btnSkipAnim }], width: '100%' }}
-          >
-            <Pressable
-              onPress={handleSkip}
-              accessibilityRole="button"
-              accessibilityLabel="Skip for now"
-              style={({ pressed }) => [
-                styles.ghostBtn,
-                pressed && styles.ghostBtnPressed,
-              ]}
-              {...makePressHandlers(btnSkipAnim)}
-            >
-              <Text style={styles.ghostBtnText}>Skip</Text>
-            </Pressable>
-          </Animated.View>
+          <GhostButton label="Skip" onPress={handleSkip} accessibilityLabel="Skip for now" />
         </View>
       </Animated.View>
     </SafeAreaView>
@@ -376,21 +347,6 @@ const styles = StyleSheet.create({
   topBar: {
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: Radii.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(195, 198, 207, 0.15)',
-  },
-  backIcon: {
-    fontSize: 22,
-    color: Colors.secondary,
-    fontFamily: Typography.fontBodySemi,
-    lineHeight: 28,
-    ...Platform.select({ android: { includeFontPadding: false } }),
   },
 
   // ── Main content ───────────────────────────────────────────────────────────
@@ -487,27 +443,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     letterSpacing: 0.5,
     color: Colors.white,
-    ...Platform.select({ android: { includeFontPadding: false } }),
-  },
-
-  // Ghost — "Skip"
-  ghostBtn: {
-    width: '100%',
-    minHeight: 56,
-    backgroundColor: 'transparent',
-    borderRadius: Radii.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ghostBtnPressed: {
-    backgroundColor: Colors.surface,
-  },
-  ghostBtnText: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeMD,
-    lineHeight: 24,
-    letterSpacing: 0.5,
-    color: Colors.secondary,
     ...Platform.select({ android: { includeFontPadding: false } }),
   },
 });

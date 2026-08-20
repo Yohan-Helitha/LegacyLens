@@ -1,11 +1,14 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { LoadingScreen } from '../screens/onboarding/loading/LoadingScreen';
 import { LanguageSelectionScreen } from '../screens/onboarding/loading/Language';
 import { LoginScreen } from '../screens/auth/login_user';
 import { SignUpScreen } from '../screens/auth/signup_user';
 import { SetPhotoScreen } from '../screens/auth/set_photo';
 import { SetPinScreen } from '../screens/auth/set_pin';
+import { VerifyOtpScreen } from '../screens/auth/verify_otp';
+import { FingerprintScreen } from '../screens/auth/fingerprint';
 import { OnBoarding1 } from '../screens/onboarding/weolcome/OnBoarding1';
 import { OnBoarding2 } from '../screens/onboarding/weolcome/OnBoarding2';
 import { OnBoarding3 } from '../screens/onboarding/weolcome/OnBoarding3';
@@ -17,9 +20,20 @@ export type RootStackParamList = {
   SignUp: undefined;
   SetPhoto: undefined;
   SetPin: undefined;
+  VerifyOtp: undefined;
+  Fingerprint: undefined;
   OnBoarding1: undefined;
   OnBoarding2: undefined;
   OnBoarding3: undefined;
+};
+
+/** True only when the device has fingerprint/biometric hardware with at least one enrolled credential. */
+const isFingerprintAvailable = async (): Promise<boolean> => {
+  const [hasHardware, isEnrolled] = await Promise.all([
+    LocalAuthentication.hasHardwareAsync(),
+    LocalAuthentication.isEnrolledAsync(),
+  ]);
+  return hasHardware && isEnrolled;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -77,8 +91,29 @@ export const RootNavigator: React.FC = () => {
       <Stack.Screen name="SetPin">
         {({ navigation }) => (
           <SetPinScreen
-            onComplete={() => navigation.navigate('Login')}
+            onComplete={() => navigation.navigate('VerifyOtp')}
             onBack={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="VerifyOtp">
+        {({ navigation }) => (
+          <VerifyOtpScreen
+            onComplete={async () => {
+              const canUseFingerprint = await isFingerprintAvailable();
+              navigation.navigate(canUseFingerprint ? 'Fingerprint' : 'Login');
+            }}
+            onBack={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="Fingerprint">
+        {({ navigation }) => (
+          <FingerprintScreen
+            onComplete={() => navigation.navigate('Login')}
+            onSkip={() => navigation.navigate('Login')}
           />
         )}
       </Stack.Screen>
