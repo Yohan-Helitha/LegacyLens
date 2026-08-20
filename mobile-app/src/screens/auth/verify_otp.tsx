@@ -11,14 +11,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { BackButton, OtpBoxes, SuccessMark } from '../../components/common';
+import { ApiError } from '../../services/api/client';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 interface VerifyOtpScreenProps {
-  /** Called after the OTP is successfully verified */
-  onComplete?: () => void;
+  /** Verifies the entered code. Throw to show the error and let the user retry. */
+  onSubmit: (code: string) => Promise<void>;
+  /** Requests a fresh code. Throw to surface the error (e.g. a cooldown message). */
+  onResend: () => Promise<void>;
+  /** Called with the verified code after a successful verify + success animation */
+  onComplete?: (code: string) => void;
   /** Navigate back to the previous screen */
   onBack?: () => void;
   /** Phone number the code was sent to, shown in the subheading */
@@ -35,15 +40,21 @@ const RESEND_COOLDOWN_SECONDS = 30;
 // Main screen
 // ─────────────────────────────────────────────────────────────────────────────
 export const VerifyOtpScreen: React.FC<VerifyOtpScreenProps> = ({
+  onSubmit,
+  onResend,
   onComplete,
   onBack,
   phone,
 }) => {
   const [otp, setOtp] = useState('');
   const [otpErr, setOtpErr] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
   const [success, setSuccess] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [resending, setResending] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
 
   const inputRef = useRef<TextInput>(null);
   const shakeAnim = useRef(new Animated.Value(0)).current;
@@ -70,35 +81,54 @@ export const VerifyOtpScreen: React.FC<VerifyOtpScreenProps> = ({
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleChange = (text: string) => {
+    if (verifying) return;
     const digits = text.replace(/\D/g, '').slice(0, OTP_LENGTH);
     setOtp(digits);
     if (otpErr) setOtpErr(false);
 
     if (digits.length === OTP_LENGTH) {
-      setTimeout(() => {
-        // Mock verification — a real app would call the backend here.
-        // All-zero is treated as an invalid code so the error state is reachable.
-        if (digits === '0'.repeat(OTP_LENGTH)) {
+      setTimeout(async () => {
+        setVerifying(true);
+        try {
+          await onSubmit(digits);
+          setVerifying(false);
+          setSuccess(true);
+          setTimeout(() => onComplete?.(digits), 1200);
+        } catch (err) {
+          setVerifying(false);
           setOtpErr(true);
+          setErrorMessage(
+            err instanceof ApiError ? err.message : 'Something went wrong. Please try again.',
+          );
           triggerShake();
           setTimeout(() => {
             setOtp('');
             setOtpErr(false);
-          }, 700);
-          return;
+          }, 900);
         }
-        setSuccess(true);
-        setTimeout(() => onComplete?.(), 1200);
-      }, 250);
+      }, 150);
     }
   };
 
   const handleResend = () => {
-    if (cooldown > 0) return;
-    setOtp('');
-    setOtpErr(false);
-    setCooldown(RESEND_COOLDOWN_SECONDS);
-    inputRef.current?.focus();
+    if (cooldown > 0 || resending) return;
+    setResending(true);
+    setResendError(null);
+
+    onResend()
+      .then(() => {
+        setResending(false);
+        setOtp('');
+        setOtpErr(false);
+        setCooldown(RESEND_COOLDOWN_SECONDS);
+        inputRef.current?.focus();
+      })
+      .catch((err) => {
+        setResending(false);
+        setResendError(
+          err instanceof ApiError ? err.message : 'Could not resend the code. Try again.',
+        );
+      });
   };
 
   const focusInput = () => inputRef.current?.focus();
@@ -107,9 +137,11 @@ export const VerifyOtpScreen: React.FC<VerifyOtpScreenProps> = ({
   const heading = success ? 'Verified!' : 'Verify your number';
   const subheading = success
     ? 'You’re all set. One moment…'
-    : phone
-      ? `Enter the 6-digit code sent to ${phone}.`
-      : 'Enter the 6-digit code we sent you.';
+    : verifying
+      ? 'Verifying…'
+      : phone
+        ? `Enter the 6-digit code sent to ${phone}.`
+        : 'Enter the 6-digit code we sent you.';
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -136,7 +168,7 @@ export const VerifyOtpScreen: React.FC<VerifyOtpScreenProps> = ({
               {heading}
             </Text>
             <Text style={[styles.subheadline, otpErr && styles.subheadlineError]}>
-              {otpErr ? 'That code isn’t right — try again.' : subheading}
+              {otpErr ? (errorMessage ?? 'That code isn’t right — try again.') : subheading}
             </Text>
           </View>
 
@@ -155,6 +187,7 @@ export const VerifyOtpScreen: React.FC<VerifyOtpScreenProps> = ({
                 onChangeText={handleChange}
                 onFocus={() => setInputFocused(true)}
                 onBlur={() => setInputFocused(false)}
+                editable={!verifying}
                 keyboardType="number-pad"
                 maxLength={OTP_LENGTH}
                 autoFocus
@@ -168,16 +201,21 @@ export const VerifyOtpScreen: React.FC<VerifyOtpScreenProps> = ({
               {/* Resend code link */}
               <Pressable
                 onPress={handleResend}
-                disabled={cooldown > 0}
+                disabled={cooldown > 0 || resending}
                 accessibilityRole="button"
                 accessibilityLabel="Resend code"
                 hitSlop={8}
                 style={{ marginTop: Spacing.md }}
               >
-                <Text style={[styles.resendLink, cooldown > 0 && styles.resendLinkDisabled]}>
-                  {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+                <Text style={[styles.resendLink, (cooldown > 0 || resending) && styles.resendLinkDisabled]}>
+                  {resending
+                    ? 'Resending…'
+                    : cooldown > 0
+                      ? `Resend code in ${cooldown}s`
+                      : 'Resend code'}
                 </Text>
               </Pressable>
+              {!!resendError && <Text style={styles.resendErrorText}>{resendError}</Text>}
             </>
           )}
         </Animated.View>
@@ -281,6 +319,14 @@ const styles = StyleSheet.create({
   },
   resendLinkDisabled: {
     color: Colors.textMuted,
+  },
+  resendErrorText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeXS,
+    color: '#ba1a1a',
+    marginTop: Spacing.xs,
+    textAlign: 'center',
+    ...Platform.select({ android: { includeFontPadding: false } }),
   },
 });
 

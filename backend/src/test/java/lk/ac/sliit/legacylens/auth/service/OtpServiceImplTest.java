@@ -171,6 +171,52 @@ class OtpServiceImplTest {
         verify(otpRepository, times(1)).save(otp);
     }
 
+    @Test
+    void checkOtp_correctCode_doesNotConsume() {
+        OtpVerification otp = buildPendingOtp(0);
+
+        when(otpRepository.findFirstByPhoneNumberAndPurposeAndConsumedFalseOrderByCreatedAtDesc(PHONE, OtpPurpose.PIN_RESET))
+                .thenReturn(Optional.of(otp));
+        when(passwordEncoder.matches("123456", otp.getOtpHash())).thenReturn(true);
+
+        otpService.checkOtp(PHONE, "123456", OtpPurpose.PIN_RESET);
+
+        assertThat(otp.isConsumed()).isFalse();
+        verify(otpRepository, never()).save(any());
+    }
+
+    @Test
+    void checkOtp_wrongCode_incrementsAttemptCountAndThrows() {
+        OtpVerification otp = buildPendingOtp(0);
+
+        when(otpRepository.findFirstByPhoneNumberAndPurposeAndConsumedFalseOrderByCreatedAtDesc(PHONE, OtpPurpose.PIN_RESET))
+                .thenReturn(Optional.of(otp));
+        when(passwordEncoder.matches("999999", otp.getOtpHash())).thenReturn(false);
+
+        assertThrows(InvalidOtpException.class,
+                () -> otpService.checkOtp(PHONE, "999999", OtpPurpose.PIN_RESET));
+
+        assertThat(otp.getAttemptCount()).isEqualTo(1);
+        assertThat(otp.isConsumed()).isFalse();
+    }
+
+    @Test
+    void checkOtp_thenVerifyOtp_bothSucceedAgainstSameCode() {
+        OtpVerification otp = buildPendingOtp(0);
+        otp.setPurpose(OtpPurpose.PIN_RESET);
+
+        when(otpRepository.findFirstByPhoneNumberAndPurposeAndConsumedFalseOrderByCreatedAtDesc(PHONE, OtpPurpose.PIN_RESET))
+                .thenReturn(Optional.of(otp));
+        when(passwordEncoder.matches("123456", otp.getOtpHash())).thenReturn(true);
+
+        // A "check" on the OTP screen must not burn the code the later
+        // reset-pin call still needs to consume for real.
+        otpService.checkOtp(PHONE, "123456", OtpPurpose.PIN_RESET);
+        otpService.verifyOtp(PHONE, "123456", OtpPurpose.PIN_RESET);
+
+        assertThat(otp.isConsumed()).isTrue();
+    }
+
     private OtpVerification buildPendingOtp(int attemptCount) {
         OtpVerification otp = new OtpVerification();
         otp.setPhoneNumber(PHONE);

@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
-  findNodeHandle,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -23,114 +23,86 @@ import {
   X,
   Check,
 } from 'lucide-react-native';
+import { cityApi } from '../../services/api/cityApi';
+import { ApiError } from '../../services/api/client';
+import { City } from '../../types/city';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
+/** Locally-validated signup fields, carried forward through SetPhoto/SetPin — the
+ *  actual POST /api/auth/register call happens once a PIN is set, since the
+ *  backend requires the PIN as part of registration itself. */
+export interface SignUpDetails {
+  fullName: string;
+  phone: string;
+  /** ISO 8601, e.g. "1998-04-12" */
+  dateOfBirth: string;
+  nic: string;
+  cityId: number;
+}
+
 interface SignUpScreenProps {
-  /** Called when registration is complete */
-  onSignUpSuccess?: () => void;
+  /** Called once the form passes local validation, with the normalized details */
+  onContinue?: (details: SignUpDetails) => void;
   /** Navigate back to login */
   onLogin?: () => void;
-  /** Navigate to the set-photo screen */
-  onSetPhoto?: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Comprehensive Sri Lankan Cities List
+// Validation helpers
 // ─────────────────────────────────────────────────────────────────────────────
-const SRI_LANKA_CITIES = [
-  'Ambalangoda',
-  'Ampara',
-  'Anuradhapura',
-  'Avissawella',
-  'Badulla',
-  'Balangoda',
-  'Bandarawela',
-  'Batticaloa',
-  'Bentota',
-  'Beruwala',
-  'Chilaw',
-  'Colombo',
-  'Dambulla',
-  'Dehiwala-Mount Lavinia',
-  'Embilipitiya',
-  'Eravur',
-  'Galle',
-  'Gampaha',
-  'Gampola',
-  'Hambantota',
-  'Haputale',
-  'Hatton',
-  'Hikkaduwa',
-  'Homagama',
-  'Horana',
-  'Ja-Ela',
-  'Jaffna',
-  'Kadawatha',
-  'Kalmunai',
-  'Kalutara',
-  'Kandy',
-  'Kattankudy',
-  'Kegalle',
-  'Kelaniya',
-  'Kesbewa',
-  'Kilinochchi',
-  'Kuliyapitiya',
-  'Kurunegala',
-  'Maharagama',
-  'Mahiyanganaya',
-  'Mannar',
-  'Matale',
-  'Matara',
-  'Mawanella',
-  'Minuwangoda',
-  'Monaragala',
-  'Moratuwa',
-  'Mullaitivu',
-  'Nawalapitiya',
-  'Negombo',
-  'Nugegoda',
-  'Nuwara Eliya',
-  'Panadura',
-  'Peliyagoda',
-  'Peradeniya',
-  'Point Pedro',
-  'Polonnaruwa',
-  'Puttalam',
-  'Ragama',
-  'Ratnapura',
-  'Seeduwa',
-  'Sri Jayawardenepura Kotte',
-  'Tangalle',
-  'Trincomalee',
-  'Valvettithurai',
-  'Vavuniya',
-  'Wattala',
-  'Weligama',
-].sort();
+const PHONE_REGEX = /^\+?[0-9]{9,15}$/;
+
+/** Parses "mm/dd/yyyy" into an ISO date string, rejecting impossible calendar
+ *  dates (JS Date silently rolls those over, e.g. 02/30 -> 03/02) and future
+ *  dates, matching the backend's @Past validation. */
+const parseDobToIso = (mmddyyyy: string): string | null => {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(mmddyyyy);
+  if (!match) return null;
+
+  const [, mm, dd, yyyy] = match;
+  const month = Number(mm);
+  const day = Number(dd);
+  const year = Number(yyyy);
+  const date = new Date(year, month - 1, day);
+
+  const isRealDate =
+    date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+  if (!isRealDate || date.getTime() >= Date.now()) return null;
+
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // City Selection Modal Subcomponent
 // ─────────────────────────────────────────────────────────────────────────────
 interface CityModalProps {
   visible: boolean;
-  selectedCity: string;
-  onSelect: (city: string) => void;
+  cities: City[];
+  loading: boolean;
+  error: string | null;
+  selectedCityId: number | null;
+  onSelect: (city: City) => void;
   onClose: () => void;
+  onRetry: () => void;
 }
 
 const CitySelectionModal: React.FC<CityModalProps> = ({
   visible,
-  selectedCity,
+  cities,
+  loading,
+  error,
+  selectedCityId,
   onSelect,
   onClose,
+  onRetry,
 }) => {
   const [query, setQuery] = useState('');
 
-  const filtered = SRI_LANKA_CITIES.filter((c) =>
-    c.toLowerCase().includes(query.toLowerCase()),
+  const filtered = cities.filter((c) =>
+    c.name.toLowerCase().includes(query.toLowerCase()),
   );
 
   return (
@@ -165,43 +137,69 @@ const CitySelectionModal: React.FC<CityModalProps> = ({
             />
           </View>
 
+          {/* Loading */}
+          {loading && (
+            <View style={modalStyles.empty}>
+              <ActivityIndicator color={Colors.secondary} />
+              <Text style={[modalStyles.emptyText, { marginTop: Spacing.sm }]}>
+                Loading cities…
+              </Text>
+            </View>
+          )}
+
+          {/* Error — failed to fetch from the backend */}
+          {!loading && !!error && (
+            <View style={modalStyles.empty}>
+              <Text style={modalStyles.emptyText}>{error}</Text>
+              <Pressable onPress={onRetry} hitSlop={8} style={{ marginTop: Spacing.sm }}>
+                <Text style={modalStyles.retryText}>Try again</Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* List */}
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const isSelected = item === selectedCity;
-              return (
-                <Pressable
-                  onPress={() => {
-                    onSelect(item);
-                    onClose();
-                  }}
-                  style={[
-                    modalStyles.cityItem,
-                    isSelected && modalStyles.cityItemSelected,
-                  ]}
-                >
-                  <Text
+          {!loading && !error && (
+            <FlatList
+              data={filtered}
+              keyExtractor={(item) => String(item.id)}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => {
+                const isSelected = item.id === selectedCityId;
+                return (
+                  <Pressable
+                    onPress={() => {
+                      onSelect(item);
+                      onClose();
+                    }}
                     style={[
-                      modalStyles.cityText,
-                      isSelected && modalStyles.cityTextSelected,
+                      modalStyles.cityItem,
+                      isSelected && modalStyles.cityItemSelected,
                     ]}
                   >
-                    {item}
+                    <Text
+                      style={[
+                        modalStyles.cityText,
+                        isSelected && modalStyles.cityTextSelected,
+                      ]}
+                    >
+                      {item.name}
+                    </Text>
+                    {isSelected && <Check size={18} color={Colors.secondary} />}
+                  </Pressable>
+                );
+              }}
+              ListEmptyComponent={
+                <View style={modalStyles.empty}>
+                  <Text style={modalStyles.emptyText}>
+                    {cities.length === 0
+                      ? 'No cities are available yet.'
+                      : `No city found matching "${query}"`}
                   </Text>
-                  {isSelected && <Check size={18} color={Colors.secondary} />}
-                </Pressable>
-              );
-            }}
-            ListEmptyComponent={
-              <View style={modalStyles.empty}>
-                <Text style={modalStyles.emptyText}>No city found matching "{query}"</Text>
-              </View>
-            }
-          />
+                </View>
+              }
+            />
+          )}
         </View>
       </View>
     </Modal>
@@ -282,6 +280,12 @@ const modalStyles = StyleSheet.create({
     fontFamily: Typography.fontBody,
     fontSize: Typography.sizeMD,
     color: Colors.textMuted,
+    textAlign: 'center',
+  },
+  retryText: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeSM,
+    color: Colors.accent,
   },
 });
 
@@ -289,16 +293,43 @@ const modalStyles = StyleSheet.create({
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
 export const SignUpScreen: React.FC<SignUpScreenProps> = ({
-  onSignUpSuccess,
+  onContinue,
   onLogin,
-  onSetPhoto,
 }) => {
   // Form State
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [city, setCity] = useState('');
+  const [selectedCity, setSelectedCity] = useState<City | null>(null);
   const [dob, setDob] = useState('');
   const [nic, setNic] = useState('');
+
+  // City list — fetched from the backend; the table may currently be empty,
+  // which the modal surfaces as "No cities are available yet" rather than
+  // silently blocking signup.
+  const [cities, setCities] = useState<City[]>([]);
+  const [citiesLoading, setCitiesLoading] = useState(true);
+  const [citiesError, setCitiesError] = useState<string | null>(null);
+
+  const loadCities = () => {
+    setCitiesLoading(true);
+    setCitiesError(null);
+    cityApi
+      .getAll()
+      .then((result) => {
+        setCities(result);
+        setCitiesLoading(false);
+      })
+      .catch((err) => {
+        setCitiesError(
+          err instanceof ApiError ? err.message : 'Could not load cities. Please try again.',
+        );
+        setCitiesLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    loadCities();
+  }, []);
 
   // Modal State
   const [cityModalVisible, setCityModalVisible] = useState(false);
@@ -317,10 +348,15 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
     // Small delay lets the keyboard-open animation start first, so the
     // scroll lands after layout has settled instead of racing it.
     setTimeout(() => {
-      const scrollNode = findNodeHandle(scrollRef.current);
-      if (!scrollNode || !fieldRef.current) return;
+      // measureLayout wants a ref to the ancestor's native component — the
+      // ScrollView's own ref is a composite instance, not a host component,
+      // so we need its underlying native scroll node (getNativeScrollRef).
+      // Passing a findNodeHandle() number instead is deprecated and throws
+      // "must be called with a ref to a native component".
+      const nativeScrollRef = scrollRef.current?.getNativeScrollRef();
+      if (!nativeScrollRef || !fieldRef.current) return;
       fieldRef.current.measureLayout(
-        scrollNode,
+        nativeScrollRef,
         (_x: number, y: number) => {
           scrollRef.current?.scrollTo({ y: Math.max(y - Spacing.md, 0), animated: true });
         },
@@ -347,16 +383,35 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (!fullName.trim()) newErrors.fullName = 'Full name is required';
-    if (!phone.trim()) newErrors.phone = 'Phone number is required';
-    if (!city.trim()) newErrors.city = 'Please select your city';
-    if (!dob.trim()) newErrors.dob = 'Date of birth is required';
+
+    if (!phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!PHONE_REGEX.test(phone.trim())) {
+      newErrors.phone = 'Enter a valid phone number';
+    }
+
+    if (!selectedCity) newErrors.city = 'Please select your city';
+
+    let isoDob: string | null = null;
+    if (!dob.trim()) {
+      newErrors.dob = 'Date of birth is required';
+    } else {
+      isoDob = parseDobToIso(dob);
+      if (!isoDob) newErrors.dob = 'Enter a valid date of birth';
+    }
+
     if (!nic.trim()) newErrors.nic = 'NIC number is required';
 
     setErrors(newErrors);
 
-    if (Object.keys(newErrors).length === 0) {
-      onSetPhoto?.();
-      onSignUpSuccess?.();
+    if (Object.keys(newErrors).length === 0 && isoDob && selectedCity) {
+      onContinue?.({
+        fullName: fullName.trim(),
+        phone: phone.trim(),
+        dateOfBirth: isoDob,
+        nic: nic.trim(),
+        cityId: selectedCity.id,
+      });
     }
   };
 
@@ -463,6 +518,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
                   setCityModalVisible(true);
                   if (errors.city) setErrors((e) => ({ ...e, city: '' }));
                 }}
+                disabled={citiesLoading}
                 style={[
                   styles.inputBox,
                   styles.dropdownBox,
@@ -474,10 +530,12 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
                 <Text
                   style={[
                     styles.dropdownText,
-                    !city && styles.placeholderText,
+                    !selectedCity && styles.placeholderText,
                   ]}
                 >
-                  {city || 'Select your city'}
+                  {citiesLoading
+                    ? 'Loading cities…'
+                    : selectedCity?.name ?? 'Select your city'}
                 </Text>
                 <ChevronDown size={20} color={Colors.accent} strokeWidth={2.2} />
               </Pressable>
@@ -583,9 +641,13 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({
       {/* Sri Lanka City Selection Modal */}
       <CitySelectionModal
         visible={cityModalVisible}
-        selectedCity={city}
-        onSelect={setCity}
+        cities={cities}
+        loading={citiesLoading}
+        error={citiesError}
+        selectedCityId={selectedCity?.id ?? null}
+        onSelect={setSelectedCity}
         onClose={() => setCityModalVisible(false)}
+        onRetry={loadCities}
       />
     </SafeAreaView>
   );

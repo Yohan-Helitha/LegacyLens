@@ -28,6 +28,9 @@ public class RegisterRequest {
     @Size(max = 20, message = "NIC number must not exceed 20 characters")
     private String nicNumber;
 
+    @NotNull(message = "City is required")
+    private Integer cityId;
+
     @NotBlank(message = "PIN is required")
     @Pattern(regexp = "^[0-9]{4,6}$", message = "PIN must be 4 to 6 digits")
     private String pin;

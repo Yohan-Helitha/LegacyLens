@@ -14,6 +14,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { Fingerprint } from 'lucide-react-native';
 import { GhostButton } from '../../components/common';
 import { usePressScale } from '../../hooks/usePressScale';
+import { useAuthStore } from '../../store/authStore';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -68,6 +69,7 @@ export const FingerprintScreen: React.FC<FingerprintScreenProps> = ({
         disableDeviceFallback: false,
       });
       if (result.success) {
+        useAuthStore.getState().setFingerprintEnabled(true);
         onComplete?.();
       }
     } catch {

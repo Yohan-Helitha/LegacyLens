@@ -12,7 +12,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Smartphone, Delete, Fingerprint } from 'lucide-react-native';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { SegmentedControl } from '../../components/common';
+import { authApi } from '../../services/api/authApi';
+import { ApiError } from '../../services/api/client';
+import { useAuthStore } from '../../store/authStore';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,6 +31,8 @@ interface LoginScreenProps {
   onSignUp?: () => void;
   /** Navigate to the forgot-PIN recovery flow */
   onForgotPin?: () => void;
+  /** Called when the backend reports this phone number hasn't finished OTP verification */
+  onNeedsVerification?: (phone: string) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,7 +50,7 @@ const PIN_ROWS = [
 // ─────────────────────────────────────────────────────────────────────────────
 // PIN dot indicator
 // ─────────────────────────────────────────────────────────────────────────────
-const PinDots: React.FC<{ filled: number }> = ({ filled }) => (
+const PinDots: React.FC<{ filled: number; error?: boolean }> = ({ filled, error }) => (
   <View
     style={styles.pinDotsRow}
     accessible
@@ -55,7 +61,7 @@ const PinDots: React.FC<{ filled: number }> = ({ filled }) => (
         key={i}
         style={[
           styles.pinDot,
-          i < filled ? styles.pinDotFilled : styles.pinDotEmpty,
+          i < filled ? (error ? styles.pinDotError : styles.pinDotFilled) : styles.pinDotEmpty,
         ]}
       />
     ))}
@@ -110,31 +116,129 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginSuccess,
   onSignUp,
   onForgotPin,
+  onNeedsVerification,
 }) => {
   const [phone, setPhone] = useState('');
   const [activeTab, setActiveTab] = useState<AuthTab>('pin');
   const [pin, setPin] = useState('');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [biometricError, setBiometricError] = useState<string | null>(null);
+
+  const fingerprintEnabled = useAuthStore((s) => s.fingerprintEnabled);
+
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  const triggerShake = () => {
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 7, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -7, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 40, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const attemptLogin = async (enteredPin: string) => {
+    const trimmedPhone = phone.trim();
+    if (!trimmedPhone) {
+      setPhoneError('Enter your phone number first');
+      setPin('');
+      return;
+    }
+
+    setPhoneError(null);
+    setAuthError(null);
+    setSubmitting(true);
+    try {
+      const response = await authApi.login({ phoneNumber: trimmedPhone, pin: enteredPin });
+      useAuthStore.getState().setSession(response.token, {
+        userId: response.userId,
+        fullName: response.fullName,
+        phoneNumber: response.phoneNumber,
+        roles: response.roles,
+      });
+      setSubmitting(false);
+      onLoginSuccess?.();
+    } catch (err) {
+      setSubmitting(false);
+      setPin('');
+
+      // Registered but never finished OTP verification — send them to
+      // finish that instead of just failing the login with no way out.
+      if (err instanceof ApiError && err.status === 403) {
+        onNeedsVerification?.(trimmedPhone);
+        return;
+      }
+
+      setAuthError(
+        err instanceof ApiError ? err.message : 'Something went wrong. Please try again.',
+      );
+      triggerShake();
+    }
+  };
 
   const handleNumKey = (key: string) => {
+    if (submitting) return;
     if (key === 'delete') {
       setPin((p) => p.slice(0, -1));
+      if (authError) setAuthError(null);
       return;
     }
     if (pin.length >= PIN_LENGTH) return;
     const next = pin + key;
     setPin(next);
+    if (authError) setAuthError(null);
 
-    // When 4 digits are entered, immediately navigate to the next screen
     if (next.length === PIN_LENGTH) {
-      setTimeout(() => {
-        onLoginSuccess?.();
-      }, 250);
+      setTimeout(() => attemptLogin(next), 200);
     }
   };
 
-  const handleFingerprintPress = () => {
-    // Navigate on fingerprint simulation
-    onLoginSuccess?.();
+  const handleFingerprintPress = async () => {
+    // There's no biometric-login endpoint on the backend (login is
+    // phone+PIN only) — device biometrics unlock a session cached from a
+    // real prior PIN login instead of authenticating against the server.
+    if (biometricBusy) return;
+    setBiometricError(null);
+
+    const [hasHardware, isEnrolled] = await Promise.all([
+      LocalAuthentication.hasHardwareAsync(),
+      LocalAuthentication.isEnrolledAsync(),
+    ]);
+    if (!hasHardware || !isEnrolled) {
+      setBiometricError("Fingerprint login isn't set up on this device.");
+      return;
+    }
+
+    if (!fingerprintEnabled) {
+      setBiometricError('Enable fingerprint login from the app first.');
+      return;
+    }
+
+    if (!useAuthStore.getState().token) {
+      setBiometricError('Log in with your PIN once to enable fingerprint login.');
+      return;
+    }
+
+    setBiometricBusy(true);
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Log in to Legacy Lens',
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
+      setBiometricBusy(false);
+      if (result.success) {
+        onLoginSuccess?.();
+      }
+    } catch {
+      setBiometricBusy(false);
+      setBiometricError('Something went wrong. Please try again.');
+    }
   };
 
   return (
@@ -176,7 +280,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               <TextInput
                 style={styles.input}
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(t) => {
+                  setPhone(t);
+                  if (phoneError) setPhoneError(null);
+                }}
                 placeholder="(555) 123-4567"
                 placeholderTextColor={Colors.textMuted}
                 keyboardType="phone-pad"
@@ -187,6 +294,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 {...Platform.select({ android: { includeFontPadding: false } })}
               />
             </View>
+            {!!phoneError && <Text style={styles.fieldErrorText}>{phoneError}</Text>}
           </View>
 
           {/* Segmented control */}
@@ -197,15 +305,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 { key: 'fingerprint', label: 'Use Fingerprint' },
               ]}
               active={activeTab}
-              onChange={setActiveTab}
+              onChange={(tab) => {
+                setActiveTab(tab);
+                setBiometricError(null);
+              }}
             />
           </View>
 
           {/* ── PIN view ──────────────────────────────────────────────────── */}
           {activeTab === 'pin' && (
             <View style={styles.pinView}>
+              {!!authError && <Text style={styles.authErrorText}>{authError}</Text>}
+
               {/* PIN dots */}
-              <PinDots filled={pin.length} />
+              <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+                <PinDots filled={pin.length} error={!!authError} />
+              </Animated.View>
 
               {/* 3x4 Numpad Grid */}
               <View style={styles.numPad}>
@@ -239,14 +354,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             <View style={styles.fingerprintView}>
               <Pressable
                 onPress={handleFingerprintPress}
+                disabled={biometricBusy}
                 style={styles.fingerprintCircle}
                 accessibilityRole="button"
                 accessibilityLabel="Authenticate with fingerprint"
               >
                 <Fingerprint size={48} color={Colors.secondary} strokeWidth={1.5} />
               </Pressable>
-              <Text style={styles.fingerprintHint}>
-                Touch the sensor to log in.
+              <Text
+                style={[styles.fingerprintHint, !!biometricError && styles.fingerprintHintError]}
+              >
+                {biometricError ?? (biometricBusy ? 'Verifying…' : 'Touch the sensor to log in.')}
               </Text>
             </View>
           )}
@@ -380,11 +498,26 @@ const styles = StyleSheet.create({
     color: Colors.text,
     ...Platform.select({ android: { includeFontPadding: false } }),
   },
+  fieldErrorText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeXS,
+    color: '#ba1a1a',
+    marginTop: 4,
+    marginLeft: 4,
+  },
 
   // ── PIN view ──────────────────────────────────────────────────────────────
   pinView: {
     alignItems: 'center',
     width: '100%',
+  },
+  authErrorText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    color: '#ba1a1a',
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+    ...Platform.select({ android: { includeFontPadding: false } }),
   },
 
   // PIN dots
@@ -404,6 +537,9 @@ const styles = StyleSheet.create({
   },
   pinDotEmpty: {
     backgroundColor: '#c3c6cf',
+  },
+  pinDotError: {
+    backgroundColor: '#ba1a1a',
   },
 
   // 3x4 Numpad
@@ -476,6 +612,9 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
     ...Platform.select({ android: { includeFontPadding: false } }),
+  },
+  fingerprintHintError: {
+    color: '#ba1a1a',
   },
 
   // ── Sign-up footer ────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 package lk.ac.sliit.legacylens.auth.service.sms;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
@@ -8,13 +9,13 @@ import org.springframework.stereotype.Component;
  * real SMS, so you can finish and test the whole OTP flow without paying
  * for or registering with a gateway.
  *
- * When you're ready for a real provider: write e.g. TwilioSmsProvider
- * implementing SmsProvider, remove @Component from this class (or guard
- * both with @Profile("dev") / @Profile("prod")), and nothing else in the
- * auth module needs to change.
+ * Active whenever app.sms.provider is unset or set to "console" — the
+ * default, so nothing breaks for anyone who hasn't configured a real
+ * provider yet. Set app.sms.provider=text-lk to switch to real SMS.
  */
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.sms.provider", havingValue = "console", matchIfMissing = true)
 public class ConsoleSmsProvider implements SmsProvider {
 
     @Override

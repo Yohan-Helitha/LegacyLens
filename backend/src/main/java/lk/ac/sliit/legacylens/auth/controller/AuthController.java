@@ -65,7 +65,14 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> forgotPin(@Valid @RequestBody ForgotPinRequest request) {
         authService.forgotPin(request);
 
-        return ResponseEntity.ok(ApiResponse.ok("If this phone number is registered, an OTP has been sent.", null));
+        return ResponseEntity.ok(ApiResponse.ok("An OTP has been sent to your phone number.", null));
+    }
+
+    @PostMapping("/verify-reset-otp")
+    public ResponseEntity<ApiResponse<Void>> verifyResetOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        authService.verifyResetOtp(request);
+
+        return ResponseEntity.ok(ApiResponse.ok("OTP verified", null));
     }
 
     @PostMapping("/reset-pin")

@@ -38,7 +38,8 @@
         {
           "faceIDPermission": "Legacy Lens uses Face ID so you can log in quickly and securely."
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }

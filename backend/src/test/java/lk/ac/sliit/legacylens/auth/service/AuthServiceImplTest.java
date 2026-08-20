@@ -19,10 +19,12 @@ import lk.ac.sliit.legacylens.common.exception.PhoneNotVerifiedException;
 import lk.ac.sliit.legacylens.common.exception.PinMismatchException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.users.entity.AccountStatus;
+import lk.ac.sliit.legacylens.users.entity.City;
 import lk.ac.sliit.legacylens.users.entity.RoleStatus;
 import lk.ac.sliit.legacylens.users.entity.RoleType;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.entity.UserRole;
+import lk.ac.sliit.legacylens.users.repository.CityRepository;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
 import lk.ac.sliit.legacylens.users.repository.UserRoleRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,6 +60,7 @@ class AuthServiceImplTest {
     private static final String PHONE = "+94771234567";
     private static final String NIC = "199812345678";
     private static final String PIN = "1234";
+    private static final Integer CITY_ID = 1;
     private static final int MAX_FAILED_PIN_ATTEMPTS = 5;
 
     @Mock
@@ -65,6 +68,9 @@ class AuthServiceImplTest {
 
     @Mock
     private UserRoleRepository userRoleRepository;
+
+    @Mock
+    private CityRepository cityRepository;
 
     @Mock
     private OtpService otpService;
@@ -80,7 +86,7 @@ class AuthServiceImplTest {
     @BeforeEach
     void setUp() {
         authService = new AuthServiceImpl(
-                userRepository, userRoleRepository, otpService, passwordEncoder, jwtService,
+                userRepository, userRoleRepository, cityRepository, otpService, passwordEncoder, jwtService,
                 MAX_FAILED_PIN_ATTEMPTS);
     }
 
@@ -89,9 +95,11 @@ class AuthServiceImplTest {
     @Test
     void register_newUser_savesUserAssignsRoleAndSendsOtp() {
         RegisterRequest request = buildRegisterRequest();
+        City city = buildCity();
 
         when(userRepository.existsByPhoneNumber(PHONE)).thenReturn(false);
         when(userRepository.existsByNicNumber(NIC)).thenReturn(false);
+        when(cityRepository.findById(CITY_ID)).thenReturn(Optional.of(city));
         when(passwordEncoder.encode(PIN)).thenReturn("hashed-pin");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User user = invocation.getArgument(0);
@@ -107,6 +115,10 @@ class AuthServiceImplTest {
         assertThat(response.getPhoneNumber()).isEqualTo(PHONE);
         verify(userRoleRepository).save(any(UserRole.class));
         verify(otpService).issueOtp(PHONE, OtpPurpose.REGISTRATION);
+
+        ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(savedUser.capture());
+        assertThat(savedUser.getValue().getCity()).isEqualTo(city);
     }
 
     @Test
@@ -129,6 +141,19 @@ class AuthServiceImplTest {
         assertThrows(DuplicateNicException.class, () -> authService.register(request));
 
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void register_cityNotFound_throwsResourceNotFoundAndNeverSaves() {
+        RegisterRequest request = buildRegisterRequest();
+        when(userRepository.existsByPhoneNumber(PHONE)).thenReturn(false);
+        when(userRepository.existsByNicNumber(NIC)).thenReturn(false);
+        when(cityRepository.findById(CITY_ID)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> authService.register(request));
+
+        verify(userRepository, never()).save(any());
+        verify(otpService, never()).issueOtp(anyString(), any());
     }
 
     // ── verifyOtpAndActivate ─────────────────────────────────────────────
@@ -290,9 +315,10 @@ class AuthServiceImplTest {
     // ── forgotPin / resetPin ─────────────────────────────────────────────
 
     @Test
-    void forgotPin_existingUser_issuesPinResetOtp() {
+    void forgotPin_matchingPhoneAndNic_issuesPinResetOtp() {
         ForgotPinRequest request = new ForgotPinRequest();
         request.setPhoneNumber(PHONE);
+        request.setNicNumber(NIC);
 
         User user = buildActiveVerifiedUser();
         when(userRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.of(user));
@@ -303,17 +329,41 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void forgotPin_unknownPhoneNumber_doesNotThrowAndDoesNotIssueOtp() {
+    void forgotPin_unknownPhoneNumber_throwsResourceNotFound() {
         ForgotPinRequest request = new ForgotPinRequest();
         request.setPhoneNumber(PHONE);
+        request.setNicNumber(NIC);
 
         when(userRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.empty());
 
-        // Should complete silently — no exception — so callers can't probe
-        // for which phone numbers are registered.
-        authService.forgotPin(request);
-
+        assertThrows(ResourceNotFoundException.class, () -> authService.forgotPin(request));
         verify(otpService, never()).issueOtp(anyString(), any());
+    }
+
+    @Test
+    void forgotPin_nicDoesNotMatchPhone_throwsResourceNotFoundAndDoesNotIssueOtp() {
+        ForgotPinRequest request = new ForgotPinRequest();
+        request.setPhoneNumber(PHONE);
+        request.setNicNumber("000000000000");
+
+        User user = buildActiveVerifiedUser();
+        when(userRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.of(user));
+
+        // A mismatched NIC gets the same "not found" response as an unknown
+        // phone number — the caller can't tell which part was wrong.
+        assertThrows(ResourceNotFoundException.class, () -> authService.forgotPin(request));
+        verify(otpService, never()).issueOtp(anyString(), any());
+    }
+
+    @Test
+    void verifyResetOtp_delegatesToOtpServiceCheckOtp() {
+        VerifyOtpRequest request = new VerifyOtpRequest();
+        request.setPhoneNumber(PHONE);
+        request.setOtpCode("123456");
+
+        authService.verifyResetOtp(request);
+
+        verify(otpService).checkOtp(PHONE, "123456", OtpPurpose.PIN_RESET);
     }
 
     @Test
@@ -376,9 +426,19 @@ class AuthServiceImplTest {
         request.setPhoneNumber(PHONE);
         request.setDateOfBirth(LocalDate.of(1998, 4, 12));
         request.setNicNumber(NIC);
+        request.setCityId(CITY_ID);
         request.setPin(PIN);
 
         return request;
+    }
+
+    private City buildCity() {
+        City city = new City();
+        city.setId(CITY_ID);
+        city.setName("Colombo");
+        city.setRegion("Western");
+
+        return city;
     }
 
     private LoginRequest buildLoginRequest() {

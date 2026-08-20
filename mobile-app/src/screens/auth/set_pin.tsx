@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { BackButton, SuccessMark } from '../../components/common';
+import { ApiError } from '../../services/api/client';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,9 +19,16 @@ import { Colors, Typography, Spacing, Radii } from '../../theme';
 type PinStep = 'set' | 'confirm';
 
 interface SetPinScreenProps {
-  /** Called after PIN is successfully set and confirmed */
+  /**
+   * Called once the user has entered and confirmed a matching PIN — should
+   * perform the actual backend call (register, or reset-pin) and resolve on
+   * success. Throwing surfaces the error message on the confirm step and
+   * lets the user retry.
+   */
+  onSubmit: (pin: string) => Promise<void>;
+  /** Called after a successful submit, once the success animation finishes */
   onComplete?: () => void;
-  /** Navigate back to sign-up screen */
+  /** Navigate back */
   onBack?: () => void;
 }
 
@@ -178,6 +186,7 @@ const numStyles = StyleSheet.create({
 // Main screen
 // ─────────────────────────────────────────────────────────────────────────────
 export const SetPinScreen: React.FC<SetPinScreenProps> = ({
+  onSubmit,
   onComplete,
   onBack,
 }) => {
@@ -185,6 +194,8 @@ export const SetPinScreen: React.FC<SetPinScreenProps> = ({
   const [pin, setPin]         = useState('');
   const [confirm, setConfirm] = useState('');
   const [pinErr, setPinErr]   = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
   // Animations
@@ -243,6 +254,7 @@ export const SetPinScreen: React.FC<SetPinScreenProps> = ({
   };
 
   const handleConfirmKey = (key: string) => {
+    if (submitting) return;
     if (key === '⌫') {
       setConfirm((c) => c.slice(0, -1));
       setPinErr(false);
@@ -252,19 +264,35 @@ export const SetPinScreen: React.FC<SetPinScreenProps> = ({
     const next = confirm + key;
     setConfirm(next);
     if (next.length === PIN_LENGTH) {
-      setTimeout(() => {
-        if (next === pin) {
-          // PIN confirmed — show success, then navigate to login
-          setSuccess(true);
-          setTimeout(() => onComplete?.(), 1200);
-        } else {
-          // Mismatch
+      setTimeout(async () => {
+        if (next !== pin) {
           setPinErr(true);
+          setErrorMessage(null);
           triggerShake();
           setTimeout(() => {
             setConfirm('');
             setPinErr(false);
           }, 700);
+          return;
+        }
+
+        setSubmitting(true);
+        try {
+          await onSubmit(next);
+          setSubmitting(false);
+          setSuccess(true);
+          setTimeout(() => onComplete?.(), 1200);
+        } catch (err) {
+          setSubmitting(false);
+          setPinErr(true);
+          setErrorMessage(
+            err instanceof ApiError ? err.message : 'Something went wrong. Please try again.',
+          );
+          triggerShake();
+          setTimeout(() => {
+            setConfirm('');
+            setPinErr(false);
+          }, 900);
         }
       }, 200);
     }
@@ -289,11 +317,13 @@ export const SetPinScreen: React.FC<SetPinScreenProps> = ({
 
   const subheading = success
     ? 'You\'re all set. Taking you to login\u2026'
-    : pinStep === 'set'
-      ? 'You\'ll use this to log in quickly next time.'
-      : pinErr
-        ? 'PINs don\'t match \u2014 try again.'
-        : 'Enter your PIN again to confirm.';
+    : submitting
+      ? 'Just a moment\u2026'
+      : pinStep === 'set'
+        ? 'You\'ll use this to log in quickly next time.'
+        : pinErr
+          ? (errorMessage ?? 'PINs don\'t match \u2014 try again.')
+          : 'Enter your PIN again to confirm.';
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>

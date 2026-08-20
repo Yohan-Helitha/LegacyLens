@@ -19,10 +19,12 @@ import lk.ac.sliit.legacylens.common.exception.PhoneNotVerifiedException;
 import lk.ac.sliit.legacylens.common.exception.PinMismatchException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.users.entity.AccountStatus;
+import lk.ac.sliit.legacylens.users.entity.City;
 import lk.ac.sliit.legacylens.users.entity.RoleStatus;
 import lk.ac.sliit.legacylens.users.entity.RoleType;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.entity.UserRole;
+import lk.ac.sliit.legacylens.users.repository.CityRepository;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
 import lk.ac.sliit.legacylens.users.repository.UserRoleRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,6 +46,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
+    private final CityRepository cityRepository;
     private final OtpService otpService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -52,6 +55,7 @@ public class AuthServiceImpl implements AuthService {
     public AuthServiceImpl(
             UserRepository userRepository,
             UserRoleRepository userRoleRepository,
+            CityRepository cityRepository,
             OtpService otpService,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
@@ -59,6 +63,7 @@ public class AuthServiceImpl implements AuthService {
 
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
+        this.cityRepository = cityRepository;
         this.otpService = otpService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -76,11 +81,15 @@ public class AuthServiceImpl implements AuthService {
             throw new DuplicateNicException("An account with this NIC number already exists");
         }
 
+        City city = cityRepository.findById(request.getCityId())
+                .orElseThrow(() -> new ResourceNotFoundException("Selected city was not found"));
+
         User user = new User();
         user.setFullName(request.getFullName());
         user.setPhoneNumber(request.getPhoneNumber());
         user.setDateOfBirth(request.getDateOfBirth());
         user.setNicNumber(request.getNicNumber());
+        user.setCity(city);
         user.setPinHash(passwordEncoder.encode(request.getPin()));
         user.setAccountStatus(AccountStatus.ACTIVE);
         user.setPhoneVerified(false);
@@ -157,11 +166,17 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void forgotPin(ForgotPinRequest request) {
-        // Deliberately silent on whether the phone number exists — we only
-        // send an OTP if it does, but the caller sees the same response
-        // either way, so we don't leak which numbers are registered.
-        userRepository.findByPhoneNumber(request.getPhoneNumber())
-                .ifPresent(user -> otpService.issueOtp(user.getPhoneNumber(), OtpPurpose.PIN_RESET));
+        User user = userRepository.findByPhoneNumber(request.getPhoneNumber())
+                .filter(u -> u.getNicNumber().equals(request.getNicNumber()))
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "We couldn't find an account matching that phone number and NIC"));
+
+        otpService.issueOtp(user.getPhoneNumber(), OtpPurpose.PIN_RESET);
+    }
+
+    @Override
+    public void verifyResetOtp(VerifyOtpRequest request) {
+        otpService.checkOtp(request.getPhoneNumber(), request.getOtpCode(), OtpPurpose.PIN_RESET);
     }
 
     @Override

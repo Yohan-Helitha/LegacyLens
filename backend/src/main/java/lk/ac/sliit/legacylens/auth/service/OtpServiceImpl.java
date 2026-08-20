@@ -76,6 +76,23 @@ public class OtpServiceImpl implements OtpService {
     @Override
     @Transactional
     public void verifyOtp(String phoneNumber, String otpCode, OtpPurpose purpose) {
+        OtpVerification otp = validateOtp(phoneNumber, otpCode, purpose);
+
+        otp.setConsumed(true);
+        otpRepository.save(otp);
+    }
+
+    @Override
+    @Transactional
+    public void checkOtp(String phoneNumber, String otpCode, OtpPurpose purpose) {
+        // Runs the same checks as verifyOtp but never marks the code consumed,
+        // so a flow that checks the code on one screen (e.g. PIN reset's OTP
+        // step) can still let verifyOtp() succeed later against the same code.
+        validateOtp(phoneNumber, otpCode, purpose);
+    }
+
+    /** Shared validation: throws if missing, expired, over-attempted, or wrong. Returns the matched row on success. */
+    private OtpVerification validateOtp(String phoneNumber, String otpCode, OtpPurpose purpose) {
         OtpVerification otp = otpRepository
                 .findFirstByPhoneNumberAndPurposeAndConsumedFalseOrderByCreatedAtDesc(phoneNumber, purpose)
                 .orElseThrow(() -> new InvalidOtpException("No pending OTP for this phone number"));
@@ -97,8 +114,7 @@ public class OtpServiceImpl implements OtpService {
             throw new InvalidOtpException("Incorrect OTP code");
         }
 
-        otp.setConsumed(true);
-        otpRepository.save(otp);
+        return otp;
     }
 
     private void enforceResendCooldown(OtpVerification lastOtp) {
