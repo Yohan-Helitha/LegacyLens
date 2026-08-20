@@ -17,6 +17,7 @@ import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { PrivacyDataScreen } from '../screens/profile/PrivacyDataScreen';
 import { ChangePhoneScreen } from '../screens/profile/ChangePhoneScreen';
 import { ChangeNicScreen } from '../screens/profile/ChangeNicScreen';
+import LearningNavigator from './LearningNavigator';
 import { authApi } from '../services/api/authApi';
 import { profileApi } from '../services/api/profileApi';
 import { useAuthStore } from '../store/authStore';
@@ -47,6 +48,7 @@ export type RootStackParamList = {
   ChangeNicVerify: { newNicNumber: string };
   ChangePin: undefined;
   ChangePinVerify: { pin: string };
+  Learning: undefined;
 };
 
 /** True only when the device has fingerprint/biometric hardware with at least one enrolled credential. */
@@ -244,6 +246,10 @@ export const RootNavigator: React.FC = () => {
               useAuthStore.getState().clearSession();
               navigation.replace('Login');
             }}
+            onTabPress={(tab) => {
+              // Home/Market have no screens yet — only Learn and Profile are real.
+              if (tab === 'learn') navigation.navigate('Learning');
+            }}
           />
         )}
       </Stack.Screen>
@@ -356,6 +362,9 @@ export const RootNavigator: React.FC = () => {
           />
         )}
       </Stack.Screen>
+
+      {/* ── Learning Engine ────────────────────────────────────────────────── */}
+      <Stack.Screen name="Learning" component={LearningNavigator} />
     </Stack.Navigator>
   );
 };
