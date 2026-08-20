@@ -198,6 +198,15 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onFinish }) => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
   }, []);
 
+  // ── Auto-navigate timer (3 seconds) ────────────────────────────────────────
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onFinish?.();
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [onFinish]);
+
   useEffect(() => {
     if (reduceMotion) {
       // Skip animations — just show everything fully

@@ -1,20 +1,14 @@
 import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { LoadingScreen } from './src/screens/onboarding';
+import { RootNavigator } from './src/navigation/RootNavigator';
 
-/**
- * Root entry point.
- *
- * Right now it renders the LoadingScreen directly.
- * Once navigation is wired up, replace this with:
- *   <NavigationContainer>
- *     <RootNavigator />
- *   </NavigationContainer>
- */
 export default function App() {
   return (
     <SafeAreaProvider>
-      <LoadingScreen />
+      <NavigationContainer>
+        <RootNavigator />
+      </NavigationContainer>
     </SafeAreaProvider>
   );
 }
