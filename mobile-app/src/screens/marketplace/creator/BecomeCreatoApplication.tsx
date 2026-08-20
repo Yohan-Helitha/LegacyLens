@@ -18,6 +18,7 @@ import { profileApi } from '../../../services/api/profileApi';
 import { creatorApplicationApi } from '../../../services/api/creatorApplicationApi';
 import { ApiError } from '../../../services/api/client';
 import { useAuthStore } from '../../../store/authStore';
+import type { AuthUser } from '../../../store/authStore';
 import type { UserProfile } from '../../../types/profile';
 import type {
   CreatorApplicationProofFile,
@@ -231,7 +232,7 @@ export const BecomeCreatorApplication: React.FC<{
 }> = ({ onNavigate, onSubmit }) => {
   // Full Name / Phone Number / City / NIC Number are never typed in here —
   // they're auto-filled from the applicant's own account (read-only below).
-  const cachedUser = useAuthStore((s) => s.user);
+  const cachedUser = useAuthStore((s: { user: AuthUser | null }) => s.user);
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
