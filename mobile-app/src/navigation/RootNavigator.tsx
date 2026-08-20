@@ -13,7 +13,13 @@ import { ForgotPinScreen } from '../screens/auth/forgot_pin';
 import { OnBoarding1 } from '../screens/onboarding/weolcome/OnBoarding1';
 import { OnBoarding2 } from '../screens/onboarding/weolcome/OnBoarding2';
 import { OnBoarding3 } from '../screens/onboarding/weolcome/OnBoarding3';
+import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { PrivacyDataScreen } from '../screens/profile/PrivacyDataScreen';
+import { ChangePhoneScreen } from '../screens/profile/ChangePhoneScreen';
+import { ChangeNicScreen } from '../screens/profile/ChangeNicScreen';
 import { authApi } from '../services/api/authApi';
+import { profileApi } from '../services/api/profileApi';
+import { useAuthStore } from '../store/authStore';
 
 export type RootStackParamList = {
   Loading: undefined;
@@ -33,6 +39,14 @@ export type RootStackParamList = {
   OnBoarding1: undefined;
   OnBoarding2: undefined;
   OnBoarding3: undefined;
+  Profile: undefined;
+  PrivacyData: undefined;
+  ChangePhone: undefined;
+  ChangePhoneVerify: { newPhoneNumber: string };
+  ChangeNic: undefined;
+  ChangeNicVerify: { newNicNumber: string };
+  ChangePin: undefined;
+  ChangePinVerify: { pin: string };
 };
 
 /** True only when the device has fingerprint/biometric hardware with at least one enrolled credential. */
@@ -70,7 +84,7 @@ export const RootNavigator: React.FC = () => {
       <Stack.Screen name="Login">
         {({ navigation }) => (
           <LoginScreen
-            onLoginSuccess={() => navigation.navigate('OnBoarding1')}
+            onLoginSuccess={() => navigation.replace('Profile')}
             onSignUp={() => navigation.navigate('SignUp')}
             onForgotPin={() => navigation.navigate('ForgotPin')}
             onNeedsVerification={(phone) => navigation.navigate('VerifyOtp', { phone })}
@@ -217,6 +231,128 @@ export const RootNavigator: React.FC = () => {
           <OnBoarding3
             onGetStarted={() => navigation.navigate('Login')}
             onSkip={() => navigation.navigate('Login')}
+          />
+        )}
+      </Stack.Screen>
+
+      {/* ── Profile & account security ────────────────────────────────────── */}
+      <Stack.Screen name="Profile">
+        {({ navigation }) => (
+          <ProfileScreen
+            onOpenPrivacyData={() => navigation.navigate('PrivacyData')}
+            onLogout={() => {
+              useAuthStore.getState().clearSession();
+              navigation.replace('Login');
+            }}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="PrivacyData">
+        {({ navigation }) => (
+          <PrivacyDataScreen
+            onChangePhone={() => navigation.navigate('ChangePhone')}
+            onChangeNic={() => navigation.navigate('ChangeNic')}
+            onChangePin={() => navigation.navigate('ChangePin')}
+            onBack={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="ChangePhone">
+        {({ navigation }) => (
+          <ChangePhoneScreen
+            currentPhone={useAuthStore.getState().user?.phoneNumber}
+            onSubmit={async (newPhoneNumber) => {
+              await profileApi.requestPhoneChange({ newPhoneNumber });
+            }}
+            onComplete={(newPhoneNumber) =>
+              navigation.navigate('ChangePhoneVerify', { newPhoneNumber })
+            }
+            onBack={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="ChangePhoneVerify">
+        {({ navigation, route }) => (
+          <VerifyOtpScreen
+            phone={route.params.newPhoneNumber}
+            onSubmit={async (code) => {
+              await profileApi.confirmPhoneChange({
+                newPhoneNumber: route.params.newPhoneNumber,
+                otpCode: code,
+              });
+            }}
+            onResend={async () => {
+              await profileApi.requestPhoneChange({ newPhoneNumber: route.params.newPhoneNumber });
+            }}
+            onComplete={() => navigation.navigate('PrivacyData')}
+            onBack={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="ChangeNic">
+        {({ navigation }) => (
+          <ChangeNicScreen
+            onSubmit={async (newNicNumber) => {
+              await profileApi.requestNicChange({ newNicNumber });
+            }}
+            onComplete={(newNicNumber) => navigation.navigate('ChangeNicVerify', { newNicNumber })}
+            onBack={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="ChangeNicVerify">
+        {({ navigation, route }) => (
+          <VerifyOtpScreen
+            phone={useAuthStore.getState().user?.phoneNumber}
+            onSubmit={async (code) => {
+              await profileApi.confirmNicChange({
+                newNicNumber: route.params.newNicNumber,
+                otpCode: code,
+              });
+            }}
+            onResend={async () => {
+              await profileApi.requestNicChange({ newNicNumber: route.params.newNicNumber });
+            }}
+            onComplete={() => navigation.navigate('PrivacyData')}
+            onBack={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="ChangePin">
+        {({ navigation }) => (
+          <SetPinScreen
+            variant="change"
+            onSubmit={async () => {
+              await profileApi.requestPinChange();
+            }}
+            onComplete={(pin) => navigation.navigate('ChangePinVerify', { pin })}
+            onBack={() => navigation.goBack()}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="ChangePinVerify">
+        {({ navigation, route }) => (
+          <VerifyOtpScreen
+            phone={useAuthStore.getState().user?.phoneNumber}
+            onSubmit={async (code) => {
+              await profileApi.confirmPinChange({
+                newPin: route.params.pin,
+                confirmNewPin: route.params.pin,
+                otpCode: code,
+              });
+            }}
+            onResend={async () => {
+              await profileApi.requestPinChange();
+            }}
+            onComplete={() => navigation.navigate('PrivacyData')}
+            onBack={() => navigation.goBack()}
           />
         )}
       </Stack.Screen>

@@ -26,10 +26,22 @@ interface SetPinScreenProps {
    * lets the user retry.
    */
   onSubmit: (pin: string) => Promise<void>;
-  /** Called after a successful submit, once the success animation finishes */
-  onComplete?: () => void;
+  /**
+   * Called with the confirmed PIN once submission succeeds. In 'create' mode
+   * this fires after the built-in success animation. In 'change' mode there's
+   * no built-in success screen (the real success is a following OTP step),
+   * so it fires immediately once onSubmit resolves.
+   */
+  onComplete?: (pin: string) => void;
   /** Navigate back */
   onBack?: () => void;
+  /**
+   * 'create' (default) is the signup/reset-pin flow: "Create a 4-digit PIN",
+   * ends with a "PIN set!" success screen. 'change' is for an already
+   * logged-in user picking a new PIN ahead of an OTP confirmation step:
+   * different copy, and skips the success screen entirely.
+   */
+  variant?: 'create' | 'change';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -189,6 +201,7 @@ export const SetPinScreen: React.FC<SetPinScreenProps> = ({
   onSubmit,
   onComplete,
   onBack,
+  variant = 'create',
 }) => {
   const [pinStep, setPinStep] = useState<PinStep>('set');
   const [pin, setPin]         = useState('');
@@ -280,8 +293,14 @@ export const SetPinScreen: React.FC<SetPinScreenProps> = ({
         try {
           await onSubmit(next);
           setSubmitting(false);
-          setSuccess(true);
-          setTimeout(() => onComplete?.(), 1200);
+          if (variant === 'change') {
+            // No built-in success screen here — the real success is the
+            // following OTP step, so hand off immediately.
+            onComplete?.(next);
+          } else {
+            setSuccess(true);
+            setTimeout(() => onComplete?.(next), 1200);
+          }
         } catch (err) {
           setSubmitting(false);
           setPinErr(true);
@@ -312,15 +331,17 @@ export const SetPinScreen: React.FC<SetPinScreenProps> = ({
   const heading = success
     ? 'PIN set!'
     : pinStep === 'set'
-      ? 'Create a 4-digit PIN'
-      : 'Confirm your PIN';
+      ? (variant === 'change' ? 'Enter your new PIN' : 'Create a 4-digit PIN')
+      : (variant === 'change' ? 'Confirm your new PIN' : 'Confirm your PIN');
 
   const subheading = success
     ? 'You\'re all set. Taking you to login\u2026'
     : submitting
       ? 'Just a moment\u2026'
       : pinStep === 'set'
-        ? 'You\'ll use this to log in quickly next time.'
+        ? (variant === 'change'
+            ? 'Choose a new 4-digit PIN for your account.'
+            : 'You\'ll use this to log in quickly next time.')
         : pinErr
           ? (errorMessage ?? 'PINs don\'t match \u2014 try again.')
           : 'Enter your PIN again to confirm.';

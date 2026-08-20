@@ -7,5 +7,8 @@ package lk.ac.sliit.legacylens.auth.entity;
  */
 public enum OtpPurpose {
     REGISTRATION,
-    PIN_RESET
+    PIN_RESET,
+    PHONE_CHANGE,
+    NIC_CHANGE,
+    PIN_CHANGE
 }
