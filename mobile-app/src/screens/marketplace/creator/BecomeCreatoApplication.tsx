@@ -122,7 +122,7 @@ const FormField: React.FC<{
   onChangeText: (v: string) => void;
   placeholder?: string;
   secureIcon?: boolean;
-  keyboardType?: 'default' | 'phone-pad' | 'numeric';
+  keyboardType?: 'default' | 'phone-pad' | 'numeric' | 'email-address';
 }> = ({ label, value, onChangeText, placeholder, secureIcon, keyboardType = 'default' }) => (
   <View style={s.fieldGroup}>
     <Text style={s.fieldLabel}>{label}</Text>
@@ -134,6 +134,7 @@ const FormField: React.FC<{
         placeholder={placeholder}
         placeholderTextColor={D.outline}
         keyboardType={keyboardType}
+        autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
       />
       {secureIcon && <Text style={s.lockIcon}>{'🔒'}</Text>}
     </View>
@@ -193,6 +194,7 @@ export const BecomeCreatorApplication: React.FC<{
 }> = ({ onNavigate, onSubmit }) => {
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
   const [city, setCity] = useState('');
   const [nicNumber, setNicNumber] = useState('');
   const [aboutYou, setAboutYou] = useState('');
@@ -232,6 +234,7 @@ export const BecomeCreatorApplication: React.FC<{
         <FormSection title="Your Information">
           <FormField label="Full Name" value={fullName} onChangeText={setFullName} placeholder="Enter your full name" />
           <FormField label="Phone Number" value={phoneNumber} onChangeText={setPhoneNumber} placeholder="07X XXX XXXX" keyboardType="phone-pad" />
+          <FormField label="Email" value={email} onChangeText={setEmail} placeholder="Enter your email address" keyboardType="email-address" />
           <FormField label="City" value={city} onChangeText={setCity} placeholder="Enter your city" />
           <FormField label="NIC Number" value={nicNumber} onChangeText={setNicNumber} placeholder="Enter your NIC number" secureIcon />
           <View style={s.helperRow}>
