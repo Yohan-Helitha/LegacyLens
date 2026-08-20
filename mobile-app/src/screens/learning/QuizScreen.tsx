@@ -1,25 +1,36 @@
 // src/screens/learning/QuizScreen.tsx
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { mockQuizQuestions } from '../../constants/mockLearningData';
 import { QuestionOptionId } from '../../types/learning';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
-
-const CURRENT_LESSON_ID = 'lesson-2';
+import { useLearningStore } from '../../store/learningStore';
 
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'Quiz'>;
+
+const CURRENT_LESSON_ID = 'lesson-2';
 
 export default function QuizScreen() {
   const navigation = useNavigation<NavigationProp>();
   const questions = mockQuizQuestions.filter((q) => q.lessonId === CURRENT_LESSON_ID);
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [selectedOption, setSelectedOption] = useState<QuestionOptionId | null>(null);
-  const [score, setScore] = useState(0);
 
-  const question = questions[questionIndex];
+  const quiz = useLearningStore((state) => state.quiz);
+  const startQuiz = useLearningStore((state) => state.startQuiz);
+  const selectOption = useLearningStore((state) => state.selectOption);
+  const submitAnswer = useLearningStore((state) => state.submitAnswer);
+  const nextQuestion = useLearningStore((state) => state.nextQuestion);
+
+  // Start a fresh quiz session when this screen loads for this lesson
+  useEffect(() => {
+    if (quiz.currentLessonId !== CURRENT_LESSON_ID) {
+      startQuiz(CURRENT_LESSON_ID, questions.length);
+    }
+  }, []);
+
+  const question = questions[quiz.questionIndex];
 
   if (!question) {
     return (
@@ -30,18 +41,16 @@ export default function QuizScreen() {
   }
 
   const handleSelect = (optionId: QuestionOptionId) => {
-    setSelectedOption(optionId);
+    selectOption(optionId);
   };
 
-    const handleSubmit = () => {
-    if (!selectedOption) return;
-    const isCorrect = selectedOption === question.correctOptionId;
-    if (isCorrect) {
-      setScore((prev) => prev + 1);
-    }
-    if (questionIndex < questions.length - 1) {
-      setQuestionIndex((prev) => prev + 1);
-      setSelectedOption(null);
+  const handleSubmit = () => {
+    if (!quiz.selectedOption) return;
+    const isCorrect = quiz.selectedOption === question.correctOptionId;
+    submitAnswer(isCorrect);
+
+    if (quiz.questionIndex < questions.length - 1) {
+      nextQuestion();
     } else {
       navigation.navigate('QuizResult');
     }
@@ -50,18 +59,18 @@ export default function QuizScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
-        <Text style={styles.progressLabel}>Question {questionIndex + 1} of {questions.length}</Text>
+        <Text style={styles.progressLabel}>Question {quiz.questionIndex + 1} of {questions.length}</Text>
         <Text style={styles.hearts}>❤️❤️❤️</Text>
       </View>
 
-      <Text style={styles.streak}>🔥 Score: {score}</Text>
+      <Text style={styles.streak}>🔥 Score: {quiz.score}</Text>
 
       <View style={styles.questionCard}>
         <Text style={styles.prompt}>{question.prompt}</Text>
         {question.word ? <Text style={styles.word}>{question.word}</Text> : null}
 
         {question.options.map((opt) => {
-          const isSelected = selectedOption === opt.id;
+          const isSelected = quiz.selectedOption === opt.id;
           return (
             <Pressable
               key={opt.id}
@@ -77,9 +86,9 @@ export default function QuizScreen() {
       </View>
 
       <Pressable
-        style={[styles.submitButton, !selectedOption && styles.submitButtonDisabled]}
+        style={[styles.submitButton, !quiz.selectedOption && styles.submitButtonDisabled]}
         onPress={handleSubmit}
-        disabled={!selectedOption}
+        disabled={!quiz.selectedOption}
       >
         <Text style={styles.submitButtonText}>Check Answer</Text>
       </Pressable>

@@ -1,26 +1,25 @@
 // src/screens/learning/QuizResultScreen.tsx
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
-
-
-// Hardcoded for now — later comes from navigation params
-const MOCK_RESULT = {
-  totalQuestions: 5,
-  correctCount: 4,
-  xpEarned: 50,
-  currentStreakDays: 5,
-};
+import { useLearningStore } from '../../store/learningStore';
 
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'QuizResult'>;
 
 export default function QuizResultScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { totalQuestions, correctCount, xpEarned, currentStreakDays } = MOCK_RESULT;
-  const percent = Math.round((correctCount / totalQuestions) * 100);
+  const quiz = useLearningStore((state) => state.quiz);
+  const resetQuiz = useLearningStore((state) => state.resetQuiz);
+
+  const totalQuestions = quiz.totalQuestions;
+  const correctCount = quiz.score;
+  const xpEarned = correctCount * 10; // simple XP rule: 10 XP per correct answer
+  const currentStreakDays = 5; // will come from LearnerProgress later
+
+  const percent = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
   const starCount = percent >= 90 ? 3 : percent >= 60 ? 2 : 1;
 
   return (
@@ -50,13 +49,19 @@ export default function QuizResultScreen() {
 
       <Pressable
         style={styles.continueButton}
-        onPress={() => navigation.navigate('ProgressTracking')}
+        onPress={() => {
+          resetQuiz();
+          navigation.navigate('ProgressTracking');
+        }}
       >
         <Text style={styles.continueButtonText}>Continue</Text>
       </Pressable>
       <Pressable
         style={styles.retryButton}
-        onPress={() => navigation.navigate('Quiz', { lessonId: 'lesson-2' })}
+        onPress={() => {
+          resetQuiz();
+          navigation.navigate('Quiz', { lessonId: 'lesson-2' });
+        }}
       >
         <Text style={styles.retryButtonText}>Retry Quiz</Text>
       </Pressable>
