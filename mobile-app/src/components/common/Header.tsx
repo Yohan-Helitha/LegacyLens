@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing } from '../../theme';
@@ -10,6 +10,7 @@ interface HeaderProps {
   onNotificationPress?: () => void;
   showBack?: boolean;
   onBackPress?: () => void;
+  onNavigate?: (tab: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -17,34 +18,68 @@ export const Header: React.FC<HeaderProps> = ({
   onMenuPress, 
   onNotificationPress,
   showBack = false,
-  onBackPress
+  onBackPress,
+  onNavigate
 }) => {
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+
+  const handleMenuPress = () => {
+    if (onMenuPress) {
+      onMenuPress();
+    } else {
+      setSidebarVisible(true);
+    }
+  };
+
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.leftSection}>
-          {showBack ? (
-            <TouchableOpacity onPress={onBackPress} style={styles.iconBtn}>
-              <MaterialIcons name="arrow-back" size={28} color={Colors.white} />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={onMenuPress} style={styles.iconBtn}>
-              <MaterialIcons name="menu" size={28} color={Colors.white} />
-            </TouchableOpacity>
-          )}
-        </View>
+    <>
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <View style={styles.container}>
+          <View style={styles.leftSection}>
+            {showBack ? (
+              <TouchableOpacity onPress={onBackPress} style={styles.iconBtn}>
+                <MaterialIcons name="arrow-back" size={28} color={Colors.white} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={handleMenuPress} style={styles.iconBtn}>
+                <MaterialIcons name="menu" size={28} color={Colors.white} />
+              </TouchableOpacity>
+            )}
+          </View>
 
-        <View style={styles.centerSection}>
-          <Text style={styles.title}>{title}</Text>
-        </View>
+          <View style={styles.centerSection}>
+            <Text style={styles.title}>{title}</Text>
+          </View>
 
-        <View style={styles.rightSection}>
-          <TouchableOpacity onPress={onNotificationPress} style={styles.iconBtn}>
-            <MaterialIcons name="notifications-none" size={28} color={Colors.white} />
-          </TouchableOpacity>
+          <View style={styles.rightSection}>
+            <TouchableOpacity onPress={onNotificationPress} style={styles.iconBtn}>
+              <MaterialIcons name="notifications-none" size={28} color={Colors.white} />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+
+      <Modal visible={sidebarVisible} animationType="fade" transparent={true}>
+        <View style={styles.sidebarOverlay}>
+          <View style={styles.sidebarContent}>
+            <View style={styles.sidebarHeader}>
+              <Text style={styles.sidebarTitle}>Legacy Lens</Text>
+              <TouchableOpacity onPress={() => setSidebarVisible(false)}>
+                <MaterialIcons name="close" size={24} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.sidebarMenu}>
+              <TouchableOpacity style={styles.sidebarLink} onPress={() => { setSidebarVisible(false); onNavigate?.('admin_home'); }}>
+                <MaterialIcons name="admin-panel-settings" size={20} color={Colors.secondary} />
+                <Text style={styles.sidebarLinkText}>Admin Dashboard</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.sidebarCloseArea} onPress={() => setSidebarVisible(false)} />
+        </View>
+      </Modal>
+    </>
   );
 };
 
@@ -83,4 +118,46 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.white,
   },
+  sidebarOverlay: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  sidebarCloseArea: {
+    flex: 1,
+  },
+  sidebarContent: {
+    width: 280,
+    backgroundColor: Colors.white,
+    height: '100%',
+    paddingTop: 50,
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e3e2',
+  },
+  sidebarTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeLG,
+    fontWeight: '700',
+    color: Colors.secondary,
+  },
+  sidebarMenu: {
+    padding: Spacing.md,
+  },
+  sidebarLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  sidebarLinkText: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeMD,
+    color: Colors.text,
+  }
 });
