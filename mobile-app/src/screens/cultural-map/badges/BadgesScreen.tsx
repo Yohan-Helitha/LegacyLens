@@ -187,7 +187,36 @@ interface BadgesProps {
   onNavigate?: (tab: string) => void;
 }
 
+import { useTreasureHunt } from '../../../context/TreasureHuntContext';
+
 export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
+  const { unlockedBadges } = useTreasureHunt();
+  const ALL_BADGES = [...EARNED_BADGES, ...LOCKED_BADGES];
+  
+  const earnedBadges = unlockedBadges
+    .map(id => ALL_BADGES.find(b => b.id === id))
+    .filter((b): b is BadgeItem => b !== undefined)
+    .map(b => ({
+      ...b,
+      isUnlocked: true,
+      textureType: b.textureType === 'locked' ? 'wood' : b.textureType,
+    }));
+
+  const timelineItems = [...earnedBadges].reverse().map((badge, index, arr) => ({
+    id: `tl-${badge.id}`,
+    date: `Unlock #${arr.length - index}`,
+    title: `${badge.title} Earned`,
+    description: badge.howEarned || `Completed the ${badge.title} hunt.`,
+    imageSource: badge.imageSource,
+    textureType: (index === arr.length - 1) ? 'start' as const : 'clay' as const,
+  }));
+  
+  const lockedBadges = ALL_BADGES.filter(b => !unlockedBadges.includes(b.id)).map(b => ({
+    ...b,
+    isUnlocked: false,
+    textureType: b.textureType === 'rare' ? 'rare' : 'locked',
+  }));
+
   const [selectedBadge, setSelectedBadge] = useState<BadgeItem | null>(null);
   const modalSlideAnim = useRef(new Animated.Value(300)).current;
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -284,9 +313,7 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
                   <View style={[styles.progressBarFill, { width: '33%' }]} />
                 </View>
 
-                <Text style={styles.progressCounterText}>
-                  12 / 36 Badges Collected
-                </Text>
+                <Text style={styles.progressCounterText}>{earnedBadges.length} / {ALL_BADGES.length} Badges Collected</Text>
               </View>
             </ImageBackground>
           </View>
@@ -332,20 +359,17 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
           </View>
 
           <View style={styles.museumCaseGrid}>
-            {EARNED_BADGES.map((badge) => (
+            {earnedBadges.map(badge => (
               <TouchableOpacity
                 key={badge.id}
-                style={[
-                  styles.earnedBadgeCard,
-                  badge.isFullWidth && styles.earnedBadgeCardFullWidth,
-                ]}
+                style={styles.earnedBadgeCard}
                 onPress={() => openBadgeModal(badge)}
                 activeOpacity={0.85}
               >
                 <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
                   <Image 
                     source={badge.imageSource} 
-                    style={{ width: badge.isFullWidth ? 120 : 100, height: badge.isFullWidth ? 120 : 100, resizeMode: 'contain' }} 
+                    style={{ width: 100, height: 100, resizeMode: 'contain' }} 
                   />
                 </View>
 
@@ -367,7 +391,7 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
             {/* Continuous Vertical Line */}
             <View style={styles.timelineVerticalLine} />
 
-            {TIMELINE_ITEMS.map((item) => (
+            {timelineItems.map((item) => (
               <View key={item.id} style={styles.timelineItemRow}>
                 {/* Node Bullet */}
                 <View
@@ -426,13 +450,12 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
             <Text style={styles.sectionTitle}>BADGES TO DISCOVER</Text>
           </View>
 
-          <View style={styles.lockedBadgesGrid}>
-            {LOCKED_BADGES.map((badge) => (
+          <View style={styles.museumCaseGrid}>
+            {lockedBadges.map(badge => (
               <View
                 key={badge.id}
                 style={[
                   styles.lockedBadgeCard,
-                  badge.isFullWidth && styles.lockedBadgeCardFullWidth,
                   badge.textureType === 'rare' && styles.lockedBadgeRareBorder,
                 ]}
               >
@@ -719,7 +742,8 @@ const styles = StyleSheet.create({
     borderColor: '#E1E3E2',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    justifyContent: 'space-between',
+    rowGap: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -727,13 +751,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   earnedBadgeCard: {
-    width: '46%',
+    width: '48%',
     alignItems: 'center',
     gap: 4,
-  },
-  earnedBadgeCardFullWidth: {
-    width: '100%',
-    marginTop: 4,
   },
 
   badgeTitle: {
@@ -842,9 +862,6 @@ const styles = StyleSheet.create({
     borderColor: '#E1E3E2',
     opacity: 0.7,
     gap: 4,
-  },
-  lockedBadgeCardFullWidth: {
-    width: '100%',
   },
   lockedBadgeRareBorder: {
     borderColor: '#D4AF37',

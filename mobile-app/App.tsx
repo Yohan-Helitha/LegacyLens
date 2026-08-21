@@ -14,6 +14,7 @@ import { VideoDetailScreen, BlogDetailScreen } from './src/screens/content-detai
 import { UserFooter, AdminFooter, AdminHeader, Header, UserTabKey, AdminTabKey } from './src/components/common';
 import { Colors } from './src/theme';
 import { LoadingScreen } from './src/screens/onboarding';
+import { TreasureHuntProvider } from './src/context/TreasureHuntContext';
 
 type ExtraTabKey = 'hunt' | 'badges' | 'video' | 'blog' | 'add_opp' | 'admin_profile' | 'opp_review';
 type TabKey = UserTabKey | AdminTabKey | ExtraTabKey;
@@ -46,9 +47,10 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      <TreasureHuntProvider>
       <View style={{ flex: 1 }}>
         {['admin_home', 'intake', 'admin_profile', 'review', 'add_opp', 'opp_review'].includes(currentTab) && <AdminHeader onNavigate={(tab) => setCurrentTab(tab as any)} />}
-        {['learn', 'market', 'map', 'profile', 'hunt', 'badges'].includes(currentTab) && <Header />}
+        {['learn', 'market', 'map', 'profile', 'hunt', 'badges'].includes(currentTab) && <Header onNavigate={(tab) => setCurrentTab(tab as any)} />}
         {currentTab === 'home'   && <HomeScreen />}
         {hasVisitedMap && (
           <View style={{ flex: currentTab === 'map' ? 1 : 0, display: currentTab === 'map' ? 'flex' : 'none' }}>
@@ -83,6 +85,7 @@ export default function App() {
           </View>
         )}
       </View>
+      </TreasureHuntProvider>
     </SafeAreaProvider>
   );
 }
