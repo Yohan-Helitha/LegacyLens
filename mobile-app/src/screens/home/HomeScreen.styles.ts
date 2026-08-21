@@ -104,7 +104,7 @@ export const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeLG,
+    fontSize: Typography.sizeSM,
     color: Colors.text,
     paddingVertical: 0,
   },
@@ -228,6 +228,114 @@ export const styles = StyleSheet.create({
     elevation: 2,
     marginBottom: Spacing.lg,
     marginHorizontal: Spacing.md,
+  },
+  premiumCard: {
+    backgroundColor: Colors.secondary,
+    borderRadius: Radii.xl,
+    overflow: 'hidden',
+    marginBottom: Spacing.lg,
+    marginHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  premiumHeroBox: {
+    width: '100%',
+    height: 220,
+    backgroundColor: '#E4E7E6',
+    position: 'relative',
+  },
+  premiumHeroImg: {
+    width: '100%',
+    height: '100%',
+  },
+  premiumBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+    zIndex: 10,
+  },
+  premiumBadgeText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  premiumContent: {
+    padding: 18,
+  },
+  premiumTagRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  premiumTag: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  premiumTagText: {
+    color: '#aceeee',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  premiumTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: 24,
+    color: '#fff',
+    marginBottom: 10,
+  },
+  premiumDesc: {
+    fontFamily: Typography.fontBody,
+    fontSize: 16,
+    color: '#d1dbdb',
+    lineHeight: 24,
+  },
+  premiumDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginVertical: 16,
+  },
+  premiumFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  premiumAuthorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  premiumAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fff',
+  },
+  premiumAuthorStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  premiumStatsText: {
+    color: '#aceeee',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  premiumActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
   },
 
   // Card Header
@@ -355,11 +463,11 @@ export const styles = StyleSheet.create({
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 8,
   },
-  actionText: {
+  actionCount: {
     fontFamily: Typography.fontBodyMed,
-    fontSize: Typography.sizeSM,
+    fontSize: 17,
     color: Colors.textMuted,
   },
   cardFooterNote: {
@@ -451,11 +559,7 @@ export const styles = StyleSheet.create({
   },
 
 
-  actionCount: {
-    fontFamily: Typography.fontBodyMed,
-    fontSize: Typography.sizeSM,
-    color: Colors.textMuted,
-  },
+
 
   // Blog Card
   blogHeroImage: {
@@ -991,30 +1095,6 @@ export const styles = StyleSheet.create({
     fontSize: Typography.sizeMD,
     fontWeight: '700',
     color: Colors.white,
-  },
-  followButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#fe893e',
-    borderWidth: 1,
-    borderColor: '#fe893e',
-  },
-  followingButton: {
-    backgroundColor: 'rgba(254, 137, 62, 0.15)',
-    borderColor: 'rgba(254, 137, 62, 0.3)',
-  },
-  followButtonText: {
-    fontFamily: Typography.fontBodyMed,
-    fontSize: Typography.sizeSM,
-    color: '#ffffff',
-    fontWeight: '700',
-  },
-  followingButtonText: {
-    color: '#fe893e',
   },
   loaderContainer: {
     ...StyleSheet.absoluteFillObject,

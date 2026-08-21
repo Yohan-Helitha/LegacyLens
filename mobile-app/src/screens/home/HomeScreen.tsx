@@ -30,126 +30,10 @@ import { Colors, Typography, Spacing, Radii } from '../../theme';
 import mockData from '../admin/mockData.json';
 import { styles } from './HomeScreen.styles';
 
-const FeedCardActions = ({ initialLikes, initialComments, onCommentPress }: { initialLikes: number, initialComments: number, onCommentPress: () => void }) => {
-  const [liked, setLiked] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [likesCount, setLikesCount] = useState(initialLikes);
-  const [commentsCount] = useState(initialComments);
-  const heartScale = useRef(new Animated.Value(1)).current;
-  const saveTranslateY = useRef(new Animated.Value(0)).current;
-  const shareScale = useRef(new Animated.Value(1)).current;
-
-  const playSound = async (type: 'like' | 'save' | 'share') => {
-    try {
-      let source: any;
-      if (type === 'like') {
-        source = require('../../../assets/sounds/heart.mp3');
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      } else if (type === 'save') {
-        source = { uri: 'https://www.soundjay.com/buttons/sounds/button-30.mp3' };
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      } else if (type === 'share') {
-        source = { uri: 'https://www.soundjay.com/buttons/sounds/button-10.mp3' };
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync(source, { shouldPlay: true });
-      sound.setOnPlaybackStatusUpdate((status: any) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync();
-        }
-      });
-    } catch (e) {
-      console.log('Error playing sound:', e);
-    }
-  };
-
-  const handleLike = () => {
-    const newLiked = !liked;
-    setLiked(newLiked);
-    if (newLiked) {
-      playSound('like');
-      setLikesCount(likesCount + 1);
-      Animated.sequence([
-        Animated.timing(heartScale, { toValue: 1.25, duration: 100, useNativeDriver: true }),
-        Animated.timing(heartScale, { toValue: 0.95, duration: 80, useNativeDriver: true }),
-        Animated.spring(heartScale, { toValue: 1, friction: 4, tension: 50, useNativeDriver: true })
-      ]).start();
-    } else {
-      setLikesCount(likesCount - 1);
-    }
-  };
-
-  const handleSave = () => {
-    const newSaved = !saved;
-    setSaved(newSaved);
-    if (newSaved) {
-      playSound('save');
-      saveTranslateY.setValue(-8);
-      Animated.spring(saveTranslateY, { toValue: 0, friction: 4, tension: 40, useNativeDriver: true }).start();
-    }
-  };
-
-  const handleShare = async () => {
-    try {
-      playSound('share');
-      Animated.sequence([
-        Animated.timing(shareScale, { toValue: 1.15, duration: 100, useNativeDriver: true }),
-        Animated.timing(shareScale, { toValue: 1, duration: 100, useNativeDriver: true })
-      ]).start();
-      await Share.share({
-        message: 'Check out this post on LegacyLens! https://legacylens.app/post/share',
-      });
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  return (
-    <View style={styles.cardActions}>
-      <View style={styles.leftActions}>
-        <TouchableOpacity style={styles.actionBtn} onPress={handleLike} activeOpacity={0.8}>
-          <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-            <Ionicons name={liked ? "heart" : "heart-outline"} size={28} color={liked ? "#FF4B4B" : Colors.textMuted} />
-          </Animated.View>
-          <Text style={[styles.actionCount, liked && { color: "#FF4B4B", fontWeight: '600' }]}>{likesCount}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={onCommentPress}>
-          <MaterialIcons name="chat-bubble-outline" size={26} color={Colors.textMuted} />
-          <Text style={styles.actionCount}>{commentsCount}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
-          <Animated.View style={{ transform: [{ scale: shareScale }] }}>
-            <MaterialIcons name="share" size={26} color={Colors.textMuted} />
-          </Animated.View>
-          <Text style={styles.actionCount}>Share</Text>
-        </TouchableOpacity>
-      </View>
-      <TouchableOpacity style={styles.actionBtn} onPress={handleSave}>
-        <Animated.View style={{ transform: [{ translateY: saveTranslateY }] }}>
-          <Ionicons name={saved ? "bookmark" : "bookmark-outline"} size={28} color={saved ? "#fe893e" : Colors.textMuted} />
-        </Animated.View>
-      </TouchableOpacity>
-    </View>
-  );
-};
-
-const FollowButton = () => {
-  const [following, setFollowing] = useState(false);
-  return (
-    <TouchableOpacity 
-      style={[styles.followButton, following && styles.followingButton]} 
-      onPress={() => setFollowing(!following)}
-      activeOpacity={0.8}
-    >
-      <MaterialIcons name={following ? "check" : "add"} size={16} color={following ? "#fe893e" : '#ffffff'} />
-      <Text style={[styles.followButtonText, following && styles.followingButtonText]}>
-        {following ? 'Following' : 'Follow'}
-      </Text>
-    </TouchableOpacity>
-  );
-};
+import { FeedCardActions } from '../../components/home/FeedCardActions';
+import { VideoCard } from '../../components/home/VideoCard';
+import { BlogCard } from '../../components/home/BlogCard';
+import { AudioCard } from '../../components/home/AudioCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH - Spacing.md * 2;
@@ -222,282 +106,31 @@ const SPOTLIGHT_ITEMS: SpotlightItem[] = [
   },
 ];
 
-const loadedVideoIds = new Set<string>();
-
-const VideoLoader = () => {
-  const time = React.useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    Animated.loop(
-      Animated.timing(time, {
-        toValue: 4000,
-        duration: 4000,
-        useNativeDriver: false,
-        easing: Easing.linear,
-      })
-    ).start();
-  }, [time]);
-
-  const getTLBR = (anim: any) => anim.interpolate({
-    inputRange: [0, 200, 600, 800, 1200, 1400, 1800, 2000, 2200, 2600, 2800, 3200, 3400, 3800, 4000],
-    outputRange: [0, 0, 17.5, 17.5, 17.5, 17.5, 0, 0, 0, 17.5, 17.5, 17.5, 17.5, 0, 0]
-  });
-  const getTRBL = (anim: any) => anim.interpolate({
-    inputRange: [0, 200, 600, 800, 1200, 1400, 1800, 2000, 2200, 2600, 2800, 3200, 3400, 3800, 4000],
-    outputRange: [0, 0, 0, 0, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 0, 0, 0, 0]
-  });
-
-  const p1_time = time;
-  const p2_time = Animated.modulo(Animated.add(time, 1000), 4000);
-
-  const renderSquare = (p_time: any, key: string) => {
-    const tlbr = getTLBR(p_time);
-    const trbl = getTRBL(p_time);
-    return (
-      <Animated.View
-        key={key}
-        style={[
-          styles.loaderSquare,
-          {
-            borderTopLeftRadius: tlbr,
-            borderBottomRightRadius: tlbr,
-            borderTopRightRadius: trbl,
-            borderBottomLeftRadius: trbl,
-          }
-        ]}
-      />
-    );
-  };
-
-  return (
-    <View style={styles.loaderContainer}>
-      <View style={styles.loaderGrid}>
-        {renderSquare(p1_time, 'tl')}
-        {renderSquare(p2_time, 'tr')}
-        {renderSquare(p2_time, 'bl')}
-        {renderSquare(p1_time, 'br')}
-      </View>
-    </View>
-  );
-};
-
-const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModalVisible }: any) => {
-  const [isMuted, setIsMuted] = useState(false);
-  const [isReady, setIsReady] = useState(() => loadedVideoIds.has(v.id));
-  const [showLoader, setShowLoader] = useState(false);
-  
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (!isReady) {
-      timer = setTimeout(() => setShowLoader(true), 500);
-    } else {
-      setShowLoader(false);
-    }
-    return () => clearTimeout(timer);
-  }, [isReady]);
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.authorRow}>
-          <View style={styles.authorInitialBubble}>
-            <Text style={styles.authorInitialText}>{v.author[0]}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={[styles.authorName, { flexShrink: 1 }]} adjustsFontSizeToFit={true} minimumFontScale={0.6} numberOfLines={1}>{v.author}</Text>
-              <MaterialIcons name="verified" size={14} color="#fe893e" />
-            </View>
-            <Text style={styles.timeAgo}>Video</Text>
-          </View>
-        </View>
-
-      </View>
-
-      <View style={styles.videoHeroContainer}>
-        {showLoader && !isReady && <VideoLoader />}
-        <Video
-          source={{ uri: v.videoUrl || "https://www.w3schools.com/html/mov_bbb.mp4" }}
-          style={[styles.videoThumbnail, !isReady && { opacity: 0 }]}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay={isPlaying}
-          isLooping
-          isMuted={isMuted}
-          useNativeControls={false}
-          onReadyForDisplay={() => {
-            setIsReady(true);
-            loadedVideoIds.add(v.id);
-          }}
-          onLoadStart={() => {
-            if (!loadedVideoIds.has(v.id)) {
-              setIsReady(false);
-            }
-          }}
-        />
-        <View style={styles.videoBadgesRow}>
-          <View style={styles.glassBadge}>
-            <MaterialIcons name="schedule" size={13} color="#fff" />
-            <Text style={styles.glassBadgeText}>{v.duration}</Text>
-          </View>
-          {v.location && (
-            <View style={styles.glassBadge}>
-              <MaterialIcons name="location-on" size={13} color="#fff" />
-              <Text style={styles.glassBadgeText}>{v.location}</Text>
-            </View>
-          )}
-        </View>
-        
-        <TouchableOpacity 
-          style={styles.muteButton}
-          onPress={() => setIsMuted(!isMuted)}
-          activeOpacity={0.8}
-        >
-          <MaterialIcons name={isMuted ? "volume-off" : "volume-up"} size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.videoBottomOverlay}>
-        <Text style={[styles.videoTitle, { color: Colors.text }]} numberOfLines={2}>{v.title}</Text>
-      </View>
-
-      <FeedCardActions
-        initialLikes={Math.floor(Math.random() * 500) + 20}
-        initialComments={Math.floor(Math.random() * 100) + 5}
-        onCommentPress={() => {
-          setActivePostId(item.id);
-          setCommentModalVisible(true);
-        }}
-      />
-    </View>
-  );
-};
+export const loadedVideoIds = new Set<string>();
 
 export type VItem = typeof mockData.videos[0]  & { type: 'video' };
 export type BItem = typeof mockData.blogs[0]   & { type: 'blog' };
 export type AItem = typeof mockData.audio[0]   & { type: 'audio' };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AudioCard — stateful play / pause / resume for Home feed audio posts
-// ─────────────────────────────────────────────────────────────────────────────
-const TOTAL_BARS = 30; // number of waveform bars rendered
-
-const AudioCard = ({
-  a,
-  item,
-  setActivePostId,
-  setCommentModalVisible,
-}: {
-  a: AItem;
-  item: any;
-  setActivePostId: (id: string) => void;
-  setCommentModalVisible: (v: boolean) => void;
-}) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0); // 0 … TOTAL_BARS
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isPlaying && progress < TOTAL_BARS) {
-      interval = setInterval(() => {
-        setProgress(p => {
-          if (p >= TOTAL_BARS) {
-            setIsPlaying(false);
-            return TOTAL_BARS;
-          }
-          return p + 1;
-        });
-      }, 600);
-    }
-    return () => clearInterval(interval);
-  }, [isPlaying, progress]);
-
-  const handlePlayPause = () => {
-    if (progress >= TOTAL_BARS) {
-      // Replay from start
-      setProgress(0);
-      setIsPlaying(true);
-    } else {
-      setIsPlaying(prev => !prev);
-    }
-  };
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.authorRow}>
-          <Image source={{ uri: a.avatar }} style={styles.avatar} />
-          <View>
-            <Text style={styles.authorName}>{a.name}</Text>
-            <Text style={styles.timeAgo}>{a.location}</Text>
-          </View>
-        </View>
-        <View style={styles.audioBadge}>
-          <MaterialIcons name="mic" size={13} color={Colors.secondary} />
-          <Text style={styles.audioBadgeText}>Audio</Text>
-        </View>
-      </View>
-
-      {a.topic ? <Text style={styles.audioTopic}>{a.topic}</Text> : null}
-
-      {/* ── Audio strip inside green box — full width, flex bars ── */}
-      <View style={styles.audioStrip}>
-        {/* Play / Pause button */}
-        <TouchableOpacity
-          onPress={handlePlayPause}
-          activeOpacity={0.8}
-          style={styles.audioPlayBtn}
-        >
-          <MaterialIcons
-            name={isPlaying ? 'pause' : 'play-arrow'}
-            size={26}
-            color={Colors.white}
-          />
-        </TouchableOpacity>
-
-        {/* Waveform — always TOTAL_BARS, each bar flex:1 to fill width */}
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: 40, gap: 2 }}>
-          {Array.from({ length: TOTAL_BARS }, (_, i) => {
-            const src = a.bars && a.bars.length > 0 ? a.bars : [2,3,4,5,3,2,4,5,3,2];
-            const h = src[i % src.length] as number;
-            return (
-              <View
-                key={i}
-                style={{
-                  flex: 1,
-                  height: Math.max(6, h * 5),
-                  borderRadius: 2,
-                  backgroundColor: i < progress ? '#fe893e' : 'rgba(255,255,255,0.4)',
-                }}
-              />
-            );
-          })}
-        </View>
-
-        {/* Duration */}
-        <Text style={styles.audioDurationText}>{a.duration}</Text>
-      </View>
-
-      <FeedCardActions
-        initialLikes={Math.floor(Math.random() * 500) + 20}
-        initialComments={Math.floor(Math.random() * 100) + 5}
-        onCommentPress={() => {
-          setActivePostId(item.id);
-          setCommentModalVisible(true);
-        }}
-      />
-    </View>
-  );
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Component Definition
 // ─────────────────────────────────────────────────────────────────────────────
-export const HomeScreen: React.FC = () => {
+export const HomeScreen: React.FC<{ 
+  onNavigate?: (tab: string) => void, 
+  isOverlayActive?: boolean,
+  initialSearchQuery?: string 
+}> = ({ onNavigate, isOverlayActive, initialSearchQuery }) => {
   // State variables
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery || '');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('Explore all');
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (initialSearchQuery !== undefined) {
+      setSearchQuery(initialSearchQuery);
+    }
+  }, [initialSearchQuery]);
 
   // Voice Search
   const [isVoiceModalVisible, setIsVoiceModalVisible] = useState(false);
@@ -581,8 +214,9 @@ export const HomeScreen: React.FC = () => {
     
     // 1. Search bar filter
     if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      if (!lower.some(k => k.includes(q))) return false;
+      const queryParts = searchQuery.toLowerCase().split(' ').map(p => p.replace(/^#/, '')).filter(p => p.trim() !== '');
+      const matchesAnyPart = queryParts.some(part => lower.some(k => k.includes(part) || part.includes(k)));
+      if (!matchesAnyPart) return false;
     }
 
     // 2. Category pill filter
@@ -676,7 +310,7 @@ export const HomeScreen: React.FC = () => {
         <Animated.View style={[styles.stickyHeader, { transform: [{ translateY: headerTranslateY }] }]}>
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.accent, opacity: headerOrangeOpacity }]} />
         
-        <Header />
+        <Header onNavigate={onNavigate} />
 
         <View style={styles.searchBarSection}>
           <View style={styles.searchContainer}>
@@ -706,100 +340,100 @@ export const HomeScreen: React.FC = () => {
 
         {/* SECTION 2: Category Pills + Explore Filter Tabs (Stays fixed at top on scroll down) */}
         <Animated.View style={[styles.pillsAndFilterSection, { paddingTop: pillsTopPadding }]}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.quickFiltersContainer}
-          >
-            <TouchableOpacity
-              style={[
-                styles.quickFilterChip,
-                selectedCategoryId === null && { backgroundColor: '#0f5c5c', borderColor: '#0f5c5c' },
-              ]}
-              onPress={() => setSelectedCategoryId(null)}
-              activeOpacity={0.75}
-            >
-              <MaterialIcons
-                name="apps"
-                size={15}
-                color={selectedCategoryId === null ? '#fff' : Colors.textMuted}
-              />
-              <Text style={[
-                styles.quickFilterText,
-                selectedCategoryId === null && styles.quickFilterTextActive,
-              ]}>
-                All
-              </Text>
-            </TouchableOpacity>
-
-            {CATEGORIES.map((cat) => {
-              const isSelected = selectedCategoryId === cat.id;
-              return (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[
-                    styles.quickFilterChip,
-                    isSelected && { backgroundColor: cat.color, borderColor: cat.color },
-                  ]}
-                  onPress={() => setSelectedCategoryId(isSelected ? null : cat.id)}
-                  activeOpacity={0.75}
-                >
-                  <MaterialIcons
-                    name={cat.icon as any}
-                    size={15}
-                    color={isSelected ? '#fff' : cat.color}
-                  />
-                  <Text
-                    style={[
-                      styles.quickFilterText,
-                      isSelected && styles.quickFilterTextActive,
-                    ]}
-                  >
-                    {cat.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          <View style={styles.filterBar}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={{ flex: 1 }}
-              contentContainerStyle={styles.tabsContainer}
+              contentContainerStyle={styles.quickFiltersContainer}
             >
-              {MEDIA_TABS.map((tab) => {
-                const isActive = activeTab === tab;
+              <TouchableOpacity
+                style={[
+                  styles.quickFilterChip,
+                  selectedCategoryId === null && { backgroundColor: '#0f5c5c', borderColor: '#0f5c5c' },
+                ]}
+                onPress={() => setSelectedCategoryId(null)}
+                activeOpacity={0.75}
+              >
+                <MaterialIcons
+                  name="apps"
+                  size={15}
+                  color={selectedCategoryId === null ? '#fff' : Colors.textMuted}
+                />
+                <Text style={[
+                  styles.quickFilterText,
+                  selectedCategoryId === null && styles.quickFilterTextActive,
+                ]}>
+                  All
+                </Text>
+              </TouchableOpacity>
+
+              {CATEGORIES.map((cat) => {
+                const isSelected = selectedCategoryId === cat.id;
                 return (
                   <TouchableOpacity
-                    key={tab}
-                    onPress={() => setActiveTab(tab)}
+                    key={cat.id}
+                    style={[
+                      styles.quickFilterChip,
+                      isSelected && { backgroundColor: cat.color, borderColor: cat.color },
+                    ]}
+                    onPress={() => setSelectedCategoryId(isSelected ? null : cat.id)}
                     activeOpacity={0.75}
                   >
-                    <Animated.View
+                    <MaterialIcons
+                      name={cat.icon as any}
+                      size={15}
+                      color={isSelected ? '#fff' : cat.color}
+                    />
+                    <Text
                       style={[
-                        styles.tabButton,
-                        isActive && styles.tabButtonActive,
-                        { borderBottomColor: isActive ? activeTabBorderColor : 'transparent' }
+                        styles.quickFilterText,
+                        isSelected && styles.quickFilterTextActive,
                       ]}
                     >
-                      <Animated.Text
-                        style={[
-                          styles.tabText,
-                          isActive && styles.tabTextActive,
-                          { color: isActive ? activeTabTextColor : tabTextColor }
-                        ]}
-                      >
-                        {tab}
-                      </Animated.Text>
-                    </Animated.View>
+                      {cat.label}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
-          </View>
-        </Animated.View>
+
+            <View style={styles.filterBar}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.tabsContainer}
+              >
+                {MEDIA_TABS.map((tab) => {
+                  const isActive = activeTab === tab;
+                  return (
+                    <TouchableOpacity
+                      key={tab}
+                      onPress={() => setActiveTab(tab)}
+                      activeOpacity={0.75}
+                    >
+                      <Animated.View
+                        style={[
+                          styles.tabButton,
+                          isActive && styles.tabButtonActive,
+                          { borderBottomColor: isActive ? activeTabBorderColor : 'transparent' }
+                        ]}
+                      >
+                        <Animated.Text
+                          style={[
+                            styles.tabText,
+                            isActive && styles.tabTextActive,
+                            { color: isActive ? activeTabTextColor : tabTextColor }
+                          ]}
+                        >
+                          {tab}
+                        </Animated.Text>
+                      </Animated.View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </Animated.View>
       </Animated.View>
 
       <Animated.FlatList
@@ -844,7 +478,7 @@ export const HomeScreen: React.FC = () => {
                 /* ── VIDEO CARD ──────────────────────────────────────── */
                 if (item.type === 'video') {
                   const v = item as VItem;
-                  const isPlaying = visibleVideoId === v.id;
+                  const isPlaying = visibleVideoId === v.id && !isOverlayActive;
                   return (
                     <VideoCard 
                       v={v} 
@@ -852,6 +486,7 @@ export const HomeScreen: React.FC = () => {
                       item={item} 
                       setActivePostId={setActivePostId} 
                       setCommentModalVisible={setCommentModalVisible} 
+                      onNavigate={onNavigate}
                     />
                   );
                 }
@@ -860,46 +495,13 @@ export const HomeScreen: React.FC = () => {
                 if (item.type === 'blog') {
                   const b = item as BItem;
                   return (
-                    <View style={styles.card}>
-                      <View style={styles.cardHeader}>
-                        <View style={styles.authorRow}>
-                          <View style={styles.authorInitialBubble}>
-                            <Text style={styles.authorInitialText}>{b.author[0]}</Text>
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <Text style={[styles.authorName, { flexShrink: 1 }]} adjustsFontSizeToFit={true} minimumFontScale={0.6} numberOfLines={1}>{b.author}</Text>
-                              <MaterialIcons name="verified" size={14} color="#fe893e" />
-                            </View>
-                            <Text style={styles.timeAgo}>{b.readTime} read</Text>
-                          </View>
-                        </View>
-
-                      </View>
-
-                      <Image source={{ uri: b.thumbnail }} style={styles.blogHeroImage} resizeMode="cover" />
-
-                      <View style={styles.blogBody}>
-                        <View style={styles.editorialTag}>
-                          <Text style={styles.editorialTagText}>STORY</Text>
-                        </View>
-                        <Text style={styles.blogTitle}>{b.title}</Text>
-                        {b.excerpt ? <Text style={styles.blogExcerpt} numberOfLines={3}>{b.excerpt}</Text> : null}
-                        <TouchableOpacity style={styles.readMoreBtn} activeOpacity={0.8}>
-                          <Text style={styles.readMoreText}>Read Full Story</Text>
-                          <MaterialIcons name="arrow-forward" size={16} color={Colors.secondary} />
-                        </TouchableOpacity>
-                      </View>
-
-                      <FeedCardActions
-                        initialLikes={Math.floor(Math.random() * 500) + 20}
-                        initialComments={Math.floor(Math.random() * 100) + 5}
-                        onCommentPress={() => {
-                          setActivePostId(item.id);
-                          setCommentModalVisible(true);
-                        }}
-                      />
-                    </View>
+                    <BlogCard 
+                      b={b} 
+                      item={item} 
+                      setActivePostId={setActivePostId} 
+                      setCommentModalVisible={setCommentModalVisible} 
+                      onNavigate={onNavigate} 
+                    />
                   );
                 }
 
