@@ -46,23 +46,95 @@ const AREAS: CulturalArea[] = mockData.mapLocations;
 
 const TREASURE_HUNT = {
   clues: [
-    "I rise from the jungle as a mighty rock fortress. Kings once lived atop me. Find me in the north-central plains.",
-    "You found Sigiriya! Now head south to the city of gems — precious stones have been mined here for over 2,000 years.",
+    'I rise from the jungle as a mighty rock fortress. Kings once lived atop me. Find me in the north-central plains.',
+    'You found Sigiriya! Now head south to the city of gems — precious stones have been mined here for over 2,000 years.',
   ],
   targets: ['sigiriya', 'ratnapura'],
   reward: 250,
 };
 
 const REGIONS = [
-  { id: 'all', label: 'All Regions', desc: 'Explore the entire island', lng: 80.85, lat: 7.8, zoom: 7.2, regionName: 'All' },
-  { id: 'r1', label: 'Northern Sri Lanka', desc: 'Jaffna / Mannar / Kilinochchi / Mullaitivu', lng: 80.4, lat: 9.3, zoom: 7.5, regionName: 'Northern Province' },
-  { id: 'r2', label: 'North Central', desc: 'Anuradhapura / Polonnaruwa', lng: 80.5, lat: 8.2, zoom: 8.2, regionName: 'North Central Province' },
-  { id: 'r3', label: 'Eastern Sri Lanka', desc: 'Trincomalee / Batticaloa / Ampara', lng: 81.4, lat: 7.8, zoom: 7.5, regionName: 'Eastern Province' },
-  { id: 'r4', label: 'North Western', desc: 'Puttalam / Kurunegala', lng: 80.1, lat: 7.7, zoom: 8.2, regionName: 'North Western Province' },
-  { id: 'r5', label: 'Central Highlands', desc: 'Kandy / Matale / Nuwara Eliya', lng: 80.7, lat: 7.1, zoom: 8.5, regionName: 'Central Highlands' },
-  { id: 'r6', label: 'Uva & Eastern Highlands', desc: 'Badulla / Monaragala', lng: 81.2, lat: 6.9, zoom: 8.2, regionName: 'Uva Province' },
-  { id: 'r7', label: 'Western Sri Lanka', desc: 'Colombo / Gampaha / Kalutara', lng: 80.0, lat: 6.9, zoom: 8.5, regionName: 'Western Province' },
-  { id: 'r8', label: 'Southern & Sabaragamuwa', desc: 'Galle / Matara / Ratnapura / Kegalle', lng: 80.5, lat: 6.3, zoom: 8.2, regionName: 'Southern Province' },
+  {
+    id: 'all',
+    label: 'All Regions',
+    desc: 'Explore the entire island',
+    lng: 80.85,
+    lat: 7.8,
+    zoom: 7.2,
+    regionName: 'All',
+  },
+  {
+    id: 'r1',
+    label: 'Northern Sri Lanka',
+    desc: 'Jaffna / Mannar / Kilinochchi / Mullaitivu',
+    lng: 80.4,
+    lat: 9.3,
+    zoom: 7.5,
+    regionName: 'Northern Province',
+  },
+  {
+    id: 'r2',
+    label: 'North Central',
+    desc: 'Anuradhapura / Polonnaruwa',
+    lng: 80.5,
+    lat: 8.2,
+    zoom: 8.2,
+    regionName: 'North Central Province',
+  },
+  {
+    id: 'r3',
+    label: 'Eastern Sri Lanka',
+    desc: 'Trincomalee / Batticaloa / Ampara',
+    lng: 81.4,
+    lat: 7.8,
+    zoom: 7.5,
+    regionName: 'Eastern Province',
+  },
+  {
+    id: 'r4',
+    label: 'North Western',
+    desc: 'Puttalam / Kurunegala',
+    lng: 80.1,
+    lat: 7.7,
+    zoom: 8.2,
+    regionName: 'North Western Province',
+  },
+  {
+    id: 'r5',
+    label: 'Central Highlands',
+    desc: 'Kandy / Matale / Nuwara Eliya',
+    lng: 80.7,
+    lat: 7.1,
+    zoom: 8.5,
+    regionName: 'Central Highlands',
+  },
+  {
+    id: 'r6',
+    label: 'Uva & Eastern Highlands',
+    desc: 'Badulla / Monaragala',
+    lng: 81.2,
+    lat: 6.9,
+    zoom: 8.2,
+    regionName: 'Uva Province',
+  },
+  {
+    id: 'r7',
+    label: 'Western Sri Lanka',
+    desc: 'Colombo / Gampaha / Kalutara',
+    lng: 80.0,
+    lat: 6.9,
+    zoom: 8.5,
+    regionName: 'Western Province',
+  },
+  {
+    id: 'r8',
+    label: 'Southern & Sabaragamuwa',
+    desc: 'Galle / Matara / Ratnapura / Kegalle',
+    lng: 80.5,
+    lat: 6.3,
+    zoom: 8.2,
+    regionName: 'Southern Province',
+  },
 ];
 
 // ── Mapbox HTML injected into WebView ─────────────────────────────────────────
@@ -70,7 +142,15 @@ const buildMapHTML = (token: string, areas: CulturalArea[]) => {
   const geojsonFeatures = areas.map(a => ({
     type: 'Feature',
     geometry: { type: 'Point', coordinates: [a.lng, a.lat] },
-    properties: { id: a.id, name: a.name, icon: a.icon, isEvent: a.isEvent ?? false, image: a.image, modelUrl: a.modelUrl, region: a.region },
+    properties: {
+      id: a.id,
+      name: a.name,
+      icon: a.icon,
+      isEvent: a.isEvent ?? false,
+      image: a.image,
+      modelUrl: a.modelUrl,
+      region: a.region,
+    },
   }));
 
   return `<!DOCTYPE html>
@@ -317,14 +397,20 @@ const AnimatedLoader = () => {
     ).start();
   }, [time]);
 
-  const getTLBR = (anim: any) => anim.interpolate({
-    inputRange: [0, 200, 600, 800, 1200, 1400, 1800, 2000, 2200, 2600, 2800, 3200, 3400, 3800, 4000],
-    outputRange: [0, 0, 17.5, 17.5, 17.5, 17.5, 0, 0, 0, 17.5, 17.5, 17.5, 17.5, 0, 0]
-  });
-  const getTRBL = (anim: any) => anim.interpolate({
-    inputRange: [0, 200, 600, 800, 1200, 1400, 1800, 2000, 2200, 2600, 2800, 3200, 3400, 3800, 4000],
-    outputRange: [0, 0, 0, 0, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 0, 0, 0, 0]
-  });
+  const getTLBR = (anim: any) =>
+    anim.interpolate({
+      inputRange: [
+        0, 200, 600, 800, 1200, 1400, 1800, 2000, 2200, 2600, 2800, 3200, 3400, 3800, 4000,
+      ],
+      outputRange: [0, 0, 17.5, 17.5, 17.5, 17.5, 0, 0, 0, 17.5, 17.5, 17.5, 17.5, 0, 0],
+    });
+  const getTRBL = (anim: any) =>
+    anim.interpolate({
+      inputRange: [
+        0, 200, 600, 800, 1200, 1400, 1800, 2000, 2200, 2600, 2800, 3200, 3400, 3800, 4000,
+      ],
+      outputRange: [0, 0, 0, 0, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 0, 0, 0, 0],
+    });
 
   const p1_time = time;
   const p2_time = Animated.modulo(Animated.add(time, 1000), 4000);
@@ -342,7 +428,7 @@ const AnimatedLoader = () => {
             borderBottomRightRadius: tlbr as any,
             borderTopRightRadius: trbl as any,
             borderBottomLeftRadius: trbl as any,
-          }
+          },
         ]}
       />
     );
@@ -359,7 +445,15 @@ const AnimatedLoader = () => {
 };
 
 // ── Simple slide-up panel ─────────────────────────────────────────────────────
-function SlidePanel({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: React.ReactNode }) {
+function SlidePanel({
+  visible,
+  onClose,
+  children,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
   React.useEffect(() => {
@@ -370,21 +464,31 @@ function SlidePanel({ visible, onClose, children }: { visible: boolean; onClose:
     }).start();
   }, [visible]);
 
-  const pan = useRef(PanResponder.create({
-    onMoveShouldSetPanResponder: (_, gs) => gs.dy > 8,
-    onPanResponderMove: (_, gs) => { if (gs.dy > 0) translateY.setValue(gs.dy); },
-    onPanResponderRelease: (_, gs) => {
-      if (gs.dy > SHEET_HEIGHT * 0.3) { onClose(); }
-      else { Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start(); }
-    },
-  })).current;
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) => gs.dy > 8,
+      onPanResponderMove: (_, gs) => {
+        if (gs.dy > 0) translateY.setValue(gs.dy);
+      },
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dy > SHEET_HEIGHT * 0.3) {
+          onClose();
+        } else {
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+        }
+      },
+    })
+  ).current;
 
   if (!visible) return null;
 
   return (
     <>
       <TouchableOpacity style={panelStyles.backdrop} activeOpacity={1} onPress={onClose} />
-      <Animated.View style={[panelStyles.sheet, { transform: [{ translateY }] }]} {...pan.panHandlers}>
+      <Animated.View
+        style={[panelStyles.sheet, { transform: [{ translateY }] }]}
+        {...pan.panHandlers}
+      >
         <View style={panelStyles.handle} />
         {children}
       </Animated.View>
@@ -395,34 +499,75 @@ function SlidePanel({ visible, onClose, children }: { visible: boolean; onClose:
 const panelStyles = StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.2)', zIndex: 30 },
   sheet: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: SHEET_HEIGHT,
-    backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    zIndex: 40, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 80,
-    shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15, shadowRadius: 12, elevation: 20,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: SHEET_HEIGHT,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    zIndex: 40,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 80,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 20,
   },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#ddd', alignSelf: 'center', marginBottom: 16 },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#ddd',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
 });
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 interface CulturalMapProps {
   onNavigate?: (tab: string) => void;
   isActive?: boolean;
+  initialRegion?: string;
 }
 
-export const CulturalMapScreen: React.FC<CulturalMapProps> = ({ onNavigate, isActive = true }) => {
+export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
+  onNavigate,
+  isActive = true,
+  initialRegion,
+}) => {
   const [mode, setMode] = useState<Mode>('explore');
   const [selectedArea, setSelectedArea] = useState<CulturalArea | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [huntStep, setHuntStep] = useState(0);
   const [treasureFound, setTreasureFound] = useState(false);
-  
+
   const [filterVisible, setFilterVisible] = useState(false);
   const [isMapLoading, setIsMapLoading] = useState(true);
 
   const webViewRef = useRef<WebView>(null);
 
   const soundRef = useRef<Audio.Sound | null>(null);
+  const soundIdRef = useRef(0);
+
+  React.useEffect(() => {
+    if (initialRegion && webViewRef.current && !isMapLoading) {
+      const region = REGIONS.find(
+        r => r.regionName === initialRegion || r.id === initialRegion || r.label === initialRegion
+      );
+      if (region) {
+        // Adding a slight delay to ensure the map is ready for the javascript
+        setTimeout(() => {
+          webViewRef.current?.injectJavaScript(
+            `window.filterRegion(${JSON.stringify(region.regionName)}, ${region.lng}, ${region.lat}, ${region.zoom}); true;`
+          );
+        }, 500);
+      }
+    }
+  }, [initialRegion, isMapLoading]);
 
   const sidebarAnimX = useRef(new Animated.Value(-300)).current;
 
@@ -436,30 +581,48 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({ onNavigate, isAc
   }, [filterVisible]);
 
   const stopSound = async () => {
+    soundIdRef.current += 1;
     if (soundRef.current) {
-      await soundRef.current.unloadAsync();
+      const sound = soundRef.current;
       soundRef.current = null;
+      await sound.unloadAsync();
     }
   };
 
   const playOceanSound = async () => {
+    const playId = ++soundIdRef.current;
     try {
-      await stopSound();
+      if (soundRef.current) {
+        const sound = soundRef.current;
+        soundRef.current = null;
+        await sound.unloadAsync();
+      }
       await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync(
-        require('../../../assets/sounds/ocean.mp3'),
-        { shouldPlay: true, isLooping: true, volume: 1.0 }
-      );
-      soundRef.current = sound;
+      const { sound } = await Audio.Sound.createAsync(require('../../../assets/sounds/ocean.mp3'), {
+        shouldPlay: false,
+        isLooping: true,
+        volume: 1.0,
+      });
+      if (playId === soundIdRef.current) {
+        soundRef.current = sound;
+        await sound.playAsync();
+      } else {
+        await sound.unloadAsync();
+      }
     } catch (error) {
       console.warn('Error playing ocean sound', error);
     }
   };
 
   const playLocationSound = async (id: string) => {
+    const playId = ++soundIdRef.current;
     try {
-      await stopSound();
-      
+      if (soundRef.current) {
+        const sound = soundRef.current;
+        soundRef.current = null;
+        await sound.unloadAsync();
+      }
+
       let soundFile;
       if (id === 'ella' || id === 'nuwara' || id === 'ratnapura') {
         soundFile = require('../../../assets/sounds/waterfall.mp3');
@@ -468,11 +631,17 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({ onNavigate, isAc
       }
 
       await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync(
-        soundFile,
-        { shouldPlay: true, isLooping: true, volume: 1.0 }
-      );
-      soundRef.current = sound;
+      const { sound } = await Audio.Sound.createAsync(soundFile, {
+        shouldPlay: false,
+        isLooping: true,
+        volume: 1.0,
+      });
+      if (playId === soundIdRef.current) {
+        soundRef.current = sound;
+        await sound.playAsync();
+      } else {
+        await sound.unloadAsync();
+      }
     } catch (error) {
       console.warn('Error playing location sound', error);
     }
@@ -488,7 +657,7 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({ onNavigate, isAc
     } else {
       stopSound();
     }
-    
+
     return () => {
       stopSound();
     };
@@ -519,7 +688,6 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({ onNavigate, isAc
 
         setSelectedArea(area);
         setSheetVisible(true);
-        playLocationSound(area.id);
 
         // Fly camera to marker
         webViewRef.current?.injectJavaScript(`flyTo(${area.lng}, ${area.lat}, 11); true;`);
@@ -529,7 +697,7 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({ onNavigate, isAc
 
   const handleCloseSheet = () => {
     setSheetVisible(false);
-    playOceanSound(); // Return to ocean ambient sound
+    setSelectedArea(null);
     // Fly back to Sri Lanka overview
     webViewRef.current?.injectJavaScript(`resetCamera(); true;`);
   };
@@ -539,7 +707,7 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({ onNavigate, isAc
     setHuntStep(0);
     setTreasureFound(false);
     setSheetVisible(false);
-    playOceanSound();
+    setSelectedArea(null);
     webViewRef.current?.injectJavaScript(`resetCamera(); true;`);
   };
 
@@ -568,66 +736,85 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({ onNavigate, isAc
       />
 
       {/* ── Left Sidebar Filter ────────────────────────────────────── */}
-      <Animated.View style={[styles.sidebarContainer, { transform: [{ translateX: sidebarAnimX }] }]}>
+      <Animated.View
+        style={[styles.sidebarContainer, { transform: [{ translateX: sidebarAnimX }] }]}
+      >
         <View style={styles.sidebarContent}>
           <Text style={styles.filterSheetTitle}>Explore Regions</Text>
           <ScrollView showsVerticalScrollIndicator={false}>
             {REGIONS.map((region, idx) => (
-              <TouchableOpacity 
-                key={region.id} 
+              <TouchableOpacity
+                key={region.id}
                 style={[styles.filterItem, idx === REGIONS.length - 1 && { borderBottomWidth: 0 }]}
                 onPress={() => {
                   setFilterVisible(false);
                   const rn = region.regionName;
-                  webViewRef.current?.injectJavaScript(`window.filterRegion(${JSON.stringify(rn)}, ${region.lng}, ${region.lat}, ${region.zoom}); true;`);
+                  webViewRef.current?.injectJavaScript(
+                    `window.filterRegion(${JSON.stringify(rn)}, ${region.lng}, ${region.lat}, ${region.zoom}); true;`
+                  );
                 }}
               >
                 <Text style={styles.filterItemText}>{region.label}</Text>
-                <Text style={[styles.sheetDescription, { marginBottom: 0, marginTop: 4 }]}>{region.desc}</Text>
+                <Text style={[styles.sheetDescription, { marginBottom: 0, marginTop: 4 }]}>
+                  {region.desc}
+                </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
 
-        <TouchableOpacity 
-          style={styles.sidebarToggleBtn} 
+        <TouchableOpacity
+          style={styles.sidebarToggleBtn}
           onPress={() => setFilterVisible(!filterVisible)}
         >
-          <Feather name={filterVisible ? "chevron-left" : "sliders"} size={24} color={Colors.secondary} />
+          <Feather
+            name={filterVisible ? 'chevron-left' : 'sliders'}
+            size={24}
+            color={Colors.secondary}
+          />
         </TouchableOpacity>
       </Animated.View>
 
       {/* ── Top Right HUD Controls ─────────────────────────────────── */}
       <View style={styles.topRightControls}>
-        <TouchableOpacity style={styles.hudButton} onPress={() => {
-          if (onNavigate) {
-            onNavigate('badges');
-          } else {
-            console.log('Badges opened');
-          }
-        }}>
-          <Image source={require('../../../assets/map/badges.png')} style={{ width: 64, height: 64, resizeMode: 'contain' }} />
+        <TouchableOpacity
+          style={styles.hudButton}
+          onPress={() => {
+            if (onNavigate) {
+              onNavigate('badges');
+            } else {
+              console.log('Badges opened');
+            }
+          }}
+        >
+          <Image
+            source={require('../../../assets/map/badges.png')}
+            style={{ width: 64, height: 64, resizeMode: 'contain' }}
+          />
           <View style={styles.hudBadge}>
             <Text style={styles.hudBadgeText}>3</Text>
           </View>
         </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.hudButton} onPress={() => {
-          if (onNavigate) {
-            onNavigate('hunt');
-          } else {
-            setMode(mode === 'explore' ? 'treasure_hunt' : 'explore');
-            if (mode === 'explore') setHuntStep(0);
-          }
-        }}>
-          <Image 
-            source={require('../../../assets/map/treasure-hunt.png')} 
-            style={{ 
-              width: 96, 
-              height: 96, 
-              resizeMode: 'contain', 
-              tintColor: mode === 'treasure_hunt' ? Colors.accent : undefined 
-            }} 
+
+        <TouchableOpacity
+          style={styles.hudButton}
+          onPress={() => {
+            if (onNavigate) {
+              onNavigate('hunt');
+            } else {
+              setMode(mode === 'explore' ? 'treasure_hunt' : 'explore');
+              if (mode === 'explore') setHuntStep(0);
+            }
+          }}
+        >
+          <Image
+            source={require('../../../assets/map/treasure-hunt.png')}
+            style={{
+              width: 96,
+              height: 96,
+              resizeMode: 'contain',
+              tintColor: mode === 'treasure_hunt' ? Colors.accent : undefined,
+            }}
           />
           {mode === 'treasure_hunt' && (
             <View style={styles.hudBadge}>
@@ -642,17 +829,21 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({ onNavigate, isAc
         {selectedArea && !treasureFound && (
           <View style={styles.sheetContentWrapper}>
             {selectedArea.image && (
-              <Image source={{ uri: selectedArea.image }} style={styles.sheetHeroImage} resizeMode="cover" />
+              <Image
+                source={{ uri: selectedArea.image }}
+                style={styles.sheetHeroImage}
+                resizeMode="cover"
+              />
             )}
-            
+
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetRegion}>{selectedArea.region}</Text>
               <Text style={{ fontSize: 24 }}>{selectedArea.icon}</Text>
             </View>
-            
+
             <Text style={styles.sheetTitle}>{selectedArea.name}</Text>
             <Text style={styles.sheetDescription}>{selectedArea.description}</Text>
-            
+
             <View style={styles.sheetStats}>
               <View style={styles.statBadge}>
                 <Feather name="map-pin" size={14} color={Colors.secondary} />
@@ -663,7 +854,7 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({ onNavigate, isAc
                 <Text style={styles.statText}>Listen to Story</Text>
               </View>
             </View>
-            
+
             <TouchableOpacity style={styles.exploreBtn}>
               <Text style={styles.exploreBtnText}>Explore Location</Text>
               <Feather name="arrow-right" size={18} color={Colors.white} />
@@ -682,7 +873,6 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({ onNavigate, isAc
           </View>
         )}
       </SlidePanel>
-
     </View>
   );
 };

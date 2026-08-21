@@ -11,95 +11,39 @@ import {
   Image,
   ImageBackground,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { Audio } from 'expo-av';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
+import mockData from '../../admin/mockData.json';
+import { useTreasureHunt } from '../../../context/TreasureHuntContext';
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Game Progression Data
 // ─────────────────────────────────────────────────────────────────────────────
-const ADVENTURE_STAGES = [
-  {
-    id: 's1',
-    badgeId: 'galle-fort',
-    title: 'Galle Fort Navigator',
-    badgeImage: require('../../../../assets/badges/4.png'),
-    location: 'Galle',
-    lng: 80.2170,
-    lat: 6.0267,
-  },
-  {
-    id: 's2',
-    badgeId: 'sigiriya-explorer',
-    title: 'Sigiriya Explorer',
-    badgeImage: require('../../../../assets/badges/2.png'),
-    location: 'Sigiriya',
-    lng: 80.7603,
-    lat: 7.9570,
-  },
-  {
-    id: 's3',
-    badgeId: 'ceylon-tea',
-    title: 'Ceylon Tea Master',
-    badgeImage: require('../../../../assets/badges/3.png'),
-    location: 'Nuwara Eliya',
-    lng: 80.7828,
-    lat: 6.9497,
-  },
-  {
-    id: 's4',
-    badgeId: 'temple-tooth',
-    title: 'Temple of the Tooth',
-    badgeImage: require('../../../../assets/badges/5.png'),
-    location: 'Kandy',
-    lng: 80.6416,
-    lat: 7.2936,
-    riddle:
-      'I house a sacred relic guarded by generations, surrounded by the rhythm of the hills. Seek the vessel of gold.',
-    choices: [
-      { id: 'c1', label: 'Sacred Lotus', icon: 'local-florist', isCorrect: false },
-      { id: 'c2', label: 'Golden Casket', icon: 'all-inclusive', isCorrect: true },
-      { id: 'c3', label: 'Royal Tusk', icon: 'pets', isCorrect: false },
-    ],
-  },
-  {
-    id: 's5',
-    badgeId: 'vesak-lantern',
-    title: 'Vesak Illuminator',
-    badgeImage: require('../../../../assets/badges/6.png'),
-    location: 'Colombo',
-    lng: 79.8612,
-    lat: 6.9271,
-    riddle:
-      'Thousands of lights transform the night to honor enlightenment. Find the glowing geometry.',
-    choices: [
-      { id: 'c1', label: 'Clay Lamp', icon: 'wb-incandescent', isCorrect: false },
-      { id: 'c2', label: 'Paper Lantern', icon: 'lightbulb', isCorrect: true },
-      { id: 'c3', label: 'Temple Bell', icon: 'notifications', isCorrect: false },
-    ],
-  },
-  {
-    id: 's6',
-    badgeId: 'nine-arch',
-    title: 'Nine Arch Wanderer',
-    badgeImage: require('../../../../assets/badges/11.png'),
-    location: 'Ella',
-    lng: 81.0608,
-    lat: 6.8767,
-    riddle:
-      'A bridge of stone in the jungle deep, where the iron worm crawls while the forest sleeps.',
-    choices: [
-      { id: 'c1', label: 'Tea Train', icon: 'train', isCorrect: true },
-      { id: 'c2', label: 'Stone Pillar', icon: 'account-balance', isCorrect: false },
-      { id: 'c3', label: 'Ravana Cave', icon: 'landscape', isCorrect: false },
-    ],
-  },
-];
+const BADGE_IMAGES: Record<string, any> = {
+  '1.png': require('../../../../assets/badges/1.png'),
+  '2.png': require('../../../../assets/badges/2.png'),
+  '3.png': require('../../../../assets/badges/3.png'),
+  '4.png': require('../../../../assets/badges/4.png'),
+  '5.png': require('../../../../assets/badges/5.png'),
+  '6.png': require('../../../../assets/badges/6.png'),
+  '7.png': require('../../../../assets/badges/7.png'),
+  '8.png': require('../../../../assets/badges/8.png'),
+  '9.png': require('../../../../assets/badges/9.png'),
+  '10.png': require('../../../../assets/badges/10.png'),
+  '11.png': require('../../../../assets/badges/11.png'),
+};
+
+const ADVENTURE_STAGES: any[] = mockData.adventureStages.map(stage => ({
+  ...stage,
+  badgeImage: BADGE_IMAGES[stage.badgeImage as string]
+}));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HTML for Mapbox
@@ -236,13 +180,30 @@ interface TreasureHuntProps {
 }
 
 export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) => {
-  const [currentStageIndex, setCurrentStageIndex] = useState<number>(3);
+  const [isReady, setIsReady] = useState(false);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 400); // 400ms delay to lazy load mapbox webview
+    return () => clearTimeout(timer);
+  }, []);
+
+  const { unlockBadge, unlockedBadges } = useTreasureHunt();
+  const [currentStageIndex, setCurrentStageIndex] = useState<number>(
+    Math.min(unlockedBadges.length, ADVENTURE_STAGES.length - 1)
+  );
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
+  const [isAnswerRevealed, setIsAnswerRevealed] = useState<boolean>(false);
   const [showObjective, setShowObjective] = useState<boolean>(false);
   const [showIntro, setShowIntro] = useState<boolean>(true);
   const [showJourney, setShowJourney] = useState<boolean>(false);
+  const [showBadgeUnlock, setShowBadgeUnlock] = useState<boolean>(false);
+  const [showQuestIntro, setShowQuestIntro] = useState<boolean>(false);
 
   const analyzeBtnScale = useRef(new Animated.Value(1)).current;
+  const badgeGlowAnim = useRef(new Animated.Value(1)).current;
   const introAnimY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const puzzleAnimY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const journeyAnimY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -274,6 +235,36 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
   }, [showIntro]);
 
   useEffect(() => {
+    if (showBadgeUnlock) {
+      const playUnlockSound = async () => {
+        try {
+          const { sound } = await Audio.Sound.createAsync(
+            require('../../../../assets/sounds/inside-map/badge-unlocked.mp3'),
+            { shouldPlay: true, volume: 1.0 }
+          );
+          sound.setOnPlaybackStatusUpdate((status: any) => {
+            if (status.didJustFinish) {
+              sound.unloadAsync();
+            }
+          });
+        } catch (err) {
+          console.log('Failed to play unlock sound', err);
+        }
+      };
+      playUnlockSound();
+
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(badgeGlowAnim, { toValue: 1.15, duration: 1000, useNativeDriver: true }),
+          Animated.timing(badgeGlowAnim, { toValue: 1, duration: 1000, useNativeDriver: true })
+        ])
+      ).start();
+    } else {
+      badgeGlowAnim.setValue(1);
+    }
+  }, [showBadgeUnlock]);
+
+  useEffect(() => {
     Animated.spring(puzzleAnimY, { toValue: showObjective ? 0 : SCREEN_HEIGHT, useNativeDriver: true, friction: 8, tension: 40 }).start();
   }, [showObjective]);
 
@@ -286,23 +277,36 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
 
   const handleAnalyzeChoice = () => {
     if (!selectedChoiceId || isGameComplete) return;
-    const choice = activeStage.choices?.find((c) => c.id === selectedChoiceId);
-    if (!choice) return;
 
-    if (choice.isCorrect) {
-      Alert.alert('✨ Badge Unlocked!', `Incredible work! You solved the riddle of ${activeStage.location}!`, [
-        { text: 'Continue', onPress: () => { setCurrentStageIndex((prev) => prev + 1); setSelectedChoiceId(null); setShowObjective(false); } },
-      ]);
-    } else {
-      Alert.alert('🔍 Incorrect', 'Try again!', [{ text: 'Try Again' }]);
+    if (isAnswerRevealed) {
+      const currentQuestion = activeStage?.questions?.[currentQuestionIndex];
+      const choice = (currentQuestion?.choices || activeStage.choices)?.find((c: any) => c.id === selectedChoiceId);
+      
+      if (choice?.isCorrect) {
+        if (activeStage.questions && currentQuestionIndex + 1 < activeStage.questions.length) {
+          setCurrentQuestionIndex(prev => prev + 1);
+          setSelectedChoiceId(null);
+          setIsAnswerRevealed(false);
+        } else {
+          unlockBadge(activeStage.badgeId);
+          setShowBadgeUnlock(true);
+          setShowObjective(false);
+        }
+      } else {
+        setSelectedChoiceId(null);
+        setIsAnswerRevealed(false);
+      }
+      return;
     }
+
+    setIsAnswerRevealed(true);
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {MAPBOX_TOKEN ? (
+      {MAPBOX_TOKEN && isReady ? (
         <WebView
           ref={webviewRef}
           source={{ html: buildTreasureMapHTML(MAPBOX_TOKEN, ADVENTURE_STAGES.map(s => ({ ...s, imageUri: Image.resolveAssetSource(s.badgeImage).uri })), currentStageIndex) }}
@@ -365,13 +369,9 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
             <Text style={styles.heroSubtitle}>Solve riddles to unearth cultural relics.</Text>
             <TouchableOpacity style={styles.startJourneyBtn} onPress={() => {
               setShowIntro(false);
-              const stage = ADVENTURE_STAGES[currentStageIndex];
-              webviewRef.current?.injectJavaScript(`
-                if (window.map) {
-                  window.map.flyTo({ center: [${stage.lng}, ${stage.lat} - 0.025], zoom: 12.5, duration: 2500, pitch: 0 });
-                }
-                true;
-              `);
+              setTimeout(() => {
+                setShowQuestIntro(true);
+              }, 400);
             }}>
               <Text style={styles.startJourneyText}>Start Journey</Text>
             </TouchableOpacity>
@@ -383,18 +383,61 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
         <TouchableOpacity style={styles.closeModalBtn} onPress={() => setShowObjective(false)}>
           <MaterialIcons name="keyboard-arrow-down" size={28} color={Colors.textMuted} />
         </TouchableOpacity>
-        <View style={styles.objectiveSection}>
-          <Text style={styles.clueTitle}>{activeStage?.title}</Text>
-          <Text style={styles.instructionPrompt}>{activeStage?.riddle}</Text>
-          {activeStage?.choices?.map((item) => (
-            <TouchableOpacity key={item.id} onPress={() => setSelectedChoiceId(item.id)} style={[styles.choiceCard, selectedChoiceId === item.id && styles.choiceCardSelected]}>
-              <Text style={styles.choiceLabel}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
+        <ScrollView style={styles.objectiveSection} contentContainerStyle={{ paddingBottom: Spacing.xl * 2 }}>
+          <Text style={styles.clueTitle}>
+            {activeStage?.title} {activeStage?.questions && activeStage.questions.length > 1 ? `(${currentQuestionIndex + 1}/${activeStage.questions.length})` : ''}
+          </Text>
+          <Text style={styles.instructionPrompt}>{activeStage?.questions?.[currentQuestionIndex]?.riddle || activeStage?.riddle}</Text>
+          
+          {activeStage?.questions?.[currentQuestionIndex]?.image && (
+            <Image 
+              source={{ uri: activeStage.questions[currentQuestionIndex].image }} 
+              style={{ width: '100%', height: 160, borderRadius: Radii.lg, marginBottom: Spacing.lg }}
+              resizeMode="cover" 
+            />
+          )}
+
+          <View style={styles.choicesGrid}>
+            {(activeStage?.questions?.[currentQuestionIndex]?.choices || activeStage?.choices)?.map((item: any) => {
+              const isSelected = selectedChoiceId === item.id;
+              
+              let cardStyle: any = [styles.choiceCard];
+              let textColor: string = Colors.textMuted;
+              
+              if (isAnswerRevealed) {
+                if (item.isCorrect) {
+                  cardStyle.push({ borderColor: '#27AE60', backgroundColor: 'rgba(39, 174, 96, 0.05)' });
+                  textColor = '#27AE60';
+                } else if (isSelected && !item.isCorrect) {
+                  cardStyle.push({ borderColor: '#EB5757', backgroundColor: 'rgba(235, 87, 87, 0.05)' });
+                  textColor = '#EB5757';
+                }
+              } else if (isSelected) {
+                cardStyle.push(styles.choiceCardSelected);
+                textColor = Colors.accent;
+              }
+
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() => !isAnswerRevealed && setSelectedChoiceId(item.id)}
+                  style={cardStyle}
+                  activeOpacity={isAnswerRevealed ? 1 : 0.7}
+                >
+                  {item.icon && <MaterialIcons name={item.icon as any} size={28} color={textColor} style={{ marginBottom: 8 }} />}
+                  <Text style={[styles.choiceLabel, (isSelected || isAnswerRevealed) && { color: textColor, fontWeight: '700' }]}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
           <TouchableOpacity style={styles.analyzeButton} onPress={handleAnalyzeChoice}>
-            <Text style={styles.analyzeButtonText}>Submit</Text>
+            <Text style={styles.analyzeButtonText}>
+              {isAnswerRevealed ? ((activeStage?.questions?.[currentQuestionIndex]?.choices || activeStage?.choices)?.find((c:any) => c.id === selectedChoiceId)?.isCorrect ? 'Next' : 'Try Again') : 'Submit'}
+            </Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </Animated.View>
 
       <Animated.View style={[styles.modalSheet, { transform: [{ translateY: journeyAnimY }] }]}>
@@ -435,6 +478,92 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
           </ScrollView>
         </View>
       </Animated.View>
+
+      {/* ── Badge Unlocked Modal ─────────────────────────────── */}
+      <Modal visible={showBadgeUnlock} transparent animationType="fade">
+        <View style={styles.fullscreenOverlay}>
+          <Text style={styles.badgeUnlockHeading}>✨ BADGE UNLOCKED ✨</Text>
+          <Text style={styles.badgeUnlockSubheading}>Incredible work! You solved all riddles.</Text>
+          
+          <Animated.View style={[styles.badgeGlowContainer, { transform: [{ scale: badgeGlowAnim }] }]}>
+            <View style={styles.badgeGlowBg} />
+            <Image source={activeStage?.badgeImage} style={styles.unlockedBadgeImage} resizeMode="contain" />
+          </Animated.View>
+          
+          <Text style={styles.badgeUnlockTitle}>{activeStage?.title}</Text>
+          <Text style={styles.badgeUnlockLocation}>{activeStage?.location}</Text>
+          
+          <TouchableOpacity 
+            style={styles.continueQuestBtn}
+            onPress={() => {
+              setShowBadgeUnlock(false);
+              const nextStageIndex = currentStageIndex + 1;
+              if (nextStageIndex < ADVENTURE_STAGES.length) {
+                setCurrentStageIndex(nextStageIndex);
+                setCurrentQuestionIndex(0);
+                setSelectedChoiceId(null);
+                setIsAnswerRevealed(false);
+                setShowQuestIntro(true);
+              } else {
+                onNavigate?.('map');
+              }
+            }}
+          >
+            <Text style={styles.continueQuestText}>Continue Journey</Text>
+            <MaterialIcons name="arrow-forward" size={20} color={Colors.white} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.continueQuestBtn, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: Colors.white, marginTop: Spacing.sm }]}
+            onPress={() => {
+              setShowBadgeUnlock(false);
+              onNavigate?.('map');
+            }}
+          >
+            <Text style={[styles.continueQuestText, { color: Colors.white }]}>Exit Quest</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {/* ── Next Quest Intro Modal ───────────────────────────── */}
+      <Modal visible={showQuestIntro} transparent animationType="fade">
+        <View style={styles.fullscreenOverlayDark}>
+          <Text style={styles.questIntroHeading}>NEXT QUEST</Text>
+          
+          <View style={styles.lockedBadgeContainer}>
+            <Image source={ADVENTURE_STAGES[currentStageIndex]?.badgeImage} style={styles.lockedBadgeImage} resizeMode="contain" />
+            <MaterialIcons name="lock" size={48} color="rgba(255,255,255,0.9)" style={{ position: 'absolute' }} />
+          </View>
+          
+          <Text style={styles.questIntroTitle}>{ADVENTURE_STAGES[currentStageIndex]?.title}</Text>
+          <Text style={styles.questIntroLocation}>{ADVENTURE_STAGES[currentStageIndex]?.location}</Text>
+          
+          <TouchableOpacity 
+            style={styles.beginQuestBtn}
+            onPress={() => {
+              setShowQuestIntro(false);
+              const stage = ADVENTURE_STAGES[currentStageIndex];
+              webviewRef.current?.injectJavaScript(`
+                if (window.map) {
+                  window.map.flyTo({ center: [${stage?.lng || 80}, ${stage?.lat || 7} - 0.025], zoom: 12.5, duration: 2500, pitch: 0 });
+                }
+                true;
+              `);
+            }}
+          >
+            <Text style={styles.beginQuestText}>Begin Quest</Text>
+            <MaterialIcons name="arrow-forward" size={20} color={Colors.secondary} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.beginQuestBtn, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: Colors.secondary, marginTop: Spacing.sm }]}
+            onPress={() => {
+              setShowQuestIntro(false);
+              onNavigate?.('map');
+            }}
+          >
+            <Text style={[styles.beginQuestText, { color: Colors.secondary }]}>Exit Quest</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -587,6 +716,8 @@ const styles = StyleSheet.create({
   objectiveSection: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
+    maxHeight: Dimensions.get('window').height * 0.7,
+    flexGrow: 0,
   },
   clueTitle: {
     fontFamily: Typography.fontDisplay,
@@ -641,6 +772,141 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizeMD,
     color: Colors.white,
     letterSpacing: 0.5,
+  },
+
+  // ── New Modals ─────────────────────────────────────────────────────────────
+  fullscreenOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 92, 92, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+    zIndex: 2000,
+  },
+  fullscreenOverlayDark: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(10, 61, 61, 0.98)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+    zIndex: 2000,
+  },
+  badgeUnlockHeading: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeXL,
+    color: '#D4AF37',
+    marginBottom: Spacing.xs,
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
+  badgeUnlockSubheading: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeSM,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: Spacing.xl * 1.5,
+    textAlign: 'center',
+  },
+  badgeGlowContainer: {
+    width: 200,
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  badgeGlowBg: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(212, 175, 55, 0.3)',
+    shadowColor: '#D4AF37',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 40,
+    elevation: 20,
+  },
+  unlockedBadgeImage: {
+    width: 180,
+    height: 180,
+    zIndex: 2,
+  },
+  badgeUnlockTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.size2XL,
+    color: Colors.white,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  badgeUnlockLocation: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeMD,
+    color: Colors.accent,
+    textAlign: 'center',
+    marginBottom: Spacing.xl * 1.5,
+  },
+  continueQuestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: Radii.full,
+    gap: 12,
+  },
+  continueQuestText: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeMD,
+    color: Colors.white,
+    fontWeight: '700',
+  },
+  questIntroHeading: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeSM,
+    color: Colors.accent,
+    letterSpacing: 3,
+    marginBottom: Spacing.xl,
+  },
+  lockedBadgeContainer: {
+    width: 180,
+    height: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  lockedBadgeImage: {
+    width: 160,
+    height: 160,
+    opacity: 0.2,
+    tintColor: Colors.white,
+  },
+  questIntroTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: 28,
+    color: Colors.white,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  questIntroLocation: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeMD,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+    marginBottom: Spacing.xl * 1.5,
+  },
+  beginQuestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: Radii.full,
+    gap: 12,
+  },
+  beginQuestText: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeMD,
+    color: Colors.secondary,
+    fontWeight: '700',
   },
 });
 

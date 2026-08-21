@@ -1,4 +1,12 @@
 {
+  "knowledgeHolders": [
+    { "id": "kh1", "name": "Mrs. Kamala Wijesinghe", "verified": true, "role": "Traditional Weaving", "location": "Matara", "image": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200" },
+    { "id": "kh2", "name": "Mr. Somapala Perera", "verified": true, "role": "Mask Making", "location": "Ambalangoda", "image": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200" },
+    { "id": "kh3", "name": "Mr. Sirisena Silva", "verified": false, "role": "Pottery Making", "location": "Kegalle", "image": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=200" },
+    { "id": "kh4", "name": "Mrs. Nandawathi Fernando", "verified": true, "role": "Beeralu Lace Weaving", "location": "Galle", "image": "https://images.unsplash.com/photo-1531123897727-8f129e1bf98c?q=80&w=200" },
+    { "id": "kh5", "name": "Mr. Heen Banda", "verified": true, "role": "Traditional Drums", "location": "Kandy", "image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200" },
+    { "id": "kh6", "name": "Mrs. Kanthi Silva", "verified": false, "role": "Cooking Ambulla", "location": "Matara", "image": "https://images.unsplash.com/photo-1554151228-14d9def656e4?q=80&w=200" }
+  ],
   "categories": [
     { "id": "c1", "label": "Traditional Food", "icon": "restaurant", "color": "#e05d1a", "tags": ["food","cooking","recipe","kitchen","ambulla","kokis","sweetmeats","spices","odiyal"] },
     { "id": "c2", "label": "Performing Arts", "icon": "music-note", "color": "#0f7c6b", "tags": ["dance","music","drums","baila","folk","kandyan","esala","perahera","song"] },
@@ -94,5 +102,218 @@
     { "id": "anuradhapura", "name": "Ruwanwelisaya", "description": "A hemispherical structure...", "lng": 80.3965, "lat": 8.3444, "icon": "🛕", "image": "https://images.unsplash.com/photo-1616853755490-8edb8be232b7?q=80&w=200&h=200&fit=crop", "modelUrl": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb", "region": "North Central Province" },
     { "id": "ella", "name": "Nine Arches Bridge", "description": "Colonial-era railway construction...", "lng": 81.0608, "lat": 6.8767, "icon": "🚂", "image": "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?q=80&w=200&h=200&fit=crop", "modelUrl": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb", "region": "Uva Province" },
     { "id": "jaffna", "name": "Nallur Kovil", "description": "Significant Hindu temple...", "lng": 80.0306, "lat": 9.6738, "icon": "🔱", "image": "https://images.unsplash.com/photo-1658428384165-f123dcd2f33c?q=80&w=200&h=200&fit=crop", "modelUrl": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb", "region": "Northern Province" }
+  ],
+  "adventureStages": [
+    {
+      "id": "s1",
+      "badgeId": "galle-fort",
+      "title": "Galle Fort Navigator",
+      "badgeImage": "4.png",
+      "location": "Galle",
+      "lng": 80.2170,
+      "lat": 6.0267,
+      "questions": [
+        {
+          "riddle": "Built by the Portuguese, fortified by the Dutch. I am a city within walls facing the Indian Ocean.",
+          "choices": [
+            { "id": "c1", "label": "Colombo Fort", "icon": "location-city", "isCorrect": false },
+            { "id": "c2", "label": "Galle Fort", "icon": "castle", "isCorrect": true },
+            { "id": "c3", "label": "Jaffna Fort", "icon": "fort", "isCorrect": false }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "badgeId": "sigiriya-explorer",
+      "title": "Sigiriya Explorer",
+      "badgeImage": "2.png",
+      "location": "Sigiriya",
+      "lng": 80.7603,
+      "lat": 7.9570,
+      "questions": [
+        {
+          "riddle": "A palace in the sky built on a massive rock. Whose ancient kingdom was this?",
+          "choices": [
+            { "id": "c1", "label": "King Kashyapa", "icon": "person", "isCorrect": true },
+            { "id": "c2", "label": "King Dutugemunu", "icon": "person", "isCorrect": false },
+            { "id": "c3", "label": "King Parakramabahu", "icon": "person", "isCorrect": false }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "badgeId": "ceylon-tea",
+      "title": "Ceylon Tea Master",
+      "badgeImage": "3.png",
+      "location": "Nuwara Eliya",
+      "lng": 80.7828,
+      "lat": 6.9497,
+      "questions": [
+        {
+          "riddle": "Grown in the misty hills, I am Sri Lanka's most famous export. What am I?",
+          "choices": [
+            { "id": "c1", "label": "Coffee", "icon": "local-cafe", "isCorrect": false },
+            { "id": "c2", "label": "Ceylon Tea", "icon": "emoji-food-beverage", "isCorrect": true },
+            { "id": "c3", "label": "Cinnamon", "icon": "spa", "isCorrect": false }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "badgeId": "temple-tooth",
+      "title": "Temple of the Tooth Pilgrim",
+      "badgeImage": "5.png",
+      "location": "Kandy",
+      "lng": 80.6416,
+      "lat": 7.2936,
+      "questions": [
+        {
+          "riddle": "I house a sacred relic guarded by generations. Seek the vessel of gold.",
+          "image": "https://images.unsplash.com/photo-1620025983849-01eaae8b7c7b?q=80&w=400",
+          "choices": [
+            { "id": "c1", "label": "Sacred Lotus", "icon": "local-florist", "isCorrect": false },
+            { "id": "c2", "label": "Golden Casket", "icon": "all-inclusive", "isCorrect": true },
+            { "id": "c3", "label": "Royal Tusk", "icon": "pets", "isCorrect": false }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s5",
+      "badgeId": "vesak-lantern",
+      "title": "Vesak Illuminator",
+      "badgeImage": "6.png",
+      "location": "Colombo",
+      "lng": 79.8612,
+      "lat": 6.9271,
+      "questions": [
+        {
+          "riddle": "Thousands of lights transform the night to honor enlightenment. Find the glowing geometry.",
+          "choices": [
+            { "id": "c1", "label": "Clay Lamp", "icon": "wb-incandescent", "isCorrect": false },
+            { "id": "c2", "label": "Paper Lantern", "icon": "lightbulb", "isCorrect": true },
+            { "id": "c3", "label": "Temple Bell", "icon": "notifications", "isCorrect": false }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s6",
+      "badgeId": "nine-arch",
+      "title": "Nine Arch Wanderer",
+      "badgeImage": "11.png",
+      "location": "Ella",
+      "lng": 81.0608,
+      "lat": 6.8767,
+      "questions": [
+        {
+          "riddle": "A bridge of stone in the jungle deep, where the iron worm crawls while the forest sleeps.",
+          "image": "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?q=80&w=400",
+          "choices": [
+            { "id": "c1", "label": "Tea Train", "icon": "train", "isCorrect": true },
+            { "id": "c2", "label": "Stone Pillar", "icon": "account-balance", "isCorrect": false },
+            { "id": "c3", "label": "Ravana Cave", "icon": "landscape", "isCorrect": false }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s7",
+      "badgeId": "kandyan-rhythm",
+      "title": "Kandyan Rhythm Keeper",
+      "badgeImage": "1.png",
+      "location": "Kandy",
+      "lng": 80.6350,
+      "lat": 7.2906,
+      "questions": [
+        {
+          "riddle": "The heartbeat of the Perahera, carved from native wood. What instrument am I?",
+          "choices": [
+            { "id": "c1", "label": "Gata Bera", "icon": "music-note", "isCorrect": true },
+            { "id": "c2", "label": "Flute", "icon": "music-note", "isCorrect": false },
+            { "id": "c3", "label": "Violin", "icon": "music-note", "isCorrect": false }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s8",
+      "badgeId": "stilt-fisher",
+      "title": "Stilt Fisher's Balance",
+      "badgeImage": "7.png",
+      "location": "Ahangama",
+      "lng": 80.3672,
+      "lat": 5.9686,
+      "questions": [
+        {
+          "riddle": "Perched on a wooden pole above the crashing waves, I wait for my silver catch. Who am I?",
+          "choices": [
+            { "id": "c1", "label": "Stilt Fisher", "icon": "sailing", "isCorrect": true },
+            { "id": "c2", "label": "Surfer", "icon": "surfing", "isCorrect": false },
+            { "id": "c3", "label": "Sailor", "icon": "directions-boat", "isCorrect": false }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s9",
+      "badgeId": "yala-tracker",
+      "title": "Yala Wildlife Tracker",
+      "badgeImage": "8.png",
+      "location": "Yala",
+      "lng": 81.5033,
+      "lat": 6.3683,
+      "questions": [
+        {
+          "riddle": "A spotted shadow in the dry zone jungle. Which majestic cat rules this park?",
+          "choices": [
+            { "id": "c1", "label": "Lion", "icon": "pets", "isCorrect": false },
+            { "id": "c2", "label": "Leopard", "icon": "pets", "isCorrect": true },
+            { "id": "c3", "label": "Tiger", "icon": "pets", "isCorrect": false }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s10",
+      "badgeId": "ruwanwelisaya",
+      "title": "Ruwanwelisaya Devotee",
+      "badgeImage": "9.png",
+      "location": "Anuradhapura",
+      "lng": 80.3965,
+      "lat": 8.3444,
+      "questions": [
+        {
+          "riddle": "A great white dome piercing the sky, built by King Dutugemunu. What is my name?",
+          "choices": [
+            { "id": "c1", "label": "Ruwanwelisaya", "icon": "account-balance", "isCorrect": true },
+            { "id": "c2", "label": "Jetavanaramaya", "icon": "account-balance", "isCorrect": false },
+            { "id": "c3", "label": "Abhayagiriya", "icon": "account-balance", "isCorrect": false }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s11",
+      "badgeId": "mask-artisan",
+      "title": "Devil Mask Artisan",
+      "badgeImage": "10.png",
+      "location": "Ambalangoda",
+      "lng": 80.0543,
+      "lat": 6.2335,
+      "questions": [
+        {
+          "riddle": "Carved from Kaduru wood and painted in bright colors to ward off evil. What am I?",
+          "choices": [
+            { "id": "c1", "label": "Traditional Mask", "icon": "face", "isCorrect": true },
+            { "id": "c2", "label": "Puppet", "icon": "accessibility", "isCorrect": false },
+            { "id": "c3", "label": "Statue", "icon": "person", "isCorrect": false }
+          ]
+        }
+      ]
+    }
   ]
 }
