@@ -10,11 +10,13 @@ import { AdminHomeScreen } from './src/screens/admin/home';
 import { ModerationQueueScreen } from './src/screens/admin/moderation';
 import { CreateOpportunityScreen } from './src/screens/admin/opportunity-create';
 import { OpportunityIntakeScreen, OpportunityReviewScreen } from './src/screens/admin/opportunity-intake';
+import { OpportunityDraftsScreen } from './src/screens/admin/opportunity-drafts';
 import { VideoDetailScreen, BlogDetailScreen } from './src/screens/content-details';
 import { UserFooter, AdminFooter, AdminHeader, Header, UserTabKey, AdminTabKey } from './src/components/common';
 import { Colors } from './src/theme';
 import { LoadingScreen } from './src/screens/onboarding';
 import { TreasureHuntProvider } from './src/context/TreasureHuntContext';
+import { OpportunityProvider } from './src/context/OpportunityContext';
 
 type ExtraTabKey = 'hunt' | 'badges' | 'video' | 'blog' | 'add_opp' | 'admin_profile' | 'opp_review';
 type TabKey = UserTabKey | AdminTabKey | ExtraTabKey;
@@ -48,8 +50,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <TreasureHuntProvider>
+      <OpportunityProvider>
       <View style={{ flex: 1 }}>
-        {['admin_home', 'intake', 'admin_profile', 'review', 'add_opp', 'opp_review'].includes(currentTab) && <AdminHeader onNavigate={(tab) => setCurrentTab(tab as any)} />}
+        {['admin_home', 'intake', 'admin_profile', 'review', 'add_opp', 'opp_review', 'drafts'].includes(currentTab) && <AdminHeader onNavigate={(tab) => setCurrentTab(tab as any)} />}
         {['learn', 'market', 'map', 'profile', 'hunt', 'badges'].includes(currentTab) && <Header onNavigate={(tab) => setCurrentTab(tab as any)} />}
         {currentTab === 'home'   && <HomeScreen />}
         {hasVisitedMap && (
@@ -61,8 +64,9 @@ export default function App() {
         {currentTab === 'badges' && <BadgesScreen onNavigate={(tab) => setCurrentTab(tab as any)} />}
         {currentTab === 'admin_home' && <AdminHomeScreen onNavigate={(tab) => setCurrentTab(tab as any)} />}
         {currentTab === 'intake' && <OpportunityIntakeScreen onOpenReview={() => setCurrentTab('opp_review')} />}
-        {currentTab === 'add_opp' && <CreateOpportunityScreen />}
+        {currentTab === 'add_opp' && <CreateOpportunityScreen onNavigate={(tab: string) => setCurrentTab(tab as any)} />}
         {currentTab === 'opp_review' && <OpportunityReviewScreen onBack={() => setCurrentTab('intake')} onApprove={() => setCurrentTab('add_opp')} />}
+        {currentTab === 'drafts' && <OpportunityDraftsScreen onNavigate={(tab: string) => setCurrentTab(tab as any)} />}
 
         {currentTab === 'review' && <ModerationQueueScreen />}
         {currentTab === 'video' && <VideoDetailScreen />}
@@ -73,7 +77,7 @@ export default function App() {
         {currentTab === 'market' && <View style={{ flex: 1, backgroundColor: '#f8faf9', justifyContent: 'center', alignItems: 'center' }}><Text>Market (Coming Soon)</Text></View>}
         {currentTab === 'profile' && <View style={{ flex: 1, backgroundColor: '#f8faf9', justifyContent: 'center', alignItems: 'center' }}><Text>Profile (Coming Soon)</Text></View>}
 
-        {['admin_home', 'intake', 'admin_profile', 'review', 'add_opp', 'opp_review'].includes(currentTab) ? (
+        {['admin_home', 'intake', 'admin_profile', 'review', 'add_opp', 'opp_review', 'drafts'].includes(currentTab) ? (
           <AdminFooter activeTab={currentTab as AdminTabKey} onTabSelect={setCurrentTab} />
         ) : ['home', 'learn', 'market', 'map', 'profile', 'hunt', 'badges'].includes(currentTab) ? (
           <UserFooter activeTab={currentTab as UserTabKey} onTabSelect={setCurrentTab} />
@@ -85,6 +89,7 @@ export default function App() {
           </View>
         )}
       </View>
+      </OpportunityProvider>
       </TreasureHuntProvider>
     </SafeAreaProvider>
   );

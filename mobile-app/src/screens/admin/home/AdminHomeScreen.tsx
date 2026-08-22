@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 import { styles } from './AdminHomeScreen.styles';
+import { useOpportunity } from '../../../context/OpportunityContext';
 
 // ─── Data ───────────────────────────────────────────────────────────────────
 const VOICES = [
@@ -134,6 +135,7 @@ const VoiceCard = ({ item, onNavigate }: { item: typeof VOICES[0], onNavigate?: 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export const AdminHomeScreen: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'intake' | 'moderation' | 'opps'>('dashboard');
+  const { setActiveDraftId, setOriginTab } = useOpportunity();
 
   return (
     <View style={styles.safeArea}>
@@ -172,7 +174,7 @@ export const AdminHomeScreen: React.FC<{ onNavigate?: (tab: string) => void }> =
           </View>
 
           {/* Opportunities – Full Width */}
-          <TouchableOpacity style={[styles.attentionCardFull, { backgroundColor: '#fff3e0' }]} activeOpacity={0.8} onPress={() => onNavigate?.('add_opp')}>
+          <TouchableOpacity style={[styles.attentionCardFull, { backgroundColor: '#fff3e0' }]} activeOpacity={0.8} onPress={() => { setActiveDraftId(null); setOriginTab('admin_home'); onNavigate?.('add_opp'); }}>
             <View style={styles.attentionFullLeft}>
               <View style={[styles.publishIconCircle, { backgroundColor: '#ffe0b2' }]}>
                 <MaterialIcons name="publish" size={20} color="#e8792e" />
@@ -210,7 +212,7 @@ export const AdminHomeScreen: React.FC<{ onNavigate?: (tab: string) => void }> =
               </Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.createOppsBtn} activeOpacity={0.85} onPress={() => onNavigate?.('add_opp')}>
+          <TouchableOpacity style={styles.createOppsBtn} activeOpacity={0.85} onPress={() => { setActiveDraftId(null); setOriginTab('admin_home'); onNavigate?.('add_opp'); }}>
             <MaterialIcons name="add-circle" size={18} color={Colors.white} />
             <Text style={styles.createOppsBtnText}>Create Opportunity</Text>
           </TouchableOpacity>

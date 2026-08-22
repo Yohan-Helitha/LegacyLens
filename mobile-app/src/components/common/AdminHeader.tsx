@@ -41,6 +41,10 @@ export const AdminHeader: React.FC<{ onNavigate?: (tab: string) => void }> = ({ 
             </View>
             
             <View style={styles.sidebarMenu}>
+              <TouchableOpacity style={styles.sidebarLink} onPress={() => { setSidebarVisible(false); onNavigate?.('drafts'); }}>
+                <MaterialIcons name="edit-document" size={20} color={Colors.secondary} />
+                <Text style={styles.sidebarLinkText}>Drafts & Publishes</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.sidebarLink} onPress={() => { setSidebarVisible(false); onNavigate?.('home'); }}>
                 <MaterialIcons name="home" size={20} color={Colors.secondary} />
                 <Text style={styles.sidebarLinkText}>Return to User View</Text>
