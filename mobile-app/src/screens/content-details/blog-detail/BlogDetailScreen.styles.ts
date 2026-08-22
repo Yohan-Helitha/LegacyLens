@@ -1,0 +1,97 @@
+import { StyleSheet, Dimensions } from 'react-native';
+import { Colors, Typography, Spacing } from '../../../theme';
+
+export const styles = StyleSheet.create({
+  flex1: { flex: 1, backgroundColor: '#fdfaf6' },
+  fullImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+
+  headerOverlay: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50, backgroundColor: 'transparent', borderBottomWidth: 0 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 64, paddingHorizontal: Spacing.md },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' },
+  headerTitleBox: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeMD, fontWeight: '700', color: Colors.white, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+  langSelector: { flexDirection: 'row', backgroundColor: '#e1e3e2', borderRadius: 16, padding: 4, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.3)' },
+  langBtnActive: { backgroundColor: '#f8faf9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 1, elevation: 1 },
+  langBtnTextActive: { fontFamily: Typography.fontBodyMed, fontSize: 10, fontWeight: '700', color: Colors.secondary },
+  langBtn: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 },
+  langBtnText: { fontFamily: Typography.fontBodyMed, fontSize: 10, fontWeight: '700', color: Colors.textMuted },
+
+  scrollContent: { paddingTop: 0, paddingBottom: 0 },
+
+  heroSection: { width: '100%', height: Dimensions.get('window').height * 0.5, minHeight: 400 },
+  heroImg: { width: '100%', height: '100%' },
+  heroGradient: { flex: 1, backgroundColor: 'rgba(25, 28, 28, 0.6)', justifyContent: 'flex-end', padding: Spacing.md, paddingBottom: Spacing.lg },
+  heroContent: { gap: 12 },
+  heroTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  heroTagBorder: { paddingHorizontal: 12, paddingVertical: 4, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  heroTagText: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: Colors.white },
+  heroTagSolid: { paddingHorizontal: 12, paddingVertical: 4, backgroundColor: 'rgba(254, 137, 62, 0.9)', borderRadius: 16 },
+  heroTagTextSolid: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: '#672c00', fontWeight: '600' },
+  heroTitle: { fontFamily: Typography.fontDisplay, fontSize: 32, fontWeight: '600', color: Colors.white, lineHeight: 40 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  authorGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  authorImg: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.4)' },
+  authorName: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: 'rgba(255,255,255,0.8)' },
+  dotSeparator: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.5)' },
+  timeGroup: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  timeText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: 'rgba(255,255,255,0.8)' },
+
+  bodyContent: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.lg, maxWidth: 672, alignSelf: 'center' },
+  
+  paragraph: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.md, flexWrap: 'wrap' },
+  dropCap: { fontFamily: Typography.fontDisplay, fontSize: 56, fontWeight: '700', color: Colors.secondary, lineHeight: 56, marginRight: 8, marginTop: 4 },
+  bodyText: { flex: 1, fontFamily: Typography.fontDisplay, fontSize: 19, color: Colors.text, lineHeight: 32 },
+
+  asideBox: { marginVertical: Spacing.md, backgroundColor: '#f2f4f3', borderRadius: 16, padding: Spacing.md, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.3)', overflow: 'hidden' },
+  asideDeco: { position: 'absolute', top: -16, right: -16, width: 96, height: 96, borderRadius: 48, backgroundColor: 'rgba(15, 92, 92, 0.1)' },
+  asideHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: Spacing.sm },
+  asideIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.secondary, alignItems: 'center', justifyContent: 'center' },
+  asideTitle: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeMD, fontWeight: '600', color: Colors.secondary },
+  asideText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: Colors.textMuted, lineHeight: 24 },
+
+  vocabWord: { color: Colors.secondary, fontWeight: '600', textDecorationLine: 'underline', textDecorationStyle: 'dashed' },
+  
+  vocabPopover: { backgroundColor: Colors.white, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: 'rgba(15, 92, 92, 0.2)', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4, marginVertical: Spacing.sm },
+  vocabCloseBtn: { position: 'absolute', top: 8, right: 8, padding: 4 },
+  vocabHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  vocabTitle: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeMD, fontWeight: '600', color: Colors.secondary },
+  vocabAudioBtn: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#e1e3e2', alignItems: 'center', justifyContent: 'center' },
+  vocabPhonetic: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: '#6f7978', marginBottom: 8 },
+  vocabDesc: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: Colors.textMuted },
+
+  quoteBlock: { marginVertical: Spacing.md, borderLeftWidth: 4, borderLeftColor: '#fe893e', paddingLeft: Spacing.md, paddingVertical: 4 },
+  quoteText: { fontFamily: Typography.fontDisplay, fontSize: 24, fontStyle: 'italic', color: Colors.secondary, lineHeight: 34, marginBottom: Spacing.sm },
+  quoteFooter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  quoteLine: { width: 24, height: 1, backgroundColor: '#6f7978' },
+  quoteAuthor: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: Colors.textMuted },
+
+  lookCloserSection: { marginVertical: Spacing.md },
+  lookCloserHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.sm },
+  lookCloserTitle: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '700', color: Colors.secondary, letterSpacing: 1 },
+  lookCloserImgBox: { width: '100%', height: 300, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#bfc8c8', position: 'relative' },
+  hotspot: { position: 'absolute', width: 32, height: 32, borderRadius: 16, backgroundColor: '#fe893e', alignItems: 'center', justifyContent: 'center', shadowColor: '#fe893e', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 10, elevation: 5 },
+  lookCloserCaptionBox: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, backgroundColor: 'rgba(253, 250, 246, 0.9)' },
+  lookCloserCaption: { textAlign: 'center', fontFamily: Typography.fontBodyMed, fontSize: 12, color: Colors.textMuted },
+
+  preservationBox: { marginVertical: Spacing.md, backgroundColor: '#f8faf9', padding: Spacing.md, borderRadius: 16, borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(191, 200, 200, 0.5)' },
+  preservationHeader: { borderBottomWidth: 2, borderBottomColor: Colors.secondary, alignSelf: 'flex-start', paddingBottom: 8, marginBottom: Spacing.sm },
+  preservationTitle: { fontFamily: Typography.fontDisplay, fontSize: 24, fontWeight: '600', color: Colors.text },
+  preservationList: { gap: 16 },
+  preservationItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  preservationInfo: { flex: 1 },
+  preservationItemTitle: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '700', color: Colors.text },
+  preservationItemDesc: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: Colors.textMuted },
+
+  exploreSection: { marginVertical: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: 'rgba(191, 200, 200, 0.3)' },
+  exploreTitle: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '700', color: '#6f7978', letterSpacing: 1, marginBottom: Spacing.md },
+  exploreTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  exploreTag: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#eceeed', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.5)' },
+  exploreTagText: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: Colors.text },
+
+  toolbarContainer: { position: 'absolute', bottom: 24, left: 0, right: 0, alignItems: 'center', zIndex: 50 },
+  toolbarInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(225, 227, 226, 0.95)', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 32, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.3)', width: '90%', maxWidth: 360, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 10 },
+  toolbarBtn: { padding: 4 },
+  toolbarDivider: { width: 1, height: 24, backgroundColor: 'rgba(191, 200, 200, 0.5)' },
+  toolbarProgressText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.textMuted },
+  toolbarBtnAccent: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#0f5c5c', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 },
+});

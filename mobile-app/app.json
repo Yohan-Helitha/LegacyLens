@@ -39,7 +39,10 @@
           "faceIDPermission": "Legacy Lens uses Face ID so you can log in quickly and securely."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-speech-recognition",
+      "@rnmapbox/maps",
+      "@react-native-community/datetimepicker"
     ]
   }
 }
