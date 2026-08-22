@@ -41,7 +41,8 @@
       ],
       "expo-secure-store",
       "expo-speech-recognition",
-      "@rnmapbox/maps"
+      "@rnmapbox/maps",
+      "@react-native-community/datetimepicker"
     ]
   }
 }
