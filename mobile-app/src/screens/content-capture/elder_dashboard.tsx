@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Image,
   Pressable,
@@ -9,12 +9,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import {
   Award,
   Mic,
   CheckCircle2,
   Clock,
   ChevronDown,
+  Wallet,
 } from 'lucide-react-native';
 import { Typography, Spacing, Radii } from '../../theme';
 import { BottomNavBar } from '../../components/common';
@@ -64,12 +66,45 @@ interface BalanceCardProps {
   onWithdrawPress?: () => void;
 }
 
-const BalanceCard: React.FC<BalanceCardProps> = ({ onHistoryPress, onWithdrawPress }) => (
-  <View style={s.balanceCard}>
-    <View style={s.balanceGlow} pointerEvents="none" />
+const BalanceCard: React.FC<BalanceCardProps> = ({ onHistoryPress, onWithdrawPress }) => {
+  const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
 
-    <Text style={s.balanceLabel}>YOUR BALANCE</Text>
-    <Text style={s.balanceAmount}>LKR 8,400</Text>
+  return (
+  <View
+    style={s.balanceCard}
+    onLayout={(e) => {
+      const { width, height } = e.nativeEvent.layout;
+      setCardSize({ width, height });
+    }}
+  >
+    {cardSize.width > 0 && cardSize.height > 0 && (
+      <Svg style={StyleSheet.absoluteFillObject} width={cardSize.width} height={cardSize.height}>
+        <Defs>
+          <LinearGradient id="balanceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={D.primaryContainer} />
+            <Stop offset="100%" stopColor={D.primary} />
+          </LinearGradient>
+        </Defs>
+        <Rect x={0} y={0} width={cardSize.width} height={cardSize.height} rx={Radii.xl} fill="url(#balanceGrad)" />
+      </Svg>
+    )}
+
+    <View style={s.balanceTopRow}>
+      <View style={s.balanceIconWrap}>
+        <Wallet size={24} color={D.onPrimary} strokeWidth={2} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.balanceLabel}>YOUR BALANCE</Text>
+        <Text style={s.balanceAmount}>LKR 8,400</Text>
+      </View>
+    </View>
+
+    <View style={s.balancePendingRow}>
+      <Clock size={14} color={D.onPrimary} strokeWidth={2} />
+      <Text style={s.balancePendingText}>LKR 1,200 pending clearance</Text>
+    </View>
+
+    <View style={s.balanceDivider} />
 
     <View style={s.balanceBtnRow}>
       <Pressable
@@ -88,7 +123,8 @@ const BalanceCard: React.FC<BalanceCardProps> = ({ onHistoryPress, onWithdrawPre
       </Pressable>
     </View>
   </View>
-);
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PrimaryActionSection — "Record a new story"
@@ -232,10 +268,10 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
         showsVerticalScrollIndicator={false}
       >
         <TrustBadgeSection />
-        <BalanceCard onHistoryPress={onHistoryPress} onWithdrawPress={onWithdrawPress} />
         <PrimaryActionSection onPress={onRecordStory} />
         <RequestsSection onReplyPress={onReplyToRequest} />
         <YourStoriesSection onViewAllPress={onViewAllStories} />
+        <BalanceCard onHistoryPress={onHistoryPress} onWithdrawPress={onWithdrawPress} />
         <View style={{ height: 8 }} />
       </ScrollView>
 
@@ -278,22 +314,34 @@ const s = StyleSheet.create({
 
   // ── Balance card ───────────────────────────────────────────────────────────
   balanceCard: {
-    backgroundColor: D.primaryContainer,
     borderRadius: Radii.xl, padding: Spacing.md, overflow: 'hidden',
-    shadowColor: D.primaryContainer, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25, shadowRadius: 10, elevation: 5,
+    shadowColor: D.primary, shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28, shadowRadius: 14, elevation: 5,
   },
-  balanceGlow: {
-    position: 'absolute', top: -40, right: -40, width: 128, height: 128,
-    borderRadius: 64, backgroundColor: 'rgba(254,137,62,0.18)',
+  balanceTopRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  balanceIconWrap: {
+    width: 56, height: 56, borderRadius: Radii.full,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center', justifyContent: 'center',
   },
   balanceLabel: {
     fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onPrimary,
-    letterSpacing: 1.2, opacity: 0.85, marginBottom: Spacing.xs,
+    letterSpacing: 1.2, opacity: 0.85, marginBottom: 2,
   },
   balanceAmount: {
-    fontFamily: Typography.fontDisplay, fontSize: 32, lineHeight: 40,
-    letterSpacing: -0.5, color: D.onPrimary, marginBottom: Spacing.md,
+    fontFamily: Typography.fontDisplay, fontSize: 28, lineHeight: 34,
+    letterSpacing: -0.5, color: D.onPrimary,
+  },
+  balancePendingRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: Spacing.sm,
+  },
+  balancePendingText: {
+    fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onPrimary, opacity: 0.85,
+  },
+  balanceDivider: {
+    height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.22)',
+    marginVertical: Spacing.md,
   },
   balanceBtnRow: { flexDirection: 'row', gap: Spacing.sm },
   balanceBtnOutline: {
@@ -303,13 +351,13 @@ const s = StyleSheet.create({
   },
   balanceBtnOutlineText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onPrimary },
   balanceBtnFill: {
-    flex: 1, backgroundColor: D.secondaryContainer, borderRadius: Radii.lg,
+    flex: 1, backgroundColor: D.onPrimary, borderRadius: Radii.lg,
     paddingVertical: 12, alignItems: 'center', justifyContent: 'center',
     minHeight: 48,
-    shadowColor: D.secondaryContainer, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3, shadowRadius: 4, elevation: 3,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
   },
-  balanceBtnFillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSecondaryContainer },
+  balanceBtnFillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.primary },
 
   // ── Record button ──────────────────────────────────────────────────────────
   recordBtn: {

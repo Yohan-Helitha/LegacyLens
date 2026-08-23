@@ -6,12 +6,16 @@ import { ContentCaptureColors as D } from './tokens';
 interface RecordingActionButtonsProps {
   onStartOverPress?: () => void;
   onFinishPress?: () => void;
+  startOverLabel?: string;
+  finishLabel?: string;
 }
 
-/** "Start Over" / "Finish" pair shown at the bottom of an active recording session. */
+/** Outline/fill button pair shown at the bottom of a recording or review screen. */
 export const RecordingActionButtons: React.FC<RecordingActionButtonsProps> = ({
   onStartOverPress,
   onFinishPress,
+  startOverLabel = 'Start Over',
+  finishLabel = 'Finish',
 }) => (
   <View style={s.row}>
     <Pressable
@@ -19,14 +23,14 @@ export const RecordingActionButtons: React.FC<RecordingActionButtonsProps> = ({
       style={({ pressed }) => [s.outlineBtn, pressed && s.pressed]}
       accessibilityRole="button"
     >
-      <Text style={s.outlineBtnText}>Start Over</Text>
+      <Text style={s.outlineBtnText}>{startOverLabel}</Text>
     </Pressable>
     <Pressable
       onPress={onFinishPress}
       style={({ pressed }) => [s.fillBtn, pressed && s.pressed]}
       accessibilityRole="button"
     >
-      <Text style={s.fillBtnText}>Finish</Text>
+      <Text style={s.fillBtnText}>{finishLabel}</Text>
     </Pressable>
   </View>
 );

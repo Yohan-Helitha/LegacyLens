@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
   Avatar,
+  ConfirmDialog,
   RoleUpgradeCard,
   SettingsListRow,
   StatCard,
@@ -33,6 +34,8 @@ interface ProfileScreenProps {
   onLogout?: () => void;
   /** "Become a Freelancer" card CTA — opens the creator application form. */
   onBecomeFreelancer?: () => void;
+  /** "Become a Storyteller" card CTA — called once the user confirms the popup prompt. */
+  onBecomeStoryteller?: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -59,10 +62,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onOpenSettings,
   onLogout,
   onBecomeFreelancer,
+  onBecomeStoryteller,
 }) => {
   const cachedUser = useAuthStore((s) => s.user);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [storytellerConfirmVisible, setStorytellerConfirmVisible] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -146,6 +151,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               title="Become a Storyteller"
               description="Share your stories, dialects, and traditions with the community."
               hint="No experience needed — record however feels comfortable."
+              onPress={() => setStorytellerConfirmVisible(true)}
             />
             <RoleUpgradeCard
               icon={Briefcase}
@@ -166,6 +172,19 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           <SettingsListRow icon={LogOut} label="Log out" variant="danger" onPress={onLogout} />
         </View>
       </ScrollView>
+
+      <ConfirmDialog
+        visible={storytellerConfirmVisible}
+        title="Become a Storyteller?"
+        message="You'll answer a couple of quick questions about the content you'd like to share, then verify your number to unlock story recording."
+        confirmLabel="Continue"
+        cancelLabel="Not now"
+        onCancel={() => setStorytellerConfirmVisible(false)}
+        onConfirm={() => {
+          setStorytellerConfirmVisible(false);
+          onBecomeStoryteller?.();
+        }}
+      />
     </SafeAreaView>
   );
 };

@@ -21,8 +21,8 @@ interface RecordMethodSelectProps {
 // ─────────────────────────────────────────────────────────────────────────────
 // IconBubble — small decorative circle, purely presentational
 // ─────────────────────────────────────────────────────────────────────────────
-const IconBubble: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <View style={s.bubble}>{children}</View>
+const IconBubble: React.FC<{ children: React.ReactNode; tint?: 'teal' | 'orange' }> = ({ children, tint }) => (
+  <View style={[s.bubble, tint === 'teal' && s.bubbleTeal, tint === 'orange' && s.bubbleOrange]}>{children}</View>
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,12 +51,12 @@ export const RecordMethodSelect: React.FC<RecordMethodSelectProps> = ({
           <MethodChoiceCard
             icon={
               <>
-                <IconBubble>
-                  <Mic size={26} color={D.onSurfaceVariant} strokeWidth={2} />
+                <IconBubble tint="teal">
+                  <Mic size={26} color={D.primary} strokeWidth={2} />
                 </IconBubble>
                 <Text style={s.slash}>/</Text>
-                <IconBubble>
-                  <Video size={26} color={D.onSurfaceVariant} strokeWidth={2} />
+                <IconBubble tint="teal">
+                  <Video size={26} color={D.primary} strokeWidth={2} />
                 </IconBubble>
               </>
             }
@@ -67,8 +67,8 @@ export const RecordMethodSelect: React.FC<RecordMethodSelectProps> = ({
 
           <MethodChoiceCard
             icon={
-              <IconBubble>
-                <BookOpen size={26} color={D.onSurfaceVariant} strokeWidth={2} />
+              <IconBubble tint="orange">
+                <BookOpen size={26} color={D.secondary} strokeWidth={2} />
               </IconBubble>
             }
             label="In writing"
@@ -118,6 +118,14 @@ const s = StyleSheet.create({
     borderColor: D.outlineVariant,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  bubbleTeal: {
+    backgroundColor: 'rgba(15,92,92,0.10)',
+    borderColor: 'rgba(15,92,92,0.25)',
+  },
+  bubbleOrange: {
+    backgroundColor: 'rgba(254,137,62,0.14)',
+    borderColor: 'rgba(254,137,62,0.32)',
   },
   slash: {
     fontFamily: Typography.fontBody,
