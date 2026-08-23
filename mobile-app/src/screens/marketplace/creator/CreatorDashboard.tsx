@@ -19,6 +19,12 @@ import type {
   JobResponse,
 } from '../../../types/creatorDashboard';
 
+// Recent Work gallery — bundled locally so the viva demo never depends on network access.
+const POTTERY_IMAGE = require('../../../../assets/images/recent-work/pottery-making.jpg');
+const BLUE_RICE_IMAGE = require('../../../../assets/images/recent-work/blue-rice.jpg');
+const KANDYAN_DANCE_IMAGE = require('../../../../assets/images/recent-work/kandyan-dance.jpg');
+const SCRIPT_EVOLUTION_IMAGE = require('../../../../assets/images/recent-work/script-evolution.png');
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -374,7 +380,7 @@ const RecentWorkSection: React.FC = () => (
       {/* Item 1 — photo: traditional pottery making */}
       <View style={s.galleryItem}>
         <Image
-          source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/A_small_clay_pot_being_shaped_on_a_traditional_potter%E2%80%99s_wheel_in_India_01.jpg/960px-A_small_clay_pot_being_shaped_on_a_traditional_potter%E2%80%99s_wheel_in_India_01.jpg' }}
+          source={POTTERY_IMAGE}
           style={s.galleryImage}
           accessibilityLabel="Traditional pottery being shaped on a potter's wheel"
         />
@@ -385,7 +391,7 @@ const RecentWorkSection: React.FC = () => (
       {/* Item 2 — video: blue butterfly-pea-flower rice recipe documentary */}
       <View style={s.galleryItem}>
         <Image
-          source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Nasi_Kerabu_Biru.jpg/960px-Nasi_Kerabu_Biru.jpg' }}
+          source={BLUE_RICE_IMAGE}
           style={s.galleryImage}
           accessibilityLabel="Traditional blue butterfly-pea-flower rice recipe documentary thumbnail"
         />
@@ -400,7 +406,7 @@ const RecentWorkSection: React.FC = () => (
       {/* Item 3 — photo: Kandyan dancer in costume */}
       <View style={s.galleryItem}>
         <Image
-          source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Kandyan_Dancer_-_The_Flower.jpg/960px-Kandyan_Dancer_-_The_Flower.jpg' }}
+          source={KANDYAN_DANCE_IMAGE}
           style={s.galleryImage}
           accessibilityLabel="Traditional Kandyan dancer in costume"
         />
@@ -411,7 +417,7 @@ const RecentWorkSection: React.FC = () => (
       {/* Item 4 — photo: Sinhala script evolution chart */}
       <View style={s.galleryItem}>
         <Image
-          source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Brahmi_evolution_from_250_BCE_to_800_CE.jpg/500px-Brahmi_evolution_from_250_BCE_to_800_CE.jpg' }}
+          source={SCRIPT_EVOLUTION_IMAGE}
           style={s.galleryImage}
           accessibilityLabel="Evolution of the Sinhala script from Brahmi chart"
         />

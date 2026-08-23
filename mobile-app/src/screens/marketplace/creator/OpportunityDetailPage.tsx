@@ -14,6 +14,7 @@ import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import type { OpportunityDetailResponse } from '../../../types/opportunity';
+import { resolveOpportunityImage } from '../../../utils/opportunityImages';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens (HTML Tailwind colour system)
@@ -190,7 +191,7 @@ export const OpportunityDetailPage: React.FC<{
         {/* Hero image */}
         <View style={s.heroWrapper}>
           <Image
-            source={{ uri: detail.heroImageUrl ?? undefined }}
+            source={resolveOpportunityImage(detail.heroImageUrl)}
             style={s.heroImage}
             accessibilityLabel={detail.title}
             resizeMode="cover"

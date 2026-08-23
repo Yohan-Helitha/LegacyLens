@@ -15,6 +15,7 @@ import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import type { OpportunityCardResponse } from '../../../types/opportunity';
+import { resolveOpportunityImage } from '../../../utils/opportunityImages';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -254,7 +255,7 @@ const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: (
     >
       <View style={s.recommendedImgWrapper}>
         <Image
-          source={{ uri: item.heroImageUrl ?? undefined }}
+          source={resolveOpportunityImage(item.heroImageUrl)}
           style={s.recommendedImg}
           accessibilityLabel={item.title}
         />
@@ -316,7 +317,7 @@ const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () 
       accessibilityLabel={`${item.title} opportunity`}
     >
       <Image
-        source={{ uri: item.heroImageUrl ?? undefined }}
+        source={resolveOpportunityImage(item.heroImageUrl)}
         style={s.urgentThumb}
         accessibilityLabel={item.title}
       />
