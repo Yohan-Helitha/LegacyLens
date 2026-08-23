@@ -53,6 +53,80 @@ const D = {
 // ─────────────────────────────────────────────────────────────────────────────
 type FilterKey  = 'all' | 'nearby' | 'photography' | 'writing';
 
+type TagVariant = 'secondary' | 'neutral';
+
+type RecentOpportunityItem = {
+  id: string;
+  authorName: string;
+  authorLocation: string;
+  authorAvatarUri: string;
+  tags: { label: string; variant: TagVariant }[];
+  title: string;
+  description: string;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mock data — placeholder until opportunities are actually published by an
+// admin (elder submits → admin reviews → admin publishes is not built yet).
+// ─────────────────────────────────────────────────────────────────────────────
+const RECENT_AUTHOR_AVATAR =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuBdukQOb20lmYsNjgSC79bwk6nR11u86Bj87jNIlc_ZQzQ97BxLNMhydins5gSF08W2CSQyNGsh4guyGBVX0htKvkNTzRAY76Yfv8jK-W-9Z-cW30fTc-tVqTE_3MXVnOr3daWdokTEReYQUt-ciXqQB8LF7qkH10d4SgSRvnxi4hdlzLG5RUNcZvLxKkHwfHK5wXsfSfaNkQJdZelcgow41KGgsq77Fkd9zgLSrunJwEJsg3U5ZQcTdg';
+
+const MOCK_RECENT_OPPORTUNITIES: RecentOpportunityItem[] = [
+  {
+    id: '1',
+    authorName: 'P. M. Amanda',
+    authorLocation: 'Galle Fort',
+    authorAvatarUri: RECENT_AUTHOR_AVATAR,
+    tags: [
+      { label: 'Photography', variant: 'secondary' },
+      { label: 'On-Site', variant: 'neutral' },
+    ],
+    title: 'Photograph Antique Mask Collection.',
+    description:
+      'Need high-resolution macro photography of traditional kolam masks for digital archive. Lighting equipment provided.',
+  },
+  {
+    id: '2',
+    authorName: 'Nimal Rathnayake',
+    authorLocation: 'Kandy',
+    authorAvatarUri: RECENT_AUTHOR_AVATAR,
+    tags: [
+      { label: 'Oral History', variant: 'secondary' },
+      { label: 'Remote OK', variant: 'neutral' },
+    ],
+    title: 'Interview Retired Tea Estate Workers.',
+    description:
+      'Looking for someone to record interviews with retired tea pluckers about daily life on the estate in the 1960s.',
+  },
+  {
+    id: '3',
+    authorName: 'Chamari Silva',
+    authorLocation: 'Jaffna',
+    authorAvatarUri: RECENT_AUTHOR_AVATAR,
+    tags: [
+      { label: 'Writing', variant: 'secondary' },
+      { label: 'On-Site', variant: 'neutral' },
+    ],
+    title: 'Document a Family Recipe Book.',
+    description:
+      'Need help transcribing and translating a handwritten Tamil recipe book that has been passed down for three generations.',
+  },
+  {
+    id: '4',
+    authorName: 'Saman Kumara',
+    authorLocation: 'Anuradhapura',
+    authorAvatarUri: RECENT_AUTHOR_AVATAR,
+    tags: [
+      { label: 'Video', variant: 'secondary' },
+      { label: 'On-Site', variant: 'neutral' },
+    ],
+    title: 'Record Traditional Drum-Making Process.',
+    description:
+      'Want a short documentary on how our family has hand-made traditional geta bera drums for generations.',
+  },
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline icon helpers (emoji / primitive, zero extra dependencies)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -264,65 +338,83 @@ const UrgentSection: React.FC<{ onViewDetail: () => void }> = ({ onViewDetail })
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// RecentOpportunityCard
+// ─────────────────────────────────────────────────────────────────────────────
+const RecentOpportunityCard: React.FC<{
+  item: RecentOpportunityItem;
+  onApply: () => void;
+  onViewDetail: () => void;
+}> = ({ item, onApply, onViewDetail }) => (
+  <Pressable
+    style={({ pressed }) => [s.recentCard, pressed && s.cardPressed]}
+    accessibilityRole="button"
+    accessibilityLabel={`${item.title} opportunity`}
+  >
+    <View style={s.recentHeader}>
+      <View style={s.authorRow}>
+        <Image
+          source={{ uri: item.authorAvatarUri }}
+          style={s.authorAvatar}
+          accessibilityLabel={`${item.authorName} profile photo`}
+        />
+        <View>
+          <Text style={s.authorName}>{item.authorName}</Text>
+          <Text style={s.authorLocation}>{item.authorLocation}</Text>
+        </View>
+      </View>
+      <View style={s.tagsRow}>
+        {item.tags.map((tag) => (
+          <View
+            key={tag.label}
+            style={tag.variant === 'secondary' ? s.tagSecondary : s.tagNeutral}
+          >
+            <Text style={tag.variant === 'secondary' ? s.tagSecondaryText : s.tagNeutralText}>
+              {tag.label}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+
+    <View style={s.recentContent}>
+      <Text style={s.cardTitle}>{item.title}</Text>
+      <Text style={s.recentDesc} numberOfLines={2}>
+        {item.description}
+      </Text>
+    </View>
+
+    <View style={s.recentActions}>
+      <Pressable
+        onPress={onViewDetail}
+        style={({ pressed }) => pressed ? [s.pressed] : []}
+        accessibilityRole="button"
+      >
+        <Text style={s.ctaTextMuted}>{'View Opportunity  \u2192'}</Text>
+      </Pressable>
+      <Pressable
+        style={({ pressed }) => [s.applyBtn, pressed && s.pressed]}
+        onPress={onApply}
+        accessibilityRole="button"
+        accessibilityLabel={`Apply for ${item.title}`}
+      >
+        <Text style={s.applyBtnText}>Apply</Text>
+      </Pressable>
+    </View>
+  </Pressable>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // RecentSection
 // ─────────────────────────────────────────────────────────────────────────────
 const RecentSection: React.FC<{ onApply: () => void; onViewDetail: () => void }> = ({ onApply, onViewDetail }) => (
   <View style={s.section}>
     <Text style={s.sectionTitle}>Recent Postings</Text>
 
-    <Pressable
-      style={({ pressed }) => [s.recentCard, pressed && s.cardPressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Photograph Antique Mask Collection opportunity"
-    >
-      <View style={s.recentHeader}>
-        <View style={s.authorRow}>
-          <Image
-            source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBdukQOb20lmYsNjgSC79bwk6nR11u86Bj87jNIlc_ZQzQ97BxLNMhydins5gSF08W2CSQyNGsh4guyGBVX0htKvkNTzRAY76Yfv8jK-W-9Z-cW30fTc-tVqTE_3MXVnOr3daWdokTEReYQUt-ciXqQB8LF7qkH10d4SgSRvnxi4hdlzLG5RUNcZvLxKkHwfHK5wXsfSfaNkQJdZelcgow41KGgsq77Fkd9zgLSrunJwEJsg3U5ZQcTdg' }}
-            style={s.authorAvatar}
-            accessibilityLabel="P.M. Amanda profile photo"
-          />
-          <View>
-            <Text style={s.authorName}>P. M. Amanda</Text>
-            <Text style={s.authorLocation}>Galle Fort</Text>
-          </View>
-        </View>
-        <View style={s.tagsRow}>
-          <View style={s.tagSecondary}>
-            <Text style={s.tagSecondaryText}>Photography</Text>
-          </View>
-          <View style={s.tagNeutral}>
-            <Text style={s.tagNeutralText}>On-Site</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={s.recentContent}>
-        <Text style={s.cardTitle}>Photograph Antique Mask Collection.</Text>
-        <Text style={s.recentDesc} numberOfLines={2}>
-          Need high-resolution macro photography of traditional kolam masks for
-          digital archive. Lighting equipment provided.
-        </Text>
-      </View>
-
-      <View style={s.recentActions}>
-        <Pressable
-          onPress={onViewDetail}
-          style={({ pressed }) => pressed ? [s.pressed] : []}
-          accessibilityRole="button"
-        >
-          <Text style={s.ctaTextMuted}>{'View Opportunity  \u2192'}</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [s.applyBtn, pressed && s.pressed]}
-          onPress={onApply}
-          accessibilityRole="button"
-          accessibilityLabel="Apply for Photograph Antique Mask Collection"
-        >
-          <Text style={s.applyBtnText}>Apply</Text>
-        </Pressable>
-      </View>
-    </Pressable>
+    <View style={{ gap: Spacing.md }}>
+      {MOCK_RECENT_OPPORTUNITIES.map((item) => (
+        <RecentOpportunityCard key={item.id} item={item} onApply={onApply} onViewDetail={onViewDetail} />
+      ))}
+    </View>
   </View>
 );
 

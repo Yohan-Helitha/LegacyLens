@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,12 @@ import { StatusBar } from 'expo-status-bar';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
+import type {
+  CreatorDashboardSummaryResponse,
+  DashboardJobStatus,
+  JobResponse,
+} from '../../../types/creatorDashboard';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -49,6 +54,99 @@ const D = {
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 type JobTab = 'active' | 'upcoming' | 'completed';
+
+type ActiveJobItem = {
+  id: string;
+  icon: string;
+  title: string;
+  client: string;
+  description: string;
+  location: string;
+  dueText: string;
+  statusLabel: string;
+};
+
+type ReviewItem = {
+  id: string;
+  quote: string;
+  author: string;
+};
+
+const TAB_TO_STATUS: Record<JobTab, DashboardJobStatus> = {
+  active: 'ACTIVE',
+  upcoming: 'UPCOMING',
+  completed: 'COMPLETED',
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fallback data — shown only if the /api/creator-dashboard/** call fails
+// (e.g. no connectivity), so the screen never renders blank or broken.
+// ─────────────────────────────────────────────────────────────────────────────
+const FALLBACK_SUMMARY: CreatorDashboardSummaryResponse = {
+  rating: 4.8,
+  completedJobsCount: 24,
+  contributionsCount: 38,
+  availableBalance: 42500,
+};
+
+const FALLBACK_ACTIVE_JOBS: ActiveJobItem[] = [
+  {
+    id: 'fallback-1',
+    icon: '🎥',
+    title: 'Recording Local History',
+    client: 'Mrs. Kamala Wijesinghe',
+    description:
+      'Recording oral history regarding the 1970s textile industry in Colombo, focusing on traditional methods and personal anecdotes.',
+    location: 'Colombo South',
+    dueText: 'Due in 3 days',
+    statusLabel: 'IN PROGRESS',
+  },
+];
+
+const FALLBACK_REVIEWS: ReviewItem[] = [
+  {
+    id: 'fallback-1',
+    quote:
+      'Incredibly patient and captured my grandmother’s stories perfectly. The audio quality is fantastic.',
+    author: 'Surangi D.',
+  },
+];
+
+function formatDueDate(iso: string): string {
+  const diffDays = Math.round((new Date(iso).getTime() - Date.now()) / 86400000);
+  if (diffDays > 1) return `Due in ${diffDays} days`;
+  if (diffDays === 1) return 'Due tomorrow';
+  if (diffDays === 0) return 'Due today';
+  return 'Overdue';
+}
+
+function formatCompletedDate(iso: string): string {
+  return `Completed ${new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+}
+
+function mapJobToItem(job: JobResponse): ActiveJobItem {
+  const statusLabel =
+    job.status === 'ACTIVE' ? 'IN PROGRESS' : job.status === 'UPCOMING' ? 'UPCOMING' : 'COMPLETED';
+  const dueText =
+    job.status === 'COMPLETED'
+      ? job.completedAt
+        ? formatCompletedDate(job.completedAt)
+        : ''
+      : job.scheduledAt
+        ? formatDueDate(job.scheduledAt)
+        : '';
+
+  return {
+    id: job.id,
+    icon: '🎥',
+    title: job.title,
+    client: job.elderName,
+    description: job.description,
+    location: job.location ?? '',
+    dueText,
+    statusLabel,
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Minimal inline icons (emoji-based, zero extra dependencies)
@@ -112,17 +210,17 @@ const GreetingSection: React.FC = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 // MetricsSection  (stats card + balance card)
 // ─────────────────────────────────────────────────────────────────────────────
-const MetricsSection: React.FC = () => (
+const MetricsSection: React.FC<{ summary: CreatorDashboardSummaryResponse }> = ({ summary }) => (
   <View style={s.metricsGrid}>
     {/* ── Stats row ─────────────────────────────────────────────────────── */}
     <View style={s.statsCard}>
       <View style={s.ratingRow}>
-        <Text style={s.ratingValue}>4.8</Text>
+        <Text style={s.ratingValue}>{summary.rating != null ? summary.rating.toFixed(1) : '—'}</Text>
         <StarIcon size={20} color={D.tertiaryContainer} />
       </View>
       <View style={s.statsRight}>
-        <Text style={s.statsJobCount}>24 completed jobs</Text>
-        <Text style={s.statsContrib}>38 contributions</Text>
+        <Text style={s.statsJobCount}>{summary.completedJobsCount} completed jobs</Text>
+        <Text style={s.statsContrib}>{summary.contributionsCount} contributions</Text>
       </View>
     </View>
 
@@ -132,7 +230,9 @@ const MetricsSection: React.FC = () => (
       <View style={s.balanceGlow} pointerEvents="none" />
 
       <Text style={s.balanceLabel}>AVAILABLE BALANCE</Text>
-      <Text style={s.balanceAmount}>LKR 42,500</Text>
+      <Text style={s.balanceAmount}>
+        LKR {Math.round(summary.availableBalance ?? 0).toLocaleString('en-US')}
+      </Text>
 
       <View style={s.balanceBtnRow}>
         <Pressable
@@ -177,44 +277,48 @@ const TabPill: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 // ActiveJobCard
 // ─────────────────────────────────────────────────────────────────────────────
-const ActiveJobCard: React.FC = () => (
+const ActiveJobCard: React.FC<{ item: ActiveJobItem }> = ({ item }) => (
   <Pressable
     style={({ pressed }) => [s.jobCard, pressed && s.jobCardPressed]}
     accessibilityRole="button"
-    accessibilityLabel="Recording Local History — In Progress"
+    accessibilityLabel={`${item.title} — ${item.statusLabel}`}
   >
     {/* Header */}
     <View style={s.jobCardHeader}>
       <View style={s.jobCardLeft}>
         <View style={s.jobIconBox}>
-          <Text style={{ fontSize: 18 }}>🎥</Text>
+          <Text style={{ fontSize: 18 }}>{item.icon}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.jobTitle}>Recording Local History</Text>
-          <Text style={s.jobClient}>Mrs. Kamala Wijesinghe</Text>
+          <Text style={s.jobTitle}>{item.title}</Text>
+          <Text style={s.jobClient}>{item.client}</Text>
         </View>
       </View>
       <View style={s.jobStatusBadge}>
-        <Text style={s.jobStatusText}>IN PROGRESS</Text>
+        <Text style={s.jobStatusText}>{item.statusLabel}</Text>
       </View>
     </View>
 
     {/* Description */}
     <Text style={s.jobDesc} numberOfLines={2}>
-      Recording oral history regarding the 1970s textile industry in Colombo,
-      focusing on traditional methods and personal anecdotes.
+      {item.description}
     </Text>
 
     {/* Meta footer */}
     <View style={s.jobMeta}>
       <View style={s.jobMetaItem}>
         <Text style={[s.jobMetaText, { fontSize: 13 }]}>📍</Text>
-        <Text style={s.jobMetaText}>Colombo South</Text>
+        <Text style={s.jobMetaText}>{item.location}</Text>
       </View>
       <View style={s.jobMetaItem}>
         <Text style={[s.jobMetaText, { fontSize: 13 }]}>🕐</Text>
-        <Text style={[s.jobMetaText, { color: D.secondary }]}>Due in 3 days</Text>
+        <Text style={[s.jobMetaText, { color: D.secondary }]}>{item.dueText}</Text>
       </View>
+    </View>
+
+    {/* View details */}
+    <View style={s.jobViewDetailsRow}>
+      <Text style={s.jobViewDetailsText}>{'View Details →'}</Text>
     </View>
   </Pressable>
 );
@@ -222,25 +326,27 @@ const ActiveJobCard: React.FC = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 // FeedbackSection
 // ─────────────────────────────────────────────────────────────────────────────
-const FeedbackSection: React.FC = () => (
+const FeedbackSection: React.FC<{ rating: number | null; reviews: ReviewItem[] }> = ({ rating, reviews }) => (
   <View style={s.section}>
     <View style={s.sectionHeader}>
       <Text style={s.sectionTitle}>Client Feedback</Text>
       <View style={s.ratingRow}>
-        <Text style={s.feedbackRating}>4.8</Text>
+        <Text style={s.feedbackRating}>{rating != null ? rating.toFixed(1) : '—'}</Text>
         <StarIcon size={16} color={D.tertiaryContainer} />
       </View>
     </View>
 
-    <View style={s.feedbackCard}>
-      {/* Decorative large quote mark */}
-      <Text style={s.quoteDecor}>{'“'}</Text>
-      {/* Left accent bar */}
-      <View style={s.quoteBar} />
-      <Text style={s.quoteText}>
-        {'“Incredibly patient and captured my grandmother’s stories perfectly. The audio quality is fantastic.”'}
-      </Text>
-      <Text style={s.quoteAuthor}>{'— Surangi D.'}</Text>
+    <View style={{ gap: Spacing.sm }}>
+      {reviews.map((review) => (
+        <View key={review.id} style={s.feedbackCard}>
+          {/* Decorative large quote mark */}
+          <Text style={s.quoteDecor}>{'“'}</Text>
+          {/* Left accent bar */}
+          <View style={s.quoteBar} />
+          <Text style={s.quoteText}>{`“${review.quote}”`}</Text>
+          <Text style={s.quoteAuthor}>{`— ${review.author}`}</Text>
+        </View>
+      ))}
     </View>
   </View>
 );
@@ -312,6 +418,49 @@ const RecentWorkSection: React.FC = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 export const CreatorDashboard: React.FC<{ onNavigate: (tab: NavTab) => void }> = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState<JobTab>('active');
+  const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
+  const [reviews, setReviews] = useState<ReviewItem[]>(FALLBACK_REVIEWS);
+  const [jobsByTab, setJobsByTab] = useState<Partial<Record<JobTab, ActiveJobItem[]>>>({});
+  const [jobsLoading, setJobsLoading] = useState(false);
+
+  useEffect(() => {
+    creatorDashboardApi.getSummary().then(setSummary).catch(() => {});
+    creatorDashboardApi
+      .getReviews(5)
+      .then((data) => {
+        if (data.length > 0) {
+          setReviews(data.map((r) => ({ id: r.id, quote: r.comment, author: r.elderName })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setJobsLoading(true);
+
+    creatorDashboardApi
+      .getJobs(TAB_TO_STATUS[activeTab])
+      .then((data) => {
+        if (!cancelled) {
+          setJobsByTab((prev) => ({ ...prev, [activeTab]: data.map(mapJobToItem) }));
+        }
+      })
+      .catch(() => {
+        if (!cancelled && activeTab === 'active') {
+          setJobsByTab((prev) => (prev.active ? prev : { ...prev, active: FALLBACK_ACTIVE_JOBS }));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setJobsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
+
+  const currentJobs = jobsByTab[activeTab];
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
@@ -325,7 +474,7 @@ export const CreatorDashboard: React.FC<{ onNavigate: (tab: NavTab) => void }> =
         showsVerticalScrollIndicator={false}
       >
         <GreetingSection />
-        <MetricsSection />
+        <MetricsSection summary={summary} />
 
         {/* ── Job Management ───────────────────────────────────────────── */}
         <View style={s.section}>
@@ -352,16 +501,22 @@ export const CreatorDashboard: React.FC<{ onNavigate: (tab: NavTab) => void }> =
             />
           </ScrollView>
 
-          {activeTab === 'active' ? (
-            <ActiveJobCard />
+          {currentJobs && currentJobs.length > 0 ? (
+            <View style={{ gap: Spacing.sm }}>
+              {currentJobs.map((item) => (
+                <ActiveJobCard key={item.id} item={item} />
+              ))}
+            </View>
           ) : (
             <View style={s.emptyState}>
-              <Text style={s.emptyStateText}>No jobs to show.</Text>
+              <Text style={s.emptyStateText}>
+                {jobsLoading && !currentJobs ? 'Loading…' : 'No jobs to show.'}
+              </Text>
             </View>
           )}
         </View>
 
-        <FeedbackSection />
+        <FeedbackSection rating={summary.rating} reviews={reviews} />
         <RecentWorkSection />
         <View style={{ height: 8 }} />
       </ScrollView>
@@ -532,6 +687,14 @@ const s = StyleSheet.create({
   jobMeta:        { flexDirection: 'row', gap: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant, marginTop: 2 },
   jobMetaItem:    { flexDirection: 'row', alignItems: 'center', gap: 3 },
   jobMetaText:    { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, letterSpacing: 0.2 },
+  jobViewDetailsRow: { alignItems: 'flex-end' },
+  jobViewDetailsText: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeSM,
+    color: D.secondary,
+    minHeight: 44,
+    textAlignVertical: 'center',
+  },
 
   // ── Empty state ────────────────────────────────────────────────────────────
   emptyState:     { paddingVertical: Spacing.xl, alignItems: 'center' },
