@@ -16,6 +16,10 @@ target/
 .mvn/
 !.mvn/wrapper/maven-wrapper.jar
 
+# User-uploaded files (e.g. creator verification proof documents) — see
+# FileStorageService's app.upload.dir. Local disk storage, not source.
+backend/uploads/
+
 # ─── Environment / secrets ────────────────────────────────────────────────────
 .env
 .env.local

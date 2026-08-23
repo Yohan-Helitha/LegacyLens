@@ -46,8 +46,19 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   /** Called when back arrow is pressed on OpportunityDetailPage */
   const handleBack = () => setScreen('market');
 
-  /** Called when the creator application is submitted */
-  const handleApplicationSubmit = () => setScreen('pending');
+  /**
+   * Called when the creator application is submitted.
+   *
+   * TEMPORARY: admin review isn't built yet, so there's no real way for a
+   * PENDING application to ever become VERIFIED/REJECTED — landing on the
+   * pending screen would strand testing here indefinitely. Skipping straight
+   * to the dashboard for now so the rest of the app remains reachable.
+   * Restore the commented line below once admin verification exists.
+   */
+  const handleApplicationSubmit = () => {
+    // setScreen('pending');
+    setScreen('dashboard');
+  };
 
   /** Called when "Back to Home" is pressed on the verification pending screen */
   const handleBackToHome = () => setScreen('dashboard');
@@ -65,7 +76,10 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
         <BecomeCreatorApplication onNavigate={handleNavigate} onSubmit={handleApplicationSubmit} />
       )}
       {screen === 'pending' && (
-        <CreatorVerificationUpdatePage onBackToHome={handleBackToHome} />
+        <CreatorVerificationUpdatePage
+          onBackToHome={handleBackToHome}
+          onReapply={() => setScreen('apply')}
+        />
       )}
     </>
   );

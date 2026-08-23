@@ -86,6 +86,22 @@ const EXPERIENCE_LEVEL_API: Record<ExperienceOptionKey, ApiExperienceLevel> = {
   experienced: 'EXPERIENCED',
 };
 
+/** Human-readable labels for CreatorApplicationRequest field names, as they
+ * appear in ApiError.fieldErrors on a 400 from GlobalExceptionHandler. */
+const FIELD_LABELS: Record<string, string> = {
+  email: 'Email',
+  aboutYou: 'About You',
+  skills: 'My Skill',
+  interests: 'Interests',
+  experienceLevel: 'Experience',
+  experienceDescription: 'Experience description',
+  proofDocument: 'Verification proof file',
+};
+
+function humanizeField(field: string): string {
+  return FIELD_LABELS[field] ?? field;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // TopAppBar
 // ─────────────────────────────────────────────────────────────────────────────
@@ -341,8 +357,15 @@ export const BecomeCreatorApplication: React.FC<{
       });
       onSubmit?.();
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
-      Alert.alert('Submission failed', message);
+      if (err instanceof ApiError && err.fieldErrors && Object.keys(err.fieldErrors).length > 0) {
+        const details = Object.entries(err.fieldErrors)
+          .map(([field, reason]) => `${humanizeField(field)}: ${reason}`)
+          .join('\n');
+        Alert.alert('Please fix the following', details);
+      } else {
+        const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
+        Alert.alert('Submission failed', message);
+      }
     } finally {
       setSubmitting(false);
     }
