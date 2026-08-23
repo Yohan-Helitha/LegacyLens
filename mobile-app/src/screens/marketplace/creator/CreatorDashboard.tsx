@@ -371,23 +371,23 @@ const RecentWorkSection: React.FC = () => (
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={s.galleryRow}
     >
-      {/* Item 1 — photo */}
+      {/* Item 1 — photo: traditional pottery making */}
       <View style={s.galleryItem}>
         <Image
-          source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCFW8GttPpMm6K31LoPiO2qge-q_zKOB5ejaEiR2henn4R0Y6xu3Y0_4TprvW49cHxCaKDSBDqrAx4w1awmOabnlqhloVzfy47V-73rVfUwQ569zfyWt1TVdrCAzHLcj2f6i2w33GaOhDBBqOYUfamZYNxZS5iPV1mpM1_lk5iktNNZF-rAUngLXiDRIE3gfCwUgMvUhaoG2zsRvN2SEYpIHFfB3ZUwVwaRT3769C2-mO9lF31TTJpOjQ' }}
+          source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/A_small_clay_pot_being_shaped_on_a_traditional_potter%E2%80%99s_wheel_in_India_01.jpg/960px-A_small_clay_pot_being_shaped_on_a_traditional_potter%E2%80%99s_wheel_in_India_01.jpg' }}
           style={s.galleryImage}
-          accessibilityLabel="Traditional Sri Lankan pottery making"
+          accessibilityLabel="Traditional pottery being shaped on a potter's wheel"
         />
         <View style={s.galleryOverlayGradient} />
         <Text style={s.galleryTypeIcon}>🖼</Text>
       </View>
 
-      {/* Item 2 — video */}
+      {/* Item 2 — video: blue butterfly-pea-flower rice recipe documentary */}
       <View style={s.galleryItem}>
         <Image
-          source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDQnCcXKdj5Mpxq_U6HbRfpzHP0DAe6slNvaM2l9rgQaOM3HtNRQYk5YUOaDHcrf83ORsJKRq1dVseST4YukxaHSx8g3-VbVCK81hzEHMVsRsYzRzwIbRq3C9TYz6Pw01byckdwEHGucierqanIjiXunyjk9YRJL6rptLLqQ1PAytafYAhGb0SLHLEamnE_t90KAadoYsnqtm7-XYF-V8GZpqEFsH2UZdVtrbSl83LQvrltp26CpuLC2Q' }}
+          source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Nasi_Kerabu_Biru.jpg/960px-Nasi_Kerabu_Biru.jpg' }}
           style={s.galleryImage}
-          accessibilityLabel="Sri Lankan street food documentary thumbnail"
+          accessibilityLabel="Traditional blue butterfly-pea-flower rice recipe documentary thumbnail"
         />
         <View style={s.galleryOverlayDark} />
         <View style={s.playBtnWrapper}>
@@ -397,15 +397,26 @@ const RecentWorkSection: React.FC = () => (
         </View>
       </View>
 
-      {/* Item 3 — photo */}
+      {/* Item 3 — photo: Kandyan dancer in costume */}
       <View style={s.galleryItem}>
         <Image
-          source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAFPF4ea2tWceqiIgyZlNQH5aF8i0mPiQq-QhJh7crjcsoKW2QayIduVAkgwBQJavAMJacHPfEEWwvPgkGnQRuowPjKHJKvyHK-1uFHZowIGm-7LG3-o6iWN8hELpXPWLzgRgONxduPrr9kDbrfymZCjhbfg4-L_HeTrGz5YMkAIY4TpiO--BmBHrj5mRFU66VIyPSZJ_dvOmxwNElp4lsjZia9UoNI98qjT8gz6QP3a3xicoCha6qNlQ' }}
+          source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Kandyan_Dancer_-_The_Flower.jpg/960px-Kandyan_Dancer_-_The_Flower.jpg' }}
           style={s.galleryImage}
           accessibilityLabel="Traditional Kandyan dancer in costume"
         />
         <View style={s.galleryOverlayGradient} />
         <Text style={s.galleryTypeIcon}>🖼</Text>
+      </View>
+
+      {/* Item 4 — photo: Sinhala script evolution chart */}
+      <View style={s.galleryItem}>
+        <Image
+          source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Brahmi_evolution_from_250_BCE_to_800_CE.jpg/500px-Brahmi_evolution_from_250_BCE_to_800_CE.jpg' }}
+          style={s.galleryImage}
+          accessibilityLabel="Evolution of the Sinhala script from Brahmi chart"
+        />
+        <View style={s.galleryOverlayGradient} />
+        <Text style={s.galleryTypeIcon}>📄</Text>
       </View>
     </ScrollView>
   </View>
