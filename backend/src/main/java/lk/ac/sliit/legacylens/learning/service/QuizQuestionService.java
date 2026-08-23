@@ -36,26 +36,21 @@ public class QuizQuestionService {
         return quizQuestionRepository.findById(id);
     }
 
-    public QuizQuestion createQuestion(QuizQuestion question) {
+    public QuizQuestion createQuestion(
+            Long lessonId,
+            QuizQuestion question) {
 
-    if (question.getLesson() == null ||
-            question.getLesson().getId() == null) {
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Lesson not found"
+                        )
+                );
 
-        throw new IllegalArgumentException(
-                "Lesson is required"
-        );
+        question.setLesson(lesson);
+
+        return quizQuestionRepository.save(question);
     }
-
-    Lesson lesson = lessonRepository.findById(
-            question.getLesson().getId()
-    ).orElseThrow(() ->
-            new IllegalArgumentException("Lesson not found")
-    );
-
-    question.setLesson(lesson);
-
-    return quizQuestionRepository.save(question);
-}
 
     public boolean checkAnswer(Long questionId, String selectedOption) {
 

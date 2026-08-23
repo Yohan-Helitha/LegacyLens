@@ -15,7 +15,7 @@ import org.springframework.security.core.Authentication;
 import lk.ac.sliit.legacylens.learning.dto.LessonProgressResponse;
 import lk.ac.sliit.legacylens.learning.dto.QuizSubmissionRequest;
 import lk.ac.sliit.legacylens.learning.dto.QuizSubmissionResponse;
-
+import lk.ac.sliit.legacylens.learning.dto.QuizQuestionResponse;
 
 @RestController
 @RequestMapping("/api/learning")
@@ -33,31 +33,38 @@ public class QuizQuestionController {
 }
 
     @GetMapping("/lessons/{lessonId}/questions")
-    public ResponseEntity<List<QuizQuestion>> getQuestionsByLesson(
-            @PathVariable Long lessonId) {
+        public ResponseEntity<List<QuizQuestionResponse>> getQuestionsByLesson(
+                @PathVariable Long lessonId) {
 
-        return ResponseEntity.ok(
-                quizQuestionService.getQuestionsByLessonId(lessonId)
-        );
-    }
+        List<QuizQuestionResponse> response =
+                quizQuestionService
+                        .getQuestionsByLessonId(lessonId)
+                        .stream()
+                        .map(QuizQuestionResponse::fromEntity)
+                        .toList();
+
+        return ResponseEntity.ok(response);
+        }
 
     @GetMapping("/questions/{id}")
-    public ResponseEntity<QuizQuestion> getQuestionById(
-            @PathVariable Long id) {
+        public ResponseEntity<QuizQuestionResponse> getQuestionById(
+                @PathVariable Long id) {
 
         return quizQuestionService.getQuestionById(id)
+                .map(QuizQuestionResponse::fromEntity)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
-    }
+        }
 
-    @PostMapping("/questions")
-    public ResponseEntity<QuizQuestion> createQuestion(
-            @RequestBody QuizQuestion question) {
+    @PostMapping("/lessons/{lessonId}/questions")
+        public ResponseEntity<QuizQuestion> createQuestion(
+                @PathVariable Long lessonId,
+                @RequestBody QuizQuestion question) {
 
         return ResponseEntity.ok(
-                quizQuestionService.createQuestion(question)
+                quizQuestionService.createQuestion(lessonId, question)
         );
-    }
+        }
 
     @PostMapping("/questions/{id}/answer")
     public ResponseEntity<QuizResult> checkAnswer(

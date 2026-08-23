@@ -10,6 +10,12 @@ public class XpService {
 
     public int calculateQuizXp(int correctAnswers, boolean completed) {
 
+        if (correctAnswers < 0) {
+            throw new IllegalArgumentException(
+                    "Correct answers cannot be negative"
+            );
+        }
+
         int xp = correctAnswers * XP_PER_CORRECT_ANSWER;
 
         if (completed) {

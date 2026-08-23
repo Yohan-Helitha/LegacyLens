@@ -92,60 +92,64 @@ public class LessonProgressService {
         return lessonProgressRepository.save(progress);
     }
 
-    public LessonProgress completeLesson(
-        Long userId,
-        Long lessonId,
-        int correctAnswers) {
 
+    public LessonProgress completeLesson(
+                Long userId,
+                Long lessonId,
+                int correctAnswers) {
 
         if (correctAnswers < 0) {
-    throw new IllegalArgumentException(
-            "Correct answers cannot be negative"
-    );
-}
+                throw new IllegalArgumentException(
+                        "Correct answers cannot be negative"
+                );
+        }
 
-    Lesson lesson = lessonRepository.findById(lessonId)
-            .orElseThrow(() ->
-                    new IllegalArgumentException("Lesson not found"));
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Lesson not found"));
 
-    long totalQuestions =
-        quizQuestionService.getQuestionCountForLesson(lessonId);
+        long totalQuestions =
+                quizQuestionService.getQuestionCountForLesson(lessonId);
 
-    int scorePercentage = totalQuestions == 0
-        ? 0
-        : (int) Math.round(
-                (correctAnswers * 100.0) / totalQuestions
+        if (correctAnswers > totalQuestions) {
+                throw new IllegalArgumentException(
+                        "Correct answers cannot exceed total quiz questions"
+                );
+        }
+
+        int scorePercentage = totalQuestions == 0
+                ? 0
+                : (int) Math.round(
+                        (correctAnswers * 100.0) / totalQuestions
+                );
+
+        // 50% or above = lesson passed
+        boolean completed = scorePercentage >= 50;
+
+        int xpEarned = xpService.calculateQuizXp(
+                correctAnswers,
+                completed
         );
-    
 
-    if (correctAnswers > totalQuestions) {
-        throw new IllegalArgumentException(
-                "Correct answers cannot exceed total quiz questions"
-        );
-    }
+        LessonProgress progress =
+                lessonProgressRepository
+                        .findByUserIdAndLessonId(userId, lessonId)
+                        .orElseGet(LessonProgress::new);
 
-    int xpEarned = xpService.calculateQuizXp(
-            correctAnswers,
-            true
-    );
+        /*
+        * If the lesson was already successfully completed,
+        * don't award XP again.
+        */
+        if (progress.isCompleted()) {
+                return progress;
+        }
 
-    LessonProgress progress =
-            lessonProgressRepository
-                    .findByUserIdAndLessonId(userId, lessonId)
-                    .orElseGet(LessonProgress::new);
+        progress.setUserId(userId);
+        progress.setLesson(lesson);
+        progress.setCompleted(completed);
+        progress.setScore(correctAnswers);
+        progress.setXpEarned(xpEarned);
 
-    if (progress.isCompleted()) {
-    return progress;
-}
-
-    progress.setUserId(userId);
-    progress.setLesson(lesson);
-    progress.setCompleted(true);
-    progress.setScore(correctAnswers);
-    progress.setXpEarned(xpEarned);
-    
-
-    return lessonProgressRepository.save(progress);
-}
-
+        return lessonProgressRepository.save(progress);
+        }
 }

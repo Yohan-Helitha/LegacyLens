@@ -37,10 +37,11 @@ public class LessonController {
 
     @PostMapping("/lessons")
     public ResponseEntity<Lesson> createLesson(
+            @RequestParam Long trackId,
             @RequestBody Lesson lesson) {
 
         return ResponseEntity.ok(
-                lessonService.createLesson(lesson)
+                lessonService.createLesson(trackId, lesson)
         );
     }
 }

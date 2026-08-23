@@ -1,6 +1,8 @@
 package lk.ac.sliit.legacylens.learning.entity;
 import jakarta.persistence.*;
-import com.fasterxml.jackson.annotation.JsonProperty;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+    
 @Entity
 @Table(name = "quiz_questions")
 public class QuizQuestion {
@@ -9,7 +11,7 @@ public class QuizQuestion {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lesson_id", nullable = false)
     private Lesson lesson;

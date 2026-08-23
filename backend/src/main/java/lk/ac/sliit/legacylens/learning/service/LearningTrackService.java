@@ -12,7 +12,9 @@ public class LearningTrackService {
 
     private final LearningTrackRepository learningTrackRepository;
 
-    public LearningTrackService(LearningTrackRepository learningTrackRepository) {
+    public LearningTrackService(
+            LearningTrackRepository learningTrackRepository) {
+
         this.learningTrackRepository = learningTrackRepository;
     }
 
