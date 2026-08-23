@@ -27,13 +27,14 @@ import { Header } from '../../components/common/Header';
 import { KnowledgeKeeper } from '../../components/home/KnowledgeKeeper';
 import { WordOfTheDay } from '../../components/home/WordOfTheDay';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
-import mockData from '../admin/mockData.json';
+
 import { styles } from './HomeScreen.styles';
 
 import { FeedCardActions } from '../../components/home/FeedCardActions';
 import { VideoCard } from '../../components/home/VideoCard';
 import { BlogCard } from '../../components/home/BlogCard';
 import { AudioCard } from '../../components/home/AudioCard';
+import { homeApi, CategoryResponse } from '../../services/api/homeApi';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH - Spacing.md * 2;
@@ -41,10 +42,12 @@ const CARD_WIDTH = SCREEN_WIDTH - Spacing.md * 2;
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & Mock Data
 // ─────────────────────────────────────────────────────────────────────────────
-// Categories loaded from mockData — first 10, scrollable in groups of ~6
-const CATEGORIES = mockData.categories as Array<{
+const DEFAULT_CATEGORIES: Array<{
   id: string; label: string; icon: string; color: string; tags: string[];
-}>;
+}> = [
+  { id: "c1", label: "Traditional Food", icon: "restaurant", color: "#e05d1a", tags: ["food"] },
+  { id: "c2", label: "Performing Arts", icon: "music-note", color: "#0f7c6b", tags: ["dance"] },
+];
 
 const MEDIA_TABS = ['Explore all', 'Videos', 'Blogs', 'Audio'];
 
@@ -108,9 +111,41 @@ const SPOTLIGHT_ITEMS: SpotlightItem[] = [
 
 export const loadedVideoIds = new Set<string>();
 
-export type VItem = typeof mockData.videos[0]  & { type: 'video' };
-export type BItem = typeof mockData.blogs[0]   & { type: 'blog' };
-export type AItem = typeof mockData.audio[0]   & { type: 'audio' };
+export interface VItem {
+  id: string;
+  title: string;
+  author: string;
+  location: string;
+  thumbnail: string;
+  videoUrl: string;
+  duration: string;
+  tags: string[];
+  type: 'video';
+}
+
+export interface BItem {
+  id: string;
+  title: string;
+  author: string;
+  excerpt: string;
+  thumbnail: string;
+  readTime: string;
+  tags: string[];
+  type: 'blog';
+}
+
+export interface AItem {
+  id: string;
+  name: string;
+  location: string;
+  duration: string;
+  topic: string;
+  tags: string[];
+  avatar: string;
+  bars: number[];
+  type: 'audio';
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Component Definition
@@ -120,11 +155,60 @@ export const HomeScreen: React.FC<{
   isOverlayActive?: boolean,
   initialSearchQuery?: string 
 }> = ({ onNavigate, isOverlayActive, initialSearchQuery }) => {
-  // State variables
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery || '');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Array<{ id: string; label: string; tags: string[] }>>([]);
   const [activeTab, setActiveTab] = useState('Explore all');
   const [refreshing, setRefreshing] = useState(false);
+  const [allFeedItems, setAllFeedItems] = useState<(VItem | BItem | AItem)[]>([]);
+  const [featuredKeeper, setFeaturedKeeper] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await homeApi.getCategories();
+        if (response && response.length > 0) {
+          const dbCategories = response.map((cat: CategoryResponse) => ({
+            id: String(cat.id),
+            label: cat.name,
+            tags: [cat.name.toLowerCase()]
+          }));
+          setCategories(dbCategories);
+        } else {
+          setCategories(DEFAULT_CATEGORIES.map(c => ({ id: c.id, label: c.label, tags: c.tags })));
+        }
+      } catch (error) {
+        console.log('Error fetching categories from DB, fallback to default:', error);
+        setCategories(DEFAULT_CATEGORIES.map(c => ({ id: c.id, label: c.label, tags: c.tags })));
+      }
+    };
+
+    const fetchFeedItems = async () => {
+      try {
+        const response = await homeApi.getFeedItems();
+        if (response && response.length > 0) {
+          setAllFeedItems(response as any);
+        }
+      } catch (error) {
+        console.log('Error fetching feed items from DB:', error);
+      }
+    };
+
+    const fetchFeaturedKeeper = async () => {
+      try {
+        const response = await homeApi.getFeaturedKeeper();
+        if (response) {
+          setFeaturedKeeper(response);
+        }
+      } catch (error) {
+        console.log('Error fetching featured keeper:', error);
+      }
+    };
+
+    fetchCategories();
+    fetchFeedItems();
+    fetchFeaturedKeeper();
+  }, []);
 
   useEffect(() => {
     if (initialSearchQuery !== undefined) {
@@ -184,27 +268,6 @@ export const HomeScreen: React.FC<{
     setCarouselIndex(index);
   };
 
-  // ── Shuffled Initial Feed ────────────────────────────────────────────────
-  // Combine all items, add type tag, and shuffle once on mount
-  const allFeedItems = useMemo(() => {
-    type VItem = typeof mockData.videos[0]  & { type: 'video' };
-    type BItem = typeof mockData.blogs[0]   & { type: 'blog' };
-    type AItem = typeof mockData.audio[0]   & { type: 'audio' };
-    
-    const videos = mockData.videos.map(v => ({ ...v, type: 'video' as const }));
-    const blogs  = mockData.blogs.map(b  => ({ ...b, type: 'blog' as const }));
-    const audios = mockData.audio.map(a  => ({ ...a, type: 'audio' as const }));
-    
-    const combined = [...videos, ...blogs, ...audios];
-    
-    // Fisher-Yates shuffle
-    for (let i = combined.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [combined[i], combined[j]] = [combined[j], combined[i]];
-    }
-    
-    return combined;
-  }, []);
 
   // 🎙️ Filtering logic 🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️
   const filterMatches = (keywords: string[]) => {
@@ -221,10 +284,10 @@ export const HomeScreen: React.FC<{
 
     // 2. Category pill filter
     if (selectedCategoryId) {
-      const cat = CATEGORIES.find(c => c.id === selectedCategoryId);
+      const cat = categories.find(c => c.id === selectedCategoryId);
       if (cat) {
         const catTags = cat.tags.map(t => t.toLowerCase());
-        if (!lower.some(k => catTags.some(t => k.includes(t)))) return false;
+        if (!lower.some(k => catTags.some(t => k.includes(t) || t.includes(k)))) return false;
       }
     }
 
@@ -366,23 +429,18 @@ export const HomeScreen: React.FC<{
                 </Text>
               </TouchableOpacity>
 
-              {CATEGORIES.map((cat) => {
+              {categories.map((cat) => {
                 const isSelected = selectedCategoryId === cat.id;
                 return (
                   <TouchableOpacity
                     key={cat.id}
                     style={[
                       styles.quickFilterChip,
-                      isSelected && { backgroundColor: cat.color, borderColor: cat.color },
+                      isSelected && { backgroundColor: Colors.secondary, borderColor: Colors.secondary },
                     ]}
                     onPress={() => setSelectedCategoryId(isSelected ? null : cat.id)}
                     activeOpacity={0.75}
                   >
-                    <MaterialIcons
-                      name={cat.icon as any}
-                      size={15}
-                      color={isSelected ? '#fff' : cat.color}
-                    />
                     <Text
                       style={[
                         styles.quickFilterText,
@@ -462,7 +520,16 @@ export const HomeScreen: React.FC<{
             {activeTab === 'Explore all' && !searchQuery && !selectedCategoryId && (
               <>
                 <WordOfTheDay />
-                <KnowledgeKeeper />
+                {featuredKeeper && (
+                  <KnowledgeKeeper 
+                    name={featuredKeeper.name}
+                    title={featuredKeeper.title}
+                    tag={featuredKeeper.tag}
+                    quote={featuredKeeper.quote}
+                    avatarUrl={featuredKeeper.avatarUrl}
+                    likesCount={featuredKeeper.likesCount}
+                  />
+                )}
               </>
             )}
           </>
@@ -529,11 +596,5 @@ export const HomeScreen: React.FC<{
     </View>
   );
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Styles
-// ─────────────────────────────────────────────────────────────────────────────
-
-
 export default HomeScreen;
 
