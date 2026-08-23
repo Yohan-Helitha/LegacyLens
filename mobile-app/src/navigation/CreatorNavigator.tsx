@@ -28,6 +28,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   initialScreen = 'dashboard',
 }) => {
   const [screen, setScreen] = useState<CreatorScreen>(initialScreen);
+  const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
 
   /**
    * Shared navigation handler passed to all screens.
@@ -40,8 +41,11 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
     // inbox: placeholder — stay on current screen for now
   };
 
-  /** Called when the Apply button is pressed on OpportunityPage */
-  const handleApply = () => setScreen('detail');
+  /** Called when a "View Details"/"Apply" action is pressed on OpportunityPage */
+  const handleViewDetail = (opportunityId: string) => {
+    setSelectedOpportunityId(opportunityId);
+    setScreen('detail');
+  };
 
   /** Called when back arrow is pressed on OpportunityDetailPage */
   const handleBack = () => setScreen('market');
@@ -67,10 +71,14 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
     <>
       {screen === 'dashboard' && <CreatorDashboard onNavigate={handleNavigate} />}
       {screen === 'market' && (
-        <OpportunityPage onNavigate={handleNavigate} onApply={handleApply} />
+        <OpportunityPage onNavigate={handleNavigate} onViewDetail={handleViewDetail} />
       )}
       {screen === 'detail' && (
-        <OpportunityDetailPage onNavigate={handleNavigate} onBack={handleBack} />
+        <OpportunityDetailPage
+          onNavigate={handleNavigate}
+          onBack={handleBack}
+          opportunityId={selectedOpportunityId}
+        />
       )}
       {screen === 'apply' && (
         <BecomeCreatorApplication onNavigate={handleNavigate} onSubmit={handleApplicationSubmit} />

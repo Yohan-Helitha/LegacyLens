@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +13,8 @@ import { StatusBar } from 'expo-status-bar';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { opportunityApi } from '../../../services/api/opportunityApi';
+import type { OpportunityCardResponse } from '../../../types/opportunity';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -53,77 +54,81 @@ const D = {
 // ─────────────────────────────────────────────────────────────────────────────
 type FilterKey  = 'all' | 'nearby' | 'photography' | 'writing';
 
-type TagVariant = 'secondary' | 'neutral';
-
-type RecentOpportunityItem = {
-  id: string;
-  authorName: string;
-  authorLocation: string;
-  authorAvatarUri: string;
-  tags: { label: string; variant: TagVariant }[];
-  title: string;
-  description: string;
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock data — placeholder until opportunities are actually published by an
-// admin (elder submits → admin reviews → admin publishes is not built yet).
-// ─────────────────────────────────────────────────────────────────────────────
-const RECENT_AUTHOR_AVATAR =
+/** Shown for an elder with no uploaded profile photo. */
+const PLACEHOLDER_AVATAR =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuBdukQOb20lmYsNjgSC79bwk6nR11u86Bj87jNIlc_ZQzQ97BxLNMhydins5gSF08W2CSQyNGsh4guyGBVX0htKvkNTzRAY76Yfv8jK-W-9Z-cW30fTc-tVqTE_3MXVnOr3daWdokTEReYQUt-ciXqQB8LF7qkH10d4SgSRvnxi4hdlzLG5RUNcZvLxKkHwfHK5wXsfSfaNkQJdZelcgow41KGgsq77Fkd9zgLSrunJwEJsg3U5ZQcTdg';
 
-const MOCK_RECENT_OPPORTUNITIES: RecentOpportunityItem[] = [
+function joinMeta(a: string | null | undefined, b: string | null | undefined): string {
+  return [a, b].filter(Boolean).join(' · ');
+}
+
+function formatDueBadge(iso: string | null): string {
+  if (!iso) return '';
+  const diffDays = Math.round((new Date(iso).getTime() - Date.now()) / 86400000);
+  if (diffDays > 1) return `Due in ${diffDays} days`;
+  if (diffDays === 1) return 'Due tomorrow';
+  if (diffDays === 0) return 'Due today';
+  return 'Overdue';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fallback data — shown only if the /api/opportunities/** call fails or
+// returns nothing yet (e.g. no connectivity), so the screen never renders
+// blank or broken.
+// ─────────────────────────────────────────────────────────────────────────────
+const FALLBACK_RECOMMENDED: OpportunityCardResponse = {
+  id: 'fallback-recommended',
+  title: 'Traditional fishing Terms Documentation.',
+  description: '',
+  heroImageUrl:
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuCFr_TbcDqpHAlACc9VJ5pActhPIFGIsUJ5Val-M3PTLC8liXo9lhIPWRmRLTMdt7SATshX_8VwcUiJR1eqHCDiDuAln_uGewTtk4vmOjRFMTqLjR1nKQgnlc71zSDsHzVIGqsZ1k1hSQrZuLi3ala7icWEN17LBpFIR1mcTipGJsFpRRjPH4axYH_wtiVcVxHP7IFId9YFNYXPncgm0hEUHyjaMrnnu1HDSgmnJJUkQ7QaNl4RBfUvEw',
+  location: 'Negombo',
+  category: 'Linguistic Preservation',
+  locationType: null,
+  matchPercentage: 88,
+  urgent: false,
+  dueAt: null,
+  elderName: '',
+  elderAvatarUrl: null,
+  elderLocation: null,
+  createdAt: new Date().toISOString(),
+};
+
+const FALLBACK_URGENT: OpportunityCardResponse = {
+  id: 'fallback-urgent',
+  title: 'Record Oral History: The 2004 Tsunami.',
+  description: '',
+  heroImageUrl:
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuDNuYBn9vgG-Scml9WfKG-IA5mKz3UpPYXevIrDmEWaiYMqQX4Kj_zP7RwweCA8hq8LF4I-B8XwDZR3V04dMiatepJP6eeAmeCNW6dlwaSASf5iNnszv_If-_W8mmH2vkSs1_BK4_IIftYhP2egnPNYWOl2x_hUMwiCq2vKwgB5Y6R5h5C4uK_yl4ZUbhMRQ1S5_d2BhTQfNcnA1Btr-jDRRTzFWyqduDzamQG4hKOa-iSiSGNmQNaifQ',
+  location: 'Galle',
+  category: 'Oral History',
+  locationType: null,
+  matchPercentage: null,
+  urgent: true,
+  dueAt: new Date(Date.now() + 3 * 86400000).toISOString(),
+  elderName: '',
+  elderAvatarUrl: null,
+  elderLocation: null,
+  createdAt: new Date().toISOString(),
+};
+
+const FALLBACK_RECENT: OpportunityCardResponse[] = [
   {
-    id: '1',
-    authorName: 'P. M. Amanda',
-    authorLocation: 'Galle Fort',
-    authorAvatarUri: RECENT_AUTHOR_AVATAR,
-    tags: [
-      { label: 'Photography', variant: 'secondary' },
-      { label: 'On-Site', variant: 'neutral' },
-    ],
+    id: 'fallback-recent-1',
     title: 'Photograph Antique Mask Collection.',
     description:
       'Need high-resolution macro photography of traditional kolam masks for digital archive. Lighting equipment provided.',
-  },
-  {
-    id: '2',
-    authorName: 'Nimal Rathnayake',
-    authorLocation: 'Kandy',
-    authorAvatarUri: RECENT_AUTHOR_AVATAR,
-    tags: [
-      { label: 'Oral History', variant: 'secondary' },
-      { label: 'Remote OK', variant: 'neutral' },
-    ],
-    title: 'Interview Retired Tea Estate Workers.',
-    description:
-      'Looking for someone to record interviews with retired tea pluckers about daily life on the estate in the 1960s.',
-  },
-  {
-    id: '3',
-    authorName: 'Chamari Silva',
-    authorLocation: 'Jaffna',
-    authorAvatarUri: RECENT_AUTHOR_AVATAR,
-    tags: [
-      { label: 'Writing', variant: 'secondary' },
-      { label: 'On-Site', variant: 'neutral' },
-    ],
-    title: 'Document a Family Recipe Book.',
-    description:
-      'Need help transcribing and translating a handwritten Tamil recipe book that has been passed down for three generations.',
-  },
-  {
-    id: '4',
-    authorName: 'Saman Kumara',
-    authorLocation: 'Anuradhapura',
-    authorAvatarUri: RECENT_AUTHOR_AVATAR,
-    tags: [
-      { label: 'Video', variant: 'secondary' },
-      { label: 'On-Site', variant: 'neutral' },
-    ],
-    title: 'Record Traditional Drum-Making Process.',
-    description:
-      'Want a short documentary on how our family has hand-made traditional geta bera drums for generations.',
+    heroImageUrl: null,
+    location: 'Galle Fort',
+    category: 'Photography',
+    locationType: 'On-Site',
+    matchPercentage: null,
+    urgent: false,
+    dueAt: null,
+    elderName: 'P. M. Amanda',
+    elderAvatarUrl: PLACEHOLDER_AVATAR,
+    elderLocation: 'Galle Fort',
+    createdAt: new Date().toISOString(),
   },
 ];
 
@@ -235,25 +240,30 @@ const FilterBar: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 // RecommendedCard
 // ─────────────────────────────────────────────────────────────────────────────
-const RecommendedCard: React.FC<{ onViewDetail: () => void }> = ({ onViewDetail }) => (
+const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void }> = ({
+  item,
+  onViewDetail,
+}) => (
   <View style={s.section}>
     <Text style={s.sectionTitle}>Recommended For You</Text>
 
     <Pressable
       style={({ pressed }) => [s.recommendedCard, pressed && s.cardPressed]}
       accessibilityRole="button"
-      accessibilityLabel="Traditional fishing Terms Documentation opportunity"
+      accessibilityLabel={`${item.title} opportunity`}
     >
       <View style={s.recommendedImgWrapper}>
         <Image
-          source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCFr_TbcDqpHAlACc9VJ5pActhPIFGIsUJ5Val-M3PTLC8liXo9lhIPWRmRLTMdt7SATshX_8VwcUiJR1eqHCDiDuAln_uGewTtk4vmOjRFMTqLjR1nKQgnlc71zSDsHzVIGqsZ1k1hSQrZuLi3ala7icWEN17LBpFIR1mcTipGJsFpRRjPH4axYH_wtiVcVxHP7IFId9YFNYXPncgm0hEUHyjaMrnnu1HDSgmnJJUkQ7QaNl4RBfUvEw' }}
+          source={{ uri: item.heroImageUrl ?? undefined }}
           style={s.recommendedImg}
-          accessibilityLabel="Traditional stilt fishermen at sunset"
+          accessibilityLabel={item.title}
         />
-        <View style={s.matchBadge}>
-          <Text style={s.matchStar}>{'★'}</Text>
-          <Text style={s.matchText}>88% MATCH</Text>
-        </View>
+        {item.matchPercentage != null && (
+          <View style={s.matchBadge}>
+            <Text style={s.matchStar}>{'\u2605'}</Text>
+            <Text style={s.matchText}>{item.matchPercentage}% MATCH</Text>
+          </View>
+        )}
         <Pressable
           style={({ pressed }) => [s.bookmarkBtn, pressed && s.pressed]}
           accessibilityRole="button"
@@ -265,10 +275,8 @@ const RecommendedCard: React.FC<{ onViewDetail: () => void }> = ({ onViewDetail 
 
       <View style={s.recommendedBody}>
         <View style={{ gap: 4 }}>
-          <Text style={s.cardTitle}>Traditional fishing Terms Documentation.</Text>
-          <Text style={s.cardMeta}>
-            {'Negombo (Sinhala) \u00B7 Linguistic Preservation Project'}
-          </Text>
+          <Text style={s.cardTitle}>{item.title}</Text>
+          <Text style={s.cardMeta}>{joinMeta(item.location, item.category)}</Text>
         </View>
         <View style={s.cardCta}>
           <Pressable
@@ -287,7 +295,10 @@ const RecommendedCard: React.FC<{ onViewDetail: () => void }> = ({ onViewDetail 
 // ─────────────────────────────────────────────────────────────────────────────
 // UrgentSection
 // ─────────────────────────────────────────────────────────────────────────────
-const UrgentSection: React.FC<{ onViewDetail: () => void }> = ({ onViewDetail }) => (
+const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void }> = ({
+  item,
+  onViewDetail,
+}) => (
   <View style={s.section}>
     <View style={s.sectionHeaderRow}>
       <View style={s.urgentTitleRow}>
@@ -295,32 +306,32 @@ const UrgentSection: React.FC<{ onViewDetail: () => void }> = ({ onViewDetail })
         <Text style={s.sectionTitle}>Urgent Missions</Text>
       </View>
       <View style={s.dueBadge}>
-        <Text style={s.dueBadgeText}>Due in 3 days</Text>
+        <Text style={s.dueBadgeText}>{formatDueBadge(item.dueAt)}</Text>
       </View>
     </View>
 
     <Pressable
       style={({ pressed }) => [s.urgentCard, pressed && s.cardPressed]}
       accessibilityRole="button"
-      accessibilityLabel="Record Oral History: The 2004 Tsunami opportunity"
+      accessibilityLabel={`${item.title} opportunity`}
     >
       <Image
-        source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDNuYBn9vgG-Scml9WfKG-IA5mKz3UpPYXevIrDmEWaiYMqQX4Kj_zP7RwweCA8hq8LF4I-B8XwDZR3V04dMiatepJP6eeAmeCNW6dlwaSASf5iNnszv_If-_W8mmH2vkSs1_BK4_IIftYhP2egnPNYWOl2x_hUMwiCq2vKwgB5Y6R5h5C4uK_yl4ZUbhMRQ1S5_d2BhTQfNcnA1Btr-jDRRTzFWyqduDzamQG4hKOa-iSiSGNmQNaifQ' }}
+        source={{ uri: item.heroImageUrl ?? undefined }}
         style={s.urgentThumb}
-        accessibilityLabel="Galle Fort coastal ruins documentary photo"
+        accessibilityLabel={item.title}
       />
       <View style={s.urgentBody}>
         <Text style={s.urgentTitle} numberOfLines={2}>
-          {'Record Oral History: The 2004 Tsunami.'}
+          {item.title}
         </Text>
         <View style={s.urgentMeta}>
           <View style={s.urgentMetaItem}>
             <Text style={s.metaIcon}>{'\uD83C\uDF99'}</Text>
-            <Text style={s.urgentMetaText}>Oral History</Text>
+            <Text style={s.urgentMetaText}>{item.category}</Text>
           </View>
           <View style={s.urgentMetaItem}>
             <Text style={s.metaIcon}>{'\uD83D\uDCCD'}</Text>
-            <Text style={s.urgentMetaText}>Galle</Text>
+            <Text style={s.urgentMetaText}>{item.location}</Text>
           </View>
         </View>
         <View style={s.urgentCtaRow}>
@@ -341,7 +352,7 @@ const UrgentSection: React.FC<{ onViewDetail: () => void }> = ({ onViewDetail })
 // RecentOpportunityCard
 // ─────────────────────────────────────────────────────────────────────────────
 const RecentOpportunityCard: React.FC<{
-  item: RecentOpportunityItem;
+  item: OpportunityCardResponse;
   onApply: () => void;
   onViewDetail: () => void;
 }> = ({ item, onApply, onViewDetail }) => (
@@ -353,26 +364,26 @@ const RecentOpportunityCard: React.FC<{
     <View style={s.recentHeader}>
       <View style={s.authorRow}>
         <Image
-          source={{ uri: item.authorAvatarUri }}
+          source={{ uri: item.elderAvatarUrl ?? PLACEHOLDER_AVATAR }}
           style={s.authorAvatar}
-          accessibilityLabel={`${item.authorName} profile photo`}
+          accessibilityLabel={`${item.elderName} profile photo`}
         />
         <View>
-          <Text style={s.authorName}>{item.authorName}</Text>
-          <Text style={s.authorLocation}>{item.authorLocation}</Text>
+          <Text style={s.authorName}>{item.elderName}</Text>
+          <Text style={s.authorLocation}>{item.elderLocation}</Text>
         </View>
       </View>
       <View style={s.tagsRow}>
-        {item.tags.map((tag) => (
-          <View
-            key={tag.label}
-            style={tag.variant === 'secondary' ? s.tagSecondary : s.tagNeutral}
-          >
-            <Text style={tag.variant === 'secondary' ? s.tagSecondaryText : s.tagNeutralText}>
-              {tag.label}
-            </Text>
+        {item.category && (
+          <View style={s.tagSecondary}>
+            <Text style={s.tagSecondaryText}>{item.category}</Text>
           </View>
-        ))}
+        )}
+        {item.locationType && (
+          <View style={s.tagNeutral}>
+            <Text style={s.tagNeutralText}>{item.locationType}</Text>
+          </View>
+        )}
       </View>
     </View>
 
@@ -406,13 +417,22 @@ const RecentOpportunityCard: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 // RecentSection
 // ─────────────────────────────────────────────────────────────────────────────
-const RecentSection: React.FC<{ onApply: () => void; onViewDetail: () => void }> = ({ onApply, onViewDetail }) => (
+const RecentSection: React.FC<{
+  items: OpportunityCardResponse[];
+  onApply: (id: string) => void;
+  onViewDetail: (id: string) => void;
+}> = ({ items, onApply, onViewDetail }) => (
   <View style={s.section}>
     <Text style={s.sectionTitle}>Recent Postings</Text>
 
     <View style={{ gap: Spacing.md }}>
-      {MOCK_RECENT_OPPORTUNITIES.map((item) => (
-        <RecentOpportunityCard key={item.id} item={item} onApply={onApply} onViewDetail={onViewDetail} />
+      {items.map((item) => (
+        <RecentOpportunityCard
+          key={item.id}
+          item={item}
+          onApply={() => onApply(item.id)}
+          onViewDetail={() => onViewDetail(item.id)}
+        />
       ))}
     </View>
   </View>
@@ -425,9 +445,33 @@ const RecentSection: React.FC<{ onApply: () => void; onViewDetail: () => void }>
 // ─────────────────────────────────────────────────────────────────────────────
 export const OpportunityPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
-  onApply: () => void;
-}> = ({ onNavigate, onApply }) => {
+  onViewDetail: (opportunityId: string) => void;
+}> = ({ onNavigate, onViewDetail }) => {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+  const [recommended, setRecommended] = useState<OpportunityCardResponse>(FALLBACK_RECOMMENDED);
+  const [urgent, setUrgent] = useState<OpportunityCardResponse | null>(FALLBACK_URGENT);
+  const [recent, setRecent] = useState<OpportunityCardResponse[]>(FALLBACK_RECENT);
+
+  useEffect(() => {
+    opportunityApi
+      .getRecommended(1)
+      .then((data) => {
+        if (data.length > 0) setRecommended(data[0]);
+      })
+      .catch(() => {});
+
+    opportunityApi
+      .getUrgent(1)
+      .then((data) => setUrgent(data.length > 0 ? data[0] : null))
+      .catch(() => {});
+
+    opportunityApi
+      .getRecent(10)
+      .then((data) => {
+        if (data.length > 0) setRecent(data);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
@@ -444,9 +488,9 @@ export const OpportunityPage: React.FC<{
         <HeroSection />
         <SearchBar />
         <FilterBar active={activeFilter} onSelect={setActiveFilter} />
-        <RecommendedCard onViewDetail={onApply} />
-        <UrgentSection onViewDetail={onApply} />
-        <RecentSection onApply={onApply} onViewDetail={onApply} />
+        <RecommendedCard item={recommended} onViewDetail={() => onViewDetail(recommended.id)} />
+        {urgent && <UrgentSection item={urgent} onViewDetail={() => onViewDetail(urgent.id)} />}
+        <RecentSection items={recent} onApply={onViewDetail} onViewDetail={onViewDetail} />
         <View style={{ height: 8 }} />
       </ScrollView>
 

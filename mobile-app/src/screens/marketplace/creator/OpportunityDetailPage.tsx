@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,8 @@ import { StatusBar } from 'expo-status-bar';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { opportunityApi } from '../../../services/api/opportunityApi';
+import type { OpportunityDetailResponse } from '../../../types/opportunity';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens (HTML Tailwind colour system)
@@ -48,6 +49,41 @@ const D = {
 
 
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fallback data — shown while opportunityId is unset or the
+// /api/opportunities/{id} call fails, so the screen never renders blank.
+// ─────────────────────────────────────────────────────────────────────────────
+const FALLBACK_DETAIL: OpportunityDetailResponse = {
+  id: '',
+  title: 'Opportunity Details',
+  description: '',
+  heroImageUrl:
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuBLMzgOt3M-dxeABJClXG1jDfKO-ip_kzzvv3oPGkERN7Nebumxn0je6tmFKrs0UtTn5aAKDd7PitlmYe1TfoEWlhpwXlqcAq63v5jFaTislTjoAurJJTzjl20cJmQOnn7cYgkLT5L9tabWPkT6OnnH4GHtr986BfgxV6IHSB_Z7wwPmrGXU2DLLvBOvQhe9ZOJCbKMgZ6i45_jYoUNCpsRHrAVOcKmjzmR6BEnlfUo6bOyE5wqQSdixw',
+  elderName: 'Mrs. Kamala Wijesinghe',
+  elderAvatarUrl:
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuDY_5xLVHss2xIK0tURyAhPnGlFWUDP3XTq1WejeqSEMr8fsWQrsZ2EYIpiUkEyydmgKK0JCTRhqt2VCmoYtOuFSkXQ-QwDbrmjr1rY6gYdLVQKlP_n1KfxGyjle-S-SnACHim7CPo6tjRhFfr0teQneHXk_tWk1LM5lWORtVdaMgVNbphNBj5r-03l90MYqmU0WKcFvMMoC0MOfznhkzXUyIbwMDUs2NbypBfmOZctG362yqm2E260KQ',
+  elderVerified: true,
+  location: 'Matara',
+  scheduledDate: null,
+  durationText: '3 - 4 h',
+  offeredAmount: 3500,
+  timeWindowText: '10.00 AM – 1.00 PM',
+  preservationGoal:
+    'I would like to preserve how my family prepare this traditional recipe. I want someone to record this preparation including all the instruction and create a video that can be shared with younger generation.',
+  tasks: [
+    'Visit the knowledge holder in Matara.',
+    'Record the preparation process comprehensively.',
+    'Capture high-quality photos and video clip.',
+    'Document step-by-step instructions clearly.',
+    'Edit and submit the final video',
+  ],
+};
+
+function formatScheduledDate(iso: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TopAppBar  (back arrow + title + bell)
@@ -124,144 +160,153 @@ const TaskItem: React.FC<{ text: string }> = ({ text }) => (
 export const OpportunityDetailPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
-}> = ({ onNavigate, onBack }) => (
-  <SafeAreaView style={s.safeArea} edges={['top'] as const}>
-    <StatusBar style="dark" />
+  opportunityId: string | null;
+}> = ({ onNavigate, onBack, opportunityId }) => {
+  const [detail, setDetail] = useState<OpportunityDetailResponse>(FALLBACK_DETAIL);
 
-    <TopAppBar onBack={onBack} />
+  useEffect(() => {
+    if (!opportunityId) return;
+    opportunityApi
+      .getById(opportunityId)
+      .then(setDetail)
+      .catch(() => {});
+  }, [opportunityId]);
 
-    {/* Scrollable content */}
-    <ScrollView
-      style={s.scroll}
-      contentContainerStyle={s.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* ── Page heading ──────────────────────────────────────────────────── */}
-      <Text style={s.pageHeading}>Opportunity Details</Text>
+  return (
+    <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+      <StatusBar style="dark" />
 
-      {/* ── Hero image ────────────────────────────────────────────────────── */}
-      <View style={s.heroWrapper}>
-        <Image
-          source={{
-            uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBLMzgOt3M-dxeABJClXG1jDfKO-ip_kzzvv3oPGkERN7Nebumxn0je6tmFKrs0UtTn5aAKDd7PitlmYe1TfoEWlhpwXlqcAq63v5jFaTislTjoAurJJTzjl20cJmQOnn7cYgkLT5L9tabWPkT6OnnH4GHtr986BfgxV6IHSB_Z7wwPmrGXU2DLLvBOvQhe9ZOJCbKMgZ6i45_jYoUNCpsRHrAVOcKmjzmR6BEnlfUo6bOyE5wqQSdixw',
-          }}
-          style={s.heroImage}
-          accessibilityLabel="Traditional stilt fishermen at golden hour, Negombo"
-          resizeMode="cover"
-        />
-      </View>
+      <TopAppBar onBack={onBack} />
 
-      {/* ── Knowledge Holder card ─────────────────────────────────────────── */}
-      <Pressable
-        style={({ pressed }) => [s.holderCard, pressed && s.cardPressed]}
-        accessibilityRole="button"
-        accessibilityLabel="View Mrs. Kamala Wijesinghe's profile"
+      {/* Scrollable content */}
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={s.holderLeft}>
+        {/* Page heading */}
+        <Text style={s.pageHeading}>{detail.title}</Text>
+
+        {/* Hero image */}
+        <View style={s.heroWrapper}>
           <Image
-            source={{
-              uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDY_5xLVHss2xIK0tURyAhPnGlFWUDP3XTq1WejeqSEMr8fsWQrsZ2EYIpiUkEyydmgKK0JCTRhqt2VCmoYtOuFSkXQ-QwDbrmjr1rY6gYdLVQKlP_n1KfxGyjle-S-SnACHim7CPo6tjRhFfr0teQneHXk_tWk1LM5lWORtVdaMgVNbphNBj5r-03l90MYqmU0WKcFvMMoC0MOfznhkzXUyIbwMDUs2NbypBfmOZctG362yqm2E260KQ',
-            }}
-            style={s.holderAvatar}
-            accessibilityLabel="Mrs. Kamala Wijesinghe portrait"
+            source={{ uri: detail.heroImageUrl ?? undefined }}
+            style={s.heroImage}
+            accessibilityLabel={detail.title}
+            resizeMode="cover"
           />
-          <View style={s.holderInfo}>
-            <Text style={s.holderName}>Mrs. Kamala Wijesinghe</Text>
-            <View style={s.holderBadgeRow}>
-              <Text style={s.verifiedStar}>{'✦'}</Text>
-              <Text style={s.holderBadgeText}>Verified Knowledge holder</Text>
+        </View>
+
+        {/* Knowledge Holder card */}
+        <Pressable
+          style={({ pressed }) => [s.holderCard, pressed && s.cardPressed]}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${detail.elderName}'s profile`}
+        >
+          <View style={s.holderLeft}>
+            <Image
+              source={{ uri: detail.elderAvatarUrl ?? undefined }}
+              style={s.holderAvatar}
+              accessibilityLabel={`${detail.elderName} portrait`}
+            />
+            <View style={s.holderInfo}>
+              <Text style={s.holderName}>{detail.elderName}</Text>
+              {detail.elderVerified && (
+                <View style={s.holderBadgeRow}>
+                  <Text style={s.verifiedStar}>{'\u2726'}</Text>
+                  <Text style={s.holderBadgeText}>Verified Knowledge holder</Text>
+                </View>
+              )}
             </View>
           </View>
+          <Text style={s.chevron}>{'\u203A'}</Text>
+        </Pressable>
+
+        {/* Info Grid row 1: Location / Date / Duration */}
+        <View style={s.gridRow}>
+          <InfoTile
+            icon={'\uD83D\uDCCD'}
+            label="LOCATION"
+            value={detail.location ?? '\u2014'}
+            accentBg={D.secondaryContainer}
+            accentText={D.onSecondaryContainer}
+          />
+          <InfoTile
+            icon={'\uD83D\uDCC5'}
+            label="DATE"
+            value={formatScheduledDate(detail.scheduledDate)}
+            accentBg={D.secondaryContainer}
+            accentText={D.onSecondaryContainer}
+          />
+          <InfoTile
+            icon={'\u23F1'}
+            label="DURATION"
+            value={detail.durationText ?? '\u2014'}
+            accentBg={D.secondaryContainer}
+            accentText={D.onSecondaryContainer}
+          />
         </View>
-        <Text style={s.chevron}>{'›'}</Text>
-      </Pressable>
 
-      {/* ── Info Grid row 1: Location / Date / Duration ───────────────────── */}
-      <View style={s.gridRow}>
-        <InfoTile
-          icon={'📍'}
-          label="LOCATION"
-          value="Matara"
-          accentBg={D.secondaryContainer}
-          accentText={D.onSecondaryContainer}
-        />
-        <InfoTile
-          icon={'📅'}
-          label="DATE"
-          value="Aug 25"
-          accentBg={D.secondaryContainer}
-          accentText={D.onSecondaryContainer}
-        />
-        <InfoTile
-          icon={'⏱'}
-          label="DURATION"
-          value="3 - 4 h"
-          accentBg={D.secondaryContainer}
-          accentText={D.onSecondaryContainer}
-        />
+        {/* Info Grid row 2: Offered / Time */}
+        <View style={[s.gridRow, { marginTop: Spacing.sm }]}>
+          <InfoTile
+            icon={'\uD83D\uDCB3'}
+            label="OFFERED"
+            value={`LKR ${Math.round(detail.offeredAmount).toLocaleString('en-US')}`}
+            accentBg={D.primaryContainer}
+            accentText={D.onPrimaryContainer}
+            valueColor={D.primary}
+          />
+          <InfoTile
+            icon={'\uD83D\uDD59'}
+            label="TIME"
+            value={detail.timeWindowText ?? '\u2014'}
+            accentBg={D.secondaryContainer}
+            accentText={D.onSecondaryContainer}
+          />
+        </View>
+
+        {/* Preservation Goal quote card */}
+        {detail.preservationGoal && (
+          <View style={s.quoteCard}>
+            <Text style={s.quoteLargeDecor}>{'\u201C'}</Text>
+            <View style={s.quoteAccentBar} />
+
+            <Text style={s.quoteCardTitle}>What they want to preserve?</Text>
+            <Text style={s.quoteCardText}>{`\u201C${detail.preservationGoal}\u201D`}</Text>
+          </View>
+        )}
+
+        {/* Tasks: What you'll do */}
+        {detail.tasks.length > 0 && (
+          <View style={s.tasksSection}>
+            <Text style={s.tasksSectionTitle}>{'What you\'ll do'}</Text>
+            {detail.tasks.map((task, index) => (
+              <TaskItem key={index} text={task} />
+            ))}
+          </View>
+        )}
+
+        {/* Bottom spacing â€” ensures content scrolls above Apply button */}
+        <View style={{ height: 100 }} />
+      </ScrollView>
+
+      {/* Fixed Apply button (above nav bar) */}
+      <View style={s.applyContainer}>
+        <Pressable
+          style={({ pressed }) => [s.applyBtn, pressed && s.applyBtnPressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Apply for this opportunity"
+        >
+          <Text style={s.applyBtnText}>Apply</Text>
+          <Text style={s.applyArrow}>{'\u2192'}</Text>
+        </Pressable>
       </View>
 
-      {/* ── Info Grid row 2: Offered / Time ──────────────────────────────── */}
-      <View style={[s.gridRow, { marginTop: Spacing.sm }]}>
-        <InfoTile
-          icon={'💳'}
-          label="OFFERED"
-          value="LKR 3,500"
-          accentBg={D.primaryContainer}
-          accentText={D.onPrimaryContainer}
-          valueColor={D.primary}
-        />
-        <InfoTile
-          icon={'🕙'}
-          label="TIME"
-          value={'10.00 AM –\n1.00 PM'}
-          accentBg={D.secondaryContainer}
-          accentText={D.onSecondaryContainer}
-        />
-      </View>
-
-      {/* ── Preservation Goal quote card ──────────────────────────────────── */}
-      <View style={s.quoteCard}>
-        {/* Decorative large quote mark */}
-        <Text style={s.quoteLargeDecor}>{'\u201C'}</Text>
-        {/* Left accent bar */}
-        <View style={s.quoteAccentBar} />
-
-        <Text style={s.quoteCardTitle}>What they want to preserve?</Text>
-        <Text style={s.quoteCardText}>
-          {'\u201CI would like to preserve how my family prepare this traditional recipe. I want someone to record this preparation including all the instruction and create a video that can be shared with younger generation.\u201D'}
-        </Text>
-      </View>
-
-      {/* ── Tasks: What you'll do ─────────────────────────────────────────── */}
-      <View style={s.tasksSection}>
-        <Text style={s.tasksSectionTitle}>{'What you\'ll do'}</Text>
-        <TaskItem text="Visit the knowledge holder in Matara." />
-        <TaskItem text="Record the preparation process comprehensively." />
-        <TaskItem text="Capture high-quality photos and video clip." />
-        <TaskItem text="Document step-by-step instruction clearly." />
-        <TaskItem text="Edit and submit the final video" />
-      </View>
-
-      {/* Bottom spacing — ensures content scrolls above Apply button */}
-      <View style={{ height: 100 }} />
-    </ScrollView>
-
-    {/* ── Fixed Apply button (above nav bar) ───────────────────────────────── */}
-    <View style={s.applyContainer}>
-      <Pressable
-        style={({ pressed }) => [s.applyBtn, pressed && s.applyBtnPressed]}
-        accessibilityRole="button"
-        accessibilityLabel="Apply for this opportunity"
-      >
-        <Text style={s.applyBtnText}>Apply</Text>
-        <Text style={s.applyArrow}>{'→'}</Text>
-      </Pressable>
-    </View>
-
-    <BottomNavBar activeTab="market" onNavigate={onNavigate} />
-  </SafeAreaView>
-);
+      <BottomNavBar activeTab="market" onNavigate={onNavigate} />
+    </SafeAreaView>
+  );
+};
 
 export default OpportunityDetailPage;
 
