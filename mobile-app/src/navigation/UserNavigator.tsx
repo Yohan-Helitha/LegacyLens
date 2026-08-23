@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { View, Modal } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HomeScreen } from '../screens/home';
 import { CulturalMapScreen } from '../screens/cultural-map';
@@ -89,13 +89,23 @@ export const UserNavigator: React.FC<UserNavigatorProps> = ({ navigation }) => {
         />
       )}
 
-      {screen === 'video' && (
+      <Modal
+        visible={screen === 'video'}
+        animationType="slide"
+        onRequestClose={() => setScreen('home')}
+      >
         <VideoDetailScreen
           onBack={() => setScreen('home')}
           onNavigateMap={() => handleNavigate('map')}
         />
-      )}
-      {screen === 'blog' && <BlogDetailScreen onBack={() => setScreen('home')} />}
+      </Modal>
+      <Modal
+        visible={screen === 'blog'}
+        animationType="slide"
+        onRequestClose={() => setScreen('home')}
+      >
+        <BlogDetailScreen onBack={() => setScreen('home')} />
+      </Modal>
 
       {showFooter && <UserFooter activeTab={footerActiveTab} onTabSelect={handleNavigate} />}
     </View>
