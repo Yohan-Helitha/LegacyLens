@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Mic, Pause } from 'lucide-react-native';
-import { RoundIconButton, SegmentedControl } from '../../components/common';
+import { Mic } from 'lucide-react-native';
 import {
   ContentCaptureTopBar,
   MicOrb,
@@ -14,23 +13,17 @@ import { Typography, Spacing, Radii } from '../../theme';
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-type CaptureMode = 'voice' | 'video';
-
 interface RecordPromptProps {
   onMenuPress?: () => void;
   /** User tapped the mic to begin recording */
-  onStartRecording?: (mode: CaptureMode) => void;
+  onStartRecording?: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main Screen
+// Main Screen — a simple "get ready" hand-off into RecordCapture, which is
+// where audio/video mode is actually chosen and recorded.
 // ─────────────────────────────────────────────────────────────────────────────
-export const RecordPrompt: React.FC<RecordPromptProps> = ({
-  onMenuPress,
-  onStartRecording,
-}) => {
-  const [mode, setMode] = useState<CaptureMode>('voice');
-
+export const RecordPrompt: React.FC<RecordPromptProps> = ({ onMenuPress, onStartRecording }) => {
   return (
     <SafeAreaView style={s.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
@@ -39,15 +32,6 @@ export const RecordPrompt: React.FC<RecordPromptProps> = ({
 
       <View style={s.content}>
         <View style={s.panel}>
-          <SegmentedControl
-            tabs={[
-              { key: 'voice', label: 'Voice' },
-              { key: 'video', label: 'Video' },
-            ]}
-            active={mode}
-            onChange={setMode}
-          />
-
           <View style={s.instructionBlock}>
             <Mic size={28} color={D.onSurfaceVariant} strokeWidth={2} />
             <Text style={s.instructionText}>
@@ -56,16 +40,7 @@ export const RecordPrompt: React.FC<RecordPromptProps> = ({
           </View>
 
           <View style={s.controlsRow}>
-            <RoundIconButton
-              icon={Pause}
-              size={48}
-              color={D.onSurfaceVariant}
-              backgroundColor={D.surfaceContainer}
-              onPress={() => {}}
-              accessibilityLabel="Pause"
-            />
-            <MicOrb onPress={() => onStartRecording?.(mode)} accessibilityLabel="Start recording" />
-            <View style={{ width: 48 }} />
+            <MicOrb onPress={onStartRecording} accessibilityLabel="Start recording" />
           </View>
         </View>
       </View>
@@ -106,10 +81,9 @@ const s = StyleSheet.create({
   },
 
   controlsRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: Spacing.sm,
+    paddingBottom: Spacing.md,
   },
 });
 
