@@ -10,5 +10,6 @@ public enum OtpPurpose {
     PIN_RESET,
     PHONE_CHANGE,
     NIC_CHANGE,
-    PIN_CHANGE
+    PIN_CHANGE,
+    ELDER_UPGRADE
 }

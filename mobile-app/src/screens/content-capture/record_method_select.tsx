@@ -14,7 +14,7 @@ interface RecordMethodSelectProps {
   onBack?: () => void;
   /** User chose to speak or film their story */
   onSelectVoiceVideo?: () => void;
-  /** User chose to type their story instead */
+  /** User chose to write, or attach an audio/video file already on their device */
   onSelectWriting?: () => void;
 }
 
@@ -73,7 +73,7 @@ export const RecordMethodSelect: React.FC<RecordMethodSelectProps> = ({
             }
             label="In writing"
             onPress={onSelectWriting}
-            accessibilityLabel="Share your story in writing"
+            accessibilityLabel="Write your story, or attach an audio or video file"
           />
         </View>
       </View>

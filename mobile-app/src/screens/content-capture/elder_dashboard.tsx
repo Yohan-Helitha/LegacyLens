@@ -7,41 +7,30 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import {
   Award,
   Mic,
-  CheckCircle2,
   Clock,
   ChevronDown,
   Wallet,
 } from 'lucide-react-native';
 import { Typography, Spacing, Radii } from '../../theme';
-import { BottomNavBar } from '../../components/common';
-import type { NavTab } from '../../components/common';
+import { ConfirmDialog, Header, UserFooter } from '../../components/common';
+import type { UserTabKey } from '../../components/common';
 import {
-  ContentCaptureTopBar,
+  ElderNavDrawer,
+  StoryCard,
+  toStoryCardItem,
   ContentCaptureColors as D,
 } from '../../components/module-specific/content-capture';
+import type { ElderDrawerItem } from '../../components/module-specific/content-capture';
+import { useStoriesList } from '../../hooks/useStoriesList';
+import type { StoryResponse } from '../../types/story';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
-type StoryStatus = 'published' | 'pending';
-
-interface StoryItem {
-  id: string;
-  title: string;
-  recordedAt: string;
-  status: StoryStatus;
-}
-
-const STORIES: StoryItem[] = [
-  { id: '1', title: "The Monsoon of '78", recordedAt: 'Recorded 2 weeks ago', status: 'published' },
-  { id: '2', title: 'Family Recipes', recordedAt: 'Recorded yesterday', status: 'pending' },
-];
+/** How many recent stories the dashboard preview shows before "View All". */
+const DASHBOARD_STORY_PREVIEW_COUNT = 2;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TrustBadgeSection
@@ -178,89 +167,100 @@ const RequestsSection: React.FC<{ onReplyPress?: () => void }> = ({ onReplyPress
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StoryRow
+// YourStoriesSection — "Your Stories"
 // ─────────────────────────────────────────────────────────────────────────────
-const StoryRow: React.FC<{ story: StoryItem }> = ({ story }) => {
-  const isPublished = story.status === 'published';
+interface YourStoriesSectionProps {
+  stories: StoryResponse[];
+  loading: boolean;
+  onViewAllPress?: () => void;
+  onReview?: (story: StoryResponse) => void;
+  onRequestDelete?: (storyId: string) => void;
+}
+
+const YourStoriesSection: React.FC<YourStoriesSectionProps> = ({
+  stories,
+  loading,
+  onViewAllPress,
+  onReview,
+  onRequestDelete,
+}) => {
+  const preview = stories.slice(0, DASHBOARD_STORY_PREVIEW_COUNT);
+
   return (
-    <View style={s.storyRow}>
-      <View style={{ flex: 1, paddingRight: Spacing.sm }}>
-        <Text style={s.storyTitle} numberOfLines={1}>{story.title}</Text>
-        <Text style={s.storyMeta}>{story.recordedAt}</Text>
+    <View style={s.section}>
+      <Text style={s.sectionTitle}>Your Stories</Text>
+
+      {!loading && preview.length === 0 && (
+        <Text style={s.emptyStoriesText}>You haven't recorded any stories yet.</Text>
+      )}
+
+      <View style={{ gap: Spacing.sm }}>
+        {preview.map((story) => (
+          <StoryCard
+            key={story.id}
+            story={toStoryCardItem(story)}
+            onReview={() => onReview?.(story)}
+            onDelete={() => onRequestDelete?.(story.id)}
+          />
+        ))}
       </View>
-      <View style={[s.storyBadge, isPublished ? s.storyBadgePublished : s.storyBadgePending]}>
-        {isPublished ? (
-          <CheckCircle2 size={14} color={D.primary} strokeWidth={2} />
-        ) : (
-          <Clock size={14} color={D.onSecondaryContainer} strokeWidth={2} />
-        )}
-        <Text style={[s.storyBadgeText, isPublished ? s.storyBadgeTextPublished : s.storyBadgeTextPending]}>
-          {isPublished ? 'Published' : 'Pending'}
-        </Text>
-      </View>
+
+      {stories.length > 0 && (
+        <Pressable
+          onPress={onViewAllPress}
+          style={({ pressed }) => [s.viewAllBtn, pressed && s.pressed]}
+          accessibilityRole="button"
+        >
+          <Text style={s.viewAllText}>View All</Text>
+          <ChevronDown size={16} color={D.onSurfaceVariant} strokeWidth={2} />
+        </Pressable>
+      )}
     </View>
   );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// YourStoriesSection — "Your Stories"
-// ─────────────────────────────────────────────────────────────────────────────
-const YourStoriesSection: React.FC<{ onViewAllPress?: () => void }> = ({ onViewAllPress }) => (
-  <View style={s.section}>
-    <Text style={s.sectionTitle}>Your Stories</Text>
-
-    <View style={{ gap: Spacing.sm }}>
-      {STORIES.map((story) => (
-        <StoryRow key={story.id} story={story} />
-      ))}
-    </View>
-
-    <Pressable
-      onPress={onViewAllPress}
-      style={({ pressed }) => [s.viewAllBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-    >
-      <Text style={s.viewAllText}>View All</Text>
-      <ChevronDown size={16} color={D.onSurfaceVariant} strokeWidth={2} />
-    </Pressable>
-  </View>
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
 interface ElderDashboardProps {
-  onMenuPress?: () => void;
-  onFilterPress?: () => void;
-  onTabPress?: (tab: NavTab) => void;
+  onTabPress?: (tab: UserTabKey) => void;
   onRecordStory?: () => void;
   onReplyToRequest?: () => void;
   onViewAllStories?: () => void;
+  onReviewStory?: (story: StoryResponse) => void;
   onHistoryPress?: () => void;
   onWithdrawPress?: () => void;
+  /** Fired when a drawer item other than "Home" is tapped — no screens exist for these yet */
+  onDrawerNavigate?: (item: ElderDrawerItem) => void;
+  onLogout?: () => void;
 }
 
 export const ElderDashboard: React.FC<ElderDashboardProps> = ({
-  onMenuPress,
-  onFilterPress,
   onTabPress,
   onRecordStory,
   onReplyToRequest,
   onViewAllStories,
+  onReviewStory,
   onHistoryPress,
   onWithdrawPress,
+  onDrawerNavigate,
+  onLogout,
 }) => {
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const { stories, loading: storiesLoading, deletingId, deleteStory } = useStoriesList();
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
+    await deleteStory(deleteTargetId);
+    setDeleteTargetId(null);
+  };
+
   return (
-    <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+    <View style={s.safeArea}>
       <StatusBar style="dark" />
 
-      <ContentCaptureTopBar
-        title="Legacy Lens"
-        left="menu"
-        right="filter"
-        onLeftPress={onMenuPress}
-        onRightPress={onFilterPress}
-      />
+      <Header title="Legacy Lens" onMenuPress={() => setDrawerVisible(true)} />
 
       <ScrollView
         style={s.scroll}
@@ -270,13 +270,38 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
         <TrustBadgeSection />
         <PrimaryActionSection onPress={onRecordStory} />
         <RequestsSection onReplyPress={onReplyToRequest} />
-        <YourStoriesSection onViewAllPress={onViewAllStories} />
+        <YourStoriesSection
+          stories={stories}
+          loading={storiesLoading}
+          onViewAllPress={onViewAllStories}
+          onReview={onReviewStory}
+          onRequestDelete={setDeleteTargetId}
+        />
         <BalanceCard onHistoryPress={onHistoryPress} onWithdrawPress={onWithdrawPress} />
         <View style={{ height: 8 }} />
       </ScrollView>
 
-      <BottomNavBar active="home" onTabPress={onTabPress} />
-    </SafeAreaView>
+      <UserFooter activeTab="home" onTabSelect={(tab) => onTabPress?.(tab)} />
+
+      <ElderNavDrawer
+        visible={drawerVisible}
+        onClose={() => setDrawerVisible(false)}
+        activeItem="home"
+        requestsCount={1}
+        onNavigate={onDrawerNavigate}
+        onLogout={onLogout}
+      />
+
+      <ConfirmDialog
+        visible={!!deleteTargetId}
+        title="Delete this story?"
+        message="This can't be undone — the recording and details will be permanently removed."
+        confirmLabel={deletingId ? 'Deleting…' : 'Delete'}
+        cancelLabel="Cancel"
+        onCancel={() => setDeleteTargetId(null)}
+        onConfirm={confirmDelete}
+      />
+    </View>
   );
 };
 
@@ -404,24 +429,9 @@ const s = StyleSheet.create({
   },
   replyBtnText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSecondaryContainer },
 
-  // ── Story rows ─────────────────────────────────────────────────────────────
-  storyRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: D.surfaceContainerLowest, borderRadius: Radii.xl,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: D.outlineVariant,
-    padding: Spacing.md, minHeight: 72,
+  emptyStoriesText: {
+    fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant,
   },
-  storyTitle: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeMD, color: D.onSurface },
-  storyMeta:  { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, marginTop: 2 },
-  storyBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radii.full,
-  },
-  storyBadgePublished: { backgroundColor: 'rgba(0,67,67,0.1)' },
-  storyBadgePending:   { backgroundColor: 'rgba(254,137,62,0.2)' },
-  storyBadgeText:      { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, letterSpacing: 0.3 },
-  storyBadgeTextPublished: { color: D.primary },
-  storyBadgeTextPending:   { color: D.onSecondaryContainer },
 
   // ── View all ───────────────────────────────────────────────────────────────
   viewAllBtn: {

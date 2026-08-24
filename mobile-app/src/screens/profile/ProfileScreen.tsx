@@ -93,6 +93,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     : null;
   const memberSince = profile?.createdAt ? formatMemberSince(profile.createdAt) : null;
   const completeness = profile ? profileCompleteness(profile) : 0;
+  const isStoryteller = (profile?.roles ?? cachedUser?.roles ?? []).includes('ELDER');
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -148,10 +149,21 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           <View style={styles.upgradeCards}>
             <RoleUpgradeCard
               icon={Mic}
-              title="Become a Storyteller"
-              description="Share your stories, dialects, and traditions with the community."
-              hint="No experience needed — record however feels comfortable."
-              onPress={() => setStorytellerConfirmVisible(true)}
+              title={isStoryteller ? 'Your Storyteller Dashboard' : 'Become a Storyteller'}
+              description={
+                isStoryteller
+                  ? "Record new stories and manage the ones you've already shared."
+                  : 'Share your stories, dialects, and traditions with the community.'
+              }
+              hint={
+                isStoryteller
+                  ? 'Tap to open your dashboard.'
+                  : 'No experience needed — record however feels comfortable.'
+              }
+              ctaLabel={isStoryteller ? 'Open Dashboard' : 'Get Started'}
+              onPress={() =>
+                isStoryteller ? onBecomeStoryteller?.() : setStorytellerConfirmVisible(true)
+              }
             />
             <RoleUpgradeCard
               icon={Briefcase}

@@ -34,6 +34,14 @@
         }
       ],
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Legacy Lens needs camera access so you can record a video story.",
+          "microphonePermission": "Legacy Lens needs microphone access to record sound with your video story.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
         "expo-local-authentication",
         {
           "faceIDPermission": "Legacy Lens uses Face ID so you can log in quickly and securely."

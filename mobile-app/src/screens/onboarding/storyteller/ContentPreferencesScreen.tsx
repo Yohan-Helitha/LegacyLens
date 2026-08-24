@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Check, Mic, Video, FileText } from 'lucide-react-native';
 import { BackButton } from '../../../components/common';
+import { ApiError } from '../../../services/api/client';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,7 +27,8 @@ export interface StorytellerPreferences {
 
 interface ContentPreferencesScreenProps {
   onBack?: () => void;
-  onContinue?: (preferences: StorytellerPreferences) => void;
+  /** Submits the answers (e.g. requests the confirmation OTP). Throw to show the error and let the user retry. */
+  onContinue?: (preferences: StorytellerPreferences) => Promise<void>;
 }
 
 const CONTENT_TYPE_OPTIONS: { key: ContentType; label: string; icon: typeof Mic }[] = [
@@ -82,8 +84,24 @@ export const ContentPreferencesScreen: React.FC<ContentPreferencesScreenProps> =
   const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [otherTopic, setOtherTopic] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const canContinue = contentTypes.length > 0 && topics.length > 0;
+
+  const handleContinue = async () => {
+    if (!canContinue || submitting) return;
+
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await onContinue?.({ contentTypes, topics, otherTopic });
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -155,9 +173,11 @@ export const ContentPreferencesScreen: React.FC<ContentPreferencesScreenProps> =
           )}
         </View>
 
+        {!!formError && <Text style={styles.formErrorText}>{formError}</Text>}
+
         <Pressable
-          onPress={() => onContinue?.({ contentTypes, topics, otherTopic })}
-          disabled={!canContinue}
+          onPress={handleContinue}
+          disabled={!canContinue || submitting}
           accessibilityRole="button"
           accessibilityLabel="Continue"
           style={({ pressed }) => [
@@ -167,7 +187,7 @@ export const ContentPreferencesScreen: React.FC<ContentPreferencesScreenProps> =
           ]}
         >
           <Text style={[styles.continueText, !canContinue && styles.continueTextDisabled]}>
-            Continue
+            {submitting ? 'Sending code…' : 'Continue'}
           </Text>
         </Pressable>
       </ScrollView>
@@ -261,6 +281,13 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
 
+  formErrorText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    color: '#ba1a1a',
+    textAlign: 'center',
+    ...Platform.select({ android: { includeFontPadding: false } }),
+  },
   continueBtn: {
     minHeight: 56,
     borderRadius: Radii.lg,

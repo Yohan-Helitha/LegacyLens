@@ -4,3 +4,7 @@ export { MicOrb } from './MicOrb';
 export { MethodChoiceCard } from './MethodChoiceCard';
 export { TranscriptBox } from './TranscriptBox';
 export { RecordingActionButtons } from './RecordingActionButtons';
+export { ElderNavDrawer } from './ElderNavDrawer';
+export type { ElderDrawerItem } from './ElderNavDrawer';
+export { StoryCard, toStoryCardItem } from './StoryCard';
+export type { StoryCardItem, StoryCardStatus } from './StoryCard';

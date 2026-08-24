@@ -14,6 +14,9 @@ public class KnowledgeHolderProfileDto {
 
     private String primaryRegion;
     private String knownTopics;
+    private String preferredContentTypes;
+    private String otherTopicNote;
     private BigDecimal trustScore;
     private String bio;
+    private String verificationStatus;
 }

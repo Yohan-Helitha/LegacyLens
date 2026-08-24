@@ -2,11 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Audio } from 'expo-av';
-import { Mic, Pause, Play, RotateCcw } from 'lucide-react-native';
+import { Audio, ResizeMode, Video } from 'expo-av';
+import { Mic, Pause, Play, RotateCcw, Trash2, Upload } from 'lucide-react-native';
 import { BackButton, ConfirmDialog } from '../../components/common';
 import { RoundIconButton } from '../../components/common';
 import { RecordingActionButtons, ContentCaptureColors as D } from '../../components/module-specific/content-capture';
+import { ApiError } from '../../services/api/client';
 import { Typography, Spacing, Radii } from '../../theme';
 import type { RecordedClip } from './record_capture';
 
@@ -21,12 +22,19 @@ export interface StoryDraft {
 
 interface StoryDetailsProps {
   clip: RecordedClip | null;
+  /** Where the clip came from — changes the copy in the media section only */
+  clipSource?: 'recorded' | 'uploaded';
   onBack?: () => void;
   /** User confirmed they want to throw the draft away */
   onDiscard?: () => void;
-  /** User wants to redo the recording — clip will be replaced */
+  /** User wants to redo the recording, or pick a different file — clip will be replaced */
   onRerecord?: () => void;
-  onSave?: (draft: StoryDraft) => void;
+  /** User cleared the attached clip without immediately picking a replacement */
+  onRemoveClip?: () => void;
+  /** User tapped "Upload a file" from the empty state — picks an audio/video file from the device */
+  onPickMedia?: () => void;
+  /** Saves the story. Throw to show the error and let the user retry. */
+  onSave?: (draft: StoryDraft) => Promise<void>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,15 +52,20 @@ function formatDuration(ms: number): string {
 // ─────────────────────────────────────────────────────────────────────────────
 export const StoryDetails: React.FC<StoryDetailsProps> = ({
   clip,
+  clipSource = 'recorded',
   onBack,
   onDiscard,
   onRerecord,
+  onRemoveClip,
+  onPickMedia,
   onSave,
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [discardVisible, setDiscardVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
@@ -62,7 +75,7 @@ export const StoryDetails: React.FC<StoryDetailsProps> = ({
   }, []);
 
   const togglePlayback = async () => {
-    if (!clip) return;
+    if (!clip || clip.kind === 'video') return;
 
     if (isPlaying) {
       await soundRef.current?.pauseAsync();
@@ -91,8 +104,23 @@ export const StoryDetails: React.FC<StoryDetailsProps> = ({
     onRerecord?.();
   };
 
-  const handleSave = () => {
-    onSave?.({ title, description, clip });
+  const handleSave = async () => {
+    if (submitting) return;
+
+    if (!title.trim()) {
+      setSaveError('Give your story a title before saving');
+      return;
+    }
+
+    setSubmitting(true);
+    setSaveError(null);
+    try {
+      await onSave?.({ title: title.trim(), description: description.trim(), clip });
+    } catch (err) {
+      setSaveError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -134,30 +162,85 @@ export const StoryDetails: React.FC<StoryDetailsProps> = ({
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionLabel}>Voice recording</Text>
+          <Text style={s.sectionLabel}>
+            {clip ? (clip.kind === 'video' ? 'Video' : 'Voice recording') : 'Voice recording or video'}
+          </Text>
           {clip ? (
-            <View style={s.clipCard}>
-              <RoundIconButton
-                icon={isPlaying ? Pause : Play}
-                size={48}
-                color={D.onSecondaryContainer}
-                backgroundColor={D.secondaryContainer}
-                onPress={togglePlayback}
-                accessibilityLabel={isPlaying ? 'Pause playback' : 'Play recording'}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={s.clipTitle}>Your voice recording</Text>
-                <Text style={s.clipMeta}>{formatDuration(clip.durationMillis)}</Text>
+            clip.kind === 'video' ? (
+              <View style={{ gap: Spacing.sm }}>
+                <Video
+                  source={{ uri: clip.uri }}
+                  style={s.videoPlayer}
+                  resizeMode={ResizeMode.CONTAIN}
+                  useNativeControls
+                  isLooping={false}
+                />
+                <View style={s.clipMetaRow}>
+                  <Text style={s.clipMeta}>{formatDuration(clip.durationMillis)}</Text>
+                  <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+                    <Pressable
+                      onPress={handleRerecord}
+                      style={({ pressed }) => [s.clipIconBtn, pressed && s.pressed]}
+                      accessibilityRole="button"
+                      accessibilityLabel={clipSource === 'uploaded' ? 'Choose a different file' : 'Retry'}
+                    >
+                      <RotateCcw size={18} color={D.primary} strokeWidth={2} />
+                    </Pressable>
+                    <Pressable
+                      onPress={onRemoveClip}
+                      style={({ pressed }) => [s.clipIconBtn, pressed && s.pressed]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Remove video"
+                    >
+                      <Trash2 size={18} color="#ba1a1a" strokeWidth={2} />
+                    </Pressable>
+                  </View>
+                </View>
               </View>
-              <Pressable
-                onPress={handleRerecord}
-                style={({ pressed }) => [s.rerecordBtn, pressed && s.pressed]}
-                accessibilityRole="button"
-                accessibilityLabel="Re-record"
-              >
-                <RotateCcw size={18} color={D.primary} strokeWidth={2} />
-              </Pressable>
-            </View>
+            ) : (
+              <View style={s.clipCard}>
+                <RoundIconButton
+                  icon={isPlaying ? Pause : Play}
+                  size={48}
+                  color={D.onSecondaryContainer}
+                  backgroundColor={D.secondaryContainer}
+                  onPress={togglePlayback}
+                  accessibilityLabel={isPlaying ? 'Pause playback' : 'Play recording'}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.clipTitle}>
+                    {clipSource === 'uploaded' ? 'Uploaded audio' : 'Your voice recording'}
+                  </Text>
+                  <Text style={s.clipMeta}>{formatDuration(clip.durationMillis)}</Text>
+                </View>
+                <Pressable
+                  onPress={handleRerecord}
+                  style={({ pressed }) => [s.rerecordBtn, pressed && s.pressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel={clipSource === 'uploaded' ? 'Choose a different file' : 'Re-record'}
+                >
+                  <RotateCcw size={18} color={D.primary} strokeWidth={2} />
+                </Pressable>
+                <Pressable
+                  onPress={onRemoveClip}
+                  style={({ pressed }) => [s.rerecordBtn, pressed && s.pressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove recording"
+                >
+                  <Trash2 size={18} color="#ba1a1a" strokeWidth={2} />
+                </Pressable>
+              </View>
+            )
+          ) : clipSource === 'uploaded' ? (
+            <Pressable
+              onPress={onPickMedia}
+              style={({ pressed }) => [s.uploadClip, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Upload an audio or video file"
+            >
+              <Upload size={22} color={D.primary} strokeWidth={2} />
+              <Text style={s.uploadClipText}>Upload audio or video</Text>
+            </Pressable>
           ) : (
             <View style={s.emptyClip}>
               <Mic size={22} color={D.onSurfaceVariant} strokeWidth={2} />
@@ -168,10 +251,12 @@ export const StoryDetails: React.FC<StoryDetailsProps> = ({
 
         <View style={{ flex: 1 }} />
 
+        {!!saveError && <Text style={s.saveErrorText}>{saveError}</Text>}
+
         <RecordingActionButtons
           startOverLabel="Discard"
-          finishLabel="Save Story"
-          onStartOverPress={() => setDiscardVisible(true)}
+          finishLabel={submitting ? 'Saving…' : 'Save Story'}
+          onStartOverPress={() => !submitting && setDiscardVisible(true)}
           onFinishPress={handleSave}
         />
       </View>
@@ -265,6 +350,40 @@ const s = StyleSheet.create({
     backgroundColor: D.surfaceContainer,
   },
 
+  videoPlayer: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: Radii.xl,
+    backgroundColor: '#000',
+  },
+  clipMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  clipIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: Radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: D.surfaceContainer,
+  },
+
+  uploadClip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(15,92,92,0.3)',
+    borderStyle: 'dashed',
+    borderRadius: Radii.xl,
+    padding: Spacing.lg,
+    backgroundColor: 'rgba(15,92,92,0.05)',
+  },
+  uploadClipText: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeMD,
+    color: D.primary,
+  },
+
   emptyClip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -283,6 +402,13 @@ const s = StyleSheet.create({
   },
 
   pressed: { opacity: 0.75 },
+
+  saveErrorText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    color: '#ba1a1a',
+    textAlign: 'center',
+  },
 });
 
 export default StoryDetails;
