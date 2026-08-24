@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
@@ -107,6 +108,17 @@ const FALLBACK_ACTIVE_JOBS: ActiveJobItem[] = [
     dueText: 'Due in 3 days',
     statusLabel: 'IN PROGRESS',
   },
+  {
+    id: 'fallback-2',
+    icon: '🎥',
+    title: 'Traditional Food Recipe Documentation',
+    client: 'Mrs. Kamala Wijesinghe',
+    description:
+      'Recording the step-by-step preparation of a traditional Negombo family recipe, including ingredient measurements and cooking techniques.',
+    location: 'Negombo',
+    dueText: 'Due in 3 days',
+    statusLabel: 'IN PROGRESS',
+  },
 ];
 
 const FALLBACK_REVIEWS: ReviewItem[] = [
@@ -159,6 +171,23 @@ function mapJobToItem(job: JobResponse): ActiveJobItem {
 // ─────────────────────────────────────────────────────────────────────────────
 const StarIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
   <Text style={{ fontSize: size, color, lineHeight: size + 2 }}>★</Text>
+);
+
+// Same outline style/colour as OpportunityDetailPage's info-chip icons.
+type IconProps = { size?: number; color?: string };
+
+const PinIcon: React.FC<IconProps> = ({ size = 13, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z" />
+    <Circle cx="12" cy="10" r="3" />
+  </Svg>
+);
+
+const ClockIcon: React.FC<IconProps> = ({ size = 13, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="12" cy="12" r="9" />
+    <Path d="M12 7v5l3.5 2" />
+  </Svg>
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -313,11 +342,15 @@ const ActiveJobCard: React.FC<{ item: ActiveJobItem }> = ({ item }) => (
     {/* Meta footer */}
     <View style={s.jobMeta}>
       <View style={s.jobMetaItem}>
-        <Text style={[s.jobMetaText, { fontSize: 13 }]}>📍</Text>
+        <View style={s.jobMetaIconBox}>
+          <PinIcon />
+        </View>
         <Text style={s.jobMetaText}>{item.location}</Text>
       </View>
       <View style={s.jobMetaItem}>
-        <Text style={[s.jobMetaText, { fontSize: 13 }]}>🕐</Text>
+        <View style={s.jobMetaIconBox}>
+          <ClockIcon />
+        </View>
         <Text style={[s.jobMetaText, { color: D.secondary }]}>{item.dueText}</Text>
       </View>
     </View>
@@ -689,6 +722,7 @@ const s = StyleSheet.create({
   jobCard: {
     backgroundColor: D.surfaceContainerLowest, borderRadius: Radii.xl, padding: Spacing.md,
     borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+    borderLeftWidth: 3, borderLeftColor: D.secondary,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 4, elevation: 1, gap: Spacing.sm,
   },
@@ -698,11 +732,16 @@ const s = StyleSheet.create({
   jobIconBox:     { width: 40, height: 40, borderRadius: Radii.lg, backgroundColor: D.surfaceContainer, alignItems: 'center', justifyContent: 'center' },
   jobTitle:       { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 24, color: D.onSurface, marginBottom: 2 },
   jobClient:      { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: '#0F5C5C' },  // teal
-  jobStatusBadge: { backgroundColor: D.surfaceContainerHigh, borderRadius: Radii.sm, paddingHorizontal: 7, paddingVertical: 3, marginTop: 2 },
-  jobStatusText:  { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, letterSpacing: 0.8 },
+  jobStatusBadge: { backgroundColor: D.secondaryContainer, borderRadius: Radii.full, paddingHorizontal: 9, paddingVertical: 4, marginTop: 2 },
+  jobStatusText:  { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSecondaryContainer, letterSpacing: 0.8 },
   jobDesc:        { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: D.onSurfaceVariant },
   jobMeta:        { flexDirection: 'row', gap: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant, marginTop: 2 },
-  jobMetaItem:    { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  jobMetaItem:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  jobMetaIconBox: {
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: 'rgba(232, 121, 46, 0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   jobMetaText:    { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, letterSpacing: 0.2 },
   jobViewDetailsRow: { alignItems: 'flex-end' },
   jobViewDetailsText: {
