@@ -1,11 +1,13 @@
 package lk.ac.sliit.legacylens.learning.service;
 
+import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
+import lk.ac.sliit.legacylens.learning.dto.LessonProgressResponse;
 import lk.ac.sliit.legacylens.learning.entity.Lesson;
 import lk.ac.sliit.legacylens.learning.entity.LessonProgress;
 import lk.ac.sliit.legacylens.learning.repository.LessonProgressRepository;
 import lk.ac.sliit.legacylens.learning.repository.LessonRepository;
 import org.springframework.stereotype.Service;
-import lk.ac.sliit.legacylens.learning.dto.LessonProgressResponse;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -18,16 +20,17 @@ public class LessonProgressService {
     private final QuizQuestionService quizQuestionService;
 
     public LessonProgressService(
-        LessonProgressRepository lessonProgressRepository,
-        LessonRepository lessonRepository,
-        XpService xpService,
-        QuizQuestionService quizQuestionService) {
+            LessonProgressRepository lessonProgressRepository,
+            LessonRepository lessonRepository,
+            XpService xpService,
+            QuizQuestionService quizQuestionService) {
 
-    this.lessonProgressRepository = lessonProgressRepository;
-    this.lessonRepository = lessonRepository;
-    this.xpService = xpService;
-    this.quizQuestionService = quizQuestionService;
-}
+        this.lessonProgressRepository = lessonProgressRepository;
+        this.lessonRepository = lessonRepository;
+        this.xpService = xpService;
+        this.quizQuestionService = quizQuestionService;
+    }
+
     public Optional<LessonProgress> getProgress(
             Long userId,
             Long lessonId) {
@@ -54,7 +57,8 @@ public class LessonProgressService {
                 ));
     }
 
-    public List<LessonProgressResponse> getUserProgressResponse(Long userId) {
+    public List<LessonProgressResponse> getUserProgressResponse(
+            Long userId) {
 
         return lessonProgressRepository.findByUserId(userId)
                 .stream()
@@ -74,14 +78,16 @@ public class LessonProgressService {
             Integer score,
             Integer xpEarned) {
 
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Lesson not found"
+                        ));
+
         LessonProgress progress =
                 lessonProgressRepository
                         .findByUserIdAndLessonId(userId, lessonId)
                         .orElseGet(LessonProgress::new);
-
-        Lesson lesson = lessonRepository.findById(lessonId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("Lesson not found"));
 
         progress.setUserId(userId);
         progress.setLesson(lesson);
@@ -92,29 +98,43 @@ public class LessonProgressService {
         return lessonProgressRepository.save(progress);
     }
 
-
     public LessonProgress completeLesson(
-                Long userId,
-                Long lessonId,
-                int correctAnswers) {
+            Long userId,
+            Long lessonId,
+            int correctAnswers) {
 
         if (correctAnswers < 0) {
-                throw new IllegalArgumentException(
-                        "Correct answers cannot be negative"
-                );
+            throw new IllegalArgumentException(
+                    "Correct answers cannot be negative"
+            );
         }
 
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Lesson not found"));
+                        new ResourceNotFoundException(
+                                "Lesson not found"
+                        ));
 
         long totalQuestions =
                 quizQuestionService.getQuestionCountForLesson(lessonId);
 
         if (correctAnswers > totalQuestions) {
-                throw new IllegalArgumentException(
-                        "Correct answers cannot exceed total quiz questions"
-                );
+            throw new IllegalArgumentException(
+                    "Correct answers cannot exceed total quiz questions"
+            );
+        }
+
+        LessonProgress progress =
+                lessonProgressRepository
+                        .findByUserIdAndLessonId(userId, lessonId)
+                        .orElseGet(LessonProgress::new);
+
+        /*
+         * If the lesson was already successfully completed,
+         * don't award XP again.
+         */
+        if (progress.isCompleted()) {
+            return progress;
         }
 
         int scorePercentage = totalQuestions == 0
@@ -131,19 +151,6 @@ public class LessonProgressService {
                 completed
         );
 
-        LessonProgress progress =
-                lessonProgressRepository
-                        .findByUserIdAndLessonId(userId, lessonId)
-                        .orElseGet(LessonProgress::new);
-
-        /*
-        * If the lesson was already successfully completed,
-        * don't award XP again.
-        */
-        if (progress.isCompleted()) {
-                return progress;
-        }
-
         progress.setUserId(userId);
         progress.setLesson(lesson);
         progress.setCompleted(completed);
@@ -151,5 +158,5 @@ public class LessonProgressService {
         progress.setXpEarned(xpEarned);
 
         return lessonProgressRepository.save(progress);
-        }
+    }
 }

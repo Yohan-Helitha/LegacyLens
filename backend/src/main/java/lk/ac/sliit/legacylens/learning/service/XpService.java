@@ -8,7 +8,9 @@ public class XpService {
     private static final int XP_PER_CORRECT_ANSWER = 10;
     private static final int XP_COMPLETION_BONUS = 20;
 
-    public int calculateQuizXp(int correctAnswers, boolean completed) {
+    public int calculateQuizXp(
+            int correctAnswers,
+            boolean completed) {
 
         if (correctAnswers < 0) {
             throw new IllegalArgumentException(

@@ -1,6 +1,7 @@
 package lk.ac.sliit.legacylens.learning.controller;
 
 import lk.ac.sliit.legacylens.learning.dto.LearningDashboardResponse;
+import lk.ac.sliit.legacylens.learning.dto.NextLessonResponse;
 import lk.ac.sliit.legacylens.learning.dto.TrackDashboardResponse;
 import lk.ac.sliit.legacylens.learning.service.LearningDashboardService;
 import org.springframework.http.ResponseEntity;
@@ -42,6 +43,20 @@ public class LearningDashboardController {
         return ResponseEntity.ok(
                 learningDashboardService
                         .getTrackDashboard(userId, trackId)
+        );
+    }
+
+    @GetMapping("/me/tracks/{trackId}/next-lesson")
+    public ResponseEntity<NextLessonResponse> getNextLesson(
+            Authentication authentication,
+            @PathVariable Long trackId) {
+
+        Long userId =
+                Long.valueOf(authentication.getName());
+
+        return ResponseEntity.ok(
+                learningDashboardService
+                        .getNextLesson(userId, trackId)
         );
     }
 }

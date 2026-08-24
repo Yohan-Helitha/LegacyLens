@@ -1,4 +1,5 @@
 package lk.ac.sliit.legacylens.learning.dto;
+
 import lombok.Data;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
