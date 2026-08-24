@@ -4,9 +4,10 @@ import { OpportunityPage } from '../screens/marketplace/creator/OpportunityPage'
 import { OpportunityDetailPage } from '../screens/marketplace/creator/OpportunityDetailPage';
 import { BecomeCreatorApplication } from '../screens/marketplace/creator/BecomeCreatoApplication';
 import { CreatorVerificationUpdatePage } from '../screens/marketplace/creator/CreatorVerificationUpdatePage';
+import { InApp } from '../screens/marketplace/creator/InApp';
 import type { NavTab } from '../components/BottomNavBar';
 
-export type CreatorScreen = 'dashboard' | 'market' | 'detail' | 'apply' | 'pending';
+export type CreatorScreen = 'dashboard' | 'market' | 'detail' | 'apply' | 'pending' | 'inbox';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -38,7 +39,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
     if (tab === 'home') setScreen('dashboard');
     if (tab === 'market') setScreen('market');
     if (tab === 'profile') setScreen('apply');
-    // inbox: placeholder — stay on current screen for now
+    if (tab === 'inbox') setScreen('inbox');
   };
 
   /** Called when a "View Details"/"Apply" action is pressed on OpportunityPage */
@@ -89,6 +90,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onReapply={() => setScreen('apply')}
         />
       )}
+      {screen === 'inbox' && <InApp onNavigate={handleNavigate} />}
     </>
   );
 };
