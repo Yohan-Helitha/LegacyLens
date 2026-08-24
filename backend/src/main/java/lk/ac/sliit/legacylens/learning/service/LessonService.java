@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.learning.service;
 
+import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.learning.entity.Lesson;
 import lk.ac.sliit.legacylens.learning.entity.LearningTrack;
 import lk.ac.sliit.legacylens.learning.repository.LessonRepository;
@@ -7,7 +8,6 @@ import lk.ac.sliit.legacylens.learning.repository.LearningTrackRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class LessonService {
@@ -27,8 +27,12 @@ public class LessonService {
         return lessonRepository.findByTrackIdOrderByLessonOrderAsc(trackId);
     }
 
-    public Optional<Lesson> getLessonById(Long id) {
-        return lessonRepository.findById(id);
+    public Lesson getLessonById(Long id) {
+        return lessonRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Lesson not found"
+                        ));
     }
 
     public Lesson createLesson(Long trackId, Lesson lesson) {
@@ -36,10 +40,9 @@ public class LessonService {
         LearningTrack track =
                 learningTrackRepository.findById(trackId)
                         .orElseThrow(() ->
-                                new IllegalArgumentException(
+                                new ResourceNotFoundException(
                                         "Learning track not found"
-                                )
-                        );
+                                ));
 
         if (lesson.getLessonOrder() == null) {
             throw new IllegalArgumentException(
@@ -72,7 +75,4 @@ public class LessonService {
 
         return savedLesson;
     }
-
-
-
 }

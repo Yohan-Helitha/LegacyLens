@@ -30,9 +30,9 @@ public class LessonController {
     public ResponseEntity<Lesson> getLessonById(
             @PathVariable Long id) {
 
-        return lessonService.getLessonById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        Lesson lesson = lessonService.getLessonById(id);
+
+        return ResponseEntity.ok(lesson);
     }
 
     @PostMapping("/lessons")
