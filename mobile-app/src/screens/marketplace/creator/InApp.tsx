@@ -48,7 +48,7 @@ const D = {
 // ─────────────────────────────────────────────────────────────────────────────
 type FilterKey = 'all' | 'unread' | 'collaborations';
 
-type Conversation = {
+export type Conversation = {
   id: string;
   name: string;
   avatar: number;
@@ -60,7 +60,7 @@ type Conversation = {
 // Static for now — there's no messaging backend/table yet (this would need a
 // real-time chat feature, which is out of scope for the current build). Kept
 // as plain frontend data, same as the rest of the app's demo-only screens.
-const CONVERSATIONS: Conversation[] = [
+export const CONVERSATIONS: Conversation[] = [
   {
     id: '1',
     name: 'Mrs. Kamala Wijesinghe',
@@ -165,8 +165,9 @@ const FilterBar: React.FC<{ active: FilterKey; onSelect: (k: FilterKey) => void 
 // ─────────────────────────────────────────────────────────────────────────────
 // ConversationCard
 // ─────────────────────────────────────────────────────────────────────────────
-const ConversationCard: React.FC<{ item: Conversation }> = ({ item }) => (
+const ConversationCard: React.FC<{ item: Conversation; onPress: () => void }> = ({ item, onPress }) => (
   <Pressable
+    onPress={onPress}
     style={({ pressed }) => [s.conversationCard, pressed && s.cardPressed]}
     accessibilityRole="button"
     accessibilityLabel={`Conversation with ${item.name}`}
@@ -196,7 +197,10 @@ const ConversationCard: React.FC<{ item: Conversation }> = ({ item }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
-export const InApp: React.FC<{ onNavigate: (tab: NavTab) => void }> = ({ onNavigate }) => {
+export const InApp: React.FC<{
+  onNavigate: (tab: NavTab) => void;
+  onOpenConversation: (conversationId: string) => void;
+}> = ({ onNavigate, onOpenConversation }) => {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -250,7 +254,11 @@ export const InApp: React.FC<{ onNavigate: (tab: NavTab) => void }> = ({ onNavig
         {visibleConversations.length > 0 ? (
           <View style={{ gap: Spacing.sm }}>
             {visibleConversations.map((item) => (
-              <ConversationCard key={item.id} item={item} />
+              <ConversationCard
+                key={item.id}
+                item={item}
+                onPress={() => onOpenConversation(item.id)}
+              />
             ))}
           </View>
         ) : (

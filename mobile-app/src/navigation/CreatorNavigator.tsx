@@ -5,9 +5,10 @@ import { OpportunityDetailPage } from '../screens/marketplace/creator/Opportunit
 import { BecomeCreatorApplication } from '../screens/marketplace/creator/BecomeCreatoApplication';
 import { CreatorVerificationUpdatePage } from '../screens/marketplace/creator/CreatorVerificationUpdatePage';
 import { InApp } from '../screens/marketplace/creator/InApp';
+import { InboxMessage } from '../screens/marketplace/creator/InboxMessage';
 import type { NavTab } from '../components/BottomNavBar';
 
-export type CreatorScreen = 'dashboard' | 'market' | 'detail' | 'apply' | 'pending' | 'inbox';
+export type CreatorScreen = 'dashboard' | 'market' | 'detail' | 'apply' | 'pending' | 'inbox' | 'conversation';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -30,6 +31,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
 }) => {
   const [screen, setScreen] = useState<CreatorScreen>(initialScreen);
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
 
   /**
    * Shared navigation handler passed to all screens.
@@ -50,6 +52,15 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
 
   /** Called when back arrow is pressed on OpportunityDetailPage */
   const handleBack = () => setScreen('market');
+
+  /** Called when a conversation card is tapped on InApp */
+  const handleOpenConversation = (conversationId: string) => {
+    setSelectedConversationId(conversationId);
+    setScreen('conversation');
+  };
+
+  /** Called when back arrow is pressed on InboxMessage */
+  const handleBackToInbox = () => setScreen('inbox');
 
   /**
    * Called when the creator application is submitted.
@@ -90,7 +101,16 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onReapply={() => setScreen('apply')}
         />
       )}
-      {screen === 'inbox' && <InApp onNavigate={handleNavigate} />}
+      {screen === 'inbox' && (
+        <InApp onNavigate={handleNavigate} onOpenConversation={handleOpenConversation} />
+      )}
+      {screen === 'conversation' && (
+        <InboxMessage
+          onNavigate={handleNavigate}
+          onBack={handleBackToInbox}
+          conversationId={selectedConversationId}
+        />
+      )}
     </>
   );
 };
