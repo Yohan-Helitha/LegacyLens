@@ -112,6 +112,7 @@ public class OpportunityServiceImpl implements OpportunityService {
                 .durationText(opportunity.getDurationText())
                 .offeredAmount(opportunity.getOfferedAmount())
                 .timeWindowText(opportunity.getTimeWindowText())
+                .language(opportunity.getLanguage())
                 .preservationGoal(opportunity.getPreservationGoal())
                 .tasks(tasks)
                 .build();

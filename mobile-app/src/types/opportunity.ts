@@ -28,6 +28,7 @@ export interface OpportunityDetailResponse {
   durationText: string | null;
   offeredAmount: number;
   timeWindowText: string | null;
+  language: string | null;
   preservationGoal: string | null;
   tasks: string[];
 }

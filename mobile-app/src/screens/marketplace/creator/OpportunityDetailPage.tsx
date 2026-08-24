@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
@@ -47,9 +48,51 @@ const D = {
   outline:          '#718096',
 } as const;
 
+/** Shown for an elder with no uploaded profile photo. */
+const PLACEHOLDER_AVATAR =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuBdukQOb20lmYsNjgSC79bwk6nR11u86Bj87jNIlc_ZQzQ97BxLNMhydins5gSF08W2CSQyNGsh4guyGBVX0htKvkNTzRAY76Yfv8jK-W-9Z-cW30fTc-tVqTE_3MXVnOr3daWdokTEReYQUt-ciXqQB8LF7qkH10d4SgSRvnxi4hdlzLG5RUNcZvLxKkHwfHK5wXsfSfaNkQJdZelcgow41KGgsq77Fkd9zgLSrunJwEJsg3U5ZQcTdg';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Icons — outline-style, always drawn in the orange accent so their colour
+// isn't at the mercy of an emoji glyph's own built-in colouring.
+// ─────────────────────────────────────────────────────────────────────────────
+type IconProps = { size?: number; color?: string };
 
+const PinIcon: React.FC<IconProps> = ({ size = 14, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z" />
+    <Circle cx="12" cy="10" r="3" />
+  </Svg>
+);
 
+const ClockIcon: React.FC<IconProps> = ({ size = 14, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="12" cy="12" r="9" />
+    <Path d="M12 7v5l3.5 2" />
+  </Svg>
+);
+
+const CalendarIcon: React.FC<IconProps> = ({ size = 14, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="3" y="5" width="18" height="16" rx="2" />
+    <Line x1="16" y1="3" x2="16" y2="7" />
+    <Line x1="8" y1="3" x2="8" y2="7" />
+    <Line x1="3" y1="10" x2="21" y2="10" />
+  </Svg>
+);
+
+const CardIcon: React.FC<IconProps> = ({ size = 14, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="2" y="5" width="20" height="14" rx="2" />
+    <Line x1="2" y1="10" x2="22" y2="10" />
+  </Svg>
+);
+
+const LanguageIcon: React.FC<IconProps> = ({ size = 14, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.8-.9L4 21l1.9-4.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 13.5 4 8.5 8.5 0 0 1 21 11.5z" />
+  </Svg>
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fallback data — shown while opportunityId is unset or the
@@ -59,17 +102,16 @@ const FALLBACK_DETAIL: OpportunityDetailResponse = {
   id: '',
   title: 'Opportunity Details',
   description: '',
-  heroImageUrl:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuBLMzgOt3M-dxeABJClXG1jDfKO-ip_kzzvv3oPGkERN7Nebumxn0je6tmFKrs0UtTn5aAKDd7PitlmYe1TfoEWlhpwXlqcAq63v5jFaTislTjoAurJJTzjl20cJmQOnn7cYgkLT5L9tabWPkT6OnnH4GHtr986BfgxV6IHSB_Z7wwPmrGXU2DLLvBOvQhe9ZOJCbKMgZ6i45_jYoUNCpsRHrAVOcKmjzmR6BEnlfUo6bOyE5wqQSdixw',
+  heroImageUrl: 'local:fisheries',
   elderName: 'Mrs. Kamala Wijesinghe',
-  elderAvatarUrl:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuDY_5xLVHss2xIK0tURyAhPnGlFWUDP3XTq1WejeqSEMr8fsWQrsZ2EYIpiUkEyydmgKK0JCTRhqt2VCmoYtOuFSkXQ-QwDbrmjr1rY6gYdLVQKlP_n1KfxGyjle-S-SnACHim7CPo6tjRhFfr0teQneHXk_tWk1LM5lWORtVdaMgVNbphNBj5r-03l90MYqmU0WKcFvMMoC0MOfznhkzXUyIbwMDUs2NbypBfmOZctG362yqm2E260KQ',
+  elderAvatarUrl: null,
   elderVerified: true,
   location: 'Matara',
   scheduledDate: null,
   durationText: '3 - 4 h',
   offeredAmount: 3500,
   timeWindowText: '10.00 AM – 1.00 PM',
+  language: 'Sinhala',
   preservationGoal:
     'I would like to preserve how my family prepare this traditional recipe. I want someone to record this preparation including all the instruction and create a video that can be shared with younger generation.',
   tasks: [
@@ -83,7 +125,7 @@ const FALLBACK_DETAIL: OpportunityDetailResponse = {
 
 function formatScheduledDate(iso: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,43 +159,21 @@ const TopAppBar: React.FC<{ onBack: () => void }> = ({ onBack }) => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// InfoTile — one bento cell
+// TaskStep — numbered stepper row (replaces the old plain checkmark list)
 // ─────────────────────────────────────────────────────────────────────────────
-const InfoTile: React.FC<{
-  icon: string;
-  label: string;
-  value: string;
-  accentBg: string;
-  accentText: string;
-  valueColor?: string;
-  flex?: number;
-}> = ({ icon, label, value, accentBg, accentText, valueColor, flex = 1 }) => (
-  <View style={[s.infoTile, { flex }]}>
-    <View style={s.infoTileHeader}>
-      <View style={[s.infoIconBox, { backgroundColor: accentBg }]}>
-        <Text style={[s.infoIconText, { color: accentText }]}>{icon}</Text>
+const TaskStep: React.FC<{ index: number; text: string; isLast: boolean }> = ({ index, text, isLast }) => (
+  <View style={s.taskStepRow}>
+    <View style={s.taskStepBadgeCol}>
+      <View style={s.taskStepBadge}>
+        <Text style={s.taskStepBadgeText}>{index + 1}</Text>
       </View>
-      <Text style={s.infoLabel}>{label}</Text>
+      {!isLast && <View style={s.taskStepLine} />}
     </View>
-    <Text style={[s.infoValue, valueColor ? { color: valueColor } : null]}>
-      {value}
-    </Text>
+    <View style={s.taskStepCard}>
+      <Text style={s.taskStepText}>{text}</Text>
+    </View>
   </View>
 );
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TaskItem — checklist row
-// ─────────────────────────────────────────────────────────────────────────────
-const TaskItem: React.FC<{ text: string }> = ({ text }) => (
-  <View style={s.taskRow}>
-    <View style={s.taskCheck}>
-      <Text style={s.taskCheckMark}>{'✓'}</Text>
-    </View>
-    <Text style={s.taskText}>{text}</Text>
-  </View>
-);
-
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
@@ -173,6 +193,20 @@ export const OpportunityDetailPage: React.FC<{
       .catch(() => {});
   }, [opportunityId]);
 
+  const chips: { key: string; icon: React.ReactNode; value: string }[] = [];
+  if (detail.location) chips.push({ key: 'location', icon: <PinIcon />, value: detail.location });
+  if (detail.durationText) chips.push({ key: 'duration', icon: <ClockIcon />, value: detail.durationText });
+  chips.push({
+    key: 'offered',
+    icon: <CardIcon />,
+    value: `LKR ${Math.round(detail.offeredAmount).toLocaleString('en-US')}`,
+  });
+  if (detail.scheduledDate) {
+    chips.push({ key: 'date', icon: <CalendarIcon />, value: formatScheduledDate(detail.scheduledDate) });
+  }
+  if (detail.timeWindowText) chips.push({ key: 'time', icon: <ClockIcon />, value: detail.timeWindowText });
+  if (detail.language) chips.push({ key: 'language', icon: <LanguageIcon />, value: detail.language });
+
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
@@ -186,6 +220,7 @@ export const OpportunityDetailPage: React.FC<{
         showsVerticalScrollIndicator={false}
       >
         {/* Page heading */}
+        <Text style={s.breadcrumb}>Opportunity Details.....</Text>
         <Text style={s.pageHeading}>{detail.title}</Text>
 
         {/* Hero image */}
@@ -206,7 +241,7 @@ export const OpportunityDetailPage: React.FC<{
         >
           <View style={s.holderLeft}>
             <Image
-              source={resolveAvatarImage(detail.elderAvatarUrl)}
+              source={resolveAvatarImage(detail.elderAvatarUrl) ?? { uri: PLACEHOLDER_AVATAR }}
               style={s.holderAvatar}
               accessibilityLabel={`${detail.elderName} portrait`}
             />
@@ -214,82 +249,49 @@ export const OpportunityDetailPage: React.FC<{
               <Text style={s.holderName}>{detail.elderName}</Text>
               {detail.elderVerified && (
                 <View style={s.holderBadgeRow}>
-                  <Text style={s.verifiedStar}>{'\u2726'}</Text>
+                  <Text style={s.verifiedStar}>{'✦'}</Text>
                   <Text style={s.holderBadgeText}>Verified Knowledge holder</Text>
                 </View>
               )}
             </View>
           </View>
-          <Text style={s.chevron}>{'\u203A'}</Text>
+          <View style={s.chevronBtn}>
+            <Text style={s.chevronText}>{'›'}</Text>
+          </View>
         </Pressable>
 
-        {/* Info Grid row 1: Location / Date / Duration */}
-        <View style={s.gridRow}>
-          <InfoTile
-            icon={'\uD83D\uDCCD'}
-            label="LOCATION"
-            value={detail.location ?? '\u2014'}
-            accentBg={D.secondaryContainer}
-            accentText={D.onSecondaryContainer}
-          />
-          <InfoTile
-            icon={'\uD83D\uDCC5'}
-            label="DATE"
-            value={formatScheduledDate(detail.scheduledDate)}
-            accentBg={D.secondaryContainer}
-            accentText={D.onSecondaryContainer}
-          />
-          <InfoTile
-            icon={'\u23F1'}
-            label="DURATION"
-            value={detail.durationText ?? '\u2014'}
-            accentBg={D.secondaryContainer}
-            accentText={D.onSecondaryContainer}
-          />
-        </View>
-
-        {/* Info Grid row 2: Offered / Time */}
-        <View style={[s.gridRow, { marginTop: Spacing.sm }]}>
-          <InfoTile
-            icon={'\uD83D\uDCB3'}
-            label="OFFERED"
-            value={`LKR ${Math.round(detail.offeredAmount).toLocaleString('en-US')}`}
-            accentBg={D.primaryContainer}
-            accentText={D.onPrimaryContainer}
-            valueColor={D.primary}
-          />
-          <InfoTile
-            icon={'\uD83D\uDD59'}
-            label="TIME"
-            value={detail.timeWindowText ?? '\u2014'}
-            accentBg={D.secondaryContainer}
-            accentText={D.onSecondaryContainer}
-          />
-        </View>
-
-        {/* Preservation Goal quote card */}
-        {detail.preservationGoal && (
-          <View style={s.quoteCard}>
-            <Text style={s.quoteLargeDecor}>{'\u201C'}</Text>
-            <View style={s.quoteAccentBar} />
-
-            <Text style={s.quoteCardTitle}>What they want to preserve?</Text>
-            <Text style={s.quoteCardText}>{`\u201C${detail.preservationGoal}\u201D`}</Text>
-          </View>
-        )}
-
-        {/* Tasks: What you'll do */}
-        {detail.tasks.length > 0 && (
-          <View style={s.tasksSection}>
-            <Text style={s.tasksSectionTitle}>{'What you\'ll do'}</Text>
-            {detail.tasks.map((task, index) => (
-              <TaskItem key={index} text={task} />
+        {/* Key info — compact pill chips, not big bento boxes */}
+        {chips.length > 0 && (
+          <View style={s.infoChipsRow}>
+            {chips.map((c) => (
+              <View key={c.key} style={s.infoChip}>
+                <View style={s.infoChipIconBox}>{c.icon}</View>
+                <Text style={s.infoChipText} numberOfLines={1}>{c.value}</Text>
+              </View>
             ))}
           </View>
         )}
 
-        {/* Bottom spacing â€” ensures content scrolls above Apply button */}
-        <View style={{ height: 100 }} />
+        {/* Preservation Goal quote card */}
+        {detail.preservationGoal && (
+          <View style={s.quoteCard}>
+            <Text style={s.quoteLargeDecor}>{'“'}</Text>
+            <View style={s.quoteAccentBar} />
+
+            <Text style={s.quoteCardTitle}>What they want to preserve?</Text>
+            <Text style={s.quoteCardText}>{`“${detail.preservationGoal}”`}</Text>
+          </View>
+        )}
+
+        {/* Tasks: What you'll do — numbered stepper */}
+        {detail.tasks.length > 0 && (
+          <View style={s.tasksSection}>
+            <Text style={s.tasksSectionTitle}>{'What you\'ll do'}</Text>
+            {detail.tasks.map((task, index) => (
+              <TaskStep key={index} index={index} text={task} isLast={index === detail.tasks.length - 1} />
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       {/* Fixed Apply button (above nav bar) */}
@@ -300,7 +302,7 @@ export const OpportunityDetailPage: React.FC<{
           accessibilityLabel="Apply for this opportunity"
         >
           <Text style={s.applyBtnText}>Apply</Text>
-          <Text style={s.applyArrow}>{'\u2192'}</Text>
+          <Text style={s.applyArrow}>{'→'}</Text>
         </Pressable>
       </View>
 
@@ -355,17 +357,23 @@ const s = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.md,
-    paddingBottom: Spacing.lg,
+    paddingBottom: Spacing.md,
   },
 
-  // ── Page heading — teal + bold (30% rule primary use)
+  // ── Page heading ───────────────────────────────────────────────────────────
+  breadcrumb: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeXS,
+    color: D.onSurfaceVariant,
+    marginBottom: 4,
+    letterSpacing: 0.3,
+  },
   pageHeading: {
-    fontFamily: Typography.fontDisplay,
+    fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeXL,      // 24sp — h1
-    lineHeight: 32,
-    color: '#0F5C5C',
-    fontWeight: '700',
-    marginBottom: Spacing.lg,
+    lineHeight: 30,
+    color: D.onSurface,
+    marginBottom: Spacing.md,
     letterSpacing: -0.2,
   },
 
@@ -375,7 +383,7 @@ const s = StyleSheet.create({
     aspectRatio: 4 / 3,
     borderRadius: Radii.xl,
     overflow: 'hidden',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     shadowColor: D.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
@@ -392,7 +400,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
     shadowColor: D.primary,
@@ -411,43 +419,41 @@ const s = StyleSheet.create({
   holderBadgeRow:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   verifiedStar:    { fontSize: 14, color: '#E8792E' },
   holderBadgeText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
-  chevron:         { fontSize: 22, color: '#0F5C5C', lineHeight: 28 },
-  cardPressed:     { opacity: 0.9 },
-
-  // ── Info Grid ──────────────────────────────────────────────────────────────
-  gridRow:       { flexDirection: 'row', gap: Spacing.sm, marginBottom: 0 },
-  infoTile: {
-    backgroundColor: D.surfaceContainerLowest,
-    borderRadius: Radii.xl,
-    padding: Spacing.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: D.surfaceVariant,
-    shadowColor: D.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 20,
-    elevation: 1,
-    justifyContent: 'center',
-  },
-  infoTileHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
-  infoIconBox: {
-    width: 32, height: 32, borderRadius: Radii.lg,
+  chevronBtn: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: '#E8792E',
     alignItems: 'center', justifyContent: 'center',
   },
-  infoIconText:  { fontSize: 16, lineHeight: 20 },
-  infoLabel: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeXS,      // 12sp — label/caption
-    color: D.onSurfaceVariant,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+  chevronText: { fontSize: 18, color: '#ffffff', lineHeight: 22, fontFamily: Typography.fontBodySemi },
+  cardPressed: { opacity: 0.9 },
+
+  // ── Info chips (compact — not big boxes) ───────────────────────────────────
+  infoChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
-  infoValue: {
+  infoChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  infoChipIconBox: {
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: 'rgba(232, 121, 46, 0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  infoChipText: {
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeSM,      // 14sp
     color: D.onSurface,
-    marginLeft: 40,
-    lineHeight: 22,
   },
 
   // ── Preservation Quote card ────────────────────────────────────────────────
@@ -455,8 +461,7 @@ const s = StyleSheet.create({
     backgroundColor: D.surfaceContainerLow,
     borderRadius: Radii.xl,
     padding: Spacing.lg,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     borderLeftWidth: 4,
     borderLeftColor: D.primary,
     overflow: 'hidden',
@@ -501,29 +506,49 @@ const s = StyleSheet.create({
     paddingLeft: Spacing.sm,
   },
 
-  // ── Tasks ──────────────────────────────────────────────────────────────────
-  tasksSection:      { gap: Spacing.sm },
+  // ── Tasks — numbered stepper ───────────────────────────────────────────────
+  tasksSection:      { gap: 0 },
   tasksSectionTitle: {
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeLG,      // 18sp — section heading
     color: D.onSurface,
     lineHeight: 28,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
-  taskRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  taskCheck: {
-    width: 24, height: 24, borderRadius: 12,   // 24px icon box
-    backgroundColor: 'rgba(15, 92, 92, 0.12)', // teal tinted
+  taskStepRow:    { flexDirection: 'row', gap: Spacing.sm },
+  taskStepBadgeCol: { alignItems: 'center', width: 28 },
+  taskStepBadge: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: '#E8792E',
     alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0, marginTop: 2,
   },
-  taskCheckMark: { fontSize: 12, color: '#0F5C5C', lineHeight: 16, fontWeight: '700' },
-  taskText: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeMD,      // 16sp — body
-    lineHeight: 26,
-    color: D.onSurface,
+  taskStepBadgeText: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: 13,
+    color: '#ffffff',
+  },
+  taskStepLine: {
     flex: 1,
+    width: 2,
+    minHeight: 14,
+    backgroundColor: 'rgba(232, 121, 46, 0.25)',
+    marginVertical: 2,
+  },
+  taskStepCard: {
+    flex: 1,
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: Spacing.sm,
+  },
+  taskStepText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,      // 14sp
+    lineHeight: 22,
+    color: D.onSurface,
   },
 
   // ── Apply button (fixed above nav) ─────────────────────────────────────────

@@ -187,7 +187,10 @@ const HeroSection: React.FC = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 // SearchBar
 // ─────────────────────────────────────────────────────────────────────────────
-const SearchBar: React.FC = () => (
+const SearchBar: React.FC<{ value: string; onChangeText: (text: string) => void }> = ({
+  value,
+  onChangeText,
+}) => (
   <View style={s.searchWrapper}>
     <View style={s.searchIcon}>
       <View style={s.searchIconRing} />
@@ -195,10 +198,13 @@ const SearchBar: React.FC = () => (
     </View>
     <TextInput
       style={s.searchInput}
+      value={value}
+      onChangeText={onChangeText}
       placeholder="Search opportunities..."
       placeholderTextColor={D.outline}
       returnKeyType="search"
       accessibilityLabel="Search opportunities"
+      clearButtonMode="while-editing"
     />
   </View>
 );
@@ -442,6 +448,7 @@ export const OpportunityPage: React.FC<{
   onViewDetail: (opportunityId: string) => void;
 }> = ({ onNavigate, onViewDetail }) => {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [recommended, setRecommended] = useState<OpportunityCardResponse>(FALLBACK_RECOMMENDED);
   const [urgent, setUrgent] = useState<OpportunityCardResponse | null>(FALLBACK_URGENT);
   const [recent, setRecent] = useState<OpportunityCardResponse[]>(FALLBACK_RECENT);
@@ -467,6 +474,27 @@ export const OpportunityPage: React.FC<{
       .catch(() => {});
   }, []);
 
+  const matchesFilters = (item: OpportunityCardResponse): boolean => {
+    // 'nearby' needs the creator's own location to mean anything — no proximity
+    // data is available client-side yet, so it passes through like 'all' for now.
+    if (activeFilter !== 'all' && activeFilter !== 'nearby') {
+      const category = (item.category ?? '').toLowerCase();
+      if (!category.includes(activeFilter)) return false;
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      item.title.toLowerCase().includes(q) ||
+      (item.location ?? '').toLowerCase().includes(q) ||
+      (item.category ?? '').toLowerCase().includes(q)
+    );
+  };
+
+  const showRecommended = matchesFilters(recommended);
+  const showUrgent = urgent != null && matchesFilters(urgent);
+  const filteredRecent = recent.filter(matchesFilters);
+  const hasAnyResults = showRecommended || showUrgent || filteredRecent.length > 0;
+
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
@@ -480,11 +508,22 @@ export const OpportunityPage: React.FC<{
         keyboardShouldPersistTaps="handled"
       >
         <HeroSection />
-        <SearchBar />
+        <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
         <FilterBar active={activeFilter} onSelect={setActiveFilter} />
-        <RecommendedCard item={recommended} onViewDetail={() => onViewDetail(recommended.id)} />
-        {urgent && <UrgentSection item={urgent} onViewDetail={() => onViewDetail(urgent.id)} />}
-        <RecentSection items={recent} onApply={onViewDetail} onViewDetail={onViewDetail} />
+        {showRecommended && (
+          <RecommendedCard item={recommended} onViewDetail={() => onViewDetail(recommended.id)} />
+        )}
+        {showUrgent && urgent && (
+          <UrgentSection item={urgent} onViewDetail={() => onViewDetail(urgent.id)} />
+        )}
+        {filteredRecent.length > 0 && (
+          <RecentSection items={filteredRecent} onApply={onViewDetail} onViewDetail={onViewDetail} />
+        )}
+        {!hasAnyResults && (
+          <View style={s.emptyState}>
+            <Text style={s.emptyStateText}>No opportunities match your search.</Text>
+          </View>
+        )}
         <View style={{ height: 8 }} />
       </ScrollView>
 
@@ -782,6 +821,14 @@ const s = StyleSheet.create({
     elevation: 3,
   },
   applyBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: '#ffffff' },
+
+  // ── Empty state ────────────────────────────────────────────────────────────
+  emptyState: { alignItems: 'center', paddingVertical: Spacing.xl },
+  emptyStateText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    color: D.onSurfaceVariant,
+  },
 
   // ── Press feedback ─────────────────────────────────────────────────────────
   pressed: { opacity: 0.75 },

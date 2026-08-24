@@ -100,6 +100,10 @@ public class Opportunity {
     @Column(name = "time_window_text", length = 50)
     private String timeWindowText;
 
+    /** The language the elder will speak in, e.g. "Sinhala", "Tamil". */
+    @Column(length = 50)
+    private String language;
+
     @Column(name = "offered_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal offeredAmount;
 

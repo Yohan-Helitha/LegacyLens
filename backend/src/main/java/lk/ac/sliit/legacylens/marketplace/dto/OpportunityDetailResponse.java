@@ -27,6 +27,7 @@ public class OpportunityDetailResponse {
     private String durationText;
     private BigDecimal offeredAmount;
     private String timeWindowText;
+    private String language;
     private String preservationGoal;
     private List<String> tasks;
 }
