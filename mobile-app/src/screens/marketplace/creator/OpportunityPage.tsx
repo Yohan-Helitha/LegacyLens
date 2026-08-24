@@ -53,7 +53,7 @@ const D = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-type FilterKey  = 'all' | 'nearby' | 'photography' | 'writing';
+type FilterKey  = 'all' | 'nearby' | 'photography' | 'writing' | 'documentation';
 
 /** Shown for an elder with no uploaded profile photo. */
 const PLACEHOLDER_AVATAR =
@@ -61,15 +61,6 @@ const PLACEHOLDER_AVATAR =
 
 function joinMeta(a: string | null | undefined, b: string | null | undefined): string {
   return [a, b].filter(Boolean).join(' · ');
-}
-
-function formatDueBadge(iso: string | null): string {
-  if (!iso) return '';
-  const diffDays = Math.round((new Date(iso).getTime() - Date.now()) / 86400000);
-  if (diffDays > 1) return `Due in ${diffDays} days`;
-  if (diffDays === 1) return 'Due tomorrow';
-  if (diffDays === 0) return 'Due today';
-  return 'Overdue';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -207,6 +198,7 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'nearby',      label: 'Nearby'      },
   { key: 'photography', label: 'Photography' },
   { key: 'writing',     label: 'Writing'     },
+  { key: 'documentation', label: 'Documentation' },
 ];
 
 const FilterBar: React.FC<{
@@ -265,13 +257,6 @@ const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: (
             <Text style={s.matchText}>{item.matchPercentage}% MATCH</Text>
           </View>
         )}
-        <Pressable
-          style={({ pressed }) => [s.bookmarkBtn, pressed && s.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Bookmark this opportunity"
-        >
-          <Text style={{ fontSize: 16 }}>{'\uD83D\uDD16'}</Text>
-        </Pressable>
       </View>
 
       <View style={s.recommendedBody}>
@@ -301,14 +286,9 @@ const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () 
   onViewDetail,
 }) => (
   <View style={s.section}>
-    <View style={s.sectionHeaderRow}>
-      <View style={s.urgentTitleRow}>
-        <Text style={{ fontSize: 18 }}>{'\uD83D\uDD25'}</Text>
-        <Text style={s.sectionTitle}>Urgent Missions</Text>
-      </View>
-      <View style={s.dueBadge}>
-        <Text style={s.dueBadgeText}>{formatDueBadge(item.dueAt)}</Text>
-      </View>
+    <View style={s.urgentTitleRow}>
+      <Text style={{ fontSize: 18 }}>{'\uD83D\uDD25'}</Text>
+      <Text style={s.sectionTitle}>Urgent Missions</Text>
     </View>
 
     <Pressable
@@ -505,7 +485,7 @@ export default OpportunityPage;
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
-const THUMB_SIZE = 96;
+const THUMB_SIZE = 72;
 
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
@@ -547,10 +527,10 @@ const s = StyleSheet.create({
   // ── Scroll ─────────────────────────────────────────────────────────────────
   scroll: { flex: 1 },
   scrollContent: {
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.lg,
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
 
   // ── Hero ───────────────────────────────────────────────────────────────────
@@ -614,8 +594,7 @@ const s = StyleSheet.create({
   filterChipTextActive: { color: '#ffffff' },
 
   // ── Section ────────────────────────────────────────────────────────────────
-  section:          { gap: Spacing.md },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  section:          { gap: Spacing.sm },
   sectionTitle:     {
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeLG,      // 18sp — section heading
@@ -624,13 +603,6 @@ const s = StyleSheet.create({
     letterSpacing: -0.1,
   },
   urgentTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  dueBadge: {
-    backgroundColor: 'rgba(255,223,152,0.3)',
-    borderRadius: Radii.md,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  dueBadgeText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: D.tertiaryContainer, letterSpacing: 0.3 },
 
   // ── Recommended Card ───────────────────────────────────────────────────────
   recommendedCard: {
@@ -648,24 +620,13 @@ const s = StyleSheet.create({
   matchBadge: {
     position: 'absolute', top: 16, left: 16,
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: 'rgba(20,20,20,0.55)',
     borderRadius: Radii.full,
     paddingHorizontal: 10, paddingVertical: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08, shadowRadius: 4, elevation: 2,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
   },
-  matchStar: { fontSize: 12, color: D.tertiaryFixedDim },
-  matchText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: D.onSurface, letterSpacing: 0.5 },
-  bookmarkBtn: {
-    position: 'absolute', top: 16, right: 16,
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08, shadowRadius: 3, elevation: 2,
-  },
-  recommendedBody: { padding: 20, gap: Spacing.md },
+  matchStar: { fontSize: 12, color: '#FFD166' },
+  matchText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.5 },
+  recommendedBody: { padding: 16, gap: Spacing.sm },
   cardCta: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: D.surfaceVariant,
@@ -733,8 +694,8 @@ const s = StyleSheet.create({
   // ── Recent Card ────────────────────────────────────────────────────────────
   recentCard: {
     backgroundColor: D.surfaceContainerLowest,
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 20,
+    padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
     shadowColor: D.primary,
@@ -742,7 +703,7 @@ const s = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 20,
     elevation: 2,
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   recentHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   authorRow:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
