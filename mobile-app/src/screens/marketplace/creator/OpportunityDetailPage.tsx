@@ -276,7 +276,6 @@ export const OpportunityDetailPage: React.FC<{
         {detail.preservationGoal && (
           <View style={s.quoteCard}>
             <Text style={s.quoteLargeDecor}>{'“'}</Text>
-            <View style={s.quoteAccentBar} />
 
             <Text style={s.quoteCardTitle}>What they want to preserve?</Text>
             <Text style={s.quoteCardText}>{`“${detail.preservationGoal}”`}</Text>
@@ -481,15 +480,6 @@ const s = StyleSheet.create({
     opacity: 0.3,
     fontFamily: Typography.fontDisplay,
   },
-  quoteAccentBar: {
-    position: 'absolute',
-    left: Spacing.lg + 4, // inside left border padding
-    top: Spacing.lg,
-    bottom: Spacing.lg,
-    width: 2,
-    backgroundColor: D.outlineVariant,
-    borderRadius: 1,
-  },
   quoteCardTitle: {
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeMD,      // 16sp
@@ -503,7 +493,6 @@ const s = StyleSheet.create({
     lineHeight: 26,
     color: D.onSurfaceVariant,
     fontStyle: 'italic',
-    paddingLeft: Spacing.sm,
   },
 
   // ── Tasks — numbered stepper ───────────────────────────────────────────────
