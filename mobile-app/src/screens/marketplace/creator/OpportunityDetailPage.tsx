@@ -14,7 +14,7 @@ import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import type { OpportunityDetailResponse } from '../../../types/opportunity';
-import { resolveOpportunityImage } from '../../../utils/opportunityImages';
+import { resolveOpportunityImage, resolveAvatarImage } from '../../../utils/opportunityImages';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens (HTML Tailwind colour system)
@@ -206,7 +206,7 @@ export const OpportunityDetailPage: React.FC<{
         >
           <View style={s.holderLeft}>
             <Image
-              source={{ uri: detail.elderAvatarUrl ?? undefined }}
+              source={resolveAvatarImage(detail.elderAvatarUrl)}
               style={s.holderAvatar}
               accessibilityLabel={`${detail.elderName} portrait`}
             />

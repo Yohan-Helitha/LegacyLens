@@ -10,12 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import type { OpportunityCardResponse } from '../../../types/opportunity';
-import { resolveOpportunityImage } from '../../../utils/opportunityImages';
+import { resolveOpportunityImage, resolveAvatarImage } from '../../../utils/opportunityImages';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -59,6 +60,17 @@ type FilterKey  = 'all' | 'nearby' | 'photography' | 'writing' | 'documentation'
 const PLACEHOLDER_AVATAR =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuBdukQOb20lmYsNjgSC79bwk6nR11u86Bj87jNIlc_ZQzQ97BxLNMhydins5gSF08W2CSQyNGsh4guyGBVX0htKvkNTzRAY76Yfv8jK-W-9Z-cW30fTc-tVqTE_3MXVnOr3daWdokTEReYQUt-ciXqQB8LF7qkH10d4SgSRvnxi4hdlzLG5RUNcZvLxKkHwfHK5wXsfSfaNkQJdZelcgow41KGgsq77Fkd9zgLSrunJwEJsg3U5ZQcTdg';
 
+/** Google Maps-style location pin, in the requested #336574 tone. */
+const LocationPinIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path
+      d="M12 2C7.86 2 4.5 5.36 4.5 9.5c0 5.62 6.55 11.54 6.83 11.79a1 1 0 0 0 1.34 0c.28-.25 6.83-6.17 6.83-11.79C19.5 5.36 16.14 2 12 2z"
+      fill="#336574"
+    />
+    <Circle cx="12" cy="9.5" r="2.6" fill="#ffffff" />
+  </Svg>
+);
+
 function joinMeta(a: string | null | undefined, b: string | null | undefined): string {
   return [a, b].filter(Boolean).join(' · ');
 }
@@ -70,14 +82,13 @@ function joinMeta(a: string | null | undefined, b: string | null | undefined): s
 // ─────────────────────────────────────────────────────────────────────────────
 const FALLBACK_RECOMMENDED: OpportunityCardResponse = {
   id: 'fallback-recommended',
-  title: 'Traditional fishing Terms Documentation.',
+  title: 'Traditional Fishing Terms Documentation.',
   description: '',
-  heroImageUrl:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuCFr_TbcDqpHAlACc9VJ5pActhPIFGIsUJ5Val-M3PTLC8liXo9lhIPWRmRLTMdt7SATshX_8VwcUiJR1eqHCDiDuAln_uGewTtk4vmOjRFMTqLjR1nKQgnlc71zSDsHzVIGqsZ1k1hSQrZuLi3ala7icWEN17LBpFIR1mcTipGJsFpRRjPH4axYH_wtiVcVxHP7IFId9YFNYXPncgm0hEUHyjaMrnnu1HDSgmnJJUkQ7QaNl4RBfUvEw',
+  heroImageUrl: 'local:fisheries',
   location: 'Negombo',
-  category: 'Linguistic Preservation',
+  category: 'Photography',
   locationType: null,
-  matchPercentage: 88,
+  matchPercentage: 70,
   urgent: false,
   dueAt: null,
   elderName: '',
@@ -90,14 +101,13 @@ const FALLBACK_URGENT: OpportunityCardResponse = {
   id: 'fallback-urgent',
   title: 'Record Oral History: The 2004 Tsunami.',
   description: '',
-  heroImageUrl:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuDNuYBn9vgG-Scml9WfKG-IA5mKz3UpPYXevIrDmEWaiYMqQX4Kj_zP7RwweCA8hq8LF4I-B8XwDZR3V04dMiatepJP6eeAmeCNW6dlwaSASf5iNnszv_If-_W8mmH2vkSs1_BK4_IIftYhP2egnPNYWOl2x_hUMwiCq2vKwgB5Y6R5h5C4uK_yl4ZUbhMRQ1S5_d2BhTQfNcnA1Btr-jDRRTzFWyqduDzamQG4hKOa-iSiSGNmQNaifQ',
+  heroImageUrl: 'local:galle-coast',
   location: 'Galle',
   category: 'Oral History',
   locationType: null,
   matchPercentage: null,
   urgent: true,
-  dueAt: new Date(Date.now() + 3 * 86400000).toISOString(),
+  dueAt: new Date(Date.now() + 1 * 86400000).toISOString(),
   elderName: '',
   elderAvatarUrl: null,
   elderLocation: null,
@@ -179,7 +189,10 @@ const HeroSection: React.FC = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 const SearchBar: React.FC = () => (
   <View style={s.searchWrapper}>
-    <Text style={s.searchIcon}>{'\uD83D\uDD0D'}</Text>
+    <View style={s.searchIcon}>
+      <View style={s.searchIconRing} />
+      <View style={s.searchIconHandle} />
+    </View>
     <TextInput
       style={s.searchInput}
       placeholder="Search opportunities..."
@@ -311,7 +324,7 @@ const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () 
             <Text style={s.urgentMetaText}>{item.category}</Text>
           </View>
           <View style={s.urgentMetaItem}>
-            <Text style={s.metaIcon}>{'\uD83D\uDCCD'}</Text>
+            <LocationPinIcon size={14} />
             <Text style={s.urgentMetaText}>{item.location}</Text>
           </View>
         </View>
@@ -345,7 +358,7 @@ const RecentOpportunityCard: React.FC<{
     <View style={s.recentHeader}>
       <View style={s.authorRow}>
         <Image
-          source={{ uri: item.elderAvatarUrl ?? PLACEHOLDER_AVATAR }}
+          source={resolveAvatarImage(item.elderAvatarUrl) ?? { uri: PLACEHOLDER_AVATAR }}
           style={s.authorAvatar}
           accessibilityLabel={`${item.elderName} profile photo`}
         />
@@ -566,7 +579,17 @@ const s = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
-  searchIcon:  { fontSize: 16, marginRight: Spacing.sm },
+  searchIcon:  { width: 16, height: 16, marginRight: Spacing.sm },
+  searchIconRing: {
+    width: 11, height: 11, borderRadius: 6,
+    borderWidth: 1.6, borderColor: D.primary,
+  },
+  searchIconHandle: {
+    position: 'absolute', right: 0, bottom: 0,
+    width: 6, height: 1.6, borderRadius: 1,
+    backgroundColor: D.primary,
+    transform: [{ rotate: '45deg' }],
+  },
   searchInput: {
     flex: 1,
     fontFamily: Typography.fontBody,

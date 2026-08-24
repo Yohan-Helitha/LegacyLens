@@ -9,8 +9,10 @@ import type { ImageSourcePropType } from 'react-native';
  */
 const LOCAL_OPPORTUNITY_IMAGES: Record<string, ImageSourcePropType> = {
   'stilt-fishing': require('../../assets/images/opportunities/stilt-fishing.jpg'),
+  'fisheries': require('../../assets/images/opportunities/fisheries.jpg'),
   'galle-coast': require('../../assets/images/opportunities/galle-coast.jpg'),
   'recipe-plating': require('../../assets/images/opportunities/recipe-plating.jpg'),
+  'pottery-craft': require('../../assets/images/opportunities/pottery-craft.jpg'),
 };
 
 export function resolveOpportunityImage(heroImageUrl: string | null): ImageSourcePropType | undefined {
@@ -22,4 +24,21 @@ export function resolveOpportunityImage(heroImageUrl: string | null): ImageSourc
   }
 
   return { uri: heroImageUrl };
+}
+
+/** Same "local:<key>" convention as above, for elder profile photos. */
+const LOCAL_AVATAR_IMAGES: Record<string, ImageSourcePropType> = {
+  'elder-veranda': require('../../assets/images/avatars/elder-veranda.png'),
+  'elder-woman': require('../../assets/images/avatars/elder-woman.png'),
+};
+
+export function resolveAvatarImage(avatarUrl: string | null | undefined): ImageSourcePropType | undefined {
+  if (!avatarUrl) return undefined;
+
+  if (avatarUrl.startsWith('local:')) {
+    const key = avatarUrl.slice('local:'.length);
+    return LOCAL_AVATAR_IMAGES[key];
+  }
+
+  return { uri: avatarUrl };
 }
