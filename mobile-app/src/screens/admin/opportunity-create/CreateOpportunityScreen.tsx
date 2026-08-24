@@ -19,7 +19,24 @@ import MapView from 'react-native-maps';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 import { styles } from './CreateOpportunityScreen.styles';
-import MOCK_DATA from '../mockData.json';
+const KNOWLEDGE_HOLDERS = [
+  {
+    "id": "kh1",
+    "name": "Dr. Sunil Ariyaratne",
+    "role": "Traditional Dance Master",
+    "location": "Kandy",
+    "verified": true,
+    "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuDt8Ue9Wvwc8kK_bKxgX65wT_vD3lO1_qVd_1Y1qC3x7N8wK_x5qN6Vd_1Y1qC3x7N8wK_x5qN6Vd_1Y1qC3x7N8wK_x5q"
+  },
+  {
+    "id": "kh2",
+    "name": "Mrs. Kamala Perera",
+    "role": "Culinary Heritage Expert",
+    "location": "Galle",
+    "verified": true,
+    "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuCP68zF6Gx2bvH0fVStHJXGnBk5k_zSJg9JGpVV_809FYAbsWYy07BPZju5VzHAh0a3DsWveaJuEjyGZZuqsEJK63MJTxJ8oCdRaLzuOqiEPkZjrQZbSry6dS7t3kk18Z23_FVbDtwh1ltzKXc_ucCq8Q6epXt5apHZzXR6wBeAoHsvijSJzyy7b_DOS2II3W_dmHBW_4KryJA7_7PDvzAoPgp4ylZTV3AZjsRq8m_Cc_xV9mRXNloj"
+  }
+];
 import { useOpportunity } from '../../../context/OpportunityContext';
 
 export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
@@ -350,7 +367,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
         </View>
 
         <View style={styles.profilesGrid}>
-          {MOCK_DATA.knowledgeHolders
+          {KNOWLEDGE_HOLDERS
             .filter(kh => 
               kh.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
               kh.role.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -723,7 +740,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   // Step 5: Review & Publish
   // ────────────────────────────────────────────────────────────────────────
   const renderStep5 = () => {
-    const selectedKH = MOCK_DATA.knowledgeHolders.find(kh => kh.id === selectedKnowledgeHolder);
+    const selectedKH = KNOWLEDGE_HOLDERS.find(kh => kh.id === selectedKnowledgeHolder);
     
     const checklist = [
       { label: 'Clear title', done: opportunityTitle.trim().length > 0 },
@@ -837,7 +854,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   // Step 6: Published Success
   // ────────────────────────────────────────────────────────────────────────
   const renderStep6 = () => {
-    const selectedKH = MOCK_DATA.knowledgeHolders.find(kh => kh.id === selectedKnowledgeHolder);
+    const selectedKH = KNOWLEDGE_HOLDERS.find(kh => kh.id === selectedKnowledgeHolder);
     return (
     <View style={styles.successContainer}>
       <View style={styles.successIconBox}>

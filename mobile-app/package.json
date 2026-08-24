@@ -35,6 +35,7 @@
     "expo-speech-recognition": "^56.0.1",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
+    "jsonwebtoken": "^9.0.3",
     "lottie-react-native": "~7.3.1",
     "lucide-react-native": "^1.31.0",
     "react": "19.1.0",

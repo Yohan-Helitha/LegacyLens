@@ -163,4 +163,235 @@ export const styles = StyleSheet.create({
   contentTitle: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.text, marginBottom: 4 },
   contentMeta: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.textMuted },
 
+  // Toggle Layout
+  toggleRow: {
+    paddingHorizontal: Spacing.md,
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(15, 92, 92, 0.08)',
+    borderRadius: 24,
+    padding: 3,
+    width: '100%',
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+  },
+  toggleButtonActive: {
+    backgroundColor: Colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  toggleLabel: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeSM,
+    color: Colors.textMuted,
+  },
+  toggleLabelActive: {
+    color: Colors.secondary,
+    fontWeight: '700',
+  },
+
+  // Stats Dashboard Grid
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  statCard: {
+    width: '47%',
+    backgroundColor: Colors.white,
+    borderRadius: Radii.xl,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(15,92,92,0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  statIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: Radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
+  statVal: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeLG,
+    fontWeight: '700',
+    color: Colors.text,
+    lineHeight: 26,
+  },
+  statTitle: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeXS,
+    color: Colors.textMuted,
+    marginBottom: 4,
+  },
+  statTrend: {
+    fontFamily: Typography.fontBody,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+
+  // Chart Cards
+  chartCard: {
+    marginHorizontal: Spacing.md,
+    backgroundColor: Colors.white,
+    borderRadius: Radii.xl,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(15,92,92,0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  chartTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeSM + 2,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+  },
+  chartSubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeXS,
+    color: Colors.textMuted,
+    marginTop: -4,
+    marginBottom: Spacing.md,
+  },
+
+  // Stacked Bar
+  stackedBarContainer: {
+    height: 12,
+    borderRadius: 6,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    backgroundColor: '#eceeed',
+    marginBottom: Spacing.md,
+  },
+  stackedBarSegment: {
+    height: '100%',
+  },
+  legendGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    justifyContent: 'space-between',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    width: '45%',
+    marginBottom: 4,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendText: {
+    fontFamily: Typography.fontBody,
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  legendPercentage: {
+    fontFamily: Typography.fontBodyMed,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+
+  // CSS Bar Graph
+  barChartContainer: {
+    flexDirection: 'row',
+    height: 140,
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
+  },
+  barCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  barWrapper: {
+    width: 24,
+    backgroundColor: 'rgba(15, 92, 92, 0.1)',
+    borderRadius: 4,
+    justifyContent: 'flex-end',
+    height: 100,
+  },
+  barFill: {
+    backgroundColor: Colors.secondary,
+    borderRadius: 4,
+    width: '100%',
+  },
+  barLabel: {
+    fontFamily: Typography.fontBody,
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 6,
+  },
+  barVal: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: 9,
+    color: Colors.text,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+
+  // Circular Gauge or Donut Card
+  gaugeWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+  gaugeStats: {
+    gap: Spacing.md,
+  },
+  gaugeStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  gaugeCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 10,
+    borderColor: 'rgba(254,137,62,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  gaugeCenterText: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeMD + 2,
+    fontWeight: '700',
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  gaugeCenterSub: {
+    fontFamily: Typography.fontBody,
+    fontSize: 8,
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+  },
 });
