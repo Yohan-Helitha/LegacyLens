@@ -6,9 +6,18 @@ import { BecomeCreatorApplication } from '../screens/marketplace/creator/BecomeC
 import { CreatorVerificationUpdatePage } from '../screens/marketplace/creator/CreatorVerificationUpdatePage';
 import { InApp } from '../screens/marketplace/creator/InApp';
 import { InboxMessage } from '../screens/marketplace/creator/InboxMessage';
+import { PaymentHistoryPage } from '../screens/marketplace/creator/PaymentHistoryPage';
 import type { NavTab } from '../components/BottomNavBar';
 
-export type CreatorScreen = 'dashboard' | 'market' | 'detail' | 'apply' | 'pending' | 'inbox' | 'conversation';
+export type CreatorScreen =
+  | 'dashboard'
+  | 'market'
+  | 'detail'
+  | 'apply'
+  | 'pending'
+  | 'inbox'
+  | 'conversation'
+  | 'payment-history';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -62,6 +71,12 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   /** Called when back arrow is pressed on InboxMessage */
   const handleBackToInbox = () => setScreen('inbox');
 
+  /** Called when "History" is pressed on CreatorDashboard's Collected Today card */
+  const handleOpenHistory = () => setScreen('payment-history');
+
+  /** Called when back arrow is pressed on PaymentHistoryPage */
+  const handleBackToDashboard = () => setScreen('dashboard');
+
   /**
    * Called when the creator application is submitted.
    *
@@ -81,7 +96,9 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
 
   return (
     <>
-      {screen === 'dashboard' && <CreatorDashboard onNavigate={handleNavigate} />}
+      {screen === 'dashboard' && (
+        <CreatorDashboard onNavigate={handleNavigate} onOpenHistory={handleOpenHistory} />
+      )}
       {screen === 'market' && (
         <OpportunityPage onNavigate={handleNavigate} onViewDetail={handleViewDetail} />
       )}
@@ -110,6 +127,9 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onBack={handleBackToInbox}
           conversationId={selectedConversationId}
         />
+      )}
+      {screen === 'payment-history' && (
+        <PaymentHistoryPage onNavigate={handleNavigate} onBack={handleBackToDashboard} />
       )}
     </>
   );

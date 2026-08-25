@@ -4,7 +4,14 @@ export interface CreatorDashboardSummaryResponse {
   rating: number | null;
   completedJobsCount: number;
   contributionsCount: number;
-  availableBalance: number | null;
+  collectedToday: number | null;
+}
+
+export interface PaymentHistoryItemResponse {
+  id: string;
+  amount: number;
+  collectedAt: string;
+  note: string | null;
 }
 
 export interface JobResponse {

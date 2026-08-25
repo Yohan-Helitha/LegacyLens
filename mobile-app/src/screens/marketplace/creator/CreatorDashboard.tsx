@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -60,7 +62,7 @@ const D = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-type JobTab = 'active' | 'upcoming' | 'completed';
+type JobTab = 'active' | 'upcoming' | 'schedule' | 'completed';
 
 type ActiveJobItem = {
   id: string;
@@ -82,6 +84,9 @@ type ReviewItem = {
 const TAB_TO_STATUS: Record<JobTab, DashboardJobStatus> = {
   active: 'ACTIVE',
   upcoming: 'UPCOMING',
+  // Placeholder: shows the same UPCOMING bookings as its own tab for now.
+  // A real calendar/agenda view is planned separately later.
+  schedule: 'UPCOMING',
   completed: 'COMPLETED',
 };
 
@@ -93,7 +98,7 @@ const FALLBACK_SUMMARY: CreatorDashboardSummaryResponse = {
   rating: 4.8,
   completedJobsCount: 24,
   contributionsCount: 38,
-  availableBalance: 42500,
+  collectedToday: 2300,
 };
 
 const FALLBACK_ACTIVE_JOBS: ActiveJobItem[] = [
@@ -245,7 +250,11 @@ const GreetingSection: React.FC = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 // MetricsSection  (stats card + balance card)
 // ─────────────────────────────────────────────────────────────────────────────
-const MetricsSection: React.FC<{ summary: CreatorDashboardSummaryResponse }> = ({ summary }) => (
+const MetricsSection: React.FC<{
+  summary: CreatorDashboardSummaryResponse;
+  onOpenHistory: () => void;
+  onAddPayment: () => void;
+}> = ({ summary, onOpenHistory, onAddPayment }) => (
   <View style={s.metricsGrid}>
     {/* ── Stats row ─────────────────────────────────────────────────────── */}
     <View style={s.statsCard}>
@@ -264,23 +273,25 @@ const MetricsSection: React.FC<{ summary: CreatorDashboardSummaryResponse }> = (
       {/* decorative glow blob */}
       <View style={s.balanceGlow} pointerEvents="none" />
 
-      <Text style={s.balanceLabel}>AVAILABLE BALANCE</Text>
+      <Text style={s.balanceLabel}>COLLECTED TODAY</Text>
       <Text style={s.balanceAmount}>
-        LKR {Math.round(summary.availableBalance ?? 0).toLocaleString('en-US')}
+        LKR {Math.round(summary.collectedToday ?? 0).toLocaleString('en-US')}
       </Text>
 
       <View style={s.balanceBtnRow}>
         <Pressable
+          onPress={onOpenHistory}
           style={({ pressed }) => [s.balanceBtnOutline, pressed && s.pressedDark]}
           accessibilityRole="button"
         >
           <Text style={s.balanceBtnOutlineText}>History</Text>
         </Pressable>
         <Pressable
+          onPress={onAddPayment}
           style={({ pressed }) => [s.balanceBtnFill, pressed && s.pressedLight]}
           accessibilityRole="button"
         >
-          <Text style={s.balanceBtnFillText}>Withdraw</Text>
+          <Text style={s.balanceBtnFillText}>Add</Text>
         </Pressable>
       </View>
     </View>
@@ -466,15 +477,27 @@ const RecentWorkSection: React.FC = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
-export const CreatorDashboard: React.FC<{ onNavigate: (tab: NavTab) => void }> = ({ onNavigate }) => {
+export const CreatorDashboard: React.FC<{
+  onNavigate: (tab: NavTab) => void;
+  onOpenHistory: () => void;
+}> = ({ onNavigate, onOpenHistory }) => {
   const [activeTab, setActiveTab] = useState<JobTab>('active');
   const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
   const [reviews, setReviews] = useState<ReviewItem[]>(FALLBACK_REVIEWS);
   const [jobsByTab, setJobsByTab] = useState<Partial<Record<JobTab, ActiveJobItem[]>>>({});
   const [jobsLoading, setJobsLoading] = useState(false);
 
-  useEffect(() => {
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [amountInput, setAmountInput] = useState('');
+  const [noteInput, setNoteInput] = useState('');
+  const [addSubmitting, setAddSubmitting] = useState(false);
+
+  const refreshSummary = () => {
     creatorDashboardApi.getSummary().then(setSummary).catch(() => {});
+  };
+
+  useEffect(() => {
+    refreshSummary();
     creatorDashboardApi
       .getReviews(5)
       .then((data) => {
@@ -484,6 +507,23 @@ export const CreatorDashboard: React.FC<{ onNavigate: (tab: NavTab) => void }> =
       })
       .catch(() => {});
   }, []);
+
+  const handleAddPayment = () => {
+    const amount = parseFloat(amountInput);
+    if (!amount || amount <= 0) return;
+
+    setAddSubmitting(true);
+    creatorDashboardApi
+      .addPayment(amount, noteInput.trim() || 'Cash payment')
+      .then(() => {
+        setAddModalVisible(false);
+        setAmountInput('');
+        setNoteInput('');
+        refreshSummary();
+      })
+      .catch(() => {})
+      .finally(() => setAddSubmitting(false));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -524,7 +564,11 @@ export const CreatorDashboard: React.FC<{ onNavigate: (tab: NavTab) => void }> =
         showsVerticalScrollIndicator={false}
       >
         <GreetingSection />
-        <MetricsSection summary={summary} />
+        <MetricsSection
+          summary={summary}
+          onOpenHistory={onOpenHistory}
+          onAddPayment={() => setAddModalVisible(true)}
+        />
 
         {/* ── Job Management ───────────────────────────────────────────── */}
         <View style={s.section}>
@@ -543,6 +587,11 @@ export const CreatorDashboard: React.FC<{ onNavigate: (tab: NavTab) => void }> =
               label="Upcoming Booking"
               active={activeTab === 'upcoming'}
               onPress={() => setActiveTab('upcoming')}
+            />
+            <TabPill
+              label="Schedule"
+              active={activeTab === 'schedule'}
+              onPress={() => setActiveTab('schedule')}
             />
             <TabPill
               label="Completed"
@@ -572,6 +621,55 @@ export const CreatorDashboard: React.FC<{ onNavigate: (tab: NavTab) => void }> =
       </ScrollView>
 
       <BottomNavBar activeTab="home" onNavigate={onNavigate} />
+
+      {/* Add Payment modal */}
+      <Modal visible={addModalVisible} transparent animationType="fade" onRequestClose={() => setAddModalVisible(false)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>Log a Payment</Text>
+            <Text style={s.modalSubtitle}>Record cash you've just collected from an elder.</Text>
+
+            <Text style={s.modalLabel}>Amount (LKR)</Text>
+            <TextInput
+              style={s.modalInput}
+              value={amountInput}
+              onChangeText={setAmountInput}
+              placeholder="e.g. 1500"
+              placeholderTextColor={D.onSurfaceVariant}
+              keyboardType="numeric"
+              accessibilityLabel="Payment amount"
+            />
+
+            <Text style={s.modalLabel}>Note (optional)</Text>
+            <TextInput
+              style={s.modalInput}
+              value={noteInput}
+              onChangeText={setNoteInput}
+              placeholder="e.g. Cash tip"
+              placeholderTextColor={D.onSurfaceVariant}
+              accessibilityLabel="Payment note"
+            />
+
+            <View style={s.modalBtnRow}>
+              <Pressable
+                onPress={() => setAddModalVisible(false)}
+                style={({ pressed }) => [s.modalBtnCancel, pressed && s.pressed]}
+                accessibilityRole="button"
+              >
+                <Text style={s.modalBtnCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleAddPayment}
+                disabled={addSubmitting}
+                style={({ pressed }) => [s.modalBtnAdd, pressed && s.pressed, addSubmitting && { opacity: 0.6 }]}
+                accessibilityRole="button"
+              >
+                <Text style={s.modalBtnAddText}>{addSubmitting ? 'Adding…' : 'Add'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -785,6 +883,68 @@ const s = StyleSheet.create({
   pressed:      { opacity: 0.75 },
   pressedDark:  { backgroundColor: 'rgba(255,255,255,0.14)' },
   pressedLight: { opacity: 0.88 },
+
+  // ── Add Payment modal ──────────────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.xl,
+    padding: Spacing.lg,
+    gap: Spacing.xs,
+  },
+  modalTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: D.onSurface },
+  modalSubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    color: D.onSurfaceVariant,
+    marginBottom: Spacing.sm,
+  },
+  modalLabel: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeXS,
+    color: D.onSurfaceVariant,
+    marginTop: Spacing.sm,
+  },
+  modalInput: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeMD,
+    color: D.onSurface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    borderRadius: Radii.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  modalBtnRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg },
+  modalBtnCancel: {
+    flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    borderRadius: Radii.lg,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  modalBtnCancelText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+  modalBtnAdd: {
+    flex: 1,
+    backgroundColor: '#E8792E',
+    borderRadius: Radii.lg,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  modalBtnAddText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
 });
 
 export default CreatorDashboard;

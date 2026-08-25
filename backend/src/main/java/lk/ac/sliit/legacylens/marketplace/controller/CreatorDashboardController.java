@@ -1,15 +1,20 @@
 package lk.ac.sliit.legacylens.marketplace.controller;
 
+import jakarta.validation.Valid;
 import lk.ac.sliit.legacylens.auth.security.CustomUserDetails;
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
+import lk.ac.sliit.legacylens.marketplace.dto.AddPaymentRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.CreatorDashboardSummaryResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.JobResponse;
+import lk.ac.sliit.legacylens.marketplace.dto.PaymentHistoryItemResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.ReviewResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
 import lk.ac.sliit.legacylens.marketplace.service.CreatorDashboardService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -65,5 +70,23 @@ public class CreatorDashboardController {
 
         return ResponseEntity.ok(ApiResponse.ok(
                 creatorDashboardService.getReviews(principal.getUser().getId(), limit)));
+    }
+
+    @GetMapping("/payment-history")
+    public ResponseEntity<ApiResponse<List<PaymentHistoryItemResponse>>> getPaymentHistory(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @RequestParam(defaultValue = "20") int limit) {
+
+        return ResponseEntity.ok(ApiResponse.ok(
+                creatorDashboardService.getPaymentHistory(principal.getUser().getId(), limit)));
+    }
+
+    @PostMapping("/payments")
+    public ResponseEntity<ApiResponse<PaymentHistoryItemResponse>> addPayment(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @Valid @RequestBody AddPaymentRequest request) {
+
+        return ResponseEntity.ok(ApiResponse.ok(
+                creatorDashboardService.addPayment(principal.getUser().getId(), request.getAmount(), request.getNote())));
     }
 }

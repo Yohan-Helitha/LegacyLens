@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,4 +31,13 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
     /** "Contributions" on the dashboard — the number of distinct elders this creator has completed work for. */
     @Query("SELECT COUNT(DISTINCT j.elder.id) FROM Job j WHERE j.creator.id = :creatorId AND j.status = :status")
     long countDistinctEldersByCreatorIdAndStatus(@Param("creatorId") UUID creatorId, @Param("status") JobStatus status);
+
+    /** "Collected Today" card total — cash earned from jobs completed within a given day. */
+    @Query("SELECT COALESCE(SUM(j.offeredAmount), 0) FROM Job j "
+            + "WHERE j.creator.id = :creatorId AND j.status = :status AND j.completedAt BETWEEN :start AND :end")
+    BigDecimal sumOfferedAmountByCreatorIdAndStatusAndCompletedAtBetween(
+            @Param("creatorId") UUID creatorId,
+            @Param("status") JobStatus status,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }

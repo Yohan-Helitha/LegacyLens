@@ -1,8 +1,9 @@
-import { apiGet } from './client';
+import { apiGet, apiPost } from './client';
 import {
   CreatorDashboardSummaryResponse,
   DashboardJobStatus,
   JobResponse,
+  PaymentHistoryItemResponse,
   ReviewResponse,
 } from '../../types/creatorDashboard';
 
@@ -18,4 +19,13 @@ export const creatorDashboardApi = {
 
   getReviews: (limit = 5) =>
     apiGet<ReviewResponse[]>(`/creator-dashboard/reviews?limit=${limit}`),
+
+  getPaymentHistory: (limit = 20) =>
+    apiGet<PaymentHistoryItemResponse[]>(`/creator-dashboard/payment-history?limit=${limit}`),
+
+  addPayment: (amount: number, note: string) =>
+    apiPost<PaymentHistoryItemResponse, { amount: number; note: string }>(
+      '/creator-dashboard/payments',
+      { amount, note },
+    ),
 };

@@ -21,9 +21,10 @@ public class CreatorDashboardSummaryResponse {
     private long contributionsCount;
 
     /**
-     * Total earned from completed jobs. Payment happens in cash, off-platform,
-     * so this is everything earned so far — not "unpaid minus paid" (that
-     * distinction arrives with the future work-progress / receipt feature).
+     * Cash collected today — jobs completed today plus any manually-logged
+     * PaymentRecord entries for today. Payment happens in cash, off-platform;
+     * there's no online balance to "withdraw", so this deliberately resets
+     * daily rather than accumulating like a wallet.
      */
-    private BigDecimal availableBalance;
+    private BigDecimal collectedToday;
 }
