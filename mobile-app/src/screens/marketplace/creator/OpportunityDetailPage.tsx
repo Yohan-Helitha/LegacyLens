@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -183,15 +184,36 @@ export const OpportunityDetailPage: React.FC<{
   onBack: () => void;
   opportunityId: string | null;
 }> = ({ onNavigate, onBack, opportunityId }) => {
-  const [detail, setDetail] = useState<OpportunityDetailResponse>(FALLBACK_DETAIL);
+  const [detail, setDetail] = useState<OpportunityDetailResponse | null>(
+    opportunityId ? null : FALLBACK_DETAIL,
+  );
 
   useEffect(() => {
-    if (!opportunityId) return;
+    if (!opportunityId) {
+      setDetail(FALLBACK_DETAIL);
+      return;
+    }
+    setDetail(null);
     opportunityApi
       .getById(opportunityId)
       .then(setDetail)
-      .catch(() => {});
+      // Only fall back to placeholder content if the real fetch actually fails —
+      // never show it while a real opportunity is still loading.
+      .catch(() => setDetail(FALLBACK_DETAIL));
   }, [opportunityId]);
+
+  if (!detail) {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+        <StatusBar style="dark" />
+        <TopAppBar onBack={onBack} />
+        <View style={s.loadingContainer}>
+          <ActivityIndicator size="large" color={D.primary} />
+        </View>
+        <BottomNavBar activeTab="market" onNavigate={onNavigate} />
+      </SafeAreaView>
+    );
+  }
 
   const chips: { key: string; icon: React.ReactNode; value: string }[] = [];
   if (detail.location) chips.push({ key: 'location', icon: <PinIcon />, value: detail.location });
@@ -352,6 +374,8 @@ const s = StyleSheet.create({
   bellClapper:  { width: 5, height: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: D.primary },
 
   // ── Scroll ─────────────────────────────────────────────────────────────────
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
   scroll:        { flex: 1 },
   scrollContent: {
     paddingHorizontal: Spacing.md,
