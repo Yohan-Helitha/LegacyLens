@@ -88,7 +88,18 @@ export const RootNavigator: React.FC = () => {
       <Stack.Screen name="Login">
         {({ navigation }) => (
           <LoginScreen
-            onLoginSuccess={() => navigation.replace('Profile')}
+            onLoginSuccess={() => {
+              // Already-verified content creators skip the general elder
+              // "Become a Freelancer" profile screen (a stopgap from when the
+              // elder home experience wasn't built yet) and land directly in
+              // their own creator profile instead.
+              const roles = useAuthStore.getState().user?.roles ?? [];
+              if (roles.includes('YOUTH_CREATOR')) {
+                navigation.replace('Creator', { initialScreen: 'profile' });
+              } else {
+                navigation.replace('Profile');
+              }
+            }}
             onSignUp={() => navigation.navigate('SignUp')}
             onForgotPin={() => navigation.navigate('ForgotPin')}
             onNeedsVerification={(phone) => navigation.navigate('VerifyOtp', { phone })}
