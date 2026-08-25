@@ -7,6 +7,7 @@ import { CreatorVerificationUpdatePage } from '../screens/marketplace/creator/Cr
 import { InApp } from '../screens/marketplace/creator/InApp';
 import { InboxMessage } from '../screens/marketplace/creator/InboxMessage';
 import { PaymentHistoryPage } from '../screens/marketplace/creator/PaymentHistoryPage';
+import { CreatorProfile } from '../screens/marketplace/creator/CreatorProfile';
 import type { NavTab } from '../components/BottomNavBar';
 
 export type CreatorScreen =
@@ -17,7 +18,8 @@ export type CreatorScreen =
   | 'pending'
   | 'inbox'
   | 'conversation'
-  | 'payment-history';
+  | 'payment-history'
+  | 'profile';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -49,7 +51,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleNavigate = (tab: NavTab) => {
     if (tab === 'home') setScreen('dashboard');
     if (tab === 'market') setScreen('market');
-    if (tab === 'profile') setScreen('apply');
+    if (tab === 'profile') setScreen('profile');
     if (tab === 'inbox') setScreen('inbox');
   };
 
@@ -131,6 +133,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
       {screen === 'payment-history' && (
         <PaymentHistoryPage onNavigate={handleNavigate} onBack={handleBackToDashboard} />
       )}
+      {screen === 'profile' && <CreatorProfile onNavigate={handleNavigate} />}
     </>
   );
 };
