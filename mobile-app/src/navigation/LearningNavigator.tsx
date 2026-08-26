@@ -29,8 +29,9 @@ const Stack = createNativeStackNavigator<LearningStackParamList>();
 export default function LearningNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="DevPreview" component={DevPreviewScreen} />
       <Stack.Screen name="CourseTracksList" component={CourseTracksListScreen} />
+      <Stack.Screen name="DevPreview" component={DevPreviewScreen} />
+      
       <Stack.Screen name="TrackDetail" component={TrackDetailScreen} />
       <Stack.Screen name="Flashcard" component={FlashcardScreen} />
       <Stack.Screen name="Quiz" component={QuizScreen} />

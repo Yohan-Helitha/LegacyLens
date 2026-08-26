@@ -9,25 +9,25 @@ export type LessonStatus = 'locked' | 'in_progress' | 'completed';
 
 /** A learning track, e.g. "Southern Fishing Dialect" */
 export interface Track {
-  id: string;
+  id: number;
   title: string;
   description: string;
   region: string;
   occupation: string;
   difficulty: Difficulty;
-  coverImageUrl?: string;
   totalLessons: number;
-  completedLessons: number;
+  completedLessons?: number;
 }
 
 /** A single lesson inside a track (flashcard set, quiz, or audio lesson) */
 export interface Lesson {
-  id: string;
-  trackId: string;
-  order: number;
+  id: number;
+  trackId?: number;
+  lessonOrder: number;
   title: string;
-  type: LessonType;
-  status: LessonStatus;
+  description?: string;
+  type: string;
+  status?: LessonStatus;
 }
 
 /** A vocabulary flashcard belonging to a lesson */

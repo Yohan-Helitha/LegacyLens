@@ -86,6 +86,6 @@ export async function apiPost<TResponse, TRequest = unknown>(
 
 /** GET helper that unwraps the ApiResponse envelope's `data` field. */
 export async function apiGet<TResponse>(url: string): Promise<TResponse> {
-  const response = await apiClient.get<ApiEnvelope<TResponse>>(url);
-  return response.data.data as TResponse;
+  const response = await apiClient.get<TResponse>(url);
+  return response.data;
 }
