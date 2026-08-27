@@ -1,19 +1,45 @@
 // src/screens/learning/FlashcardScreen.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { mockFlashcards } from '../../constants/mockLearningData';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
-import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
-
-const CURRENT_LESSON_ID = 'lesson-1';
-
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { apiGet } from '../../services/api/client';
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'Flashcard'>;
 
 export default function FlashcardScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const cards = mockFlashcards.filter((c) => c.lessonId === CURRENT_LESSON_ID);
+  const route = useRoute<RouteProp<LearningStackParamList, 'Flashcard'>>();
+
+console.log('SELECTED LESSON ID:', route.params.lessonId);
+
+  const [cards, setCards] = useState<any[]>([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  const loadFlashcards = async () => {
+    try {
+      const data = await apiGet<any[]>(
+        `/learning/lessons/${route.params.lessonId}/flashcards`
+      );
+
+      console.log('FLASHCARDS:', data);
+
+      setCards(data);
+    } catch (error: any) {
+      console.log('FLASHCARD ERROR:', error);
+      console.log('FLASHCARD ERROR MESSAGE:', error?.message);
+      console.log('FLASHCARD ERROR STATUS:', error?.status);
+      console.log('FLASHCARD FIELD ERRORS:', error?.fieldErrors);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadFlashcards();
+}, [route.params.lessonId]);
+
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
@@ -28,6 +54,16 @@ export default function FlashcardScreen() {
     setFlipped(false);
     setIndex((prev) => Math.max(prev - 1, 0));
   };
+
+  if (loading) {
+  return (
+    <View style={styles.container}>
+      <Text style={{ color: Colors.text }}>
+        Loading flashcards...
+      </Text>
+    </View>
+  );
+}
 
   if (!card) {
     return (
@@ -73,7 +109,11 @@ export default function FlashcardScreen() {
 
       <Pressable
         style={styles.quizButton}
-        onPress={() => navigation.navigate('Quiz', { lessonId: 'lesson-2' })}
+        onPress={() =>
+  navigation.navigate('Quiz', {
+    lessonId: route.params.lessonId,
+  })
+}
       >
         <Text style={styles.quizButtonText}>Take Quiz</Text>
       </Pressable>

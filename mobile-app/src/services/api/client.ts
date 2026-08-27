@@ -36,9 +36,14 @@ export const apiClient: AxiosInstance = axios.create({
 // authenticated-only endpoints exist; auth/** itself is all public.
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
+
+  console.log('API REQUEST:', config.url);
+  console.log('JWT TOKEN EXISTS:', !!token);
+
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);
   }
+
   return config;
 });
 
@@ -80,8 +85,11 @@ export async function apiPost<TResponse, TRequest = unknown>(
   url: string,
   body: TRequest,
 ): Promise<TResponse> {
-  const response = await apiClient.post<ApiEnvelope<TResponse>>(url, body);
-  return response.data.data as TResponse;
+  const response = await apiClient.post<TResponse>(url, body);
+
+  console.log('FULL API RESPONSE:', response.data);
+
+  return response.data;
 }
 
 /** GET helper that unwraps the ApiResponse envelope's `data` field. */

@@ -1,11 +1,14 @@
 package lk.ac.sliit.legacylens.learning.controller;
 
+import jakarta.validation.Valid;
 import lk.ac.sliit.legacylens.learning.dto.LessonProgressResponse;
+import lk.ac.sliit.legacylens.learning.dto.TrackProgressResponse;
 import lk.ac.sliit.legacylens.learning.entity.LessonProgress;
 import lk.ac.sliit.legacylens.learning.service.LessonProgressService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.Authentication;
+
 import java.util.List;
 
 @RestController
@@ -68,20 +71,22 @@ public class LessonProgressController {
 
         Long userId = Long.valueOf(authentication.getName());
 
-        LessonProgress progress = lessonProgressService.updateProgress(
-                userId,
-                lessonId,
-                completed,
-                score,
-                xpEarned
-        );
+        LessonProgress progress =
+                lessonProgressService.updateProgress(
+                        userId,
+                        lessonId,
+                        completed,
+                        score,
+                        xpEarned
+                );
 
-        LessonProgressResponse response = new LessonProgressResponse(
-                progress.getLesson().getId(),
-                progress.isCompleted(),
-                progress.getScore(),
-                progress.getXpEarned()
-        );
+        LessonProgressResponse response =
+                new LessonProgressResponse(
+                        progress.getLesson().getId(),
+                        progress.isCompleted(),
+                        progress.getScore(),
+                        progress.getXpEarned()
+                );
 
         return ResponseEntity.ok(response);
     }
@@ -108,5 +113,16 @@ public class LessonProgressController {
                 .getProgressResponse(userId, lessonId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/tracks/me")
+    public ResponseEntity<List<TrackProgressResponse>> getMyTrackProgress(
+            Authentication authentication) {
+
+        Long userId = Long.valueOf(authentication.getName());
+
+        return ResponseEntity.ok(
+                lessonProgressService.getUserTrackProgress(userId)
+        );
     }
 }

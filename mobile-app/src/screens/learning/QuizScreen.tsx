@@ -1,51 +1,177 @@
 // src/screens/learning/QuizScreen.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { mockQuizQuestions } from '../../constants/mockLearningData';
 import { QuestionOptionId } from '../../types/learning';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
-import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { apiGet,apiPost  } from '../../services/api/client';
 
-const CURRENT_LESSON_ID = 'lesson-2';
-
+interface BackendQuizQuestion {
+  id: number;
+  question: string;
+  optionA: string;
+  optionB: string;
+  optionC: string;
+  optionD: string;
+}
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'Quiz'>;
 
 export default function QuizScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const questions = mockQuizQuestions.filter((q) => q.lessonId === CURRENT_LESSON_ID);
+
+  const route = useRoute<RouteProp<LearningStackParamList, 'Quiz'>>();
+
+  console.log('QUIZ LESSON ID:', route.params.lessonId);
+  const [answers, setAnswers] = useState<
+  { questionId: number; selectedOption: QuestionOptionId }[]
+>([]);
+  const [questions, setQuestions] = useState<BackendQuizQuestion[]>([]);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState<string | null>(null);
+
+useEffect(() => {
+  const loadQuestions = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const data = await apiGet<BackendQuizQuestion[]>(
+        `/learning/lessons/${route.params.lessonId}/questions`
+      );
+
+      console.log('QUIZ QUESTIONS:', data);
+
+      setQuestions(data);
+    } catch (err) {
+      console.log('QUIZ QUESTIONS ERROR:', err);
+      setError('Could not load quiz questions.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadQuestions();
+}, [route.params.lessonId]);
+
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<QuestionOptionId | null>(null);
-  const [score, setScore] = useState(0);
 
   const question = questions[questionIndex];
 
-  if (!question) {
-    return (
-      <View style={styles.container}>
-        <Text style={{ color: Colors.text }}>No quiz questions found for this lesson.</Text>
-      </View>
-    );
-  }
+if (loading) {
+  return (
+    <View style={styles.container}>
+      <Text style={{ color: Colors.text }}>
+        Loading quiz...
+      </Text>
+    </View>
+  );
+}
+
+if (error) {
+  return (
+    <View style={styles.container}>
+      <Text style={{ color: Colors.text }}>
+        {error}
+      </Text>
+    </View>
+  );
+}
+
+if (!question) {
+  return (
+    <View style={styles.container}>
+      <Text style={{ color: Colors.text }}>
+        No quiz questions found for this lesson.
+      </Text>
+    </View>
+  );
+}
 
   const handleSelect = (optionId: QuestionOptionId) => {
     setSelectedOption(optionId);
   };
 
-    const handleSubmit = () => {
-    if (!selectedOption) return;
-    const isCorrect = selectedOption === question.correctOptionId;
-    if (isCorrect) {
-      setScore((prev) => prev + 1);
-    }
+  const handleSubmit = async () => {
+  if (!selectedOption) return;
+
+  try {
+    const updatedAnswers = [
+      ...answers,
+      {
+        questionId: question.id,
+        selectedOption,
+      },
+    ];
+
+    setAnswers(updatedAnswers);
+
+    // More questions remaining
     if (questionIndex < questions.length - 1) {
       setQuestionIndex((prev) => prev + 1);
       setSelectedOption(null);
-    } else {
-      navigation.navigate('QuizResult');
+      return;
     }
-  };
+
+    // Final question → submit complete quiz
+    console.log('SUBMITTING QUIZ:', updatedAnswers);
+
+    const result = await apiPost<{
+      results: {
+        questionId: number;
+        correct: boolean;
+        score: number;
+      }[];
+      totalScore: number;
+      totalQuestions: number;
+      completed: boolean;
+      xpEarned: number;
+    }>(
+      `/learning/lessons/${route.params.lessonId}/submit`,
+      {
+        answers: updatedAnswers,
+      }
+    );
+
+    console.log('QUIZ SUBMIT RESULT:', result);
+
+    // Calculate number of correct answers
+    const correctCount = result.results.filter(
+      (item) => item.correct
+    ).length;
+
+    console.log('CORRECT COUNT:', correctCount);
+
+    // Mark lesson as completed and save progress
+    const progressResult = await apiPost<{
+      lessonId: number;
+      completed: boolean;
+      score: number;
+      xpEarned: number;
+    }>(
+      `/learning/lessons/${route.params.lessonId}/complete`,
+      {
+        correctAnswers: correctCount,
+      }
+    );
+
+    console.log('LESSON PROGRESS RESULT:', progressResult);
+
+    // Go to result screen
+    navigation.navigate('QuizResult', {
+      lessonId: route.params.lessonId,
+      totalQuestions: result.totalQuestions,
+      correctCount,
+      xpEarned: progressResult.xpEarned,
+      currentStreakDays: 0,
+    });
+
+  } catch (error) {
+    console.log('QUIZ SUBMIT ERROR:', error);
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -53,27 +179,43 @@ export default function QuizScreen() {
         <Text style={styles.progressLabel}>Question {questionIndex + 1} of {questions.length}</Text>
         <Text style={styles.hearts}>❤️❤️❤️</Text>
       </View>
-
-      <Text style={styles.streak}>🔥 Score: {score}</Text>
+      <Text style={styles.streak}>
+  📝 Answered: {answers.length} / {questions.length}
+</Text>
 
       <View style={styles.questionCard}>
-        <Text style={styles.prompt}>{question.prompt}</Text>
-        {question.word ? <Text style={styles.word}>{question.word}</Text> : null}
+        <Text style={styles.prompt}>{question.question}</Text>
 
-        {question.options.map((opt) => {
-          const isSelected = selectedOption === opt.id;
-          return (
-            <Pressable
-              key={opt.id}
-              style={[styles.optionButton, isSelected && styles.optionButtonSelected]}
-              onPress={() => handleSelect(opt.id)}
-            >
-              <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                {opt.text}
-              </Text>
-            </Pressable>
-          );
-        })}
+{(['A', 'B', 'C', 'D'] as const).map((optionId) => {
+  const optionText = {
+    A: question.optionA,
+    B: question.optionB,
+    C: question.optionC,
+    D: question.optionD,
+  }[optionId];
+
+  const isSelected = selectedOption === optionId;
+
+  return (
+    <Pressable
+      key={optionId}
+      style={[
+        styles.optionButton,
+        isSelected && styles.optionButtonSelected,
+      ]}
+      onPress={() => handleSelect(optionId)}
+    >
+      <Text
+        style={[
+          styles.optionText,
+          isSelected && styles.optionTextSelected,
+        ]}
+      >
+        {optionText}
+      </Text>
+    </Pressable>
+  );
+})}
       </View>
 
       <Pressable

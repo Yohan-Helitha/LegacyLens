@@ -29,7 +29,7 @@ public interface LessonProgressRepository
     """)
     long sumXpByUserId(@Param("userId") Long userId);
 
-    long countByUserIdAndLessonTrackIdAndCompletedTrue(
+    long countByUserIdAndLesson_Track_IdAndCompletedTrue(
             Long userId,
             Long trackId
     );
