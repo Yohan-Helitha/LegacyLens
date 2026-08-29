@@ -71,10 +71,15 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
 
   const saveStory = async (draft: StoryDraft) => {
     const clipToSave = draft.clip;
+    // The Writing method always starts with clipSource 'uploaded' (see
+    // onSelectWriting below), whether or not the user actually attaches a
+    // file — so an article with no clip is WRITTEN (no media required),
+    // and only gets tagged UPLOADED once a file is really attached.
+    const method = clipSource === 'recorded' ? 'RECORDED' : clipToSave ? 'UPLOADED' : 'WRITTEN';
     await storiesApi.create({
       title: draft.title,
       description: draft.description || undefined,
-      method: clipSource === 'uploaded' ? 'UPLOADED' : 'RECORDED',
+      method,
       mediaDurationMillis: clipToSave?.durationMillis,
       media: clipToSave
         ? {

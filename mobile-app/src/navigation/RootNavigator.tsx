@@ -154,7 +154,7 @@ export const RootNavigator: React.FC = () => {
             }}
             onComplete={async () => {
               const canUseFingerprint = await isFingerprintAvailable();
-              navigation.navigate(canUseFingerprint ? 'Fingerprint' : 'Login');
+              navigation.navigate(canUseFingerprint ? 'Fingerprint' : 'OnBoarding1');
             }}
             onBack={() => navigation.goBack()}
           />
@@ -164,8 +164,8 @@ export const RootNavigator: React.FC = () => {
       <Stack.Screen name="Fingerprint">
         {({ navigation }) => (
           <FingerprintScreen
-            onComplete={() => navigation.navigate('Login')}
-            onSkip={() => navigation.navigate('Login')}
+            onComplete={() => navigation.navigate('OnBoarding1')}
+            onSkip={() => navigation.navigate('OnBoarding1')}
           />
         )}
       </Stack.Screen>
