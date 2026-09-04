@@ -15,6 +15,7 @@ import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { profileApi } from '../../../services/api/profileApi';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
+import { creatorApplicationApi } from '../../../services/api/creatorApplicationApi';
 import type { CreatorDashboardSummaryResponse } from '../../../types/creatorDashboard';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -48,6 +49,21 @@ const FALLBACK_AVATAR =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuBdmWxeiutm8VuCuwb8B-bcbY4uwLEOEIZpHad16sSCOnOCn176-8moOj3W6uDPAciix85yHVNmpAd1RTzDZNIib4AVMq68gwoQfyYec-CiNygpv3Rti52MfEWixskGSi9K2HzQJc1XhIg649C9xWHdmBqgXNA5LsR-CP4PfF7fUKsBLElU0twICuF7-ZcI9Vlnj9GgnzoL4Bqj9ilpxA4BZs3oFt_0h7PcPdk4HDm4JKWKr6S3bofO2g';
 
 const FALLBACK_NAME = 'Arani Inothma';
+
+// Personal details — real account fields (full name, city, phone, NIC) come
+// from /users/me, captured at registration; email only exists on the "Become
+// a Creator" application (the account itself never asks for one), so it's
+// pulled from /creator-applications/me instead. These fallbacks only show if
+// neither call has resolved yet or the creator hasn't applied at all.
+const FALLBACK_CITY = 'Colombo';
+const FALLBACK_EMAIL = 'inothma@gmail.com';
+const FALLBACK_PHONE = '071 111 1111';
+const FALLBACK_NIC = 'XXXXXXXXXXXXX';
+
+/** NIC numbers are sensitive — mask every character so the profile screen never displays it in full. */
+function maskNic(nic: string): string {
+  return 'X'.repeat(nic.length);
+}
 
 const FALLBACK_SUMMARY: CreatorDashboardSummaryResponse = {
   rating: 4.8,
@@ -154,6 +170,13 @@ const Chip: React.FC<{ label: string; wide?: boolean }> = ({ label, wide }) => (
   </View>
 );
 
+const DetailRow: React.FC<{ label: string; value: string; isLast?: boolean }> = ({ label, value, isLast }) => (
+  <View style={[s.detailRow, !isLast && s.detailRowDivider]}>
+    <Text style={s.detailLabel}>{label}</Text>
+    <Text style={s.detailValue}>{value}</Text>
+  </View>
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -163,6 +186,10 @@ export const CreatorProfile: React.FC<{
   const [name, setName] = useState(FALLBACK_NAME);
   const [avatarUri, setAvatarUri] = useState(FALLBACK_AVATAR);
   const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
+  const [city, setCity] = useState(FALLBACK_CITY);
+  const [phoneNumber, setPhoneNumber] = useState(FALLBACK_PHONE);
+  const [nicNumber, setNicNumber] = useState(FALLBACK_NIC);
+  const [email, setEmail] = useState(FALLBACK_EMAIL);
 
   useEffect(() => {
     profileApi
@@ -170,10 +197,23 @@ export const CreatorProfile: React.FC<{
       .then((me) => {
         if (me.fullName) setName(me.fullName);
         if (me.profilePhotoUrl) setAvatarUri(me.profilePhotoUrl);
+        if (me.city?.name) setCity(me.city.name);
+        if (me.phoneNumber) setPhoneNumber(me.phoneNumber);
+        if (me.nicNumber) setNicNumber(maskNic(me.nicNumber));
       })
       .catch(() => {});
 
     creatorDashboardApi.getSummary().then(setSummary).catch(() => {});
+
+    // Email isn't captured at registration — it only exists once the creator
+    // has submitted their "Become a Creator" application, so this 404s
+    // harmlessly (leaving the fallback) for anyone who hasn't applied yet.
+    creatorApplicationApi
+      .getMe()
+      .then((app) => {
+        if (app.email) setEmail(app.email);
+      })
+      .catch(() => {});
   }, []);
 
   return (
@@ -210,6 +250,15 @@ export const CreatorProfile: React.FC<{
             <CheckBadge />
             <Text style={s.contribText}>{summary.contributionsCount} contributions</Text>
           </View>
+        </View>
+
+        {/* Personal details — real account data, not editable here */}
+        <View style={s.card}>
+          <DetailRow label="Full Name" value={name} />
+          <DetailRow label="City" value={city} />
+          <DetailRow label="Email" value={email} />
+          <DetailRow label="Phone Number" value={phoneNumber} />
+          <DetailRow label="NIC Number" value={nicNumber} isLast />
         </View>
 
         {/* About me */}
@@ -424,6 +473,12 @@ const s = StyleSheet.create({
   bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   bulletDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: D.secondary, marginTop: 8 },
   bulletText: { flex: 1, fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 21, color: D.onSurfaceVariant },
+
+  // ── Personal details ─────────────────────────────────────────────────────
+  detailRow: { paddingVertical: 10 },
+  detailRowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: D.surfaceVariant },
+  detailLabel: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
+  detailValue: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, marginTop: 2 },
 
   // ── Chips ────────────────────────────────────────────────────────────────
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
