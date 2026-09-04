@@ -62,7 +62,7 @@ const D = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-type JobTab = 'active' | 'upcoming' | 'schedule' | 'completed';
+type JobTab = 'active' | 'upcoming' | 'completed';
 
 type ActiveJobItem = {
   id: string;
@@ -84,9 +84,6 @@ type ReviewItem = {
 const TAB_TO_STATUS: Record<JobTab, DashboardJobStatus> = {
   active: 'ACTIVE',
   upcoming: 'UPCOMING',
-  // Placeholder: shows the same UPCOMING bookings as its own tab for now.
-  // A real calendar/agenda view is planned separately later.
-  schedule: 'UPCOMING',
   completed: 'COMPLETED',
 };
 
@@ -480,7 +477,8 @@ const RecentWorkSection: React.FC = () => (
 export const CreatorDashboard: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onOpenHistory: () => void;
-}> = ({ onNavigate, onOpenHistory }) => {
+  onOpenSchedule: () => void;
+}> = ({ onNavigate, onOpenHistory, onOpenSchedule }) => {
   const [activeTab, setActiveTab] = useState<JobTab>('active');
   const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
   const [reviews, setReviews] = useState<ReviewItem[]>(FALLBACK_REVIEWS);
@@ -590,8 +588,8 @@ export const CreatorDashboard: React.FC<{
             />
             <TabPill
               label="Schedule"
-              active={activeTab === 'schedule'}
-              onPress={() => setActiveTab('schedule')}
+              active={false}
+              onPress={onOpenSchedule}
             />
             <TabPill
               label="Completed"

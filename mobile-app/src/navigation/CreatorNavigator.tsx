@@ -9,6 +9,7 @@ import { InboxMessage } from '../screens/marketplace/creator/InboxMessage';
 import { PaymentHistoryPage } from '../screens/marketplace/creator/PaymentHistoryPage';
 import { CreatorProfile } from '../screens/marketplace/creator/CreatorProfile';
 import { OpportunityApplicationForm } from '../screens/marketplace/creator/OpportunityApplicationForm';
+import { OpportunitySchedulePage } from '../screens/marketplace/creator/OpportunitySchedulePage';
 import type { NavTab } from '../components/BottomNavBar';
 
 export type CreatorScreen =
@@ -21,7 +22,8 @@ export type CreatorScreen =
   | 'conversation'
   | 'payment-history'
   | 'profile'
-  | 'apply-opportunity';
+  | 'apply-opportunity'
+  | 'schedule';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -84,6 +86,9 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   /** Called when "History" is pressed on CreatorDashboard's Collected Today card */
   const handleOpenHistory = () => setScreen('payment-history');
 
+  /** Called when the "Schedule" tab is pressed on CreatorDashboard */
+  const handleOpenSchedule = () => setScreen('schedule');
+
   /** Called when back arrow is pressed on PaymentHistoryPage */
   const handleBackToDashboard = () => setScreen('dashboard');
 
@@ -107,7 +112,11 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   return (
     <>
       {screen === 'dashboard' && (
-        <CreatorDashboard onNavigate={handleNavigate} onOpenHistory={handleOpenHistory} />
+        <CreatorDashboard
+          onNavigate={handleNavigate}
+          onOpenHistory={handleOpenHistory}
+          onOpenSchedule={handleOpenSchedule}
+        />
       )}
       {screen === 'market' && (
         <OpportunityPage onNavigate={handleNavigate} onViewDetail={handleViewDetail} />
@@ -151,6 +160,9 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
         <PaymentHistoryPage onNavigate={handleNavigate} onBack={handleBackToDashboard} />
       )}
       {screen === 'profile' && <CreatorProfile onNavigate={handleNavigate} />}
+      {screen === 'schedule' && (
+        <OpportunitySchedulePage onNavigate={handleNavigate} onBack={handleBackToDashboard} />
+      )}
     </>
   );
 };
