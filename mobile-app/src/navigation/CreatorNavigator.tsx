@@ -8,6 +8,7 @@ import { InApp } from '../screens/marketplace/creator/InApp';
 import { InboxMessage } from '../screens/marketplace/creator/InboxMessage';
 import { PaymentHistoryPage } from '../screens/marketplace/creator/PaymentHistoryPage';
 import { CreatorProfile } from '../screens/marketplace/creator/CreatorProfile';
+import { OpportunityApplicationForm } from '../screens/marketplace/creator/OpportunityApplicationForm';
 import type { NavTab } from '../components/BottomNavBar';
 
 export type CreatorScreen =
@@ -19,7 +20,8 @@ export type CreatorScreen =
   | 'inbox'
   | 'conversation'
   | 'payment-history'
-  | 'profile';
+  | 'profile'
+  | 'apply-opportunity';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -63,6 +65,12 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
 
   /** Called when back arrow is pressed on OpportunityDetailPage */
   const handleBack = () => setScreen('market');
+
+  /** Called when the "Apply" button is pressed on OpportunityDetailPage */
+  const handleApplyToOpportunity = () => setScreen('apply-opportunity');
+
+  /** Called when "Discard"/"View Opportunity" is pressed on the application form */
+  const handleBackToOpportunityDetail = () => setScreen('detail');
 
   /** Called when a conversation card is tapped on InApp */
   const handleOpenConversation = (conversationId: string) => {
@@ -108,6 +116,15 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
         <OpportunityDetailPage
           onNavigate={handleNavigate}
           onBack={handleBack}
+          onApply={handleApplyToOpportunity}
+          opportunityId={selectedOpportunityId}
+        />
+      )}
+      {screen === 'apply-opportunity' && (
+        <OpportunityApplicationForm
+          onNavigate={handleNavigate}
+          onBack={handleBackToOpportunityDetail}
+          onSave={handleBackToOpportunityDetail}
           opportunityId={selectedOpportunityId}
         />
       )}

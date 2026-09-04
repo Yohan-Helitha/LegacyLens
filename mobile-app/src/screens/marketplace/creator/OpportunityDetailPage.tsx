@@ -182,8 +182,9 @@ const TaskStep: React.FC<{ index: number; text: string; isLast: boolean }> = ({ 
 export const OpportunityDetailPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
+  onApply: () => void;
   opportunityId: string | null;
-}> = ({ onNavigate, onBack, opportunityId }) => {
+}> = ({ onNavigate, onBack, onApply, opportunityId }) => {
   const [detail, setDetail] = useState<OpportunityDetailResponse | null>(
     opportunityId ? null : FALLBACK_DETAIL,
   );
@@ -318,6 +319,7 @@ export const OpportunityDetailPage: React.FC<{
       {/* Fixed Apply button (above nav bar) */}
       <View style={s.applyContainer}>
         <Pressable
+          onPress={onApply}
           style={({ pressed }) => [s.applyBtn, pressed && s.applyBtnPressed]}
           accessibilityRole="button"
           accessibilityLabel="Apply for this opportunity"
