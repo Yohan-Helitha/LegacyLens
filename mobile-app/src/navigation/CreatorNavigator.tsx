@@ -10,6 +10,7 @@ import { PaymentHistoryPage } from '../screens/marketplace/creator/PaymentHistor
 import { CreatorProfile } from '../screens/marketplace/creator/CreatorProfile';
 import { OpportunityApplicationForm } from '../screens/marketplace/creator/OpportunityApplicationForm';
 import { OpportunitySchedulePage } from '../screens/marketplace/creator/OpportunitySchedulePage';
+import { SavedOpportunityApplication } from '../screens/marketplace/creator/SavedOpportunityApplication';
 import type { NavTab } from '../components/BottomNavBar';
 
 export type CreatorScreen =
@@ -23,7 +24,8 @@ export type CreatorScreen =
   | 'payment-history'
   | 'profile'
   | 'apply-opportunity'
-  | 'schedule';
+  | 'schedule'
+  | 'saved-applications';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -47,6 +49,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const [screen, setScreen] = useState<CreatorScreen>(initialScreen);
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
 
   /**
    * Shared navigation handler passed to all screens.
@@ -69,10 +72,29 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleBack = () => setScreen('market');
 
   /** Called when the "Apply" button is pressed on OpportunityDetailPage */
-  const handleApplyToOpportunity = () => setScreen('apply-opportunity');
+  const handleApplyToOpportunity = () => {
+    setSelectedDraftId(null);
+    setScreen('apply-opportunity');
+  };
 
   /** Called when "Discard"/"View Opportunity" is pressed on the application form */
   const handleBackToOpportunityDetail = () => setScreen('detail');
+
+  /** Called when "Save" is pressed on the application form */
+  const handleOpenSavedApplications = () => setScreen('saved-applications');
+
+  /** Called when "Edit" is pressed on a saved draft in SavedOpportunityApplication */
+  const handleEditDraft = (draftId: string, opportunityId: string | null) => {
+    setSelectedDraftId(draftId);
+    setSelectedOpportunityId(opportunityId);
+    setScreen('apply-opportunity');
+  };
+
+  /** Called when "View" is pressed on a submitted application with a real linked opportunity */
+  const handleViewOpportunityFromApplication = (opportunityId: string) => {
+    setSelectedOpportunityId(opportunityId);
+    setScreen('detail');
+  };
 
   /** Called when a conversation card is tapped on InApp */
   const handleOpenConversation = (conversationId: string) => {
@@ -119,7 +141,11 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
         />
       )}
       {screen === 'market' && (
-        <OpportunityPage onNavigate={handleNavigate} onViewDetail={handleViewDetail} />
+        <OpportunityPage
+          onNavigate={handleNavigate}
+          onViewDetail={handleViewDetail}
+          onOpenSavedApplications={handleOpenSavedApplications}
+        />
       )}
       {screen === 'detail' && (
         <OpportunityDetailPage
@@ -133,8 +159,17 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
         <OpportunityApplicationForm
           onNavigate={handleNavigate}
           onBack={handleBackToOpportunityDetail}
-          onSave={handleBackToOpportunityDetail}
+          onSave={handleOpenSavedApplications}
           opportunityId={selectedOpportunityId}
+          draftId={selectedDraftId}
+        />
+      )}
+      {screen === 'saved-applications' && (
+        <SavedOpportunityApplication
+          onNavigate={handleNavigate}
+          onBack={handleBack}
+          onEditDraft={handleEditDraft}
+          onViewOpportunity={handleViewOpportunityFromApplication}
         />
       )}
       {screen === 'apply' && (

@@ -446,7 +446,8 @@ const RecentSection: React.FC<{
 export const OpportunityPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onViewDetail: (opportunityId: string) => void;
-}> = ({ onNavigate, onViewDetail }) => {
+  onOpenSavedApplications: () => void;
+}> = ({ onNavigate, onViewDetail, onOpenSavedApplications }) => {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [recommended, setRecommended] = useState<OpportunityCardResponse>(FALLBACK_RECOMMENDED);
@@ -508,6 +509,16 @@ export const OpportunityPage: React.FC<{
         keyboardShouldPersistTaps="handled"
       >
         <HeroSection />
+        <View style={s.myApplicationsRow}>
+          <Pressable
+            onPress={onOpenSavedApplications}
+            style={({ pressed }) => pressed && s.pressed}
+            accessibilityRole="button"
+            accessibilityLabel="My Applications"
+          >
+            <Text style={s.myApplicationsText}>My Applications ›</Text>
+          </Pressable>
+        </View>
         <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
         <FilterBar active={activeFilter} onSelect={setActiveFilter} />
         {showRecommended && (
@@ -587,6 +598,12 @@ const s = StyleSheet.create({
 
   // ── Hero ───────────────────────────────────────────────────────────────────
   heroSection: { gap: Spacing.xs },
+  myApplicationsRow: { alignItems: 'flex-end' },
+  myApplicationsText: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeXS,
+    color: D.secondary,
+  },
   heroTitle: {
     fontFamily: Typography.fontDisplay,
     fontSize: Typography.sizeXL,      // 24sp — standard h1 for mobile
