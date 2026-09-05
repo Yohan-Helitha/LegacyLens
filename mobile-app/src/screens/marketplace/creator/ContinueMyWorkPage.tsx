@@ -12,7 +12,7 @@ import { useMyWorkProgressStore, TOTAL_WORK_STEPS } from '../../../store/myWorkP
 // There's no per-job image field on the backend Job entity (unlike
 // Opportunity's heroImageUrl) — this bundled photo stands in for every job's
 // workspace hero until that field exists.
-const GENERIC_HERO_IMAGE = require('../../../../assets/images/recent-work/blue-rice.jpg');
+const GENERIC_HERO_IMAGE = require('../../../../assets/images/work/traditional-rice-menu.jpg');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -97,9 +97,10 @@ const Stepper: React.FC<{ completedSteps: number }> = ({ completedSteps }) => (
 export const ContinueMyWorkPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
+  onSaveDraft: () => void;
   jobId: string | null;
   initialSteps: number;
-}> = ({ onNavigate, onBack, jobId, initialSteps }) => {
+}> = ({ onNavigate, onBack, onSaveDraft, jobId, initialSteps }) => {
   const id = jobId ?? 'unknown';
 
   const completedSteps = useMyWorkProgressStore((st) => st.getCompletedSteps(id, initialSteps));
@@ -109,6 +110,7 @@ export const ContinueMyWorkPage: React.FC<{
   const removeMaterial = useMyWorkProgressStore((st) => st.removeMaterial);
   const setNote = useMyWorkProgressStore((st) => st.setNote);
   const advance = useMyWorkProgressStore((st) => st.advance);
+  const markSavedAsDraft = useMyWorkProgressStore((st) => st.markSavedAsDraft);
 
   const [saving, setSaving] = useState(false);
 
@@ -146,8 +148,9 @@ export const ContinueMyWorkPage: React.FC<{
   const handleSaveDraft = () => {
     setSaving(true);
     advance(id, initialSteps);
+    markSavedAsDraft(id);
     setSaving(false);
-    Alert.alert('Saved', 'Your progress has been saved as a draft.', [{ text: 'OK', onPress: onBack }]);
+    Alert.alert('Saved', 'Your progress has been saved as a draft.', [{ text: 'OK', onPress: onSaveDraft }]);
   };
 
   return (

@@ -13,6 +13,7 @@ import { OpportunitySchedulePage } from '../screens/marketplace/creator/Opportun
 import { SavedOpportunityApplication } from '../screens/marketplace/creator/SavedOpportunityApplication';
 import { MyWorkList } from '../screens/marketplace/creator/MyWorkList';
 import { ContinueMyWorkPage } from '../screens/marketplace/creator/ContinueMyWorkPage';
+import { SavedCompletedWorkPage } from '../screens/marketplace/creator/SavedCompletedWorkPage';
 import type { NavTab } from '../components/BottomNavBar';
 
 export type CreatorScreen =
@@ -29,7 +30,8 @@ export type CreatorScreen =
   | 'schedule'
   | 'saved-applications'
   | 'my-work'
-  | 'continue-work';
+  | 'continue-work'
+  | 'saved-completed-work';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -127,8 +129,18 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
     setScreen('continue-work');
   };
 
-  /** Called when back arrow / "Save As a Draft" is pressed on ContinueMyWorkPage */
+  /** Called when back arrow is pressed on ContinueMyWorkPage */
   const handleBackToMyWork = () => setScreen('my-work');
+
+  /** Called when "Save As a Draft" is pressed on ContinueMyWorkPage */
+  const handleOpenSavedDrafts = () => setScreen('saved-completed-work');
+
+  /** Called when "View & Edit" is pressed on a draft in SavedCompletedWorkPage */
+  const handleEditWorkDraft = (jobId: string, currentSteps: number) => {
+    setSelectedJobId(jobId);
+    setSelectedJobSteps(currentSteps);
+    setScreen('continue-work');
+  };
 
   /** Called when back arrow is pressed on PaymentHistoryPage */
   const handleBackToDashboard = () => setScreen('dashboard');
@@ -229,8 +241,16 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
         <ContinueMyWorkPage
           onNavigate={handleNavigate}
           onBack={handleBackToMyWork}
+          onSaveDraft={handleOpenSavedDrafts}
           jobId={selectedJobId}
           initialSteps={selectedJobSteps}
+        />
+      )}
+      {screen === 'saved-completed-work' && (
+        <SavedCompletedWorkPage
+          onNavigate={handleNavigate}
+          onBack={handleBackToMyWork}
+          onEditDraft={handleEditWorkDraft}
         />
       )}
     </>

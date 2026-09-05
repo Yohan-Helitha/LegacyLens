@@ -45,6 +45,8 @@ interface MyWorkProgressState {
   completedStepsByJobId: Record<string, number>;
   materialsByJobId: Record<string, WorkMaterial[]>;
   noteByJobId: Record<string, string>;
+  /** Job ids explicitly saved as a draft from ContinueMyWorkPage's "Save As a Draft" — shown on SavedCompletedWorkPage. */
+  savedDraftJobIds: string[];
 
   getCompletedSteps: (jobId: string, fallback: number) => number;
   advance: (jobId: string, fallback: number) => void;
@@ -55,12 +57,22 @@ interface MyWorkProgressState {
 
   getNote: (jobId: string) => string;
   setNote: (jobId: string, text: string) => void;
+
+  /** Adds a job to the saved-drafts list if it isn't already there. */
+  markSavedAsDraft: (jobId: string) => void;
+  /** Marks a draft's work fully done (Submit reached) and removes it from the drafts list — its materials/notes stay intact. */
+  submitDraftForReview: (jobId: string) => void;
+  /** Discards a draft entirely: clears its progress, materials, and notes, and removes it from the drafts list. */
+  deleteDraft: (jobId: string) => void;
 }
 
 export const useMyWorkProgressStore = create<MyWorkProgressState>()((set, get) => ({
   completedStepsByJobId: {},
   materialsByJobId: INITIAL_MATERIALS,
   noteByJobId: INITIAL_NOTES,
+  // Seeded so SavedCompletedWorkPage isn't empty on first launch, matching
+  // the demo materials/note already seeded for this same fallback job.
+  savedDraftJobIds: [DEMO_JOB_ID],
 
   getCompletedSteps: (jobId, fallback) => get().completedStepsByJobId[jobId] ?? fallback,
 
@@ -96,5 +108,34 @@ export const useMyWorkProgressStore = create<MyWorkProgressState>()((set, get) =
 
   setNote: (jobId, text) => {
     set((state) => ({ noteByJobId: { ...state.noteByJobId, [jobId]: text } }));
+  },
+
+  markSavedAsDraft: (jobId) => {
+    set((state) =>
+      state.savedDraftJobIds.includes(jobId)
+        ? state
+        : { savedDraftJobIds: [...state.savedDraftJobIds, jobId] },
+    );
+  },
+
+  submitDraftForReview: (jobId) => {
+    set((state) => ({
+      completedStepsByJobId: { ...state.completedStepsByJobId, [jobId]: TOTAL_WORK_STEPS },
+      savedDraftJobIds: state.savedDraftJobIds.filter((id) => id !== jobId),
+    }));
+  },
+
+  deleteDraft: (jobId) => {
+    set((state) => {
+      const { [jobId]: _removedSteps, ...restSteps } = state.completedStepsByJobId;
+      const { [jobId]: _removedMaterials, ...restMaterials } = state.materialsByJobId;
+      const { [jobId]: _removedNote, ...restNotes } = state.noteByJobId;
+      return {
+        completedStepsByJobId: restSteps,
+        materialsByJobId: restMaterials,
+        noteByJobId: restNotes,
+        savedDraftJobIds: state.savedDraftJobIds.filter((id) => id !== jobId),
+      };
+    });
   },
 }));
