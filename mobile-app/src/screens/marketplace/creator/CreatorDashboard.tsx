@@ -320,8 +320,9 @@ const TabPill: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 // ActiveJobCard
 // ─────────────────────────────────────────────────────────────────────────────
-const ActiveJobCard: React.FC<{ item: ActiveJobItem }> = ({ item }) => (
+const ActiveJobCard: React.FC<{ item: ActiveJobItem; onPress: () => void }> = ({ item, onPress }) => (
   <Pressable
+    onPress={onPress}
     style={({ pressed }) => [s.jobCard, pressed && s.jobCardPressed]}
     accessibilityRole="button"
     accessibilityLabel={`${item.title} — ${item.statusLabel}`}
@@ -478,7 +479,8 @@ export const CreatorDashboard: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onOpenHistory: () => void;
   onOpenSchedule: () => void;
-}> = ({ onNavigate, onOpenHistory, onOpenSchedule }) => {
+  onOpenMyWork: () => void;
+}> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork }) => {
   const [activeTab, setActiveTab] = useState<JobTab>('active');
   const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
   const [reviews, setReviews] = useState<ReviewItem[]>(FALLBACK_REVIEWS);
@@ -601,7 +603,7 @@ export const CreatorDashboard: React.FC<{
           {currentJobs && currentJobs.length > 0 ? (
             <View style={{ gap: Spacing.sm }}>
               {currentJobs.map((item) => (
-                <ActiveJobCard key={item.id} item={item} />
+                <ActiveJobCard key={item.id} item={item} onPress={onOpenMyWork} />
               ))}
             </View>
           ) : (

@@ -11,6 +11,7 @@ import { CreatorProfile } from '../screens/marketplace/creator/CreatorProfile';
 import { OpportunityApplicationForm } from '../screens/marketplace/creator/OpportunityApplicationForm';
 import { OpportunitySchedulePage } from '../screens/marketplace/creator/OpportunitySchedulePage';
 import { SavedOpportunityApplication } from '../screens/marketplace/creator/SavedOpportunityApplication';
+import { MyWorkList } from '../screens/marketplace/creator/MyWorkList';
 import type { NavTab } from '../components/BottomNavBar';
 
 export type CreatorScreen =
@@ -25,7 +26,8 @@ export type CreatorScreen =
   | 'profile'
   | 'apply-opportunity'
   | 'schedule'
-  | 'saved-applications';
+  | 'saved-applications'
+  | 'my-work';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -111,6 +113,9 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   /** Called when the "Schedule" tab is pressed on CreatorDashboard */
   const handleOpenSchedule = () => setScreen('schedule');
 
+  /** Called when a job card is pressed on CreatorDashboard */
+  const handleOpenMyWork = () => setScreen('my-work');
+
   /** Called when back arrow is pressed on PaymentHistoryPage */
   const handleBackToDashboard = () => setScreen('dashboard');
 
@@ -138,6 +143,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onNavigate={handleNavigate}
           onOpenHistory={handleOpenHistory}
           onOpenSchedule={handleOpenSchedule}
+          onOpenMyWork={handleOpenMyWork}
         />
       )}
       {screen === 'market' && (
@@ -197,6 +203,9 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
       {screen === 'profile' && <CreatorProfile onNavigate={handleNavigate} />}
       {screen === 'schedule' && (
         <OpportunitySchedulePage onNavigate={handleNavigate} onBack={handleBackToDashboard} />
+      )}
+      {screen === 'my-work' && (
+        <MyWorkList onNavigate={handleNavigate} onBack={handleBackToDashboard} />
       )}
     </>
   );
