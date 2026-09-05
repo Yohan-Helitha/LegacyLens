@@ -188,13 +188,13 @@ const WorkCard: React.FC<{
 export const MyWorkList: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
-}> = ({ onNavigate, onBack }) => {
+  onContinueWork: (jobId: string, currentSteps: number) => void;
+}> = ({ onNavigate, onBack, onContinueWork }) => {
   const [activeJobs, setActiveJobs] = useState<JobResponse[]>(FALLBACK_ACTIVE_JOBS);
   const [completedJobs, setCompletedJobs] = useState<JobResponse[]>([]);
   const [activeTab, setActiveTab] = useState<WorkTab>('active');
 
   const completedStepsByJobId = useMyWorkProgressStore((st) => st.completedStepsByJobId);
-  const advance = useMyWorkProgressStore((st) => st.advance);
 
   useEffect(() => {
     creatorDashboardApi.getJobs('ACTIVE').then(setActiveJobs).catch(() => {});
@@ -249,7 +249,7 @@ export const MyWorkList: React.FC<{
                 job={job}
                 completedSteps={steps}
                 variant="continue"
-                onContinue={() => advance(job.id, steps)}
+                onContinue={() => onContinueWork(job.id, steps)}
                 onView={() => handleView(job.title)}
               />
             ))

@@ -12,6 +12,7 @@ import { OpportunityApplicationForm } from '../screens/marketplace/creator/Oppor
 import { OpportunitySchedulePage } from '../screens/marketplace/creator/OpportunitySchedulePage';
 import { SavedOpportunityApplication } from '../screens/marketplace/creator/SavedOpportunityApplication';
 import { MyWorkList } from '../screens/marketplace/creator/MyWorkList';
+import { ContinueMyWorkPage } from '../screens/marketplace/creator/ContinueMyWorkPage';
 import type { NavTab } from '../components/BottomNavBar';
 
 export type CreatorScreen =
@@ -27,7 +28,8 @@ export type CreatorScreen =
   | 'apply-opportunity'
   | 'schedule'
   | 'saved-applications'
-  | 'my-work';
+  | 'my-work'
+  | 'continue-work';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -52,6 +54,8 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [selectedJobSteps, setSelectedJobSteps] = useState(0);
 
   /**
    * Shared navigation handler passed to all screens.
@@ -115,6 +119,16 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
 
   /** Called when a job card is pressed on CreatorDashboard */
   const handleOpenMyWork = () => setScreen('my-work');
+
+  /** Called when "Continue Work" is pressed on a card in MyWorkList */
+  const handleContinueWork = (jobId: string, currentSteps: number) => {
+    setSelectedJobId(jobId);
+    setSelectedJobSteps(currentSteps);
+    setScreen('continue-work');
+  };
+
+  /** Called when back arrow / "Save As a Draft" is pressed on ContinueMyWorkPage */
+  const handleBackToMyWork = () => setScreen('my-work');
 
   /** Called when back arrow is pressed on PaymentHistoryPage */
   const handleBackToDashboard = () => setScreen('dashboard');
@@ -205,7 +219,19 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
         <OpportunitySchedulePage onNavigate={handleNavigate} onBack={handleBackToDashboard} />
       )}
       {screen === 'my-work' && (
-        <MyWorkList onNavigate={handleNavigate} onBack={handleBackToDashboard} />
+        <MyWorkList
+          onNavigate={handleNavigate}
+          onBack={handleBackToDashboard}
+          onContinueWork={handleContinueWork}
+        />
+      )}
+      {screen === 'continue-work' && (
+        <ContinueMyWorkPage
+          onNavigate={handleNavigate}
+          onBack={handleBackToMyWork}
+          jobId={selectedJobId}
+          initialSteps={selectedJobSteps}
+        />
       )}
     </>
   );
