@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,9 +18,11 @@ import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import { profileApi } from '../../../services/api/profileApi';
+import { cityApi } from '../../../services/api/cityApi';
 import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
 import { ApiError } from '../../../services/api/client';
 import type { OpportunityDetailResponse } from '../../../types/opportunity';
+import type { City } from '../../../types/city';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -189,7 +192,7 @@ export const OpportunityApplicationForm: React.FC<{
   const [detail, setDetail] = useState<OpportunityDetailResponse | null>(null);
   const [name, setName] = useState<string | null>(null);
   const [phone, setPhone] = useState<string | null>(null);
-  const [city, setCity] = useState<string | null>(null);
+  const [cityObj, setCityObj] = useState<City | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [selectedSkills, setSelectedSkills] = useState<Record<string, boolean>>({});
@@ -198,6 +201,16 @@ export const OpportunityApplicationForm: React.FC<{
   const [availabilityConfirmed, setAvailabilityConfirmed] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
+
+  // "Edit Your Details" — full name + city only. Phone/NIC stay on their own
+  // OTP-verified change flow (see AccountSecurityController), so this form
+  // never touches them directly.
+  const [editVisible, setEditVisible] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editCityId, setEditCityId] = useState<number | null>(null);
+  const [cities, setCities] = useState<City[]>([]);
+  const [cityListOpen, setCityListOpen] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     if (!opportunityId) {
@@ -232,7 +245,7 @@ export const OpportunityApplicationForm: React.FC<{
       .then((me) => {
         setName(me.fullName);
         setPhone(me.phoneNumber ? maskPhone(me.phoneNumber) : '—');
-        setCity(me.city?.name ?? '—');
+        setCityObj(me.city);
       })
       .catch((err) => setLoadError(err instanceof ApiError ? err.message : 'Could not load your profile.'));
   }, []);
@@ -242,6 +255,36 @@ export const OpportunityApplicationForm: React.FC<{
 
   const toggleEquipment = (item: string) =>
     setSelectedEquipment((prev) => ({ ...prev, [item]: !prev[item] }));
+
+  const openEditDetails = () => {
+    setEditName(name ?? '');
+    setEditCityId(cityObj?.id ?? null);
+    setCityListOpen(false);
+    setEditVisible(true);
+    if (cities.length === 0) {
+      cityApi.getAll().then(setCities).catch(() => {});
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) {
+      Alert.alert('Name required', 'Please enter your full name.');
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      const updated = await profileApi.updateMe({ fullName: editName.trim(), cityId: editCityId });
+      setName(updated.fullName);
+      setCityObj(updated.city);
+      setEditVisible(false);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not update your details.';
+      Alert.alert('Update failed', message);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!opportunityId) {
@@ -285,7 +328,8 @@ export const OpportunityApplicationForm: React.FC<{
     );
   }
 
-  if (!detail || name === null || phone === null || city === null) {
+  // cityObj is intentionally excluded here — a creator with no city set is a valid loaded state, not a pending fetch.
+  if (!detail || name === null || phone === null) {
     return (
       <SafeAreaView style={s.safeArea} edges={['top'] as const}>
         <StatusBar style="dark" />
@@ -365,11 +409,18 @@ export const OpportunityApplicationForm: React.FC<{
         <View style={s.card}>
           <View style={s.cardHeaderRow}>
             <Text style={s.cardTitle}>Your Details</Text>
-            <Text style={s.editProfileText}>Edit Profile</Text>
+            <Pressable
+              onPress={openEditDetails}
+              style={({ pressed }) => pressed && s.pressed}
+              accessibilityRole="button"
+              accessibilityLabel="Edit your details"
+            >
+              <Text style={s.editProfileText}>Edit Profile</Text>
+            </Pressable>
           </View>
           <Text style={s.detailsName}>{name}</Text>
           <Text style={s.detailsMuted}>{phone}</Text>
-          <Text style={s.detailsMuted}>{city}</Text>
+          <Text style={s.detailsMuted}>{cityObj?.name ?? 'No city set'}</Text>
         </View>
 
         {/* Relevant Skill */}
@@ -477,6 +528,86 @@ export const OpportunityApplicationForm: React.FC<{
       </ScrollView>
 
       <BottomNavBar activeTab="market" onNavigate={onNavigate} />
+
+      <Modal
+        visible={editVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditVisible(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>Edit Your Details</Text>
+
+            <Text style={s.modalLabel}>Full Name</Text>
+            <TextInput
+              style={s.modalInput}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Your full name"
+              placeholderTextColor={D.onSurfaceVariant}
+            />
+
+            <Text style={s.modalLabel}>City</Text>
+            <Pressable
+              style={({ pressed }) => [s.citySelector, pressed && s.pressed]}
+              onPress={() => setCityListOpen((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel="Select your city"
+            >
+              <Text style={s.citySelectorText}>
+                {cities.find((c) => c.id === editCityId)?.name ?? 'Select your city'}
+              </Text>
+            </Pressable>
+            {cityListOpen && (
+              <ScrollView style={s.cityListBox} nestedScrollEnabled>
+                {cities.map((c) => (
+                  <Pressable
+                    key={c.id}
+                    style={({ pressed }) => [s.cityListRow, pressed && s.pressed]}
+                    onPress={() => {
+                      setEditCityId(c.id);
+                      setCityListOpen(false);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={c.name}
+                  >
+                    <Text style={[s.cityListRowText, c.id === editCityId && s.cityListRowTextActive]}>
+                      {c.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
+            <Text style={s.modalLabel}>Phone Number</Text>
+            <Text style={s.modalPhoneReadOnly}>{phone}</Text>
+            <Text style={s.modalPhoneNote}>
+              Phone numbers are changed separately with SMS verification, from Profile → Privacy & Security.
+            </Text>
+
+            <View style={s.modalBtnRow}>
+              <Pressable
+                onPress={() => setEditVisible(false)}
+                style={({ pressed }) => [s.modalBtnCancel, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel editing"
+              >
+                <Text style={s.modalBtnCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleSaveProfile}
+                disabled={savingProfile}
+                style={({ pressed }) => [s.modalBtnSave, pressed && s.saveBtnPressed, savingProfile && { opacity: 0.7 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Save your details"
+              >
+                <Text style={s.modalBtnSaveText}>{savingProfile ? 'Saving…' : 'Save'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -639,4 +770,91 @@ const s = StyleSheet.create({
 
   // ── Press feedback ───────────────────────────────────────────────────────
   pressed: { opacity: 0.75 },
+
+  // ── Edit Your Details modal ─────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.md,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.xl,
+    padding: Spacing.md,
+    gap: 6,
+  },
+  modalTitle: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeMD,
+    color: D.onSurface,
+    marginBottom: 4,
+  },
+  modalLabel: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeXS,
+    color: D.onSurfaceVariant,
+    marginTop: 8,
+  },
+  modalInput: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    borderRadius: Radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    color: D.onSurface,
+  },
+  citySelector: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    borderRadius: Radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  citySelectorText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurface },
+  cityListBox: {
+    maxHeight: 160,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    borderRadius: Radii.lg,
+    marginTop: 6,
+  },
+  cityListRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: D.surfaceVariant,
+  },
+  cityListRowText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurface },
+  cityListRowTextActive: { fontFamily: Typography.fontBodySemi, color: D.primary },
+  modalPhoneReadOnly: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeSM,
+    color: D.onSurface,
+    paddingVertical: 4,
+  },
+  modalPhoneNote: {
+    fontFamily: Typography.fontBody,
+    fontSize: 11,
+    lineHeight: 16,
+    color: D.onSurfaceVariant,
+  },
+  modalBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.md },
+  modalBtnCancel: {
+    paddingVertical: 10, paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full, borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+    alignItems: 'center', justifyContent: 'center', minHeight: 44,
+  },
+  modalBtnCancelText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
+  modalBtnSave: {
+    paddingVertical: 10, paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full, backgroundColor: D.primary,
+    alignItems: 'center', justifyContent: 'center', minHeight: 44,
+  },
+  modalBtnSaveText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
 });
