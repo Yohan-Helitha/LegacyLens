@@ -186,7 +186,6 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
         <OpportunityPage
           onNavigate={handleNavigate}
           onViewDetail={handleViewDetail}
-          onOpenSavedApplications={handleOpenSavedApplications}
         />
       )}
       {screen === 'detail' && (
