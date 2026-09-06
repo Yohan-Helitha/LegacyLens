@@ -192,10 +192,13 @@ export const OpportunityApplicationForm: React.FC<{
   onSave: () => void;
   opportunityId: string | null;
 }> = ({ onNavigate, onBack, onSave, opportunityId }) => {
-  const [detail, setDetail] = useState<OpportunityDetailResponse>(FALLBACK_DETAIL);
-  const [name, setName] = useState(FALLBACK_NAME);
-  const [phone, setPhone] = useState(FALLBACK_PHONE);
-  const [city, setCity] = useState(FALLBACK_CITY);
+  // Deliberately null (not FALLBACK_*) until each fetch settles — rendering
+  // the fallback immediately then swapping to real data a moment later
+  // produced a visible "flash" of the wrong opportunity/profile.
+  const [detail, setDetail] = useState<OpportunityDetailResponse | null>(null);
+  const [name, setName] = useState<string | null>(null);
+  const [phone, setPhone] = useState<string | null>(null);
+  const [city, setCity] = useState<string | null>(null);
 
   const [selectedSkills, setSelectedSkills] = useState<Record<string, boolean>>({});
   const [experienceText, setExperienceText] = useState('');
@@ -205,8 +208,14 @@ export const OpportunityApplicationForm: React.FC<{
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!opportunityId) return;
-    opportunityApi.getById(opportunityId).then(setDetail).catch(() => {});
+    if (!opportunityId) {
+      setDetail(FALLBACK_DETAIL);
+      return;
+    }
+    opportunityApi
+      .getById(opportunityId)
+      .then(setDetail)
+      .catch(() => setDetail(FALLBACK_DETAIL));
 
     // A creator applies to a given opportunity at most once — if they
     // already have a draft (or even a submitted application) for it, restore
@@ -229,11 +238,15 @@ export const OpportunityApplicationForm: React.FC<{
     profileApi
       .getMe()
       .then((me) => {
-        if (me.fullName) setName(me.fullName);
-        if (me.phoneNumber) setPhone(maskPhone(me.phoneNumber));
-        if (me.city?.name) setCity(me.city.name);
+        setName(me.fullName || FALLBACK_NAME);
+        setPhone(me.phoneNumber ? maskPhone(me.phoneNumber) : FALLBACK_PHONE);
+        setCity(me.city?.name || FALLBACK_CITY);
       })
-      .catch(() => {});
+      .catch(() => {
+        setName(FALLBACK_NAME);
+        setPhone(FALLBACK_PHONE);
+        setCity(FALLBACK_CITY);
+      });
   }, []);
 
   const toggleSkill = (skill: string) =>
@@ -268,6 +281,22 @@ export const OpportunityApplicationForm: React.FC<{
       setSaving(false);
     }
   };
+
+  // Held back until every fetch above settles — showing the fallback
+  // opportunity/profile immediately, then swapping to the real one a moment
+  // later, produced a visible flash of the wrong data.
+  if (!detail || name === null || phone === null || city === null) {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+        <StatusBar style="dark" />
+        <TopAppBar onBack={onBack} />
+        <View style={s.loadingWrap}>
+          <Text style={s.loadingText}>Loading…</Text>
+        </View>
+        <BottomNavBar activeTab="market" onNavigate={onNavigate} />
+      </SafeAreaView>
+    );
+  }
 
   const availabilityText = detail.scheduledDate
     ? `${formatScheduledDate(detail.scheduledDate)}${detail.timeWindowText ? `, ${detail.timeWindowText}` : ''}`
@@ -504,6 +533,9 @@ const s = StyleSheet.create({
     fontSize: Typography.sizeMD,
     color: D.onSurface,
   },
+
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loadingText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
 
   // ── Section cards ────────────────────────────────────────────────────────
   card: {
