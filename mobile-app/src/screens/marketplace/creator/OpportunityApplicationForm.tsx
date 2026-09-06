@@ -42,32 +42,6 @@ const D = {
   onSurfaceVariant: '#4a5568',
 } as const;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Fallback data — shown while opportunityId is unset or the fetch fails, so
-// the screen never renders blank.
-// ─────────────────────────────────────────────────────────────────────────────
-const FALLBACK_DETAIL: OpportunityDetailResponse = {
-  id: '',
-  title: 'Traditional Recipe Documentation',
-  description: '',
-  heroImageUrl: 'local:fisheries',
-  elderName: 'Mrs. Kamala Wijesingha',
-  elderAvatarUrl: null,
-  elderVerified: true,
-  location: 'Matara',
-  scheduledDate: '2026-08-28T00:00:00',
-  durationText: null,
-  offeredAmount: 2500,
-  timeWindowText: '10.00 A.M - 2.00 P.M',
-  language: null,
-  preservationGoal: null,
-  tasks: [],
-};
-
-const FALLBACK_NAME = 'Arani Inothma';
-const FALLBACK_PHONE = '07X XXX XXXX';
-const FALLBACK_CITY = 'Matara';
-
 /**
  * The opportunity doesn't carry a "required skills" or "equipment" field on
  * the backend yet, so these checklists are static/illustrative for now —
@@ -192,13 +166,13 @@ export const OpportunityApplicationForm: React.FC<{
   onSave: () => void;
   opportunityId: string | null;
 }> = ({ onNavigate, onBack, onSave, opportunityId }) => {
-  // Deliberately null (not FALLBACK_*) until each fetch settles — rendering
-  // the fallback immediately then swapping to real data a moment later
-  // produced a visible "flash" of the wrong opportunity/profile.
+  // Null until each real fetch resolves — no fallback/mock data; a genuine
+  // failure surfaces as an error state instead of invented content.
   const [detail, setDetail] = useState<OpportunityDetailResponse | null>(null);
   const [name, setName] = useState<string | null>(null);
   const [phone, setPhone] = useState<string | null>(null);
   const [city, setCity] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [selectedSkills, setSelectedSkills] = useState<Record<string, boolean>>({});
   const [experienceText, setExperienceText] = useState('');
@@ -209,13 +183,13 @@ export const OpportunityApplicationForm: React.FC<{
 
   useEffect(() => {
     if (!opportunityId) {
-      setDetail(FALLBACK_DETAIL);
+      setLoadError('No opportunity was selected.');
       return;
     }
     opportunityApi
       .getById(opportunityId)
       .then(setDetail)
-      .catch(() => setDetail(FALLBACK_DETAIL));
+      .catch((err) => setLoadError(err instanceof ApiError ? err.message : 'Could not load this opportunity.'));
 
     // A creator applies to a given opportunity at most once — if they
     // already have a draft (or even a submitted application) for it, restore
@@ -238,15 +212,11 @@ export const OpportunityApplicationForm: React.FC<{
     profileApi
       .getMe()
       .then((me) => {
-        setName(me.fullName || FALLBACK_NAME);
-        setPhone(me.phoneNumber ? maskPhone(me.phoneNumber) : FALLBACK_PHONE);
-        setCity(me.city?.name || FALLBACK_CITY);
+        setName(me.fullName);
+        setPhone(me.phoneNumber ? maskPhone(me.phoneNumber) : '—');
+        setCity(me.city?.name ?? '—');
       })
-      .catch(() => {
-        setName(FALLBACK_NAME);
-        setPhone(FALLBACK_PHONE);
-        setCity(FALLBACK_CITY);
-      });
+      .catch((err) => setLoadError(err instanceof ApiError ? err.message : 'Could not load your profile.'));
   }, []);
 
   const toggleSkill = (skill: string) =>
@@ -282,9 +252,21 @@ export const OpportunityApplicationForm: React.FC<{
     }
   };
 
-  // Held back until every fetch above settles — showing the fallback
-  // opportunity/profile immediately, then swapping to the real one a moment
-  // later, produced a visible flash of the wrong data.
+  // Held back until every fetch above settles — real data only, no
+  // fallback/mock content, and a genuine failure shows as an error state.
+  if (loadError) {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+        <StatusBar style="dark" />
+        <TopAppBar onBack={onBack} />
+        <View style={s.loadingWrap}>
+          <Text style={s.loadingText}>{loadError}</Text>
+        </View>
+        <BottomNavBar activeTab="market" onNavigate={onNavigate} />
+      </SafeAreaView>
+    );
+  }
+
   if (!detail || name === null || phone === null || city === null) {
     return (
       <SafeAreaView style={s.safeArea} edges={['top'] as const}>
