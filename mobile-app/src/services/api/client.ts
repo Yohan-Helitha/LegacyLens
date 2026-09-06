@@ -89,3 +89,9 @@ export async function apiGet<TResponse>(url: string): Promise<TResponse> {
   const response = await apiClient.get<ApiEnvelope<TResponse>>(url);
   return response.data.data as TResponse;
 }
+
+/** DELETE helper that unwraps the ApiResponse envelope's `data` field. */
+export async function apiDelete<TResponse = void>(url: string): Promise<TResponse> {
+  const response = await apiClient.delete<ApiEnvelope<TResponse>>(url);
+  return response.data.data as TResponse;
+}

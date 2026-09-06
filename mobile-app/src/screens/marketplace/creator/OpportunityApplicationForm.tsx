@@ -17,9 +17,10 @@ import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import { profileApi } from '../../../services/api/profileApi';
+import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
+import { ApiError } from '../../../services/api/client';
 import type { OpportunityDetailResponse } from '../../../types/opportunity';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
-import { useOpportunityApplicationStore } from '../../../store/opportunityApplicationStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -190,9 +191,7 @@ export const OpportunityApplicationForm: React.FC<{
   onBack: () => void;
   onSave: () => void;
   opportunityId: string | null;
-  /** Editing an existing saved draft, opened from SavedOpportunityApplication's "Edit" button. */
-  draftId?: string | null;
-}> = ({ onNavigate, onBack, onSave, opportunityId, draftId }) => {
+}> = ({ onNavigate, onBack, onSave, opportunityId }) => {
   const [detail, setDetail] = useState<OpportunityDetailResponse>(FALLBACK_DETAIL);
   const [name, setName] = useState(FALLBACK_NAME);
   const [phone, setPhone] = useState(FALLBACK_PHONE);
@@ -205,38 +204,26 @@ export const OpportunityApplicationForm: React.FC<{
   const [selectedEquipment, setSelectedEquipment] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
 
-  const saveDraft = useOpportunityApplicationStore((s) => s.saveDraft);
-  const getById = useOpportunityApplicationStore((s) => s.getById);
-
   useEffect(() => {
-    // Editing an existing draft restores its own snapshot instead of
-    // re-fetching the opportunity — the draft may be a demo entry with no
-    // real opportunityId, and editing shouldn't silently overwrite what the
-    // creator already typed with fresh server data.
-    if (draftId) {
-      const existing = getById(draftId);
-      if (existing) {
-        setDetail((prev) => ({
-          ...prev,
-          title: existing.title,
-          elderName: existing.elderName,
-          location: existing.location,
-          heroImageUrl: existing.heroImageUrl,
-          timeWindowText: existing.timeWindowText,
-        }));
-        setSelectedSkills(Object.fromEntries(existing.formState.selectedSkills.map((k) => [k, true])));
-        setExperienceText(existing.formState.experienceText);
-        setApproachText(existing.formState.approachText);
-        setAvailabilityConfirmed(existing.formState.availabilityConfirmed);
-        setSelectedEquipment(Object.fromEntries(existing.formState.selectedEquipment.map((k) => [k, true])));
-      }
-      return;
-    }
+    if (!opportunityId) return;
+    opportunityApi.getById(opportunityId).then(setDetail).catch(() => {});
 
-    if (opportunityId) {
-      opportunityApi.getById(opportunityId).then(setDetail).catch(() => {});
-    }
-  }, [opportunityId, draftId, getById]);
+    // A creator applies to a given opportunity at most once — if they
+    // already have a draft (or even a submitted application) for it, restore
+    // what they'd already filled in instead of starting blank. Not found
+    // (null data, no throw) simply means they're starting fresh.
+    opportunityApplicationApi
+      .getByOpportunity(opportunityId)
+      .then((existing) => {
+        if (!existing) return;
+        setSelectedSkills(Object.fromEntries(existing.skills.map((k) => [k, true])));
+        setExperienceText(existing.experienceText ?? '');
+        setApproachText(existing.approachText ?? '');
+        setAvailabilityConfirmed(existing.availabilityConfirmed);
+        setSelectedEquipment(Object.fromEntries(existing.equipment.map((k) => [k, true])));
+      })
+      .catch(() => {});
+  }, [opportunityId]);
 
   useEffect(() => {
     profileApi
@@ -255,35 +242,31 @@ export const OpportunityApplicationForm: React.FC<{
   const toggleEquipment = (item: string) =>
     setSelectedEquipment((prev) => ({ ...prev, [item]: !prev[item] }));
 
-  // There's no "submit application" endpoint on the backend yet — Save
-  // persists a local SAVED draft (see opportunityApplicationStore) and takes
-  // the creator to their Saved Applications list, same as the real flow will
-  // once that backend slice exists.
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!opportunityId) {
+      Alert.alert('Cannot save', 'No opportunity is selected.');
+      return;
+    }
+
     setSaving(true);
-    saveDraft(
-      {
+    try {
+      await opportunityApplicationApi.saveDraft({
         opportunityId,
-        title: detail.title,
-        elderName: detail.elderName,
-        location: detail.location,
-        heroImageUrl: detail.heroImageUrl,
-        scheduledDateText: detail.scheduledDate ? formatScheduledDate(detail.scheduledDate) : null,
-        timeWindowText: detail.timeWindowText,
-        formState: {
-          selectedSkills: Object.keys(selectedSkills).filter((k) => selectedSkills[k]),
-          experienceText,
-          approachText,
-          availabilityConfirmed,
-          selectedEquipment: Object.keys(selectedEquipment).filter((k) => selectedEquipment[k]),
-        },
-      },
-      draftId ?? undefined,
-    );
-    setSaving(false);
-    Alert.alert('Application saved', 'Your application draft has been saved.', [
-      { text: 'OK', onPress: onSave },
-    ]);
+        skills: Object.keys(selectedSkills).filter((k) => selectedSkills[k]),
+        experienceText,
+        approachText,
+        availabilityConfirmed,
+        equipment: Object.keys(selectedEquipment).filter((k) => selectedEquipment[k]),
+      });
+      Alert.alert('Application saved', 'Your application draft has been saved.', [
+        { text: 'OK', onPress: onSave },
+      ]);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not save your application.';
+      Alert.alert('Save failed', message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const availabilityText = detail.scheduledDate

@@ -88,6 +88,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidApplicationStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidApplicationState(InvalidApplicationStateException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidFileUploadException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidFileUpload(InvalidFileUploadException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ex.getMessage()));

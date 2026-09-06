@@ -11,8 +11,8 @@ import { create } from 'zustand';
  * (Submit) doesn't mark the job COMPLETED on the backend; it just moves it
  * into MyWorkList's "Submitted" tab, awaiting the knowledge holder's real
  * review — a genuine completion still has to come from the backend's own
- * COMPLETED status. Resets when the app restarts, same as
- * opportunityApplicationStore.
+ * COMPLETED status. Resets when the app restarts — there's no backend
+ * endpoint for any of this yet.
  */
 export const TOTAL_WORK_STEPS = 4;
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -6,10 +6,9 @@ import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
-import {
-  useOpportunityApplicationStore,
-  type OpportunityApplicationRecord,
-} from '../../../store/opportunityApplicationStore';
+import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
+import { ApiError } from '../../../services/api/client';
+import type { OpportunityApplicationResponse } from '../../../types/opportunityApplication';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -28,6 +27,11 @@ const D = {
 
 function formatSavedDate(iso: string): string {
   return `Saved ${new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+}
+
+function formatScheduledDate(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -96,7 +100,7 @@ const StatusBadge: React.FC<{ label: string }> = ({ label }) => (
   </View>
 );
 
-const DetailRows: React.FC<{ record: OpportunityApplicationRecord }> = ({ record }) => (
+const DetailRows: React.FC<{ record: OpportunityApplicationResponse }> = ({ record }) => (
   <View style={{ gap: 6 }}>
     <View style={s.infoRow}>
       <PersonIcon />
@@ -111,7 +115,7 @@ const DetailRows: React.FC<{ record: OpportunityApplicationRecord }> = ({ record
     <View style={s.dateTimeRow}>
       <View style={s.infoRow}>
         <CalendarIcon />
-        <Text style={s.infoTextStrong}>{record.scheduledDateText ?? '—'}</Text>
+        <Text style={s.infoTextStrong}>{formatScheduledDate(record.scheduledDate) ?? '—'}</Text>
       </View>
       {record.timeWindowText && <Text style={s.infoTextStrong}>{record.timeWindowText}</Text>}
     </View>
@@ -124,37 +128,60 @@ const DetailRows: React.FC<{ record: OpportunityApplicationRecord }> = ({ record
 export const SavedOpportunityApplication: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
-  onEditDraft: (draftId: string, opportunityId: string | null) => void;
+  onEditDraft: (opportunityId: string) => void;
   onViewOpportunity: (opportunityId: string) => void;
 }> = ({ onNavigate, onBack, onEditDraft, onViewOpportunity }) => {
-  const applications = useOpportunityApplicationStore((s) => s.applications);
-  const submitApplication = useOpportunityApplicationStore((s) => s.submitApplication);
-  const removeApplication = useOpportunityApplicationStore((s) => s.removeApplication);
+  const [applications, setApplications] = useState<OpportunityApplicationResponse[]>([]);
+
+  const loadApplications = useCallback(() => {
+    opportunityApplicationApi.getMyApplications().then(setApplications).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadApplications();
+  }, [loadApplications]);
 
   const saved = applications.filter((a) => a.status === 'SAVED');
   const submitted = applications.filter((a) => a.status === 'PENDING' || a.status === 'APPROVED');
 
-  const confirmDelete = (record: OpportunityApplicationRecord) => {
+  const confirmDelete = (record: OpportunityApplicationResponse) => {
     Alert.alert(
       'Delete this application?',
       `"${record.title}" will be removed${record.status === 'SAVED' ? ' from your saved drafts' : ''}.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => removeApplication(record.id) },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await opportunityApplicationApi.remove(record.id);
+              loadApplications();
+            } catch (err) {
+              const message = err instanceof ApiError ? err.message : 'Could not delete this application.';
+              Alert.alert('Delete failed', message);
+            }
+          },
+        },
       ],
     );
   };
 
-  const handleView = (record: OpportunityApplicationRecord) => {
-    if (record.opportunityId) {
-      onViewOpportunity(record.opportunityId);
-    } else {
-      // Demo entries aren't linked to a real opportunity row.
-      Alert.alert(record.title, 'This is a sample application — no linked opportunity to open yet.');
+  const handleSubmit = async (record: OpportunityApplicationResponse) => {
+    try {
+      await opportunityApplicationApi.submit(record.id);
+      loadApplications();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not submit this application.';
+      Alert.alert('Submit failed', message);
     }
   };
 
-  const handleBook = (record: OpportunityApplicationRecord) => {
+  const handleView = (record: OpportunityApplicationResponse) => {
+    onViewOpportunity(record.opportunityId);
+  };
+
+  const handleBook = (record: OpportunityApplicationResponse) => {
     // There's no real booking/assignment backend yet — this just confirms
     // the intent locally, same stopgap used for the schedule page's "View".
     Alert.alert('Booking requested', `The knowledge holder will confirm your booking for "${record.title}".`);
@@ -194,7 +221,7 @@ export const SavedOpportunityApplication: React.FC<{
                 <View style={s.actionsRow}>
                   <View style={s.actionsLeft}>
                     <Pressable
-                      onPress={() => onEditDraft(record.id, record.opportunityId)}
+                      onPress={() => onEditDraft(record.opportunityId)}
                       style={({ pressed }) => [s.outlineBtn, pressed && s.pressed]}
                       accessibilityRole="button"
                       accessibilityLabel={`Edit ${record.title}`}
@@ -202,7 +229,7 @@ export const SavedOpportunityApplication: React.FC<{
                       <Text style={s.outlineBtnText}>Edit</Text>
                     </Pressable>
                     <Pressable
-                      onPress={() => submitApplication(record.id)}
+                      onPress={() => handleSubmit(record)}
                       style={({ pressed }) => [s.fillBtn, pressed && s.pressed]}
                       accessibilityRole="button"
                       accessibilityLabel={`Submit ${record.title}`}

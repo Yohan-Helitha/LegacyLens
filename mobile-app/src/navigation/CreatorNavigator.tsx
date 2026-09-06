@@ -57,7 +57,6 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const [screen, setScreen] = useState<CreatorScreen>(initialScreen);
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
-  const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [selectedJobSteps, setSelectedJobSteps] = useState(0);
 
@@ -82,10 +81,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleBack = () => setScreen('market');
 
   /** Called when the "Apply" button is pressed on OpportunityDetailPage */
-  const handleApplyToOpportunity = () => {
-    setSelectedDraftId(null);
-    setScreen('apply-opportunity');
-  };
+  const handleApplyToOpportunity = () => setScreen('apply-opportunity');
 
   /** Called when "Discard"/"View Opportunity" is pressed on the application form */
   const handleBackToOpportunityDetail = () => setScreen('detail');
@@ -94,8 +90,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleOpenSavedApplications = () => setScreen('saved-applications');
 
   /** Called when "Edit" is pressed on a saved draft in SavedOpportunityApplication */
-  const handleEditDraft = (draftId: string, opportunityId: string | null) => {
-    setSelectedDraftId(draftId);
+  const handleEditDraft = (opportunityId: string) => {
     setSelectedOpportunityId(opportunityId);
     setScreen('apply-opportunity');
   };
@@ -198,7 +193,6 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onBack={handleBackToOpportunityDetail}
           onSave={handleOpenSavedApplications}
           opportunityId={selectedOpportunityId}
-          draftId={selectedDraftId}
         />
       )}
       {screen === 'saved-applications' && (
