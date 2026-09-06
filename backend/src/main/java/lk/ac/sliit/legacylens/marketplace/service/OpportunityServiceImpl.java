@@ -84,6 +84,26 @@ public class OpportunityServiceImpl implements OpportunityService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<OpportunityCardResponse> search(int limit, UUID creatorId, String category, boolean nearby) {
+        User creator = loadCreator(creatorId);
+
+        String location = null;
+        if (nearby) {
+            if (creator == null || creator.getCity() == null) {
+                return List.of();
+            }
+            location = creator.getCity().getName();
+        }
+
+        return opportunityRepository
+                .search(OpportunityStatus.PUBLISHED, category, location, PageRequest.of(0, limit))
+                .stream()
+                .map(o -> mapCard(o, creator))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public OpportunityDetailResponse getById(UUID id) {
         Opportunity opportunity = opportunityRepository.findByIdAndStatus(id, OpportunityStatus.PUBLISHED)
                 .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));

@@ -76,65 +76,6 @@ function joinMeta(a: string | null | undefined, b: string | null | undefined): s
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fallback data — shown only if the /api/opportunities/** call fails or
-// returns nothing yet (e.g. no connectivity), so the screen never renders
-// blank or broken.
-// ─────────────────────────────────────────────────────────────────────────────
-const FALLBACK_RECOMMENDED: OpportunityCardResponse = {
-  id: 'fallback-recommended',
-  title: 'Traditional Fishing Terms Documentation.',
-  description: '',
-  heroImageUrl: 'local:fisheries',
-  location: 'Negombo',
-  category: 'Photography',
-  locationType: null,
-  matchPercentage: 70,
-  urgent: false,
-  dueAt: null,
-  elderName: '',
-  elderAvatarUrl: null,
-  elderLocation: null,
-  createdAt: new Date().toISOString(),
-};
-
-const FALLBACK_URGENT: OpportunityCardResponse = {
-  id: 'fallback-urgent',
-  title: 'Record Oral History: The 2004 Tsunami.',
-  description: '',
-  heroImageUrl: 'local:galle-coast',
-  location: 'Galle',
-  category: 'Oral History',
-  locationType: null,
-  matchPercentage: null,
-  urgent: true,
-  dueAt: new Date(Date.now() + 1 * 86400000).toISOString(),
-  elderName: '',
-  elderAvatarUrl: null,
-  elderLocation: null,
-  createdAt: new Date().toISOString(),
-};
-
-const FALLBACK_RECENT: OpportunityCardResponse[] = [
-  {
-    id: 'fallback-recent-1',
-    title: 'Photograph Antique Mask Collection.',
-    description:
-      'Need high-resolution macro photography of traditional kolam masks for digital archive. Lighting equipment provided.',
-    heroImageUrl: null,
-    location: 'Galle Fort',
-    category: 'Photography',
-    locationType: 'On-Site',
-    matchPercentage: null,
-    urgent: false,
-    dueAt: null,
-    elderName: 'P. M. Amanda',
-    elderAvatarUrl: PLACEHOLDER_AVATAR,
-    elderLocation: 'Galle Fort',
-    createdAt: new Date().toISOString(),
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Inline icon helpers (emoji / primitive, zero extra dependencies)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -418,12 +359,13 @@ const RecentOpportunityCard: React.FC<{
 // RecentSection
 // ─────────────────────────────────────────────────────────────────────────────
 const RecentSection: React.FC<{
+  title?: string;
   items: OpportunityCardResponse[];
   onApply: (id: string) => void;
   onViewDetail: (id: string) => void;
-}> = ({ items, onApply, onViewDetail }) => (
+}> = ({ title = 'Recent Postings', items, onApply, onViewDetail }) => (
   <View style={s.section}>
-    <Text style={s.sectionTitle}>Recent Postings</Text>
+    <Text style={s.sectionTitle}>{title}</Text>
 
     <View style={{ gap: Spacing.md }}>
       {items.map((item) => (
@@ -449,38 +391,64 @@ export const OpportunityPage: React.FC<{
 }> = ({ onNavigate, onViewDetail }) => {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [recommended, setRecommended] = useState<OpportunityCardResponse>(FALLBACK_RECOMMENDED);
-  const [urgent, setUrgent] = useState<OpportunityCardResponse | null>(FALLBACK_URGENT);
-  const [recent, setRecent] = useState<OpportunityCardResponse[]>(FALLBACK_RECENT);
+
+  // Null only until the initial fetch settles — real data only, no fallback/mock content.
+  const [recommended, setRecommended] = useState<OpportunityCardResponse | null>(null);
+  const [urgent, setUrgent] = useState<OpportunityCardResponse | null>(null);
+  const [recent, setRecent] = useState<OpportunityCardResponse[] | null>(null);
+
+  // Populated by a real /opportunities/search call whenever a filter chip
+  // other than "All" is active — null means "show the default All view"
+  // rather than "no results", which filteredFilterResults.length === 0 covers.
+  const [filterResults, setFilterResults] = useState<OpportunityCardResponse[] | null>(null);
+  const [filterLoading, setFilterLoading] = useState(false);
 
   useEffect(() => {
     opportunityApi
       .getRecommended(1)
-      .then((data) => {
-        if (data.length > 0) setRecommended(data[0]);
-      })
-      .catch(() => {});
+      .then((data) => setRecommended(data.length > 0 ? data[0] : null))
+      .catch(() => setRecommended(null));
 
     opportunityApi
       .getUrgent(1)
       .then((data) => setUrgent(data.length > 0 ? data[0] : null))
-      .catch(() => {});
+      .catch(() => setUrgent(null));
 
     opportunityApi
       .getRecent(10)
-      .then((data) => {
-        if (data.length > 0) setRecent(data);
-      })
-      .catch(() => {});
+      .then(setRecent)
+      .catch(() => setRecent([]));
   }, []);
 
-  const matchesFilters = (item: OpportunityCardResponse): boolean => {
-    // 'nearby' needs the creator's own location to mean anything — no proximity
-    // data is available client-side yet, so it passes through like 'all' for now.
-    if (activeFilter !== 'all' && activeFilter !== 'nearby') {
-      const category = (item.category ?? '').toLowerCase();
-      if (!category.includes(activeFilter)) return false;
+  useEffect(() => {
+    if (activeFilter === 'all') {
+      setFilterResults(null);
+      return;
     }
+
+    let cancelled = false;
+    setFilterLoading(true);
+
+    const category = activeFilter === 'nearby' ? undefined : FILTERS.find((f) => f.key === activeFilter)?.label;
+
+    opportunityApi
+      .search({ category, nearby: activeFilter === 'nearby', limit: 20 })
+      .then((data) => {
+        if (!cancelled) setFilterResults(data);
+      })
+      .catch(() => {
+        if (!cancelled) setFilterResults([]);
+      })
+      .finally(() => {
+        if (!cancelled) setFilterLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFilter]);
+
+  const matchesQuery = (item: OpportunityCardResponse): boolean => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -490,10 +458,13 @@ export const OpportunityPage: React.FC<{
     );
   };
 
-  const showRecommended = matchesFilters(recommended);
-  const showUrgent = urgent != null && matchesFilters(urgent);
-  const filteredRecent = recent.filter(matchesFilters);
-  const hasAnyResults = showRecommended || showUrgent || filteredRecent.length > 0;
+  const showRecommended = activeFilter === 'all' && recommended != null && matchesQuery(recommended);
+  const showUrgent = activeFilter === 'all' && urgent != null && matchesQuery(urgent);
+  const filteredRecent = activeFilter === 'all' ? (recent ?? []).filter(matchesQuery) : [];
+  const hasAnyDefaultResults = showRecommended || showUrgent || filteredRecent.length > 0;
+
+  const filteredFilterResults = (filterResults ?? []).filter(matchesQuery);
+  const activeFilterLabel = FILTERS.find((f) => f.key === activeFilter)?.label ?? 'Filtered';
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
@@ -510,20 +481,51 @@ export const OpportunityPage: React.FC<{
         <HeroSection />
         <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
         <FilterBar active={activeFilter} onSelect={setActiveFilter} />
-        {showRecommended && (
-          <RecommendedCard item={recommended} onViewDetail={() => onViewDetail(recommended.id)} />
-        )}
-        {showUrgent && urgent && (
-          <UrgentSection item={urgent} onViewDetail={() => onViewDetail(urgent.id)} />
-        )}
-        {filteredRecent.length > 0 && (
-          <RecentSection items={filteredRecent} onApply={onViewDetail} onViewDetail={onViewDetail} />
-        )}
-        {!hasAnyResults && (
+
+        {activeFilter === 'all' ? (
+          recent === null ? (
+            <View style={s.emptyState}>
+              <Text style={s.emptyStateText}>Loading…</Text>
+            </View>
+          ) : (
+            <>
+              {showRecommended && recommended && (
+                <RecommendedCard item={recommended} onViewDetail={() => onViewDetail(recommended.id)} />
+              )}
+              {showUrgent && urgent && (
+                <UrgentSection item={urgent} onViewDetail={() => onViewDetail(urgent.id)} />
+              )}
+              {filteredRecent.length > 0 && (
+                <RecentSection items={filteredRecent} onApply={onViewDetail} onViewDetail={onViewDetail} />
+              )}
+              {!hasAnyDefaultResults && (
+                <View style={s.emptyState}>
+                  <Text style={s.emptyStateText}>No opportunities match your search.</Text>
+                </View>
+              )}
+            </>
+          )
+        ) : filterLoading ? (
           <View style={s.emptyState}>
-            <Text style={s.emptyStateText}>No opportunities match your search.</Text>
+            <Text style={s.emptyStateText}>Loading…</Text>
+          </View>
+        ) : filteredFilterResults.length > 0 ? (
+          <RecentSection
+            title={`${activeFilterLabel} Opportunities`}
+            items={filteredFilterResults}
+            onApply={onViewDetail}
+            onViewDetail={onViewDetail}
+          />
+        ) : (
+          <View style={s.emptyState}>
+            <Text style={s.emptyStateText}>
+              {activeFilter === 'nearby'
+                ? 'No opportunities near your city yet — set your city in your profile to see nearby matches.'
+                : 'No opportunities match this filter.'}
+            </Text>
           </View>
         )}
+
         <View style={{ height: 8 }} />
       </ScrollView>
 
