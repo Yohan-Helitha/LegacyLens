@@ -179,6 +179,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onOpenSchedule={handleOpenSchedule}
           onOpenMyWork={handleOpenMyWork}
           onAddPayment={handleOpenLogPayment}
+          onOpenSavedApplications={handleOpenSavedApplications}
         />
       )}
       {screen === 'market' && (

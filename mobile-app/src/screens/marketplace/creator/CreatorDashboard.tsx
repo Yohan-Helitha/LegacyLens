@@ -479,7 +479,8 @@ export const CreatorDashboard: React.FC<{
   onOpenSchedule: () => void;
   onOpenMyWork: () => void;
   onAddPayment: () => void;
-}> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork, onAddPayment }) => {
+  onOpenSavedApplications: () => void;
+}> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork, onAddPayment, onOpenSavedApplications }) => {
   const [activeTab, setActiveTab] = useState<JobTab>('active');
   const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
   const [reviews, setReviews] = useState<ReviewItem[]>(FALLBACK_REVIEWS);
@@ -555,6 +556,11 @@ export const CreatorDashboard: React.FC<{
               label="Active Jobs"
               active={activeTab === 'active'}
               onPress={() => setActiveTab('active')}
+            />
+            <TabPill
+              label="My Applications"
+              active={false}
+              onPress={onOpenSavedApplications}
             />
             <TabPill
               label="Upcoming Booking"
