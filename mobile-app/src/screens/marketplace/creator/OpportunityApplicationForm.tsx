@@ -47,8 +47,26 @@ const D = {
  * the backend yet, so these checklists are static/illustrative for now —
  * matching the mockup — rather than derived from real per-opportunity data.
  */
-const RELEVANT_SKILLS = ['Videography', 'Basic Video Editing', 'Documentation'];
-const EQUIPMENT_ITEMS = ['Camera', 'Microphone'];
+const RELEVANT_SKILLS = [
+  'Photography',
+  'Videography',
+  'Basic Video Editing',
+  'Photo Editing',
+  'Audio Recording',
+  'Oral History Interviewing',
+  'Documentation & Report Writing',
+  'Translation & Transcription',
+];
+
+const EQUIPMENT_ITEMS = [
+  'DSLR / Mirrorless Camera',
+  'Smartphone Camera',
+  'Tripod',
+  'Microphone (Lavalier / Shotgun)',
+  'Portable Audio Recorder',
+  'Portable Lighting Kit',
+  'Laptop for Editing',
+];
 
 /** Keeps only the first 2 digits visible — a phone number is sensitive even to show as a form default. */
 function maskPhone(phone: string): string {
