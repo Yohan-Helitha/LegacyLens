@@ -53,7 +53,7 @@ public class PaymentRecord {
     private BigDecimal amount;
 
     /** Cash tip collected alongside the main amount — tracked separately, but counted in every total shown to the creator. */
-    @Column(name = "tip_amount", nullable = false, precision = 10, scale = 2)
+    @Column(name = "tip_amount", nullable = false, precision = 10, scale = 2, columnDefinition = "numeric(10,2) default 0")
     private BigDecimal tipAmount = BigDecimal.ZERO;
 
     /** Relative URL of the uploaded receipt/proof photo — see FileStorageService. */

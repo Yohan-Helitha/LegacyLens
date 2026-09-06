@@ -75,7 +75,7 @@ public class Job {
      * time-sensitive booking stands out from the creator's other scheduled
      * work. Nothing computes this automatically yet.
      */
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean urgent = false;
 
     /** When the work is/was scheduled to happen. */
