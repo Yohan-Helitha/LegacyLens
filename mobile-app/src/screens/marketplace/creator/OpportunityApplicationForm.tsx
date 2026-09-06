@@ -71,13 +71,6 @@ const EQUIPMENT_ITEMS = [
   'Laptop for Editing',
 ];
 
-/** Keeps only the first 2 digits visible — a phone number is sensitive even to show as a form default. */
-function maskPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length < 10) return phone;
-  return `${digits.slice(0, 2)}X XXX XXXX`;
-}
-
 function formatScheduledDate(iso: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -244,7 +237,7 @@ export const OpportunityApplicationForm: React.FC<{
       .getMe()
       .then((me) => {
         setName(me.fullName);
-        setPhone(me.phoneNumber ? maskPhone(me.phoneNumber) : '—');
+        setPhone(me.phoneNumber || '—');
         setCityObj(me.city);
       })
       .catch((err) => setLoadError(err instanceof ApiError ? err.message : 'Could not load your profile.'));
