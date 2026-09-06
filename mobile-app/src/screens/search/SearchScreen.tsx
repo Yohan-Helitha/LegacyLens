@@ -27,18 +27,18 @@ import { Header } from '../../components/common/Header';
 import { KnowledgeKeeper } from '../../components/home/KnowledgeKeeper';
 import { WordOfTheDay } from '../../components/home/WordOfTheDay';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
-import mockData from '../admin/mockData.json';
 import { styles } from './SearchScreen.styles';
 
 import { FeedCardActions } from '../../components/home/FeedCardActions';
 import { VideoCard } from '../../components/home/VideoCard';
 import { BlogCard } from '../../components/home/BlogCard';
 import { AudioCard } from '../../components/home/AudioCard';
+import { homeApi } from '../../services/api/homeApi';
 import { loadedVideoIds, VItem, BItem, AItem } from '../home/HomeScreen';
 
-const CATEGORIES = mockData.categories as Array<{
+const CATEGORIES: Array<{
   id: string; label: string; icon: string; color: string; tags: string[];
-}>;
+}> = [];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Component Definition
@@ -56,6 +56,18 @@ export const SearchScreen: React.FC<{
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    const fetchFeedItems = async () => {
+      try {
+        const response = await homeApi.getFeedItems();
+        if (response && response.length > 0) {
+          setAllFeedItems(response as any);
+        }
+      } catch (error) {
+        console.log('Error fetching feed items for search:', error);
+      }
+    };
+    fetchFeedItems();
+
     if (initialSearchQuery !== undefined) {
       setSearchQuery(initialSearchQuery);
     }
@@ -115,26 +127,7 @@ export const SearchScreen: React.FC<{
   };
 
   // ── Shuffled Initial Feed ────────────────────────────────────────────────
-  // Combine all items, add type tag, and shuffle once on mount
-  const allFeedItems = useMemo(() => {
-    type VItem = typeof mockData.videos[0]  & { type: 'video' };
-    type BItem = typeof mockData.blogs[0]   & { type: 'blog' };
-    type AItem = typeof mockData.audio[0]   & { type: 'audio' };
-    
-    const videos = mockData.videos.map(v => ({ ...v, type: 'video' as const }));
-    const blogs  = mockData.blogs.map(b  => ({ ...b, type: 'blog' as const }));
-    const audios = mockData.audio.map(a  => ({ ...a, type: 'audio' as const }));
-    
-    const combined = [...videos, ...blogs, ...audios];
-    
-    // Fisher-Yates shuffle
-    for (let i = combined.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [combined[i], combined[j]] = [combined[j], combined[i]];
-    }
-    
-    return combined;
-  }, []);
+  const [allFeedItems, setAllFeedItems] = useState<(VItem | BItem | AItem)[]>([]);
 
   // 🎙️ Filtering logic 🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️
   const filterMatches = (keywords: string[]) => {

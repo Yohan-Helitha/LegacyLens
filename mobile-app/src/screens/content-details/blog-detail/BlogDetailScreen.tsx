@@ -204,11 +204,10 @@ export const BlogDetailScreen: React.FC<{ onBack?: () => void; onNavigateSearch?
             <MaterialIcons name={isSaved ? "bookmark" : "bookmark-add"} size={24} color={isSaved ? "#fe893e" : Colors.textMuted} />
           </TouchableOpacity>
           <View style={styles.toolbarDivider} />
-          <Text style={styles.toolbarProgressText}>{Math.round(scrollProgress * 100)}%</Text>
-          <View style={styles.toolbarDivider} />
-          <TouchableOpacity style={styles.toolbarBtn} onPress={toggleFontSize}>
-            <MaterialIcons name="format-size" size={20} color={fontScale > 1 ? "#fe893e" : Colors.textMuted} />
+          <TouchableOpacity onPress={toggleFontSize} style={{ paddingHorizontal: 8, paddingVertical: 4 }}>
+            <Text style={[styles.toolbarProgressText, fontScale > 1 && { color: "#fe893e" }]}>{Math.round(fontScale * 100)}%</Text>
           </TouchableOpacity>
+          <View style={styles.toolbarDivider} />
           <TouchableOpacity style={styles.toolbarBtnAccent} onPress={handleShare}>
             <MaterialIcons name="share" size={20} color={Colors.white} />
           </TouchableOpacity>

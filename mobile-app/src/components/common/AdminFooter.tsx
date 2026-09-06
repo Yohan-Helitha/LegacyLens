@@ -9,13 +9,15 @@ export type AdminTabKey = 'admin_home' | 'intake' | 'review' | 'admin_profile';
 interface AdminFooterProps {
   activeTab: AdminTabKey;
   onTabSelect: (tab: AdminTabKey) => void;
+  intakeBadge?: string | null;
+  reviewBadge?: string | null;
 }
 
-export const AdminFooter: React.FC<AdminFooterProps> = ({ activeTab, onTabSelect }) => {
+export const AdminFooter: React.FC<AdminFooterProps> = ({ activeTab, onTabSelect, intakeBadge, reviewBadge }) => {
   const tabs: Array<{ key: AdminTabKey; icon: string; label: string; badge: string | null; badgeErr?: boolean }> = [
     { key: 'admin_home',    icon: 'home',      label: 'Home',       badge: null },
-    { key: 'intake',        icon: 'inbox',     label: 'Opportunities',     badge: '18' },
-    { key: 'review',        icon: 'gavel',     label: 'Moderation', badge: '5', badgeErr: true },
+    { key: 'intake',        icon: 'inbox',     label: 'Opportunities',     badge: intakeBadge !== undefined ? intakeBadge : '18' },
+    { key: 'review',        icon: 'gavel',     label: 'Moderation', badge: reviewBadge !== undefined ? reviewBadge : '5', badgeErr: true },
     { key: 'admin_profile', icon: 'person',    label: 'Profile',    badge: null },
   ];
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, Modal } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AdminHomeScreen } from '../screens/admin/home';
 import { ModerationQueueScreen } from '../screens/admin/moderation';
@@ -28,14 +28,36 @@ interface AdminNavigatorProps {
  */
 export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) => {
   const [screen, setScreen] = useState<AdminScreen>('admin_home');
+  const [intakeBadge, setIntakeBadge] = useState<string | null>('18');
+  const [reviewBadge, setReviewBadge] = useState<string | null>('5');
 
+  // Clear badges when target screens are opened
   const handleNavigate = (tab: string) => {
     if (tab === 'home') {
       navigation.replace('User');
       return;
     }
+
+    if (tab === 'intake' || tab === 'opp_review') {
+      setIntakeBadge(null);
+    }
+    if (tab === 'review') {
+      setReviewBadge(null);
+    }
+
     setScreen(tab as AdminScreen);
   };
+
+  // Simulate newly added content after some time on Home screen
+  React.useEffect(() => {
+    if (screen === 'admin_home') {
+      const timer = setTimeout(() => {
+        setIntakeBadge('19'); // Simulates a newly added voice recording
+        setReviewBadge('6');  // Simulates a newly added reported moderation item
+      }, 10000); // 10 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [screen]);
 
   const footerActiveTab: AdminTabKey =
     screen === 'intake' || screen === 'opp_review'
@@ -52,21 +74,45 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
     <View style={{ flex: 1 }}>
       {showChrome && <AdminHeader onNavigate={handleNavigate} />}
 
-      {screen === 'admin_home' && <AdminHomeScreen onNavigate={handleNavigate} />}
+      {screen === 'admin_home' && (
+        <AdminHomeScreen
+          onNavigate={handleNavigate}
+          intakeBadge={intakeBadge}
+          reviewBadge={reviewBadge}
+        />
+      )}
       {screen === 'intake' && (
-        <OpportunityIntakeScreen onOpenReview={() => setScreen('opp_review')} />
+        <OpportunityIntakeScreen onOpenReview={() => {
+          setIntakeBadge(null);
+          setScreen('opp_review');
+        }} />
       )}
       {screen === 'add_opp' && <CreateOpportunityScreen onNavigate={handleNavigate} />}
       {screen === 'opp_review' && (
         <OpportunityReviewScreen
-          onBack={() => setScreen('intake')}
+          onBack={() => {
+            setIntakeBadge(null);
+            setScreen('intake');
+          }}
           onApprove={() => setScreen('add_opp')}
         />
       )}
       {screen === 'drafts' && <OpportunityDraftsScreen onNavigate={handleNavigate} />}
       {screen === 'review' && <ModerationQueueScreen />}
-      {screen === 'video' && <VideoDetailScreen onBack={() => setScreen('admin_home')} />}
-      {screen === 'blog' && <BlogDetailScreen onBack={() => setScreen('admin_home')} />}
+      <Modal
+        visible={screen === 'video'}
+        animationType="slide"
+        onRequestClose={() => setScreen('admin_home')}
+      >
+        <VideoDetailScreen onBack={() => setScreen('admin_home')} />
+      </Modal>
+      <Modal
+        visible={screen === 'blog'}
+        animationType="slide"
+        onRequestClose={() => setScreen('admin_home')}
+      >
+        <BlogDetailScreen onBack={() => setScreen('admin_home')} />
+      </Modal>
 
       {screen === 'admin_profile' && (
         <View style={s.placeholder}>
@@ -74,7 +120,14 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
         </View>
       )}
 
-      {showChrome && <AdminFooter activeTab={footerActiveTab} onTabSelect={handleNavigate} />}
+      {showChrome && (
+        <AdminFooter 
+          activeTab={footerActiveTab} 
+          onTabSelect={handleNavigate} 
+          intakeBadge={intakeBadge}
+          reviewBadge={reviewBadge}
+        />
+      )}
     </View>
   );
 };

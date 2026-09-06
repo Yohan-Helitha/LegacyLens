@@ -26,6 +26,7 @@ backend/uploads/
 *.env
 application-local.yml
 application-local.properties
+backend/seed-*.js
 
 # ─── IDE ──────────────────────────────────────────────────────────────────────
 .vscode/
@@ -47,3 +48,4 @@ coverage/
 # HTML prototypes — production screens are React Native (.tsx) components
 mobile-app/src/screens/auth/code.html
 mobile-app/src/screens/onboarding/loading/loading.html
+

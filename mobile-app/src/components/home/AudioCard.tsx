@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../theme';
 import { styles } from './AudioCard.styles';
+import { FeedCardActions } from './FeedCardActions';
+import { homeApi } from '../../services/api/homeApi';
 
 const TOTAL_BARS = 30; // number of waveform bars rendered
 
@@ -82,14 +84,14 @@ export const AudioCard = ({
         {/* Waveform — always TOTAL_BARS, each bar flex:1 to fill width */}
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: 40, gap: 2 }}>
           {Array.from({ length: TOTAL_BARS }, (_, i) => {
-            const src = a.bars && a.bars.length > 0 ? a.bars : [2,3,4,5,3,2,4,5,3,2];
+            const src = a.bars && a.bars.length > 0 ? a.bars : [20, 30, 40, 50, 30, 20, 40, 50, 30, 20];
             const h = src[i % src.length] as number;
             return (
               <View
                 key={i}
                 style={{
                   flex: 1,
-                  height: Math.max(6, h * 5),
+                  height: Math.max(6, (h / 100) * 36),
                   borderRadius: 2,
                   backgroundColor: i < progress ? '#fe893e' : 'rgba(255,255,255,0.4)',
                 }}
@@ -99,6 +101,21 @@ export const AudioCard = ({
         </View>
         
         <Text style={styles.audioDurationText}>{a.duration}</Text>
+      </View>
+
+      <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+        <FeedCardActions
+          theme="light"
+          initialLikes={a.likesCount || 0}
+          initialComments={a.commentsCount || 0}
+          onLikePress={() => {
+            if (a.id) homeApi.likePost(a.id).catch(console.error);
+          }}
+          onCommentPress={() => {
+            setActivePostId(item.id);
+            setCommentModalVisible(true);
+          }}
+        />
       </View>
     </View>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../theme';
 import { styles } from './CommentModal.styles';
+import { homeApi } from '../../services/api/homeApi';
 
 interface Comment {
   id: string;
@@ -34,24 +35,28 @@ const BANNED_WORDS = ['spam', 'hate', 'abuse', 'stupid', 'idiot'];
 
 export const CommentModal: React.FC<CommentModalProps> = ({ visible, onClose, postId }) => {
   const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState<Comment[]>([
-    {
-      id: 'c1',
-      author: 'Sunil Silva',
-      avatar: 'https://i.pravatar.cc/150?img=11',
-      text: 'This is amazing! Thank you for sharing this part of our heritage.',
-      timeAgo: '2h',
-    },
-    {
-      id: 'c2',
-      author: 'Amandi Perera',
-      avatar: 'https://i.pravatar.cc/150?img=5',
-      text: 'Very informative.',
-      timeAgo: '5h',
-    }
-  ]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const handlePostComment = () => {
+  useEffect(() => {
+    if (visible && postId) {
+      fetchComments();
+    }
+  }, [visible, postId]);
+
+  const fetchComments = async () => {
+    try {
+      setLoading(true);
+      const data = await homeApi.getComments(postId);
+      setComments(data);
+    } catch (err) {
+      console.log('Failed to fetch comments', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePostComment = async () => {
     const trimmed = commentText.trim();
     if (!trimmed) return;
 
@@ -67,16 +72,14 @@ export const CommentModal: React.FC<CommentModalProps> = ({ visible, onClose, po
       return;
     }
 
-    const newComment: Comment = {
-      id: Date.now().toString(),
-      author: 'You (Demo User)',
-      avatar: 'https://i.pravatar.cc/150?img=1',
-      text: trimmed,
-      timeAgo: 'Just now',
-    };
-
-    setComments([newComment, ...comments]);
-    setCommentText('');
+    try {
+      const newComment = await homeApi.addComment(postId, trimmed);
+      setComments([newComment, ...comments]);
+      setCommentText('');
+    } catch (err) {
+      console.log('Failed to post comment', err);
+      Alert.alert('Error', 'Could not post comment at this time.');
+    }
   };
 
   const renderComment = ({ item }: { item: Comment }) => (
