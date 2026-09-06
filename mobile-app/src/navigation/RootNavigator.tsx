@@ -99,10 +99,8 @@ export const RootNavigator: React.FC = () => {
               if (roles.includes('YOUTH_CREATOR')) {
                 navigation.replace('Creator', { initialScreen: 'profile' });
               } else {
-                navigation.replace('Profile');
+                navigation.replace(roles.includes('ADMIN') ? 'Admin' : 'User');
               }
-              const roles = useAuthStore.getState().user?.roles ?? [];
-              navigation.replace(roles.includes('ADMIN') ? 'Admin' : 'User');
             }}
             onSignUp={() => navigation.navigate('SignUp')}
             onForgotPin={() => navigation.navigate('ForgotPin')}
