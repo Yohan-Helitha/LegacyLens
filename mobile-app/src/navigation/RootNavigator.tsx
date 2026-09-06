@@ -13,12 +13,13 @@ import { ForgotPinScreen } from '../screens/auth/forgot_pin';
 import { OnBoarding1 } from '../screens/onboarding/weolcome/OnBoarding1';
 import { OnBoarding2 } from '../screens/onboarding/weolcome/OnBoarding2';
 import { OnBoarding3 } from '../screens/onboarding/weolcome/OnBoarding3';
-import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { PrivacyDataScreen } from '../screens/profile/PrivacyDataScreen';
 import { ChangePhoneScreen } from '../screens/profile/ChangePhoneScreen';
 import { ChangeNicScreen } from '../screens/profile/ChangeNicScreen';
 import LearningNavigator from './LearningNavigator';
 import { CreatorNavigator, CreatorScreen } from './CreatorNavigator';
+import { UserNavigator } from './UserNavigator';
+import { AdminNavigator } from './AdminNavigator';
 import { authApi } from '../services/api/authApi';
 import { profileApi } from '../services/api/profileApi';
 import { useAuthStore } from '../store/authStore';
@@ -41,7 +42,8 @@ export type RootStackParamList = {
   OnBoarding1: undefined;
   OnBoarding2: undefined;
   OnBoarding3: undefined;
-  Profile: undefined;
+  User: undefined;
+  Admin: undefined;
   PrivacyData: undefined;
   ChangePhone: undefined;
   ChangePhoneVerify: { newPhoneNumber: string };
@@ -99,6 +101,8 @@ export const RootNavigator: React.FC = () => {
               } else {
                 navigation.replace('Profile');
               }
+              const roles = useAuthStore.getState().user?.roles ?? [];
+              navigation.replace(roles.includes('ADMIN') ? 'Admin' : 'User');
             }}
             onSignUp={() => navigation.navigate('SignUp')}
             onForgotPin={() => navigation.navigate('ForgotPin')}
@@ -250,25 +254,17 @@ export const RootNavigator: React.FC = () => {
         )}
       </Stack.Screen>
 
-      {/* ── Profile & account security ────────────────────────────────────── */}
-      <Stack.Screen name="Profile">
-        {({ navigation }) => (
-          <ProfileScreen
-            onOpenPrivacyData={() => navigation.navigate('PrivacyData')}
-            onLogout={() => {
-              useAuthStore.getState().clearSession();
-              navigation.replace('Login');
-            }}
-            onTabPress={(tab) => {
-              // Home has no screen yet — Learn, Market, and Profile are real.
-              if (tab === 'learn') navigation.navigate('Learning');
-              if (tab === 'market') navigation.navigate('Creator');
-            }}
-            onBecomeFreelancer={() => navigation.navigate('Creator', { initialScreen: 'apply' })}
-          />
-        )}
+      {/* ── General-user flow (home feed, map, profile) ─────────────────────── */}
+      <Stack.Screen name="User">
+        {({ navigation }) => <UserNavigator navigation={navigation} />}
       </Stack.Screen>
 
+      {/* ── Admin flow — only reached when the logged-in user has the ADMIN role ── */}
+      <Stack.Screen name="Admin">
+        {({ navigation }) => <AdminNavigator navigation={navigation} />}
+      </Stack.Screen>
+
+      {/* ── Profile & account security ────────────────────────────────────── */}
       <Stack.Screen name="PrivacyData">
         {({ navigation }) => (
           <PrivacyDataScreen

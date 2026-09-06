@@ -4,12 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
   Avatar,
-  BottomNavBar,
   RoleUpgradeCard,
   SettingsListRow,
   StatCard,
 } from '../../components/common';
-import type { NavTab } from '../../components/common';
 import { profileApi } from '../../services/api/profileApi';
 import { useAuthStore } from '../../store/authStore';
 import { UserProfile } from '../../types/profile';
@@ -33,7 +31,6 @@ interface ProfileScreenProps {
   onOpenPrivacyData?: () => void;
   onOpenSettings?: () => void;
   onLogout?: () => void;
-  onTabPress?: (tab: NavTab) => void;
   /** "Become a Freelancer" card CTA — opens the creator application form. */
   onBecomeFreelancer?: () => void;
 }
@@ -61,7 +58,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onOpenPrivacyData,
   onOpenSettings,
   onLogout,
-  onTabPress,
   onBecomeFreelancer,
 }) => {
   const cachedUser = useAuthStore((s) => s.user);
@@ -170,8 +166,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           <SettingsListRow icon={LogOut} label="Log out" variant="danger" onPress={onLogout} />
         </View>
       </ScrollView>
-
-      <BottomNavBar active="profile" onTabPress={onTabPress} />
     </SafeAreaView>
   );
 };
