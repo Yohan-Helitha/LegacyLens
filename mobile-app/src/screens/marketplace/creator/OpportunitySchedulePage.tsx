@@ -14,7 +14,9 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
+import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
 import type { JobResponse } from '../../../types/creatorDashboard';
+import type { OpportunityApplicationResponse } from '../../../types/opportunityApplication';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -40,20 +42,20 @@ const D = {
 } as const;
 
 /**
- * Cycled, in scheduled-time order, across a day's non-urgent jobs so two
+ * Cycled, in scheduled-time order, across a day's non-urgent items so two
  * different bookings on the same date get two different dot colours.
- * Urgent jobs always use D.urgentDot instead, regardless of position, so
+ * Urgent items always use D.urgentDot instead, regardless of position, so
  * they read as a distinct category rather than "just another colour".
  */
 const DOT_PALETTE = [D.primary, D.secondary, '#5B6EC7'] as const;
 const MAX_DOTS_PER_DAY = 3;
 
-function computeDotColors(dayJobs: JobResponse[]): string[] {
+function computeDotColors(dayItems: ScheduleItem[]): string[] {
   const colors: string[] = [];
   let paletteIndex = 0;
-  for (const job of dayJobs) {
+  for (const item of dayItems) {
     if (colors.length >= MAX_DOTS_PER_DAY) break;
-    if (job.urgent) {
+    if (item.urgent) {
       colors.push(D.urgentDot);
     } else {
       colors.push(DOT_PALETTE[paletteIndex % DOT_PALETTE.length]);
@@ -61,6 +63,60 @@ function computeDotColors(dayJobs: JobResponse[]): string[] {
     }
   }
   return colors;
+}
+
+/**
+ * A calendar entry can come from two different backend sources — a
+ * confirmed Job, or an opportunity application the knowledge holder has
+ * already APPROVED (booked, but not yet turned into a Job — there's no
+ * "approve" endpoint that creates one yet, see opportunityApplicationApi).
+ * Both get normalised into this one shape so the Calendar/ScheduledJobCard
+ * below don't need to know which source a given booking came from.
+ */
+interface ScheduleItem {
+  id: string;
+  title: string;
+  elderName: string;
+  location: string | null;
+  date: Date;
+  timeLabel: string;
+  urgent: boolean;
+  /** Set only for application-sourced items — lets "View" open the real opportunity instead of just going back. */
+  opportunityId?: string;
+}
+
+/** A plain y-m-d string (from JobResponse.scheduledAt or OpportunityApplicationResponse.scheduledDate) parsed without UTC shifting. */
+function parseDateOnly(isoDateOrDateTime: string): Date {
+  const [y, m, d] = isoDateOrDateTime.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function jobToScheduleItem(job: JobResponse): ScheduleItem | null {
+  if (!job.scheduledAt) return null;
+  return {
+    id: `job-${job.id}`,
+    title: job.title,
+    elderName: job.elderName,
+    location: job.location,
+    date: parseDateOnly(job.scheduledAt),
+    timeLabel: formatTime(job.scheduledAt),
+    urgent: job.urgent,
+  };
+}
+
+function approvedApplicationToScheduleItem(app: OpportunityApplicationResponse): ScheduleItem | null {
+  if (!app.scheduledDate) return null;
+  return {
+    id: `application-${app.id}`,
+    title: app.title,
+    elderName: app.elderName,
+    location: app.location,
+    date: parseDateOnly(app.scheduledDate),
+    timeLabel: app.timeWindowText ?? '—',
+    // Applications have no urgency concept of their own yet — only Jobs do.
+    urgent: false,
+    opportunityId: app.opportunityId,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -286,19 +342,19 @@ const Calendar: React.FC<{
 // Scheduled job card
 // ─────────────────────────────────────────────────────────────────────────────
 const ScheduledJobCard: React.FC<{
-  job: JobResponse;
+  item: ScheduleItem;
   onView: () => void;
   onRemove: () => void;
-}> = ({ job, onView, onRemove }) => (
+}> = ({ item, onView, onRemove }) => (
   <View style={s.jobCard}>
     <View style={s.jobCardHeaderRow}>
       <View style={{ flex: 1, gap: 4 }}>
-        {job.urgent && (
+        {item.urgent && (
           <View style={s.urgentBadge}>
             <Text style={s.urgentBadgeText}>Urgent</Text>
           </View>
         )}
-        <Text style={s.jobTitle} numberOfLines={2}>{job.title}</Text>
+        <Text style={s.jobTitle} numberOfLines={2}>{item.title}</Text>
       </View>
       <Pressable
         onPress={onRemove}
@@ -313,16 +369,16 @@ const ScheduledJobCard: React.FC<{
     <View style={{ gap: 8 }}>
       <View style={s.jobInfoRow}>
         <PersonIcon />
-        <Text style={s.jobInfoText}>{job.elderName}</Text>
+        <Text style={s.jobInfoText}>{item.elderName}</Text>
       </View>
       <View style={s.jobInfoRow}>
         <ClockIcon />
-        <Text style={s.jobInfoText}>{formatTime(job.scheduledAt)}</Text>
+        <Text style={s.jobInfoText}>{item.timeLabel}</Text>
       </View>
-      {job.location && (
+      {item.location && (
         <View style={s.jobInfoRow}>
           <PinIcon />
-          <Text style={s.jobInfoText}>{job.location}</Text>
+          <Text style={s.jobInfoText}>{item.location}</Text>
         </View>
       )}
     </View>
@@ -331,7 +387,7 @@ const ScheduledJobCard: React.FC<{
       onPress={onView}
       style={({ pressed }) => [s.viewBtn, pressed && s.viewBtnPressed]}
       accessibilityRole="button"
-      accessibilityLabel={`View ${job.title}`}
+      accessibilityLabel={`View ${item.title}`}
     >
       <Text style={s.viewBtnText}>View</Text>
     </Pressable>
@@ -344,8 +400,12 @@ const ScheduledJobCard: React.FC<{
 export const OpportunitySchedulePage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
-}> = ({ onNavigate, onBack }) => {
+  /** Opens the real opportunity for an application-sourced item — Job-sourced items have no detail page yet, so they fall back to onBack. */
+  onViewOpportunity?: (opportunityId: string) => void;
+}> = ({ onNavigate, onBack, onViewOpportunity }) => {
   const [jobs, setJobs] = useState<JobResponse[]>(FALLBACK_JOBS);
+  const [approvedApplications, setApprovedApplications] = useState<OpportunityApplicationResponse[]>([]);
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [visibleMonth, setVisibleMonth] = useState<Date>(startOfMonth(new Date(FALLBACK_JOBS[0].scheduledAt!)));
   const [selectedKey, setSelectedKey] = useState<string>(dateKey(new Date(FALLBACK_JOBS[0].scheduledAt!)));
 
@@ -362,41 +422,63 @@ export const OpportunitySchedulePage: React.FC<{
         }
       })
       .catch(() => {});
+
+    // Booked-but-not-yet-a-Job — see ScheduleItem's javadoc comment above.
+    opportunityApplicationApi
+      .getMyApplications()
+      .then((apps) => setApprovedApplications(apps.filter((a) => a.status === 'APPROVED')))
+      .catch(() => {});
   }, []);
 
-  const jobsByDateKey = useMemo(() => {
-    const map: Record<string, JobResponse[]> = {};
-    for (const job of jobs) {
-      if (!job.scheduledAt) continue;
-      const key = dateKey(new Date(job.scheduledAt));
-      (map[key] ??= []).push(job);
+  const scheduleItems = useMemo(() => {
+    const jobItems = jobs.map(jobToScheduleItem).filter((x): x is ScheduleItem => x !== null);
+    const applicationItems = approvedApplications
+      .map(approvedApplicationToScheduleItem)
+      .filter((x): x is ScheduleItem => x !== null);
+    return [...jobItems, ...applicationItems].filter((item) => !removedIds.has(item.id));
+  }, [jobs, approvedApplications, removedIds]);
+
+  const itemsByDateKey = useMemo(() => {
+    const map: Record<string, ScheduleItem[]> = {};
+    for (const item of scheduleItems) {
+      const key = dateKey(item.date);
+      (map[key] ??= []).push(item);
     }
     return map;
-  }, [jobs]);
+  }, [scheduleItems]);
 
   const dotColorsByDateKey = useMemo(() => {
     const map: Record<string, string[]> = {};
-    for (const [key, dayJobs] of Object.entries(jobsByDateKey)) {
-      map[key] = computeDotColors(dayJobs);
+    for (const [key, dayItems] of Object.entries(itemsByDateKey)) {
+      map[key] = computeDotColors(dayItems);
     }
     return map;
-  }, [jobsByDateKey]);
+  }, [itemsByDateKey]);
 
-  const selectedJobs = jobsByDateKey[selectedKey] ?? [];
+  const selectedItems = itemsByDateKey[selectedKey] ?? [];
   const selectedDate = useMemo(() => {
     const [y, m, d] = selectedKey.split('-').map(Number);
     return new Date(y, m - 1, d);
   }, [selectedKey]);
 
-  const handleRemove = (jobId: string) => {
+  const handleRemove = (itemId: string) => {
     Alert.alert(
       'Remove from schedule?',
       'This only removes it from this view — there is no cancellation request sent yet.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: () => setJobs((prev) => prev.filter((j) => j.id !== jobId)) },
+        { text: 'Remove', style: 'destructive', onPress: () => setRemovedIds((prev) => new Set(prev).add(itemId)) },
       ],
     );
+  };
+
+  const handleView = (item: ScheduleItem) => {
+    if (item.opportunityId && onViewOpportunity) {
+      onViewOpportunity(item.opportunityId);
+    } else {
+      // No per-job detail page exists yet — same stopgap used elsewhere.
+      onBack();
+    }
   };
 
   return (
@@ -438,20 +520,20 @@ export const OpportunitySchedulePage: React.FC<{
         <View style={{ gap: 2 }}>
           <Text style={s.selectedHeading}>{formatSelectedHeading(selectedDate)}</Text>
           <Text style={s.selectedSubtext}>
-            {selectedJobs.length === 0
+            {selectedItems.length === 0
               ? 'No scheduled work.'
-              : `${selectedJobs.length} scheduled work${selectedJobs.length > 1 ? 's' : ''}.`}
+              : `${selectedItems.length} scheduled work${selectedItems.length > 1 ? 's' : ''}.`}
           </Text>
         </View>
 
-        {selectedJobs.length === 0 ? (
+        {selectedItems.length === 0 ? (
           <View style={s.emptyState}>
             <Text style={s.emptyStateText}>Nothing booked for this date yet.</Text>
           </View>
         ) : (
           <View style={{ gap: Spacing.sm }}>
-            {selectedJobs.map((job) => (
-              <ScheduledJobCard key={job.id} job={job} onView={onBack} onRemove={() => handleRemove(job.id)} />
+            {selectedItems.map((item) => (
+              <ScheduledJobCard key={item.id} item={item} onView={() => handleView(item)} onRemove={() => handleRemove(item.id)} />
             ))}
           </View>
         )}

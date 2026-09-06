@@ -227,7 +227,11 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
       )}
       {screen === 'profile' && <CreatorProfile onNavigate={handleNavigate} />}
       {screen === 'schedule' && (
-        <OpportunitySchedulePage onNavigate={handleNavigate} onBack={handleBackToDashboard} />
+        <OpportunitySchedulePage
+          onNavigate={handleNavigate}
+          onBack={handleBackToDashboard}
+          onViewOpportunity={handleViewOpportunityFromApplication}
+        />
       )}
       {screen === 'my-work' && (
         <MyWorkList
