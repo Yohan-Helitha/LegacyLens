@@ -5,6 +5,7 @@ import lk.ac.sliit.legacylens.marketplace.dto.JobResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.PaymentHistoryItemResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.ReviewResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -27,6 +28,11 @@ public interface CreatorDashboardService {
     /** Completed jobs and manually-logged payments merged into one ledger, newest first. */
     List<PaymentHistoryItemResponse> getPaymentHistory(UUID creatorId, int limit);
 
-    /** Logs a cash payment the creator collected outside of a specific job. */
-    PaymentHistoryItemResponse addPayment(UUID creatorId, BigDecimal amount, String note);
+    /**
+     * Logs a cash payment the creator collected, with a photo proof of
+     * collection. jobId is optional — a payment doesn't have to be tied to a
+     * specific opportunity — but when given, it must belong to this creator.
+     */
+    PaymentHistoryItemResponse addPayment(
+            UUID creatorId, UUID jobId, BigDecimal amount, BigDecimal tipAmount, MultipartFile proofDocument);
 }

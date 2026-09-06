@@ -15,6 +15,7 @@ import { MyWorkList } from '../screens/marketplace/creator/MyWorkList';
 import { ContinueMyWorkPage } from '../screens/marketplace/creator/ContinueMyWorkPage';
 import { SavedCompletedWorkPage } from '../screens/marketplace/creator/SavedCompletedWorkPage';
 import { SubmittedWorkDetailPage } from '../screens/marketplace/creator/SubmittedWorkDetailPage';
+import { LogPaymentPage } from '../screens/marketplace/creator/LogPaymentPage';
 import type { NavTab } from '../components/BottomNavBar';
 
 export type CreatorScreen =
@@ -33,7 +34,8 @@ export type CreatorScreen =
   | 'my-work'
   | 'continue-work'
   | 'saved-completed-work'
-  | 'submitted-work';
+  | 'submitted-work'
+  | 'log-payment';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -113,6 +115,12 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   /** Called when "History" is pressed on CreatorDashboard's Collected Today card */
   const handleOpenHistory = () => setScreen('payment-history');
 
+  /** Called when "Add" is pressed on CreatorDashboard's Collected Today card */
+  const handleOpenLogPayment = () => setScreen('log-payment');
+
+  /** Called when a payment is successfully logged on LogPaymentPage */
+  const handlePaymentSaved = () => setScreen('dashboard');
+
   /** Called when the "Schedule" tab is pressed on CreatorDashboard */
   const handleOpenSchedule = () => setScreen('schedule');
 
@@ -170,6 +178,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onOpenHistory={handleOpenHistory}
           onOpenSchedule={handleOpenSchedule}
           onOpenMyWork={handleOpenMyWork}
+          onAddPayment={handleOpenLogPayment}
         />
       )}
       {screen === 'market' && (
@@ -224,6 +233,9 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
       )}
       {screen === 'payment-history' && (
         <PaymentHistoryPage onNavigate={handleNavigate} onBack={handleBackToDashboard} />
+      )}
+      {screen === 'log-payment' && (
+        <LogPaymentPage onNavigate={handleNavigate} onBack={handleBackToDashboard} onSaved={handlePaymentSaved} />
       )}
       {screen === 'profile' && <CreatorProfile onNavigate={handleNavigate} />}
       {screen === 'schedule' && (

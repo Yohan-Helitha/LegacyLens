@@ -43,8 +43,22 @@ public class PaymentRecord {
     @JoinColumn(name = "creator_id", nullable = false)
     private User creator;
 
+    /** Which opportunity this cash was collected for — optional since not every logged payment has to be tied to one. */
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "job_id")
+    private Job job;
+
+    /** The main amount collected for the selected opportunity (excludes any tip). */
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
+
+    /** Cash tip collected alongside the main amount — tracked separately, but counted in every total shown to the creator. */
+    @Column(name = "tip_amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal tipAmount = BigDecimal.ZERO;
+
+    /** Relative URL of the uploaded receipt/proof photo — see FileStorageService. */
+    @Column(name = "proof_document_url", length = 255)
+    private String proofDocumentUrl;
 
     /** Optional free-text note, e.g. "Cash tip" or "Payment for photo prints". */
     @Column(length = 200)

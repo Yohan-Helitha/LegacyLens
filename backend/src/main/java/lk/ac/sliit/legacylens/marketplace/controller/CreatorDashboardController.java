@@ -13,8 +13,8 @@ import lk.ac.sliit.legacylens.marketplace.service.CreatorDashboardService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -81,12 +81,19 @@ public class CreatorDashboardController {
                 creatorDashboardService.getPaymentHistory(principal.getUser().getId(), limit)));
     }
 
-    @PostMapping("/payments")
+    /** multipart/form-data — the proof photo rides alongside the form fields, same pattern as /api/creator-applications. */
+    @PostMapping(value = "/payments", consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<PaymentHistoryItemResponse>> addPayment(
             @AuthenticationPrincipal CustomUserDetails principal,
-            @Valid @RequestBody AddPaymentRequest request) {
+            @Valid @ModelAttribute AddPaymentRequest request) {
 
-        return ResponseEntity.ok(ApiResponse.ok(
-                creatorDashboardService.addPayment(principal.getUser().getId(), request.getAmount(), request.getNote())));
+        PaymentHistoryItemResponse response = creatorDashboardService.addPayment(
+                principal.getUser().getId(),
+                request.getJobId(),
+                request.getAmount(),
+                request.getTipAmount(),
+                request.getProofDocument());
+
+        return ResponseEntity.ok(ApiResponse.ok("Payment logged", response));
     }
 }

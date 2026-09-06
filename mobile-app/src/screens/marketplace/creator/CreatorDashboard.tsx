@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
   Image,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -480,24 +478,16 @@ export const CreatorDashboard: React.FC<{
   onOpenHistory: () => void;
   onOpenSchedule: () => void;
   onOpenMyWork: () => void;
-}> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork }) => {
+  onAddPayment: () => void;
+}> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork, onAddPayment }) => {
   const [activeTab, setActiveTab] = useState<JobTab>('active');
   const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
   const [reviews, setReviews] = useState<ReviewItem[]>(FALLBACK_REVIEWS);
   const [jobsByTab, setJobsByTab] = useState<Partial<Record<JobTab, ActiveJobItem[]>>>({});
   const [jobsLoading, setJobsLoading] = useState(false);
 
-  const [addModalVisible, setAddModalVisible] = useState(false);
-  const [amountInput, setAmountInput] = useState('');
-  const [noteInput, setNoteInput] = useState('');
-  const [addSubmitting, setAddSubmitting] = useState(false);
-
-  const refreshSummary = () => {
-    creatorDashboardApi.getSummary().then(setSummary).catch(() => {});
-  };
-
   useEffect(() => {
-    refreshSummary();
+    creatorDashboardApi.getSummary().then(setSummary).catch(() => {});
     creatorDashboardApi
       .getReviews(5)
       .then((data) => {
@@ -507,23 +497,6 @@ export const CreatorDashboard: React.FC<{
       })
       .catch(() => {});
   }, []);
-
-  const handleAddPayment = () => {
-    const amount = parseFloat(amountInput);
-    if (!amount || amount <= 0) return;
-
-    setAddSubmitting(true);
-    creatorDashboardApi
-      .addPayment(amount, noteInput.trim() || 'Cash payment')
-      .then(() => {
-        setAddModalVisible(false);
-        setAmountInput('');
-        setNoteInput('');
-        refreshSummary();
-      })
-      .catch(() => {})
-      .finally(() => setAddSubmitting(false));
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -567,7 +540,7 @@ export const CreatorDashboard: React.FC<{
         <MetricsSection
           summary={summary}
           onOpenHistory={onOpenHistory}
-          onAddPayment={() => setAddModalVisible(true)}
+          onAddPayment={onAddPayment}
         />
 
         {/* ── Job Management ───────────────────────────────────────────── */}
@@ -621,55 +594,6 @@ export const CreatorDashboard: React.FC<{
       </ScrollView>
 
       <BottomNavBar activeTab="home" onNavigate={onNavigate} />
-
-      {/* Add Payment modal */}
-      <Modal visible={addModalVisible} transparent animationType="fade" onRequestClose={() => setAddModalVisible(false)}>
-        <View style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            <Text style={s.modalTitle}>Log a Payment</Text>
-            <Text style={s.modalSubtitle}>Record cash you've just collected from an elder.</Text>
-
-            <Text style={s.modalLabel}>Amount (LKR)</Text>
-            <TextInput
-              style={s.modalInput}
-              value={amountInput}
-              onChangeText={setAmountInput}
-              placeholder="e.g. 1500"
-              placeholderTextColor={D.onSurfaceVariant}
-              keyboardType="numeric"
-              accessibilityLabel="Payment amount"
-            />
-
-            <Text style={s.modalLabel}>Note (optional)</Text>
-            <TextInput
-              style={s.modalInput}
-              value={noteInput}
-              onChangeText={setNoteInput}
-              placeholder="e.g. Cash tip"
-              placeholderTextColor={D.onSurfaceVariant}
-              accessibilityLabel="Payment note"
-            />
-
-            <View style={s.modalBtnRow}>
-              <Pressable
-                onPress={() => setAddModalVisible(false)}
-                style={({ pressed }) => [s.modalBtnCancel, pressed && s.pressed]}
-                accessibilityRole="button"
-              >
-                <Text style={s.modalBtnCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleAddPayment}
-                disabled={addSubmitting}
-                style={({ pressed }) => [s.modalBtnAdd, pressed && s.pressed, addSubmitting && { opacity: 0.6 }]}
-                accessibilityRole="button"
-              >
-                <Text style={s.modalBtnAddText}>{addSubmitting ? 'Adding…' : 'Add'}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 };
@@ -883,68 +807,6 @@ const s = StyleSheet.create({
   pressed:      { opacity: 0.75 },
   pressedDark:  { backgroundColor: 'rgba(255,255,255,0.14)' },
   pressedLight: { opacity: 0.88 },
-
-  // ── Add Payment modal ──────────────────────────────────────────────────────
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.lg,
-  },
-  modalCard: {
-    width: '100%',
-    backgroundColor: D.surfaceContainerLowest,
-    borderRadius: Radii.xl,
-    padding: Spacing.lg,
-    gap: Spacing.xs,
-  },
-  modalTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: D.onSurface },
-  modalSubtitle: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeSM,
-    color: D.onSurfaceVariant,
-    marginBottom: Spacing.sm,
-  },
-  modalLabel: {
-    fontFamily: Typography.fontBodyMed,
-    fontSize: Typography.sizeXS,
-    color: D.onSurfaceVariant,
-    marginTop: Spacing.sm,
-  },
-  modalInput: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeMD,
-    color: D.onSurface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: D.surfaceVariant,
-    borderRadius: Radii.lg,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-    marginTop: 4,
-  },
-  modalBtnRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg },
-  modalBtnCancel: {
-    flex: 1,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: D.surfaceVariant,
-    borderRadius: Radii.lg,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-  },
-  modalBtnCancelText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
-  modalBtnAdd: {
-    flex: 1,
-    backgroundColor: '#E8792E',
-    borderRadius: Radii.lg,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-  },
-  modalBtnAddText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
 });
 
 export default CreatorDashboard;

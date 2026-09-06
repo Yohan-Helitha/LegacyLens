@@ -1,5 +1,7 @@
 package lk.ac.sliit.legacylens.marketplace.service;
 
+import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
+import lk.ac.sliit.legacylens.common.storage.FileStorageService;
 import lk.ac.sliit.legacylens.marketplace.dto.CreatorDashboardSummaryResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.JobResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.PaymentHistoryItemResponse;
@@ -20,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -47,19 +50,25 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
     private final CreatorProfileRepository creatorProfileRepository;
     private final PaymentRecordRepository paymentRecordRepository;
     private final UserRepository userRepository;
+    private final FileStorageService fileStorageService;
+
+    /** Subdirectory (under app.upload.dir) that payment proof photos are stored in. */
+    private static final String PAYMENT_PROOF_UPLOAD_SUBDIR = "payment-proofs";
 
     public CreatorDashboardServiceImpl(
             JobRepository jobRepository,
             ReviewRepository reviewRepository,
             CreatorProfileRepository creatorProfileRepository,
             PaymentRecordRepository paymentRecordRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            FileStorageService fileStorageService) {
 
         this.jobRepository = jobRepository;
         this.reviewRepository = reviewRepository;
         this.creatorProfileRepository = creatorProfileRepository;
         this.paymentRecordRepository = paymentRecordRepository;
         this.userRepository = userRepository;
+        this.fileStorageService = fileStorageService;
     }
 
     @Override
@@ -136,18 +145,18 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
         jobRepository.findByCreatorIdAndStatus(creatorId, JobStatus.COMPLETED, PageRequest.of(0, limit))
                 .forEach(job -> items.add(PaymentHistoryItemResponse.builder()
                         .id(job.getId())
+                        .jobId(job.getId())
+                        .opportunityTitle(job.getTitle())
+                        .elderName(job.getElder().getFullName())
                         .amount(job.getOfferedAmount())
+                        .tipAmount(BigDecimal.ZERO)
+                        .totalAmount(job.getOfferedAmount())
                         .collectedAt(job.getCompletedAt())
                         .note(job.getTitle() + " — " + job.getElder().getFullName())
                         .build()));
 
         paymentRecordRepository.findByCreatorIdOrderByCollectedAtDesc(creatorId, PageRequest.of(0, limit))
-                .forEach(payment -> items.add(PaymentHistoryItemResponse.builder()
-                        .id(payment.getId())
-                        .amount(payment.getAmount())
-                        .collectedAt(payment.getCollectedAt())
-                        .note(payment.getNote())
-                        .build()));
+                .forEach(payment -> items.add(mapPaymentRecord(payment)));
 
         items.sort(Comparator.comparing(PaymentHistoryItemResponse::getCollectedAt).reversed());
 
@@ -156,18 +165,44 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
 
     @Override
     @Transactional
-    public PaymentHistoryItemResponse addPayment(UUID creatorId, BigDecimal amount, String note) {
-        User creator = userRepository.findById(creatorId).orElseThrow();
+    public PaymentHistoryItemResponse addPayment(
+            UUID creatorId, UUID jobId, BigDecimal amount, BigDecimal tipAmount, MultipartFile proofDocument) {
+
+        User creator = userRepository.findById(creatorId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        Job job = null;
+        if (jobId != null) {
+            job = jobRepository.findByIdAndCreatorId(jobId, creatorId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
+        }
+
+        String proofDocumentUrl = fileStorageService.store(proofDocument, PAYMENT_PROOF_UPLOAD_SUBDIR);
 
         PaymentRecord record = new PaymentRecord();
         record.setCreator(creator);
+        record.setJob(job);
         record.setAmount(amount);
-        record.setNote(note);
+        record.setTipAmount(tipAmount != null ? tipAmount : BigDecimal.ZERO);
+        record.setProofDocumentUrl(proofDocumentUrl);
         record = paymentRecordRepository.save(record);
+
+        return mapPaymentRecord(record);
+    }
+
+    private PaymentHistoryItemResponse mapPaymentRecord(PaymentRecord record) {
+        Job job = record.getJob();
+        BigDecimal tip = record.getTipAmount() != null ? record.getTipAmount() : BigDecimal.ZERO;
 
         return PaymentHistoryItemResponse.builder()
                 .id(record.getId())
+                .jobId(job != null ? job.getId() : null)
+                .opportunityTitle(job != null ? job.getTitle() : null)
+                .elderName(job != null ? job.getElder().getFullName() : null)
                 .amount(record.getAmount())
+                .tipAmount(tip)
+                .totalAmount(record.getAmount().add(tip))
+                .proofDocumentUrl(record.getProofDocumentUrl())
                 .collectedAt(record.getCollectedAt())
                 .note(record.getNote())
                 .build();

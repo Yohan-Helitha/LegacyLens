@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -19,6 +20,9 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
     /** Backs both the Active/Upcoming/Completed tabs and "recent work" — the
      * caller supplies sort order and page size via Pageable. */
     List<Job> findByCreatorIdAndStatus(UUID creatorId, JobStatus status, Pageable pageable);
+
+    /** Ownership-scoped lookup for logging a payment against a job — a creator may only pick their own jobs. */
+    Optional<Job> findByIdAndCreatorId(UUID id, UUID creatorId);
 
     long countByCreatorIdAndStatus(UUID creatorId, JobStatus status);
 
