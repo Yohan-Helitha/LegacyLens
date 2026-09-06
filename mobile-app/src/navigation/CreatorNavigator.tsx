@@ -14,6 +14,7 @@ import { SavedOpportunityApplication } from '../screens/marketplace/creator/Save
 import { MyWorkList } from '../screens/marketplace/creator/MyWorkList';
 import { ContinueMyWorkPage } from '../screens/marketplace/creator/ContinueMyWorkPage';
 import { SavedCompletedWorkPage } from '../screens/marketplace/creator/SavedCompletedWorkPage';
+import { SubmittedWorkDetailPage } from '../screens/marketplace/creator/SubmittedWorkDetailPage';
 import type { NavTab } from '../components/BottomNavBar';
 
 export type CreatorScreen =
@@ -31,7 +32,8 @@ export type CreatorScreen =
   | 'saved-applications'
   | 'my-work'
   | 'continue-work'
-  | 'saved-completed-work';
+  | 'saved-completed-work'
+  | 'submitted-work';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -142,6 +144,9 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
     setScreen('continue-work');
   };
 
+  /** Called when "View" is pressed on a Submitted/Completed card in MyWorkList */
+  const handleOpenSubmittedWork = () => setScreen('submitted-work');
+
   /** Called when back arrow is pressed on PaymentHistoryPage */
   const handleBackToDashboard = () => setScreen('dashboard');
 
@@ -235,6 +240,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onNavigate={handleNavigate}
           onBack={handleBackToDashboard}
           onContinueWork={handleContinueWork}
+          onViewSubmittedWork={handleOpenSubmittedWork}
         />
       )}
       {screen === 'continue-work' && (
@@ -252,6 +258,9 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onBack={handleBackToMyWork}
           onEditDraft={handleEditWorkDraft}
         />
+      )}
+      {screen === 'submitted-work' && (
+        <SubmittedWorkDetailPage onNavigate={handleNavigate} onBack={handleBackToMyWork} />
       )}
     </>
   );

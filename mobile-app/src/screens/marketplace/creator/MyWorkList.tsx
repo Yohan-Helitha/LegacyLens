@@ -189,7 +189,8 @@ export const MyWorkList: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
   onContinueWork: (jobId: string, currentSteps: number) => void;
-}> = ({ onNavigate, onBack, onContinueWork }) => {
+  onViewSubmittedWork: () => void;
+}> = ({ onNavigate, onBack, onContinueWork, onViewSubmittedWork }) => {
   const [activeJobs, setActiveJobs] = useState<JobResponse[]>(FALLBACK_ACTIVE_JOBS);
   const [completedJobs, setCompletedJobs] = useState<JobResponse[]>([]);
   const [activeTab, setActiveTab] = useState<WorkTab>('active');
@@ -267,7 +268,7 @@ export const MyWorkList: React.FC<{
                 completedSteps={TOTAL_WORK_STEPS}
                 variant="submitted"
                 onContinue={() => {}}
-                onView={() => handleView(job.title)}
+                onView={onViewSubmittedWork}
               />
             ))
           )
@@ -284,7 +285,7 @@ export const MyWorkList: React.FC<{
                 completedSteps={TOTAL_WORK_STEPS}
                 variant="completed"
                 onContinue={() => {}}
-                onView={() => handleView(job.title)}
+                onView={onViewSubmittedWork}
               />
             ))
           )
