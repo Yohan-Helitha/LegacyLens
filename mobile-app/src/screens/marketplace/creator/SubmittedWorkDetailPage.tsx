@@ -57,6 +57,7 @@ const FALLBACK_PENDING_JOB: JobResponse = {
   location: 'Matara',
   offeredAmount: 3000,
   status: 'ACTIVE',
+  urgent: false,
   scheduledAt: null,
   completedAt: null,
 };
@@ -69,6 +70,7 @@ const FALLBACK_PUBLISHED_JOB: JobResponse = {
   location: 'Galle',
   offeredAmount: 3500,
   status: 'COMPLETED',
+  urgent: false,
   scheduledAt: null,
   completedAt: '2026-08-15T12:30:00',
 };

@@ -21,6 +21,7 @@ public class JobResponse {
     private String location;
     private BigDecimal offeredAmount;
     private String status;
+    private boolean urgent;
     private LocalDateTime scheduledAt;
     private LocalDateTime completedAt;
 }

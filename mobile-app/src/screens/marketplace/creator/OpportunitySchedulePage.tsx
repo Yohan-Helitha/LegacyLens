@@ -34,7 +34,34 @@ const D = {
   onSurface:        '#202428',
   onSurfaceVariant: '#4a5568',
   outline:          '#a0aab0',
+
+  /** Alert red — reserved for urgent work only, never used elsewhere in this screen's palette. */
+  urgentDot: '#C0392B',
 } as const;
+
+/**
+ * Cycled, in scheduled-time order, across a day's non-urgent jobs so two
+ * different bookings on the same date get two different dot colours.
+ * Urgent jobs always use D.urgentDot instead, regardless of position, so
+ * they read as a distinct category rather than "just another colour".
+ */
+const DOT_PALETTE = [D.primary, D.secondary, '#5B6EC7'] as const;
+const MAX_DOTS_PER_DAY = 3;
+
+function computeDotColors(dayJobs: JobResponse[]): string[] {
+  const colors: string[] = [];
+  let paletteIndex = 0;
+  for (const job of dayJobs) {
+    if (colors.length >= MAX_DOTS_PER_DAY) break;
+    if (job.urgent) {
+      colors.push(D.urgentDot);
+    } else {
+      colors.push(DOT_PALETTE[paletteIndex % DOT_PALETTE.length]);
+      paletteIndex += 1;
+    }
+  }
+  return colors;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fallback data — shown only if /api/creator-dashboard/jobs fails, so the
@@ -49,6 +76,7 @@ const FALLBACK_JOBS: JobResponse[] = [
     location: 'Matara',
     offeredAmount: 3000,
     status: 'UPCOMING',
+    urgent: false,
     scheduledAt: '2026-08-30T12:30:00',
     completedAt: null,
   },
@@ -60,6 +88,7 @@ const FALLBACK_JOBS: JobResponse[] = [
     location: 'Matara',
     offeredAmount: 1800,
     status: 'UPCOMING',
+    urgent: true,
     scheduledAt: '2026-08-30T15:30:00',
     completedAt: null,
   },
@@ -183,11 +212,11 @@ const TopAppBar: React.FC<{ onBack: () => void }> = ({ onBack }) => (
 const Calendar: React.FC<{
   visibleMonth: Date;
   selectedKey: string;
-  markedKeys: Set<string>;
+  dotColorsByDateKey: Record<string, string[]>;
   onSelectDate: (d: Date) => void;
   onPrevMonth: () => void;
   onNextMonth: () => void;
-}> = ({ visibleMonth, selectedKey, markedKeys, onSelectDate, onPrevMonth, onNextMonth }) => {
+}> = ({ visibleMonth, selectedKey, dotColorsByDateKey, onSelectDate, onPrevMonth, onNextMonth }) => {
   const weeks = useMemo(() => buildCalendarWeeks(visibleMonth), [visibleMonth]);
   const todayKey = dateKey(new Date());
 
@@ -217,7 +246,7 @@ const Calendar: React.FC<{
             const key = dateKey(cell.date);
             const isSelected = key === selectedKey;
             const isToday = key === todayKey;
-            const isMarked = markedKeys.has(key);
+            const dots = dotColorsByDateKey[key] ?? [];
             return (
               <Pressable
                 key={key}
@@ -237,7 +266,13 @@ const Calendar: React.FC<{
                     {cell.date.getDate()}
                   </Text>
                 </View>
-                {isMarked && !isSelected && <View style={s.dayDot} />}
+                {!isSelected && dots.length > 0 && (
+                  <View style={s.dayDotsRow}>
+                    {dots.map((color, i) => (
+                      <View key={i} style={[s.dayDot, { backgroundColor: color }]} />
+                    ))}
+                  </View>
+                )}
               </Pressable>
             );
           })}
@@ -257,7 +292,14 @@ const ScheduledJobCard: React.FC<{
 }> = ({ job, onView, onRemove }) => (
   <View style={s.jobCard}>
     <View style={s.jobCardHeaderRow}>
-      <Text style={s.jobTitle} numberOfLines={2}>{job.title}</Text>
+      <View style={{ flex: 1, gap: 4 }}>
+        {job.urgent && (
+          <View style={s.urgentBadge}>
+            <Text style={s.urgentBadgeText}>Urgent</Text>
+          </View>
+        )}
+        <Text style={s.jobTitle} numberOfLines={2}>{job.title}</Text>
+      </View>
       <Pressable
         onPress={onRemove}
         style={({ pressed }) => [s.trashBtn, pressed && s.pressed]}
@@ -332,7 +374,14 @@ export const OpportunitySchedulePage: React.FC<{
     return map;
   }, [jobs]);
 
-  const markedKeys = useMemo(() => new Set(Object.keys(jobsByDateKey)), [jobsByDateKey]);
+  const dotColorsByDateKey = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const [key, dayJobs] of Object.entries(jobsByDateKey)) {
+      map[key] = computeDotColors(dayJobs);
+    }
+    return map;
+  }, [jobsByDateKey]);
+
   const selectedJobs = jobsByDateKey[selectedKey] ?? [];
   const selectedDate = useMemo(() => {
     const [y, m, d] = selectedKey.split('-').map(Number);
@@ -366,11 +415,25 @@ export const OpportunitySchedulePage: React.FC<{
         <Calendar
           visibleMonth={visibleMonth}
           selectedKey={selectedKey}
-          markedKeys={markedKeys}
+          dotColorsByDateKey={dotColorsByDateKey}
           onSelectDate={(d) => setSelectedKey(dateKey(d))}
           onPrevMonth={() => setVisibleMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
           onNextMonth={() => setVisibleMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
         />
+
+        <View style={s.legendRow}>
+          <View style={s.legendItemsRow}>
+            <View style={s.legendItem}>
+              <View style={[s.legendDot, { backgroundColor: D.primary }]} />
+              <Text style={s.legendText}>Booking</Text>
+            </View>
+            <View style={s.legendItem}>
+              <View style={[s.legendDot, { backgroundColor: D.urgentDot }]} />
+              <Text style={s.legendText}>Urgent</Text>
+            </View>
+          </View>
+          <Text style={s.legendHint}>Different colours on one date mean different bookings.</Text>
+        </View>
 
         <View style={{ gap: 2 }}>
           <Text style={s.selectedHeading}>{formatSelectedHeading(selectedDate)}</Text>
@@ -498,10 +561,19 @@ const s = StyleSheet.create({
   dayText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurface },
   dayTextOutMonth: { color: D.outline },
   dayTextSelected: { color: '#ffffff', fontFamily: Typography.fontBodySemi },
-  dayDot: {
+  dayDotsRow: {
     position: 'absolute', bottom: 2,
-    width: 4, height: 4, borderRadius: 2, backgroundColor: D.secondary,
+    flexDirection: 'row', gap: 3,
   },
+  dayDot: { width: 4, height: 4, borderRadius: 2 },
+
+  // ── Legend ───────────────────────────────────────────────────────────────
+  legendRow: { gap: 4 },
+  legendItemsRow: { flexDirection: 'row', gap: Spacing.md },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
+  legendHint: { fontFamily: Typography.fontBody, fontSize: 11, color: D.onSurfaceVariant },
 
   // ── Selected date summary ────────────────────────────────────────────────
   selectedHeading: {
@@ -530,7 +602,12 @@ const s = StyleSheet.create({
     elevation: 1,
   },
   jobCardHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.sm },
-  jobTitle: { flex: 1, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, lineHeight: 20, color: D.onSurface },
+  jobTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, lineHeight: 20, color: D.onSurface },
+  urgentBadge: {
+    alignSelf: 'flex-start', backgroundColor: D.urgentDot, borderRadius: Radii.full,
+    paddingHorizontal: 10, paddingVertical: 2,
+  },
+  urgentBadgeText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.4 },
   trashBtn: { padding: 2 },
   jobInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   jobInfoText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurface },

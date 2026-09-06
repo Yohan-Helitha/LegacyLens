@@ -69,6 +69,15 @@ public class Job {
     @Column(nullable = false, length = 20)
     private JobStatus status = JobStatus.UPCOMING;
 
+    /**
+     * Static, admin/seed-set flag (same convention as Opportunity.urgent) —
+     * shown as a distinct colour on OpportunitySchedulePage's calendar so a
+     * time-sensitive booking stands out from the creator's other scheduled
+     * work. Nothing computes this automatically yet.
+     */
+    @Column(nullable = false)
+    private boolean urgent = false;
+
     /** When the work is/was scheduled to happen. */
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;

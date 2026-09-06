@@ -182,6 +182,7 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
                 .location(job.getLocation())
                 .offeredAmount(job.getOfferedAmount())
                 .status(job.getStatus().name())
+                .urgent(job.isUrgent())
                 .scheduledAt(job.getScheduledAt())
                 .completedAt(job.getCompletedAt())
                 .build();

@@ -22,6 +22,8 @@ export interface JobResponse {
   location: string | null;
   offeredAmount: number;
   status: DashboardJobStatus;
+  /** Static, admin/seed-set flag — shown as a distinct dot colour on OpportunitySchedulePage's calendar. */
+  urgent: boolean;
   scheduledAt: string | null;
   completedAt: string | null;
 }

@@ -28,6 +28,7 @@ const DEMO_JOB: JobResponse = {
   location: 'Matara',
   offeredAmount: 3000,
   status: 'ACTIVE',
+  urgent: false,
   scheduledAt: null,
   completedAt: null,
 };
