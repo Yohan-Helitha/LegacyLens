@@ -152,7 +152,7 @@ export interface AItem {
 // Component Definition
 // ─────────────────────────────────────────────────────────────────────────────
 export const HomeScreen: React.FC<{ 
-  onNavigate?: (tab: string) => void, 
+  onNavigate?: (tab: string, item?: any) => void, 
   isOverlayActive?: boolean,
   initialSearchQuery?: string 
 }> = ({ onNavigate, isOverlayActive, initialSearchQuery }) => {
@@ -164,22 +164,6 @@ export const HomeScreen: React.FC<{
   const [allFeedItems, setAllFeedItems] = useState<(VItem | BItem | AItem)[]>([]);
   const [featuredKeeper, setFeaturedKeeper] = useState<any>(null);
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await homeApi.getCategories();
-        if (response && response.length > 0) {
-          const dbCategories = response.map((cat: CategoryResponse) => ({
-            id: String(cat.id),
-            label: cat.name,
-            tags: [cat.name.toLowerCase()]
-          }));
-          setCategories(dbCategories);
-        } else {
-          setCategories(DEFAULT_CATEGORIES.map(c => ({ id: c.id, label: c.label, tags: c.tags })));
-        }
-      } catch (error) {
-        console.log('Error fetching categories from DB, fallback to default:', error);
   const fetchCategories = useCallback(async () => {
     try {
       const response = await homeApi.getCategories();
@@ -193,48 +177,29 @@ export const HomeScreen: React.FC<{
       } else {
         setCategories(DEFAULT_CATEGORIES.map(c => ({ id: c.id, label: c.label, tags: c.tags })));
       }
-    };
     } catch (error) {
       console.log('Error fetching categories from DB, fallback to default:', error);
       setCategories(DEFAULT_CATEGORIES.map(c => ({ id: c.id, label: c.label, tags: c.tags })));
     }
   }, []);
 
-    const fetchFeedItems = async () => {
-      try {
-        const response = await homeApi.getFeedItems();
-        if (response && response.length > 0) {
-          setAllFeedItems(response as any);
-        }
-      } catch (error) {
-        console.log('Error fetching feed items from DB:', error);
   const fetchFeedItems = useCallback(async () => {
     try {
       const response = await homeApi.getFeedItems();
       if (response && response.length > 0) {
         setAllFeedItems(response as any);
       }
-    };
     } catch (error) {
       console.log('Error fetching feed items from DB:', error);
     }
   }, []);
 
-    const fetchFeaturedKeeper = async () => {
-      try {
-        const response = await homeApi.getFeaturedKeeper();
-        if (response) {
-          setFeaturedKeeper(response);
-        }
-      } catch (error) {
-        console.log('Error fetching featured keeper:', error);
   const fetchFeaturedKeeper = useCallback(async () => {
     try {
       const response = await homeApi.getFeaturedKeeper();
       if (response) {
         setFeaturedKeeper(response);
       }
-    };
     } catch (error) {
       console.log('Error fetching featured keeper:', error);
     }
@@ -244,7 +209,6 @@ export const HomeScreen: React.FC<{
     fetchCategories();
     fetchFeedItems();
     fetchFeaturedKeeper();
-  }, []);
   }, [fetchCategories, fetchFeedItems, fetchFeaturedKeeper]);
 
   useFocusEffect(
@@ -287,22 +251,21 @@ export const HomeScreen: React.FC<{
     setSearchQuery(text);
   };
 
-  const handleRefresh = () => {
   const handleRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => {
-    try {
-      await Promise.all([
-        fetchCategories(),
-        fetchFeedItems(),
-        fetchFeaturedKeeper()
-      ]);
-    } catch (error) {
-      console.log('Error refreshing data:', error);
-    } finally {
-      setRefreshing(false);
+    setTimeout(async () => {
+      try {
+        await Promise.all([
+          fetchCategories(),
+          fetchFeedItems(),
+          fetchFeaturedKeeper()
+        ]);
+      } catch (error) {
+        console.log('Error refreshing data:', error);
+      } finally {
+        setRefreshing(false);
+      }
     }, 1200);
-    }
   };
 
   const handleAudioPress = () => {
@@ -634,6 +597,7 @@ export const HomeScreen: React.FC<{
                     item={item}
                     setActivePostId={setActivePostId}
                     setCommentModalVisible={setCommentModalVisible}
+                    onNavigate={onNavigate}
                   />
                 );
         }}

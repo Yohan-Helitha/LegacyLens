@@ -19,24 +19,6 @@ import MapView from 'react-native-maps';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 import { styles } from './CreateOpportunityScreen.styles';
-const KNOWLEDGE_HOLDERS = [
-  {
-    "id": "kh1",
-    "name": "Dr. Sunil Ariyaratne",
-    "role": "Traditional Dance Master",
-    "location": "Kandy",
-    "verified": true,
-    "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuDt8Ue9Wvwc8kK_bKxgX65wT_vD3lO1_qVd_1Y1qC3x7N8wK_x5qN6Vd_1Y1qC3x7N8wK_x5qN6Vd_1Y1qC3x7N8wK_x5q"
-  },
-  {
-    "id": "kh2",
-    "name": "Mrs. Kamala Perera",
-    "role": "Culinary Heritage Expert",
-    "location": "Galle",
-    "verified": true,
-    "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuCP68zF6Gx2bvH0fVStHJXGnBk5k_zSJg9JGpVV_809FYAbsWYy07BPZju5VzHAh0a3DsWveaJuEjyGZZuqsEJK63MJTxJ8oCdRaLzuOqiEPkZjrQZbSry6dS7t3kk18Z23_FVbDtwh1ltzKXc_ucCq8Q6epXt5apHZzXR6wBeAoHsvijSJzyy7b_DOS2II3W_dmHBW_4KryJA7_7PDvzAoPgp4ylZTV3AZjsRq8m_Cc_xV9mRXNloj"
-  }
-];
 import { useOpportunity } from '../../../context/OpportunityContext';
 import { adminOpportunityApi } from '../../../services/api/opportunityApi';
 import { CreateOpportunityRequest } from '../../../types/opportunity';
@@ -148,7 +130,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
       return;
     }
 
-    const selectedKH = MOCK_DATA.knowledgeHolders.find(kh => kh.id === selectedKnowledgeHolder);
+    const selectedKH: any = null;
     const elderName = selectedKH ? selectedKH.name : null;
     const body = {
       title: opportunityTitle || 'Untitled Opportunity',
@@ -197,7 +179,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   const handlePublish = async () => {
     setPublishing(true);
     try {
-      const selectedKH = MOCK_DATA.knowledgeHolders.find(kh => kh.id === selectedKnowledgeHolder);
+      const selectedKH: any = null;
       const elderName = selectedKH ? selectedKH.name : null;
       const body = {
         title: opportunityTitle,
@@ -467,39 +449,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
         </View>
 
         <View style={styles.profilesGrid}>
-          {KNOWLEDGE_HOLDERS
-            .filter(kh => 
-              kh.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-              kh.role.toLowerCase().includes(searchQuery.toLowerCase()) || 
-              kh.location.toLowerCase().includes(searchQuery.toLowerCase())
-            )
-            .map((kh) => (
-              <TouchableOpacity 
-                key={kh.id} 
-                style={[styles.profileCard, selectedKnowledgeHolder === kh.id && { borderColor: '#fe893e', backgroundColor: 'rgba(254, 137, 62, 0.05)' }]} 
-                activeOpacity={0.8}
-                onPress={() => setSelectedKnowledgeHolder(kh.id)}
-              >
-                <View style={[styles.profileAvatarContainer, { overflow: 'hidden' }]}>
-                  {kh.image ? (
-                    <Image source={{ uri: kh.image }} style={{ width: '100%', height: '100%' }} />
-                  ) : (
-                    <MaterialIcons name="person" size={32} color={Colors.textMuted} />
-                  )}
-                </View>
-                <View style={styles.profileInfo}>
-                  <View style={styles.profileNameRow}>
-                    <Text style={styles.profileName}>{kh.name}</Text>
-                    {kh.verified && <MaterialIcons name="verified" size={16} color="#fe893e" />}
-                  </View>
-                  <Text style={styles.profileRole}>{kh.role}</Text>
-                  <View style={styles.profileLocationRow}>
-                    <MaterialIcons name="location-on" size={12} color={Colors.textMuted} />
-                    <Text style={styles.profileLocation}>{kh.location}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+          {[]}
         </View>
 
       </ScrollView>
@@ -844,7 +794,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   // Step 5: Review & Publish
   // ────────────────────────────────────────────────────────────────────────
   const renderStep5 = () => {
-    const selectedKH = KNOWLEDGE_HOLDERS.find(kh => kh.id === selectedKnowledgeHolder);
+    const selectedKH: any = null;
     
     const checklist = [
       { label: 'Clear title', done: opportunityTitle.trim().length > 0 },
@@ -960,7 +910,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   // Step 6: Published Success
   // ────────────────────────────────────────────────────────────────────────
   const renderStep6 = () => {
-    const selectedKH = KNOWLEDGE_HOLDERS.find(kh => kh.id === selectedKnowledgeHolder);
+    const selectedKH: any = null;
     return (
     <View style={styles.successContainer}>
       <View style={styles.successIconBox}>
