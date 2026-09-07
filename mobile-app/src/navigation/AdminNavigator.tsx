@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Modal } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AdminHomeScreen } from '../screens/admin/home';
@@ -21,15 +21,9 @@ interface AdminNavigatorProps {
   navigation: NativeStackNavigationProp<RootStackParamList>;
 }
 
-/**
- * Self-contained admin flow (home dashboard, opportunity intake/review/
- * drafts, moderation queue), nested inside RootNavigator as a single
- * 'Admin' route — same pattern as UserNavigator/CreatorNavigator. Only
- * reachable when the logged-in user's roles include 'ADMIN' (see
- * RootNavigator's Login screen).
- */
 export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) => {
   const [screen, setScreen] = useState<AdminScreen>('admin_home');
+  const [selectedPost, setSelectedPost] = useState<any>(null);
   const { audioSubmissions } = useOpportunity();
   
   // Real intake badge based on unlistened audio submissions
@@ -39,12 +33,12 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
   const [reviewBadge, setReviewBadge] = useState<string | null>(null);
 
   // Sync intake badge with real unlistened count
-  React.useEffect(() => {
+  useEffect(() => {
     setIntakeBadge(unlistenedCount > 0 ? String(unlistenedCount) : null);
   }, [unlistenedCount]);
 
   // Fetch pending moderation count
-  React.useEffect(() => {
+  useEffect(() => {
     import('../services/api/moderationApi').then(({ moderationApi }) => {
       moderationApi.getQueueItems('PENDING')
         .then(items => {
@@ -52,10 +46,12 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
         })
         .catch(err => console.log('Failed to fetch pending moderation', err));
     });
-  }, [screen]); // Refresh when screen changes to stay somewhat updated
+  }, [screen]);
 
-  // Clear badges when target screens are opened (optional: they will auto-update based on data now)
-  const handleNavigate = (tab: string) => {
+  const handleNavigate = (tab: string, item?: any) => {
+    if (item) {
+      setSelectedPost(item);
+    }
     if (tab === 'home') {
       navigation.replace('User');
       return;
@@ -106,19 +102,27 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
       )}
       {screen === 'drafts' && <OpportunityDraftsScreen onNavigate={handleNavigate} />}
       {screen === 'review' && <ModerationQueueScreen />}
+
       <Modal
         visible={screen === 'video'}
         animationType="slide"
         onRequestClose={() => setScreen('admin_home')}
       >
-        <VideoDetailScreen onBack={() => setScreen('admin_home')} />
+        <VideoDetailScreen
+          post={selectedPost}
+          onBack={() => setScreen('admin_home')}
+          onSelectRelatedPost={(p) => setSelectedPost(p)}
+        />
       </Modal>
       <Modal
         visible={screen === 'blog'}
         animationType="slide"
         onRequestClose={() => setScreen('admin_home')}
       >
-        <BlogDetailScreen onBack={() => setScreen('admin_home')} />
+        <BlogDetailScreen
+          post={selectedPost}
+          onBack={() => setScreen('admin_home')}
+        />
       </Modal>
 
       {screen === 'admin_profile' && (
