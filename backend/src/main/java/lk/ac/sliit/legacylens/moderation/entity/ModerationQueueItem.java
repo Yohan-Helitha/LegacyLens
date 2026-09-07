@@ -81,6 +81,12 @@ public class ModerationQueueItem {
     @Column(name = "tags")
     private String[] tags;
 
+    @Column(name = "likes_count", columnDefinition = "integer default 0")
+    private Integer likesCount = 0;
+
+    @Column(name = "comments_count", columnDefinition = "integer default 0")
+    private Integer commentsCount = 0;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ModerationStatus status = ModerationStatus.PENDING;
