@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from 'react';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Text,
@@ -11,6 +10,7 @@ import {
   ImageBackground,
   Alert,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -45,34 +45,24 @@ export const ModerationQueueScreen: React.FC = () => {
 
   const [publishedItems, setPublishedItems] = useState<any[]>([]);
 
-  useEffect(() => {
-    const fetchModerationData = async () => {
-      try {
-        const [pending, published, rejected, archived] = await Promise.all([
-          moderationApi.getQueueItems('PENDING'),
-          moderationApi.getQueueItems('PUBLISHED'),
-          moderationApi.getQueueItems('REJECTED'),
-          moderationApi.getQueueItems('ARCHIVED')
-        ]);
-        
-        const mapToUIItem = (item: ModerationQueueItemResponse) => {
-          let itemType = item.type?.toLowerCase() || 'blog';
-          if (itemType === 'article') itemType = 'blog';
-          return {
-            id: item.id,
-            title: item.title,
-            desc: item.description,
-            body: item.bodyContent,
-            image: item.imageUrl,
-            type: itemType,
-            author: item.authorName,
-            time: new Date(item.createdAt).toLocaleDateString(),
-            isElder: item.elder,
-            tags: item.tags || [],
-            status: item.status,
-            reason: item.rejectionReason,
-            notes: item.rejectionNotes
-          };
+  // Quiz state for Knowledge Check
+  const [quizQuestion, setQuizQuestion] = useState('');
+  const [quizExplanation, setQuizExplanation] = useState('');
+  const [quizOptions, setQuizOptions] = useState<Array<{
+    optionKey: string;
+    optionText: string;
+    description: string;
+    isCorrect: boolean;
+  }>>([
+    { optionKey: 'A', optionText: '', description: '', isCorrect: true },
+    { optionKey: 'B', optionText: '', description: '', isCorrect: false },
+    { optionKey: 'C', optionText: '', description: '', isCorrect: false },
+    { optionKey: 'D', optionText: '', description: '', isCorrect: false },
+  ]);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [isSavingQuiz, setIsSavingQuiz] = useState(false);
+  const [quizSaved, setQuizSaved] = useState(false);
+
   const fetchModerationData = useCallback(async () => {
     try {
       const [pending, published, rejected, archived] = await Promise.all([
@@ -102,15 +92,6 @@ export const ModerationQueueScreen: React.FC = () => {
         };
       };
 
-        setQueueItems(pending.map(mapToUIItem));
-        setPublishedItems(published.map(mapToUIItem));
-        setRejectedItems(rejected.map(mapToUIItem));
-        setArchivedItems(archived.map(mapToUIItem));
-      } catch (error) {
-        console.error('Error fetching moderation data:', error);
-      }
-    };
-    fetchModerationData();
       setQueueItems(pending.map(mapToUIItem));
       setPublishedItems(published.map(mapToUIItem));
       setRejectedItems(rejected.map(mapToUIItem));
@@ -205,9 +186,6 @@ export const ModerationQueueScreen: React.FC = () => {
   const getFilteredReviewItems = () => {
     const filtered = queueItems.filter((item) => {
       const matchesSearch = 
-        item.title.toLowerCase().includes(reviewSearchQuery.toLowerCase()) ||
-        item.desc.toLowerCase().includes(reviewSearchQuery.toLowerCase()) ||
-        item.author.toLowerCase().includes(reviewSearchQuery.toLowerCase());
         (item.title || '').toLowerCase().includes(reviewSearchQuery.toLowerCase()) ||
         (item.desc || '').toLowerCase().includes(reviewSearchQuery.toLowerCase()) ||
         (item.author || '').toLowerCase().includes(reviewSearchQuery.toLowerCase());
@@ -215,7 +193,6 @@ export const ModerationQueueScreen: React.FC = () => {
       const matchesType = reviewTypeFilter === 'all' || item.type === reviewTypeFilter;
 
       const matchesCategory = reviewCategoryFilter === 'all' || 
-        (item.tags?.some((tag: string) => tag.toLowerCase() === reviewCategoryFilter.toLowerCase()) ?? false);
         (item.tags?.some((tag: string) => tag?.toLowerCase() === reviewCategoryFilter.toLowerCase()) ?? false);
 
       const matchesContributor = reviewContributorFilter === 'all' || 
@@ -237,11 +214,9 @@ export const ModerationQueueScreen: React.FC = () => {
         return idA - idB;
       }
       if (reviewSortOrder === 'titleAsc') {
-        return a.title.localeCompare(b.title);
         return (a.title || '').localeCompare(b.title || '');
       }
       if (reviewSortOrder === 'titleDesc') {
-        return b.title.localeCompare(a.title);
         return (b.title || '').localeCompare(a.title || '');
       }
       return 0;
@@ -251,9 +226,6 @@ export const ModerationQueueScreen: React.FC = () => {
   const getFilteredPublishedItems = () => {
     const filtered = publishedItems.filter((item) => {
       const matchesSearch = 
-        item.title.toLowerCase().includes(publishedSearchQuery.toLowerCase()) ||
-        item.desc.toLowerCase().includes(publishedSearchQuery.toLowerCase()) ||
-        item.author.toLowerCase().includes(publishedSearchQuery.toLowerCase());
         (item.title || '').toLowerCase().includes(publishedSearchQuery.toLowerCase()) ||
         (item.desc || '').toLowerCase().includes(publishedSearchQuery.toLowerCase()) ||
         (item.author || '').toLowerCase().includes(publishedSearchQuery.toLowerCase());
@@ -261,7 +233,6 @@ export const ModerationQueueScreen: React.FC = () => {
       const matchesType = publishedTypeFilter === 'all' || item.type === publishedTypeFilter;
 
       const matchesCategory = publishedCategoryFilter === 'all' || 
-        item.tags.some((tag: string) => tag.toLowerCase() === publishedCategoryFilter.toLowerCase());
         (item.tags?.some((tag: string) => tag?.toLowerCase() === publishedCategoryFilter.toLowerCase()) ?? false);
 
       const matchesContributor = publishedContributorFilter === 'all' || 
@@ -283,11 +254,9 @@ export const ModerationQueueScreen: React.FC = () => {
         return idA - idB;
       }
       if (publishedSortOrder === 'titleAsc') {
-        return a.title.localeCompare(b.title);
         return (a.title || '').localeCompare(b.title || '');
       }
       if (publishedSortOrder === 'titleDesc') {
-        return b.title.localeCompare(a.title);
         return (b.title || '').localeCompare(a.title || '');
       }
       return 0;
@@ -297,9 +266,6 @@ export const ModerationQueueScreen: React.FC = () => {
   const getFilteredRejectedItems = () => {
     const filtered = rejectedItems.filter((item) => {
       const matchesSearch = 
-        item.title.toLowerCase().includes(rejectedSearchQuery.toLowerCase()) ||
-        item.desc.toLowerCase().includes(rejectedSearchQuery.toLowerCase()) ||
-        item.author.toLowerCase().includes(rejectedSearchQuery.toLowerCase());
         (item.title || '').toLowerCase().includes(rejectedSearchQuery.toLowerCase()) ||
         (item.desc || '').toLowerCase().includes(rejectedSearchQuery.toLowerCase()) ||
         (item.author || '').toLowerCase().includes(rejectedSearchQuery.toLowerCase());
@@ -307,7 +273,6 @@ export const ModerationQueueScreen: React.FC = () => {
       const matchesType = rejectedTypeFilter === 'all' || item.type === rejectedTypeFilter;
 
       const matchesCategory = rejectedCategoryFilter === 'all' || 
-        item.tags.some((tag: string) => tag.toLowerCase() === rejectedCategoryFilter.toLowerCase());
         (item.tags?.some((tag: string) => tag?.toLowerCase() === rejectedCategoryFilter.toLowerCase()) ?? false);
 
       const matchesContributor = rejectedContributorFilter === 'all' || 
@@ -329,11 +294,9 @@ export const ModerationQueueScreen: React.FC = () => {
         return idA - idB;
       }
       if (rejectedSortOrder === 'titleAsc') {
-        return a.title.localeCompare(b.title);
         return (a.title || '').localeCompare(b.title || '');
       }
       if (rejectedSortOrder === 'titleDesc') {
-        return b.title.localeCompare(a.title);
         return (b.title || '').localeCompare(a.title || '');
       }
       return 0;
@@ -343,9 +306,6 @@ export const ModerationQueueScreen: React.FC = () => {
   const getFilteredArchivedItems = () => {
     const filtered = archivedItems.filter((item) => {
       const matchesSearch = 
-        item.title.toLowerCase().includes(archivedSearchQuery.toLowerCase()) ||
-        item.desc.toLowerCase().includes(archivedSearchQuery.toLowerCase()) ||
-        item.author.toLowerCase().includes(archivedSearchQuery.toLowerCase());
         (item.title || '').toLowerCase().includes(archivedSearchQuery.toLowerCase()) ||
         (item.desc || '').toLowerCase().includes(archivedSearchQuery.toLowerCase()) ||
         (item.author || '').toLowerCase().includes(archivedSearchQuery.toLowerCase());
@@ -353,7 +313,6 @@ export const ModerationQueueScreen: React.FC = () => {
       const matchesType = archivedTypeFilter === 'all' || item.type === archivedTypeFilter;
 
       const matchesCategory = archivedCategoryFilter === 'all' || 
-        item.tags.some((tag: string) => tag.toLowerCase() === archivedCategoryFilter.toLowerCase());
         (item.tags?.some((tag: string) => tag?.toLowerCase() === archivedCategoryFilter.toLowerCase()) ?? false);
 
       const matchesContributor = archivedContributorFilter === 'all' || 
@@ -375,11 +334,9 @@ export const ModerationQueueScreen: React.FC = () => {
         return idA - idB;
       }
       if (archivedSortOrder === 'titleAsc') {
-        return a.title.localeCompare(b.title);
         return (a.title || '').localeCompare(b.title || '');
       }
       if (archivedSortOrder === 'titleDesc') {
-        return b.title.localeCompare(a.title);
         return (b.title || '').localeCompare(a.title || '');
       }
       return 0;
@@ -420,7 +377,7 @@ export const ModerationQueueScreen: React.FC = () => {
     return () => clearInterval(interval);
   }, [isPlaying]);
 
-  const handleSelectReview = (item: any) => {
+  const handleSelectReview = async (item: any) => {
     setSelectedItem(item);
     setEditingTags([...item.tags]);
     setViewState('review_detail');
@@ -435,10 +392,149 @@ export const ModerationQueueScreen: React.FC = () => {
     setPublishCategory(null);
     setPublishCategorySearch('');
     setIsCategoryDropdownOpen(false);
+    setQuizSaved(false);
+
+    // Reset quiz fields
+    setQuizQuestion('');
+    setQuizExplanation('');
+    setQuizOptions([
+      { optionKey: 'A', optionText: '', description: '', isCorrect: true },
+      { optionKey: 'B', optionText: '', description: '', isCorrect: false },
+      { optionKey: 'C', optionText: '', description: '', isCorrect: false },
+      { optionKey: 'D', optionText: '', description: '', isCorrect: false },
+    ]);
+
+    // Fetch existing quiz if present
+    try {
+      const existingQuiz = await moderationApi.getStoryQuiz(item.id);
+      if (existingQuiz && existingQuiz.question) {
+        setQuizQuestion(existingQuiz.question);
+        setQuizExplanation(existingQuiz.explanation || '');
+        if (existingQuiz.options && existingQuiz.options.length > 0) {
+          setQuizOptions(existingQuiz.options.map(opt => ({
+            optionKey: opt.optionKey,
+            optionText: opt.optionText,
+            description: opt.description || '',
+            isCorrect: opt.isCorrect ?? false
+          })));
+        }
+        setQuizSaved(true);
+      }
+    } catch (err) {
+      console.log('No existing quiz found or failed to load:', err);
+    }
+  };
+
+  const handleGenerateAiQuiz = async () => {
+    if (!selectedItem) return;
+    setIsGeneratingQuiz(true);
+    try {
+      const postDesc = selectedItem.desc || selectedItem.description || '';
+      const postBody = selectedItem.body || selectedItem.bodyContent || '';
+      const postTitle = selectedItem.title || '';
+
+      const generated = await moderationApi.generateAiQuiz(selectedItem.id, {
+        title: postTitle,
+        description: postDesc,
+        bodyContent: postBody,
+        tags: editingTags,
+      });
+
+      if (generated && generated.question) {
+        setQuizQuestion(generated.question);
+        setQuizExplanation(generated.explanation || '');
+        if (generated.options && generated.options.length > 0) {
+          setQuizOptions(generated.options.map(opt => ({
+            optionKey: opt.optionKey,
+            optionText: opt.optionText,
+            description: opt.description || '',
+            isCorrect: opt.isCorrect ?? false
+          })));
+        }
+        setQuizSaved(false);
+        Alert.alert('AI Generated', 'Knowledge check question and options have been successfully generated based on this cultural content!');
+        Alert.alert('AI Generated', 'Knowledge check generated successfully based on this post description!');
+      } else {
+        Alert.alert('Generation Notice', 'Could not generate quiz content automatically.');
+      }
+    } catch (error) {
+      console.error('Failed to generate AI quiz:', error);
+      Alert.alert('Error', 'Failed to generate quiz with AI.');
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
+
+  const handleSaveQuiz = async () => {
+    if (!selectedItem) return;
+    if (!quizQuestion.trim()) {
+      Alert.alert('Validation Error', 'Please enter a quiz question.');
+      return;
+    }
+    if (quizOptions.some(opt => !opt.optionText.trim())) {
+      Alert.alert('Validation Error', 'Please provide text for all 4 options (A, B, C, D).');
+      return;
+    }
+    if (!quizOptions.some(opt => opt.isCorrect)) {
+      Alert.alert('Validation Error', 'Please mark one option as the correct answer.');
+      return;
+    }
+
+    setIsSavingQuiz(true);
+    try {
+      await moderationApi.saveStoryQuiz(selectedItem.id, {
+        question: quizQuestion.trim(),
+        explanation: quizExplanation.trim(),
+        options: quizOptions.map(opt => ({
+          optionKey: opt.optionKey,
+          optionText: opt.optionText.trim(),
+          description: opt.description.trim(),
+          isCorrect: opt.isCorrect
+        }))
+      });
+      setQuizSaved(true);
+      Alert.alert('Success', 'Knowledge Check quiz saved successfully!');
+    } catch (error) {
+      console.error('Failed to save quiz:', error);
+      Alert.alert('Error', 'Failed to save quiz.');
+    } finally {
+      setIsSavingQuiz(false);
+    }
+  };
+
+  const handleOptionChange = (key: string, field: 'optionText' | 'description', value: string) => {
+    setQuizSaved(false);
+    setQuizOptions(prev => prev.map(opt => opt.optionKey === key ? { ...opt, [field]: value } : opt));
+  };
+
+  const handleSetCorrectOption = (key: string) => {
+    setQuizSaved(false);
+    setQuizOptions(prev => prev.map(opt => ({
+      ...opt,
+      isCorrect: opt.optionKey === key
+    })));
   };
 
   const handlePublish = async (itemId: string) => {
     try {
+      // Auto-save quiz if provided and not yet saved
+      if (quizQuestion.trim() && quizOptions.every(opt => opt.optionText.trim())) {
+        try {
+          await moderationApi.saveStoryQuiz(itemId, {
+            question: quizQuestion.trim(),
+            explanation: quizExplanation.trim(),
+            options: quizOptions.map(opt => ({
+              optionKey: opt.optionKey,
+              optionText: opt.optionText.trim(),
+              description: opt.description.trim(),
+              isCorrect: opt.isCorrect
+            }))
+          });
+        } catch (quizErr) {
+          console.log('Auto-saving quiz during publish notice:', quizErr);
+        }
+      }
+
       await moderationApi.updateItemStatus(itemId, { status: 'PUBLISHED' });
       setQueueItems((prev) => prev.filter((i) => i.id !== itemId));
       await fetchModerationData();
@@ -464,8 +560,8 @@ export const ModerationQueueScreen: React.FC = () => {
     try {
       await moderationApi.updateItemStatus(rejectingItem.id, { 
         status: 'REJECTED', 
-        reason: rejectionReason, 
-        notes: rejectionNotes 
+        rejectionReason: rejectionReason, 
+        rejectionNotes: rejectionNotes 
       });
       const newRejected = {
         ...rejectingItem,
@@ -2015,6 +2111,236 @@ export const ModerationQueueScreen: React.FC = () => {
                   </View>
                 )}
               </View>
+            </View>
+          )}
+
+          {/* Knowledge Check (Quiz) Section */}
+          {!isReviewingRejected && !isReviewingArchived && (
+            <View style={[styles.checklistCard, { marginBottom: 16, padding: 16 }]}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+                  <MaterialIcons name="psychology" size={22} color={Colors.secondary} />
+                  <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 15, fontWeight: '700', color: Colors.text }}>
+                    Knowledge Check
+                  </Text>
+                  {quizSaved ? (
+                    <View style={{ backgroundColor: 'rgba(76, 175, 80, 0.15)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#2e7d32' }}>Saved</Text>
+                    </View>
+                  ) : (
+                    <View style={{ backgroundColor: 'rgba(254, 137, 62, 0.15)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#c45100' }}>Draft</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* AI Generate Button */}
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: '#fe893e',
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 16,
+                    gap: 4,
+                  }}
+                  onPress={handleGenerateAiQuiz}
+                  disabled={isGeneratingQuiz}
+                  activeOpacity={0.8}
+                >
+                  {isGeneratingQuiz ? (
+                    <ActivityIndicator size="small" color="#672c00" />
+                  ) : (
+                    <>
+                      <MaterialIcons name="auto-awesome" size={15} color="#672c00" />
+                      <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 12, fontWeight: '700', color: '#672c00' }}>
+                        AI Generate
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <Text style={{ fontFamily: Typography.fontBody, fontSize: 12, color: Colors.textMuted, marginBottom: 12 }}>
+                Create or AI-generate an interactive 4-choice quiz with explanations for viewers before publishing.
+              </Text>
+
+              {/* Question Field */}
+              <View style={{ marginBottom: 14 }}>
+                <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 13, fontWeight: '600', color: Colors.text, marginBottom: 4 }}>
+                  Quiz Question *
+                </Text>
+                <TextInput
+                  style={{
+                    borderWidth: 1,
+                    borderColor: 'rgba(191, 200, 200, 0.5)',
+                    borderRadius: 8,
+                    padding: 10,
+                    fontFamily: Typography.fontBody,
+                    fontSize: 13,
+                    color: Colors.text,
+                    backgroundColor: '#fbfcfc',
+                    minHeight: 56
+                  }}
+                  placeholder="e.g. Which traditional wood is historically required for authentic craft carving?"
+                  placeholderTextColor={Colors.textMuted}
+                  multiline
+                  value={quizQuestion}
+                  onChangeText={(val) => {
+                    setQuizSaved(false);
+                    setQuizQuestion(val);
+                  }}
+                />
+              </View>
+
+              {/* 4 Options */}
+              <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 13, fontWeight: '600', color: Colors.text, marginBottom: 8 }}>
+                Answer Choices (Select 1 correct answer) *
+              </Text>
+
+              {quizOptions.map((opt) => (
+                <View
+                  key={opt.optionKey}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: opt.isCorrect ? '#4CAF50' : 'rgba(191, 200, 200, 0.4)',
+                    backgroundColor: opt.isCorrect ? 'rgba(76, 175, 80, 0.04)' : '#fcfdfd',
+                    borderRadius: 8,
+                    padding: 12,
+                    marginBottom: 10
+                  }}
+                >
+                  {/* Option Header & Radio Selector */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: opt.isCorrect ? '#4CAF50' : Colors.secondary,
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <Text style={{ color: Colors.white, fontSize: 12, fontWeight: '700' }}>{opt.optionKey}</Text>
+                      </View>
+                      <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 13, fontWeight: '700', color: Colors.text }}>
+                        Option {opt.optionKey}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                      onPress={() => handleSetCorrectOption(opt.optionKey)}
+                    >
+                      <MaterialIcons
+                        name={opt.isCorrect ? 'radio-button-checked' : 'radio-button-unchecked'}
+                        size={20}
+                        color={opt.isCorrect ? '#4CAF50' : Colors.textMuted}
+                      />
+                      <Text style={{
+                        fontFamily: Typography.fontBodyMed,
+                        fontSize: 12,
+                        fontWeight: '600',
+                        color: opt.isCorrect ? '#4CAF50' : Colors.textMuted
+                      }}>
+                        {opt.isCorrect ? 'Correct Answer' : 'Mark Correct'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Option Text */}
+                  <TextInput
+                    style={{
+                      borderWidth: 1,
+                      borderColor: 'rgba(191, 200, 200, 0.4)',
+                      borderRadius: 6,
+                      padding: 8,
+                      fontFamily: Typography.fontBody,
+                      fontSize: 13,
+                      color: Colors.text,
+                      backgroundColor: Colors.white,
+                      marginBottom: 6
+                    }}
+                    placeholder={`Option ${opt.optionKey} text`}
+                    placeholderTextColor={Colors.textMuted}
+                    value={opt.optionText}
+                    onChangeText={(val) => handleOptionChange(opt.optionKey, 'optionText', val)}
+                  />
+
+                  {/* Option Description / Rationale */}
+                  <TextInput
+                    style={{
+                      borderWidth: 1,
+                      borderColor: 'rgba(191, 200, 200, 0.3)',
+                      borderRadius: 6,
+                      padding: 8,
+                      fontFamily: Typography.fontBody,
+                      fontSize: 12,
+                      color: Colors.textMuted,
+                      backgroundColor: Colors.white
+                    }}
+                    placeholder={`Why option ${opt.optionKey} is correct / incorrect description`}
+                    placeholderTextColor={Colors.textMuted}
+                    value={opt.description}
+                    onChangeText={(val) => handleOptionChange(opt.optionKey, 'description', val)}
+                  />
+                </View>
+              ))}
+
+              {/* Overall Explanation */}
+              <View style={{ marginTop: 4, marginBottom: 14 }}>
+                <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 13, fontWeight: '600', color: Colors.text, marginBottom: 4 }}>
+                  Comprehensive Cultural Explanation
+                </Text>
+                <TextInput
+                  style={{
+                    borderWidth: 1,
+                    borderColor: 'rgba(191, 200, 200, 0.5)',
+                    borderRadius: 8,
+                    padding: 10,
+                    fontFamily: Typography.fontBody,
+                    fontSize: 13,
+                    color: Colors.text,
+                    backgroundColor: '#fbfcfc',
+                    minHeight: 50
+                  }}
+                  placeholder="Explain why the answer is correct and provide deeper cultural context..."
+                  placeholderTextColor={Colors.textMuted}
+                  multiline
+                  value={quizExplanation}
+                  onChangeText={(val) => {
+                    setQuizSaved(false);
+                    setQuizExplanation(val);
+                  }}
+                />
+              </View>
+
+              {/* Save Quiz Button */}
+              <TouchableOpacity
+                style={{
+                  backgroundColor: Colors.secondary,
+                  paddingVertical: 10,
+                  borderRadius: 8,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6
+                }}
+                onPress={handleSaveQuiz}
+                disabled={isSavingQuiz}
+              >
+                {isSavingQuiz ? (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                ) : (
+                  <>
+                    <MaterialIcons name="save" size={18} color={Colors.white} />
+                    <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 13, fontWeight: '700', color: Colors.white }}>
+                      Save Knowledge Check
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
           )}
 
