@@ -426,7 +426,17 @@ export const OpportunitySchedulePage: React.FC<{
     // Booked-but-not-yet-a-Job — see ScheduleItem's javadoc comment above.
     opportunityApplicationApi
       .getMyApplications()
-      .then((apps) => setApprovedApplications(apps.filter((a) => a.status === 'APPROVED')))
+      // TEMPORARY: there's no knowledge-holder/elder side yet to actually set
+      // an application to APPROVED (see OpportunityApplicationStatus's
+      // javadoc — nothing sets it today), which would otherwise block every
+      // submitted application from ever showing up here. Treating a
+      // submitted (PENDING) application as booked lets the rest of the
+      // creator workflow (schedule, payments, etc.) be exercised end-to-end
+      // in the meantime. Restore the real gate once elder approval exists:
+      // .then((apps) => setApprovedApplications(apps.filter((a) => a.status === 'APPROVED')))
+      .then((apps) =>
+        setApprovedApplications(apps.filter((a) => a.status === 'PENDING' || a.status === 'APPROVED')),
+      )
       .catch(() => {});
   }, []);
 
