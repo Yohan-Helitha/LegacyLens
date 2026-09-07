@@ -32,7 +32,10 @@ public class OpportunityServiceImpl implements OpportunityService {
 
     private static final Logger log = LoggerFactory.getLogger(OpportunityServiceImpl.class);
 
-    /** Shown whenever a personalised score can't be computed (no creator, no profile, or any error). */
+    /**
+     * Shown whenever a personalised score can't be computed (no creator, no
+     * profile, or any error).
+     */
     private static final int DEFAULT_MATCH_PERCENTAGE = 60;
 
     private final OpportunityRepository opportunityRepository;
@@ -88,8 +91,9 @@ public class OpportunityServiceImpl implements OpportunityService {
         Opportunity opportunity = opportunityRepository.findByIdAndStatus(id, OpportunityStatus.PUBLISHED)
                 .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
 
-        boolean elderVerified = knowledgeHolderProfileRepository
-                .findByUserId(opportunity.getElder().getId())
+        User elder = opportunity.getElder();
+        boolean elderVerified = elder != null && knowledgeHolderProfileRepository
+                .findByUserId(elder.getId())
                 .isPresent();
 
         List<String> tasks = opportunity.getTasks() == null || opportunity.getTasks().isBlank()
@@ -104,8 +108,8 @@ public class OpportunityServiceImpl implements OpportunityService {
                 .title(opportunity.getTitle())
                 .description(opportunity.getDescription())
                 .heroImageUrl(opportunity.getHeroImageUrl())
-                .elderName(opportunity.getElder().getFullName())
-                .elderAvatarUrl(opportunity.getElder().getProfilePhotoUrl())
+                .elderName(elder != null ? elder.getFullName() : null)
+                .elderAvatarUrl(elder != null ? elder.getProfilePhotoUrl() : null)
                 .elderVerified(elderVerified)
                 .location(opportunity.getLocation())
                 .scheduledDate(opportunity.getScheduledDate())
@@ -119,6 +123,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     }
 
     private OpportunityCardResponse mapCard(Opportunity opportunity, User creator) {
+        User elder = opportunity.getElder();
         return OpportunityCardResponse.builder()
                 .id(opportunity.getId())
                 .title(opportunity.getTitle())
@@ -130,14 +135,17 @@ public class OpportunityServiceImpl implements OpportunityService {
                 .matchPercentage(computeMatchPercentage(creator, opportunity))
                 .urgent(opportunity.isUrgent())
                 .dueAt(opportunity.getDueAt())
-                .elderName(opportunity.getElder().getFullName())
-                .elderAvatarUrl(opportunity.getElder().getProfilePhotoUrl())
-                .elderLocation(opportunity.getElder().getCity() != null ? opportunity.getElder().getCity().getName() : null)
+                .elderName(elder != null ? elder.getFullName() : null)
+                .elderAvatarUrl(elder != null ? elder.getProfilePhotoUrl() : null)
+                .elderLocation(elder != null && elder.getCity() != null ? elder.getCity().getName() : null)
                 .createdAt(opportunity.getCreatedAt())
                 .build();
     }
 
-    /** Loads the logged-in creator for personalising match scores; null (and never an exception) if unavailable. */
+    /**
+     * Loads the logged-in creator for personalising match scores; null (and never
+     * an exception) if unavailable.
+     */
     private User loadCreator(UUID creatorId) {
         if (creatorId == null) {
             return null;

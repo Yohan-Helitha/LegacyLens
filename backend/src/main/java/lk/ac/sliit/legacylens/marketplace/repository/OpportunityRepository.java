@@ -25,6 +25,8 @@ public interface OpportunityRepository extends JpaRepository<Opportunity, UUID> 
     /** Backs "Recent Postings" — newest first. */
     List<Opportunity> findByStatusOrderByCreatedAtDesc(OpportunityStatus status, Pageable pageable);
 
+    List<Opportunity> findByStatus(OpportunityStatus status);
+
     /** A single opportunity's full detail — only if it's actually published. */
     Optional<Opportunity> findByIdAndStatus(UUID id, OpportunityStatus status);
 }

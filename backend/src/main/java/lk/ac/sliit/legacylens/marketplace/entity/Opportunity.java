@@ -49,8 +49,8 @@ public class Opportunity {
     private UUID id;
 
     /** The elder (knowledge holder) this opportunity is on behalf of. */
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "elder_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "elder_id")
     private User elder;
 
     @Column(nullable = false, length = 200)
@@ -126,4 +126,7 @@ public class Opportunity {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+    
+    @jakarta.persistence.Transient
+    private boolean isRead = false;
 }

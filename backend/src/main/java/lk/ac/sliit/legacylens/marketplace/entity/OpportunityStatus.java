@@ -9,5 +9,6 @@ package lk.ac.sliit.legacylens.marketplace.entity;
 public enum OpportunityStatus {
     DRAFT,
     PUBLISHED,
+    COMPLETED,
     CLOSED
 }
