@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiDelete } from './client';
+import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 
 export interface ModerationQueueItemResponse {
   id: string;
@@ -26,6 +26,22 @@ export interface UpdateModerationStatusRequest {
   rejectionNotes?: string;
 }
 
+export interface StoryQuizOptionResponse {
+  id?: string;
+  optionKey: string; // "A", "B", "C", "D"
+  optionText: string;
+  description?: string;
+  isCorrect: boolean;
+}
+
+export interface StoryQuizResponse {
+  id?: string;
+  storyId?: string;
+  question: string;
+  explanation?: string;
+  options: StoryQuizOptionResponse[];
+}
+
 export const moderationApi = {
   getQueueItems: (status: string = 'ALL') =>
     apiGet<ModerationQueueItemResponse[]>(`/admin/moderation/queue?status=${status}`),
@@ -37,5 +53,14 @@ export const moderationApi = {
     apiPatch<ModerationQueueItemResponse, UpdateModerationStatusRequest>(`/admin/moderation/queue/${id}/status`, request),
 
   deleteItem: (id: string) =>
-    apiDelete<void>(`/admin/moderation/queue/${id}`)
+    apiDelete<void>(`/admin/moderation/queue/${id}`),
+
+  getStoryQuiz: (storyId: string) =>
+    apiGet<StoryQuizResponse>(`/moderation/stories/${storyId}/quiz`),
+
+  saveStoryQuiz: (storyId: string, quiz: StoryQuizResponse) =>
+    apiPost<StoryQuizResponse, StoryQuizResponse>(`/moderation/stories/${storyId}/quiz`, quiz),
+
+  generateAiQuiz: (storyId: string, context?: { title?: string; description?: string; bodyContent?: string; tags?: string[] }) =>
+    apiPost<StoryQuizResponse, any>(`/moderation/stories/${storyId}/quiz/ai-generate`, context || {})
 };
