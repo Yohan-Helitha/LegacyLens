@@ -30,6 +30,13 @@ public interface OpportunityApplicationService {
      */
     OpportunityApplicationResponse approveApplication(UUID creatorId, UUID applicationId);
 
+    /**
+     * TEMPORARY: moves a PENDING application to REJECTED, standing in for
+     * the knowledge holder's decision the same way approveApplication does.
+     * Remove once a real elder-facing approval flow exists.
+     */
+    OpportunityApplicationResponse rejectApplication(UUID creatorId, UUID applicationId);
+
     /** Moves an APPROVED application to BOOKED — the "Book" button on the dashboard's Upcoming Booking tab. */
     OpportunityApplicationResponse bookApplication(UUID creatorId, UUID applicationId);
 

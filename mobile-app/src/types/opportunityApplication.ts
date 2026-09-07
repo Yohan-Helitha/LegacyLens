@@ -4,7 +4,7 @@
  * under /api/opportunity-applications/**.
  */
 
-export type OpportunityApplicationStatus = 'SAVED' | 'PENDING' | 'APPROVED' | 'BOOKED';
+export type OpportunityApplicationStatus = 'SAVED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'BOOKED';
 
 export interface OpportunityApplicationResponse {
   id: string;

@@ -142,7 +142,9 @@ export const SavedOpportunityApplication: React.FC<{
   }, [loadApplications]);
 
   const saved = applications.filter((a) => a.status === 'SAVED');
-  const submitted = applications.filter((a) => a.status === 'PENDING' || a.status === 'APPROVED');
+  // APPROVED deliberately excluded — once approved it moves to the
+  // dashboard's Upcoming Booking tab and no longer shows here.
+  const submitted = applications.filter((a) => a.status === 'PENDING' || a.status === 'REJECTED');
 
   const confirmDelete = (record: OpportunityApplicationResponse) => {
     Alert.alert(
@@ -193,14 +195,14 @@ export const SavedOpportunityApplication: React.FC<{
     }
   };
 
-  const handleBook = async (record: OpportunityApplicationResponse) => {
+  // TEMPORARY: self-reject, standing in for the knowledge holder the same way handleApprove does.
+  const handleReject = async (record: OpportunityApplicationResponse) => {
     try {
-      await opportunityApplicationApi.book(record.id);
+      await opportunityApplicationApi.reject(record.id);
       loadApplications();
-      Alert.alert('Booked', `"${record.title}" is now booked — check the Upcoming Booking tab on your dashboard.`);
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Could not book this application.';
-      Alert.alert('Book failed', message);
+      const message = err instanceof ApiError ? err.message : 'Could not reject this application.';
+      Alert.alert('Reject failed', message);
     }
   };
 
@@ -283,52 +285,45 @@ export const SavedOpportunityApplication: React.FC<{
             submitted.map((record) => (
               <View key={record.id} style={s.card}>
                 <View style={s.cardTopRow}>
-                  <StatusBadge label={record.status === 'PENDING' ? 'Pending' : 'Approved'} />
-                  <Pressable
-                    onPress={() => confirmDelete(record)}
-                    style={({ pressed }) => [s.trashBtn, pressed && s.pressed]}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Cancel ${record.title}`}
-                  >
-                    <TrashIcon />
-                  </Pressable>
+                  <StatusBadge label={record.status === 'PENDING' ? 'Pending' : 'Rejected'} />
+                  {/* Only a rejected request is the creator's to remove — while
+                      pending, the decision belongs to the knowledge holder. */}
+                  {record.status === 'REJECTED' && (
+                    <Pressable
+                      onPress={() => confirmDelete(record)}
+                      style={({ pressed }) => [s.trashBtn, pressed && s.pressed]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete ${record.title}`}
+                    >
+                      <TrashIcon />
+                    </Pressable>
+                  )}
                 </View>
 
                 <Text style={s.cardTitle} numberOfLines={2}>{record.title}</Text>
 
                 <DetailRows record={record} />
 
-                <View style={s.actionsRow}>
-                  {record.status === 'APPROVED' ? (
+                {record.status === 'PENDING' ? (
+                  <View style={{ gap: Spacing.sm }}>
+                    <Pressable
+                      onPress={() => handleView(record)}
+                      style={({ pressed }) => [s.outlineBtn, { flex: 0, alignSelf: 'flex-start', minWidth: 112, maxWidth: 140 }, pressed && s.pressed]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View ${record.title}`}
+                    >
+                      <Text style={s.outlineBtnText}>View</Text>
+                    </Pressable>
+                    {/* TEMPORARY: both stand in for the knowledge holder's own decision until that review UI exists. */}
                     <View style={s.actionsLeft}>
                       <Pressable
-                        onPress={() => handleView(record)}
-                        style={({ pressed }) => [s.outlineBtn, pressed && s.pressed]}
+                        onPress={() => handleReject(record)}
+                        style={({ pressed }) => [s.dangerBtn, pressed && s.pressed]}
                         accessibilityRole="button"
-                        accessibilityLabel={`View ${record.title}`}
+                        accessibilityLabel={`Reject ${record.title}`}
                       >
-                        <Text style={s.outlineBtnText}>View</Text>
+                        <Text style={s.dangerBtnText}>Reject (Test)</Text>
                       </Pressable>
-                      <Pressable
-                        onPress={() => handleBook(record)}
-                        style={({ pressed }) => [s.fillBtn, pressed && s.pressed]}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Book ${record.title}`}
-                      >
-                        <Text style={s.fillBtnText}>Book</Text>
-                      </Pressable>
-                    </View>
-                  ) : (
-                    <View style={s.actionsLeft}>
-                      <Pressable
-                        onPress={() => handleView(record)}
-                        style={({ pressed }) => [s.outlineBtn, pressed && s.pressed]}
-                        accessibilityRole="button"
-                        accessibilityLabel={`View ${record.title}`}
-                      >
-                        <Text style={s.outlineBtnText}>View</Text>
-                      </Pressable>
-                      {/* TEMPORARY: stands in for the knowledge holder's own approval until that review UI exists. */}
                       <Pressable
                         onPress={() => handleApprove(record)}
                         style={({ pressed }) => [s.fillBtn, pressed && s.pressed]}
@@ -338,8 +333,19 @@ export const SavedOpportunityApplication: React.FC<{
                         <Text style={s.fillBtnText}>Approve (Test)</Text>
                       </Pressable>
                     </View>
-                  )}
-                </View>
+                  </View>
+                ) : (
+                  <View style={s.actionsRow}>
+                    <Pressable
+                      onPress={() => handleView(record)}
+                      style={({ pressed }) => [s.fillBtn, { flex: 0, minWidth: 112 }, pressed && s.pressed]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View ${record.title}`}
+                    >
+                      <Text style={s.fillBtnText}>View</Text>
+                    </Pressable>
+                  </View>
+                )}
               </View>
             ))
           )}
@@ -456,6 +462,12 @@ const s = StyleSheet.create({
     backgroundColor: D.primary, alignItems: 'center', justifyContent: 'center', minHeight: 40,
   },
   fillBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#ffffff' },
+  // TEMPORARY (see handleReject) — a distinct destructive tone, not otherwise used in this palette.
+  dangerBtn: {
+    flex: 1, paddingVertical: 9, borderRadius: Radii.full,
+    borderWidth: 1.5, borderColor: '#C0392B', alignItems: 'center', justifyContent: 'center', minHeight: 40,
+  },
+  dangerBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#C0392B' },
   trashBtn: { padding: 4 },
 
   // ── Press feedback ───────────────────────────────────────────────────────

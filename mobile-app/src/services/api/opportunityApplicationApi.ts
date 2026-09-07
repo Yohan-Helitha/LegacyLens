@@ -28,6 +28,10 @@ export const opportunityApplicationApi = {
   approve: (id: string) =>
     apiPost<OpportunityApplicationResponse, undefined>(`/opportunity-applications/${id}/approve`, undefined),
 
+  /** TEMPORARY: self-reject, standing in for the knowledge holder the same way approve() does. */
+  reject: (id: string) =>
+    apiPost<OpportunityApplicationResponse, undefined>(`/opportunity-applications/${id}/reject`, undefined),
+
   /** Moves an APPROVED application to BOOKED — the "Book" button on the dashboard's Upcoming Booking tab. */
   book: (id: string) =>
     apiPost<OpportunityApplicationResponse, undefined>(`/opportunity-applications/${id}/book`, undefined),

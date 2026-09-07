@@ -102,6 +102,22 @@ public class OpportunityApplicationController {
         return ResponseEntity.ok(ApiResponse.ok("Application approved", response));
     }
 
+    /**
+     * TEMPORARY: lets the creator self-reject their own submitted
+     * application, standing in for the knowledge holder's decision the same
+     * way #approve does. Remove once a real elder-facing review UI exists.
+     */
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<ApiResponse<OpportunityApplicationResponse>> reject(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+
+        OpportunityApplicationResponse response = opportunityApplicationService.rejectApplication(
+                principal.getUser().getId(), id);
+
+        return ResponseEntity.ok(ApiResponse.ok("Application rejected", response));
+    }
+
     /** Moves an approved application to BOOKED — the "Book" button on the dashboard's Upcoming Booking tab. */
     @PostMapping("/{id}/book")
     public ResponseEntity<ApiResponse<OpportunityApplicationResponse>> book(
