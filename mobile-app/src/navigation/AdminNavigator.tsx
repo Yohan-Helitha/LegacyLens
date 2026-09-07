@@ -6,13 +6,15 @@ import { ModerationQueueScreen } from '../screens/admin/moderation';
 import { CreateOpportunityScreen } from '../screens/admin/opportunity-create';
 import { OpportunityIntakeScreen, OpportunityReviewScreen } from '../screens/admin/opportunity-intake';
 import { OpportunityDraftsScreen } from '../screens/admin/opportunity-drafts';
+import { AdminNotificationsScreen } from '../screens/admin/notifications';
 import { VideoDetailScreen, BlogDetailScreen } from '../screens/content-details';
 import { AdminHeader, AdminFooter } from '../components/common';
 import type { AdminTabKey } from '../components/common';
 import { Colors } from '../theme';
 import type { RootStackParamList } from './RootNavigator';
+import { useOpportunity } from '../context/OpportunityContext';
 
-export type AdminScreen = AdminTabKey | 'add_opp' | 'opp_review' | 'drafts' | 'video' | 'blog';
+export type AdminScreen = AdminTabKey | 'add_opp' | 'opp_review' | 'drafts' | 'video' | 'blog' | 'notifications';
 
 interface AdminNavigatorProps {
   /** Root stack navigation — used only to leave this flow ("Return to User View"). */
@@ -28,36 +30,38 @@ interface AdminNavigatorProps {
  */
 export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) => {
   const [screen, setScreen] = useState<AdminScreen>('admin_home');
-  const [intakeBadge, setIntakeBadge] = useState<string | null>('18');
-  const [reviewBadge, setReviewBadge] = useState<string | null>('5');
+  const { audioSubmissions } = useOpportunity();
+  
+  // Real intake badge based on unlistened audio submissions
+  const unlistenedCount = audioSubmissions.filter(a => a.status !== 'FULLY_LISTENED').length;
+  const [intakeBadge, setIntakeBadge] = useState<string | null>(null);
+  
+  const [reviewBadge, setReviewBadge] = useState<string | null>(null);
 
-  // Clear badges when target screens are opened
+  // Sync intake badge with real unlistened count
+  React.useEffect(() => {
+    setIntakeBadge(unlistenedCount > 0 ? String(unlistenedCount) : null);
+  }, [unlistenedCount]);
+
+  // Fetch pending moderation count
+  React.useEffect(() => {
+    import('../services/api/moderationApi').then(({ moderationApi }) => {
+      moderationApi.getQueueItems('PENDING')
+        .then(items => {
+          setReviewBadge(items.length > 0 ? String(items.length) : null);
+        })
+        .catch(err => console.log('Failed to fetch pending moderation', err));
+    });
+  }, [screen]); // Refresh when screen changes to stay somewhat updated
+
+  // Clear badges when target screens are opened (optional: they will auto-update based on data now)
   const handleNavigate = (tab: string) => {
     if (tab === 'home') {
       navigation.replace('User');
       return;
     }
-
-    if (tab === 'intake' || tab === 'opp_review') {
-      setIntakeBadge(null);
-    }
-    if (tab === 'review') {
-      setReviewBadge(null);
-    }
-
     setScreen(tab as AdminScreen);
   };
-
-  // Simulate newly added content after some time on Home screen
-  React.useEffect(() => {
-    if (screen === 'admin_home') {
-      const timer = setTimeout(() => {
-        setIntakeBadge('19'); // Simulates a newly added voice recording
-        setReviewBadge('6');  // Simulates a newly added reported moderation item
-      }, 10000); // 10 seconds
-      return () => clearTimeout(timer);
-    }
-  }, [screen]);
 
   const footerActiveTab: AdminTabKey =
     screen === 'intake' || screen === 'opp_review'
@@ -68,11 +72,14 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
           ? 'admin_profile'
           : 'admin_home';
 
-  const showChrome = screen !== 'video' && screen !== 'blog';
+  const showHeader = screen !== 'video' && screen !== 'blog' && screen !== 'notifications';
+  const showFooter = screen !== 'video' && screen !== 'blog' && screen !== 'notifications';
 
   return (
     <View style={{ flex: 1 }}>
-      {showChrome && <AdminHeader onNavigate={handleNavigate} />}
+      {showHeader && <AdminHeader onNavigate={handleNavigate} />}
+      
+      {screen === 'notifications' && <AdminNotificationsScreen onBack={() => setScreen('admin_home')} />}
 
       {screen === 'admin_home' && (
         <AdminHomeScreen
@@ -120,7 +127,7 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
         </View>
       )}
 
-      {showChrome && (
+      {showFooter && (
         <AdminFooter 
           activeTab={footerActiveTab} 
           onTabSelect={handleNavigate} 
