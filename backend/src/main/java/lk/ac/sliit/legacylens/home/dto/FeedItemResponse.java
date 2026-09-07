@@ -25,7 +25,11 @@ public class FeedItemResponse {
     private String duration;
     
     // Blog specific
+    // Blog/Story specific
     private String excerpt;
+    private String description;
+    private String content;
+    private String category;
     private String readTime;
     
     // Audio specific
