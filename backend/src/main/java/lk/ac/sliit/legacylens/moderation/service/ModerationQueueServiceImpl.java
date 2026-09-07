@@ -73,9 +73,15 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
         if (newStatus == ModerationStatus.REJECTED) {
             item.setRejectionReason(request.getRejectionReason());
             item.setRejectionNotes(request.getRejectionNotes());
+            item.setRejectionReason(request.getEffectiveRejectionReason());
+            item.setRejectionNotes(request.getEffectiveRejectionNotes());
         } else {
             item.setRejectionReason(null);
             item.setRejectionNotes(null);
+        }
+
+        if (newStatus == ModerationStatus.PUBLISHED && item.getPublishedAt() == null) {
+            item.setPublishedAt(LocalDateTime.now());
         }
 
         ModerationQueueItem saved = moderationQueueRepository.save(item);
