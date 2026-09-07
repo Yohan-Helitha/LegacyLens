@@ -21,6 +21,18 @@ public interface OpportunityApplicationService {
     /** Moves a SAVED draft to PENDING. */
     OpportunityApplicationResponse submitApplication(UUID creatorId, UUID applicationId);
 
+    /**
+     * TEMPORARY: moves a PENDING application to APPROVED. This is normally
+     * the knowledge holder's decision, but no review UI exists for them yet,
+     * so the creator can self-approve their own submitted application here to
+     * keep testing the rest of the booking flow. Remove once a real
+     * elder-facing approval flow exists.
+     */
+    OpportunityApplicationResponse approveApplication(UUID creatorId, UUID applicationId);
+
+    /** Moves an APPROVED application to BOOKED — the "Book" button on the dashboard's Upcoming Booking tab. */
+    OpportunityApplicationResponse bookApplication(UUID creatorId, UUID applicationId);
+
     /** Removes a draft or submitted application — the Delete/Cancel action on either list. */
     void deleteApplication(UUID creatorId, UUID applicationId);
 }

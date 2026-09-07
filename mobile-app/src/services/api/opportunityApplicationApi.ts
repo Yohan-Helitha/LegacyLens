@@ -24,5 +24,13 @@ export const opportunityApplicationApi = {
   submit: (id: string) =>
     apiPost<OpportunityApplicationResponse, undefined>(`/opportunity-applications/${id}/submit`, undefined),
 
+  /** TEMPORARY: self-approve until a real knowledge-holder review UI exists — see the backend controller's javadoc. */
+  approve: (id: string) =>
+    apiPost<OpportunityApplicationResponse, undefined>(`/opportunity-applications/${id}/approve`, undefined),
+
+  /** Moves an APPROVED application to BOOKED — the "Book" button on the dashboard's Upcoming Booking tab. */
+  book: (id: string) =>
+    apiPost<OpportunityApplicationResponse, undefined>(`/opportunity-applications/${id}/book`, undefined),
+
   remove: (id: string) => apiDelete<void>(`/opportunity-applications/${id}`),
 };

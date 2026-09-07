@@ -111,6 +111,38 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
 
     @Override
     @Transactional
+    public OpportunityApplicationResponse approveApplication(UUID creatorId, UUID applicationId) {
+        OpportunityApplication application = opportunityApplicationRepository
+                .findByIdAndCreatorId(applicationId, creatorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
+
+        if (application.getStatus() != OpportunityApplicationStatus.PENDING) {
+            throw new InvalidApplicationStateException("Only a submitted (pending) application can be approved.");
+        }
+
+        application.setStatus(OpportunityApplicationStatus.APPROVED);
+
+        return mapToResponse(opportunityApplicationRepository.save(application));
+    }
+
+    @Override
+    @Transactional
+    public OpportunityApplicationResponse bookApplication(UUID creatorId, UUID applicationId) {
+        OpportunityApplication application = opportunityApplicationRepository
+                .findByIdAndCreatorId(applicationId, creatorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
+
+        if (application.getStatus() != OpportunityApplicationStatus.APPROVED) {
+            throw new InvalidApplicationStateException("Only an approved application can be booked.");
+        }
+
+        application.setStatus(OpportunityApplicationStatus.BOOKED);
+
+        return mapToResponse(opportunityApplicationRepository.save(application));
+    }
+
+    @Override
+    @Transactional
     public void deleteApplication(UUID creatorId, UUID applicationId) {
         OpportunityApplication application = opportunityApplicationRepository
                 .findByIdAndCreatorId(applicationId, creatorId)

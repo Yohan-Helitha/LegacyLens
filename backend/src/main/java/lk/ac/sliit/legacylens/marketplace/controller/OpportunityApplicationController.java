@@ -85,6 +85,35 @@ public class OpportunityApplicationController {
         return ResponseEntity.ok(ApiResponse.ok("Application submitted", response));
     }
 
+    /**
+     * TEMPORARY: lets the creator self-approve their own submitted
+     * application. Normally this is the knowledge holder's decision, but
+     * there's no elder-facing review UI yet — remove this endpoint once one
+     * exists and route approval through that instead.
+     */
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<ApiResponse<OpportunityApplicationResponse>> approve(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+
+        OpportunityApplicationResponse response = opportunityApplicationService.approveApplication(
+                principal.getUser().getId(), id);
+
+        return ResponseEntity.ok(ApiResponse.ok("Application approved", response));
+    }
+
+    /** Moves an approved application to BOOKED — the "Book" button on the dashboard's Upcoming Booking tab. */
+    @PostMapping("/{id}/book")
+    public ResponseEntity<ApiResponse<OpportunityApplicationResponse>> book(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+
+        OpportunityApplicationResponse response = opportunityApplicationService.bookApplication(
+                principal.getUser().getId(), id);
+
+        return ResponseEntity.ok(ApiResponse.ok("Application booked", response));
+    }
+
     /** Deletes a draft or a submitted application — the Delete/Cancel action. */
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(

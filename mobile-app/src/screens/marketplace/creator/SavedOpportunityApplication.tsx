@@ -181,10 +181,27 @@ export const SavedOpportunityApplication: React.FC<{
     onViewOpportunity(record.opportunityId);
   };
 
-  const handleBook = (record: OpportunityApplicationResponse) => {
-    // There's no real booking/assignment backend yet — this just confirms
-    // the intent locally, same stopgap used for the schedule page's "View".
-    Alert.alert('Booking requested', `The knowledge holder will confirm your booking for "${record.title}".`);
+  // TEMPORARY: self-approve until a real knowledge-holder review UI exists —
+  // see OpportunityApplicationController#approve's javadoc on the backend.
+  const handleApprove = async (record: OpportunityApplicationResponse) => {
+    try {
+      await opportunityApplicationApi.approve(record.id);
+      loadApplications();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not approve this application.';
+      Alert.alert('Approve failed', message);
+    }
+  };
+
+  const handleBook = async (record: OpportunityApplicationResponse) => {
+    try {
+      await opportunityApplicationApi.book(record.id);
+      loadApplications();
+      Alert.alert('Booked', `"${record.title}" is now booked — check the Upcoming Booking tab on your dashboard.`);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not book this application.';
+      Alert.alert('Book failed', message);
+    }
   };
 
   return (
@@ -302,14 +319,25 @@ export const SavedOpportunityApplication: React.FC<{
                       </Pressable>
                     </View>
                   ) : (
-                    <Pressable
-                      onPress={() => handleView(record)}
-                      style={({ pressed }) => [s.fillBtn, { flex: 0, minWidth: 112 }, pressed && s.pressed]}
-                      accessibilityRole="button"
-                      accessibilityLabel={`View ${record.title}`}
-                    >
-                      <Text style={s.fillBtnText}>View</Text>
-                    </Pressable>
+                    <View style={s.actionsLeft}>
+                      <Pressable
+                        onPress={() => handleView(record)}
+                        style={({ pressed }) => [s.outlineBtn, pressed && s.pressed]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`View ${record.title}`}
+                      >
+                        <Text style={s.outlineBtnText}>View</Text>
+                      </Pressable>
+                      {/* TEMPORARY: stands in for the knowledge holder's own approval until that review UI exists. */}
+                      <Pressable
+                        onPress={() => handleApprove(record)}
+                        style={({ pressed }) => [s.fillBtn, pressed && s.pressed]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Approve ${record.title}`}
+                      >
+                        <Text style={s.fillBtnText}>Approve (Test)</Text>
+                      </Pressable>
+                    </View>
                   )}
                 </View>
               </View>

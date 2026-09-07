@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -14,11 +15,14 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
+import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
+import { ApiError } from '../../../services/api/client';
 import type {
   CreatorDashboardSummaryResponse,
   DashboardJobStatus,
   JobResponse,
 } from '../../../types/creatorDashboard';
+import type { OpportunityApplicationResponse } from '../../../types/opportunityApplication';
 
 // Recent Work gallery — bundled locally so the viva demo never depends on network access.
 const POTTERY_IMAGE = require('../../../../assets/images/recent-work/pottery-making.jpg');
@@ -140,6 +144,10 @@ function formatDueDate(iso: string): string {
 
 function formatCompletedDate(iso: string): string {
   return `Completed ${new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+}
+
+function formatAppDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
 function mapJobToItem(job: JobResponse): ActiveJobItem {
@@ -370,6 +378,64 @@ const ActiveJobCard: React.FC<{ item: ActiveJobItem; onPress: () => void }> = ({
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ApprovedApplicationCard — an approved OpportunityApplication shown
+// alongside real Jobs in the Upcoming Booking tab. TEMPORARY: once approving
+// creates a real Job (see OpportunityApplicationStatus's javadoc), this can
+// likely be retired in favour of ActiveJobCard alone.
+// ─────────────────────────────────────────────────────────────────────────────
+const ApprovedApplicationCard: React.FC<{
+  item: OpportunityApplicationResponse;
+  onBook: () => void;
+}> = ({ item, onBook }) => (
+  <View style={s.jobCard}>
+    <View style={s.jobCardHeader}>
+      <View style={s.jobCardLeft}>
+        <View style={s.jobIconBox}>
+          <Text style={{ fontSize: 18 }}>🎥</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.jobTitle}>{item.title}</Text>
+          <Text style={s.jobClient}>{item.elderName}</Text>
+        </View>
+      </View>
+      <View style={s.jobStatusBadge}>
+        <Text style={s.jobStatusText}>APPROVED</Text>
+      </View>
+    </View>
+
+    <View style={s.jobMeta}>
+      {item.location && (
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}>
+            <PinIcon />
+          </View>
+          <Text style={s.jobMetaText}>{item.location}</Text>
+        </View>
+      )}
+      {item.scheduledDate && (
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}>
+            <ClockIcon />
+          </View>
+          <Text style={[s.jobMetaText, { color: D.secondary }]}>{formatAppDate(item.scheduledDate)}</Text>
+        </View>
+      )}
+    </View>
+
+    <View style={s.jobViewDetailsRow}>
+      <Pressable
+        onPress={onBook}
+        style={({ pressed }) => [s.bookBtn, pressed && s.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`Book ${item.title}`}
+      >
+        <Text style={s.bookBtnText}>Book</Text>
+      </Pressable>
+    </View>
+  </View>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // FeedbackSection
 // ─────────────────────────────────────────────────────────────────────────────
 const FeedbackSection: React.FC<{ rating: number | null; reviews: ReviewItem[] }> = ({ rating, reviews }) => (
@@ -487,6 +553,10 @@ export const CreatorDashboard: React.FC<{
   const [jobsByTab, setJobsByTab] = useState<Partial<Record<JobTab, ActiveJobItem[]>>>({});
   const [jobsLoading, setJobsLoading] = useState(false);
 
+  // Approved-but-not-yet-booked applications — shown alongside real Jobs in
+  // the Upcoming Booking tab. See ApprovedApplicationCard's comment above.
+  const [approvedApplications, setApprovedApplications] = useState<OpportunityApplicationResponse[]>([]);
+
   useEffect(() => {
     creatorDashboardApi.getSummary().then(setSummary).catch(() => {});
     creatorDashboardApi
@@ -497,7 +567,22 @@ export const CreatorDashboard: React.FC<{
         }
       })
       .catch(() => {});
+
+    opportunityApplicationApi
+      .getMyApplications()
+      .then((apps) => setApprovedApplications(apps.filter((a) => a.status === 'APPROVED')))
+      .catch(() => {});
   }, []);
+
+  const handleBook = async (applicationId: string) => {
+    try {
+      await opportunityApplicationApi.book(applicationId);
+      setApprovedApplications((prev) => prev.filter((a) => a.id !== applicationId));
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not book this opportunity.';
+      Alert.alert('Book failed', message);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -579,11 +664,16 @@ export const CreatorDashboard: React.FC<{
             />
           </ScrollView>
 
-          {currentJobs && currentJobs.length > 0 ? (
+          {(currentJobs && currentJobs.length > 0) ||
+          (activeTab === 'upcoming' && approvedApplications.length > 0) ? (
             <View style={{ gap: Spacing.sm }}>
-              {currentJobs.map((item) => (
+              {currentJobs?.map((item) => (
                 <ActiveJobCard key={item.id} item={item} onPress={onOpenMyWork} />
               ))}
+              {activeTab === 'upcoming' &&
+                approvedApplications.map((app) => (
+                  <ApprovedApplicationCard key={app.id} item={app} onBook={() => handleBook(app.id)} />
+                ))}
             </View>
           ) : (
             <View style={s.emptyState}>
@@ -779,6 +869,17 @@ const s = StyleSheet.create({
     minHeight: 44,
     textAlignVertical: 'center',
   },
+  bookBtn: {
+    alignSelf: 'flex-end',
+    backgroundColor: D.primary,
+    borderRadius: Radii.full,
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#ffffff' },
 
   // ── Empty state ────────────────────────────────────────────────────────────
   emptyState:     { paddingVertical: Spacing.xl, alignItems: 'center' },
