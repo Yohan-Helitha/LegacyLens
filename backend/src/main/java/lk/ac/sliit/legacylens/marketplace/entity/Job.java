@@ -82,6 +82,18 @@ public class Job {
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
 
+    /** Display text for the confirmed time range, e.g. "10:00 AM - 2:00 PM" — set when booked from an application. */
+    @Column(name = "time_window_text", length = 60)
+    private String timeWindowText;
+
+    /** Traceability only, no relation navigated through it — which Opportunity this Job was booked from, if any. */
+    @Column(name = "opportunity_id", columnDefinition = "uuid")
+    private UUID opportunityId;
+
+    /** Traceability only — which OpportunityApplication this Job was booked from, if any. */
+    @Column(name = "application_id", columnDefinition = "uuid")
+    private UUID applicationId;
+
     /** Set once the creator finishes the work. Null until then. */
     @Column(name = "completed_at")
     private LocalDateTime completedAt;

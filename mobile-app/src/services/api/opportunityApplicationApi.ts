@@ -1,5 +1,6 @@
 import { apiDelete, apiGet, apiPost } from './client';
 import {
+  BookApplicationRequest,
   OpportunityApplicationResponse,
   SaveOpportunityApplicationRequest,
 } from '../../types/opportunityApplication';
@@ -32,9 +33,15 @@ export const opportunityApplicationApi = {
   reject: (id: string) =>
     apiPost<OpportunityApplicationResponse, undefined>(`/opportunity-applications/${id}/reject`, undefined),
 
-  /** Moves an APPROVED application to BOOKED — the "Book" button on the dashboard's Upcoming Booking tab. */
-  book: (id: string) =>
-    apiPost<OpportunityApplicationResponse, undefined>(`/opportunity-applications/${id}/book`, undefined),
+  /**
+   * Moves an APPROVED application to BOOKED and creates the real Job behind
+   * it, using the creator's confirmed date/time from the "Confirm Booking" form.
+   */
+  book: (id: string, request: BookApplicationRequest) =>
+    apiPost<OpportunityApplicationResponse, BookApplicationRequest>(
+      `/opportunity-applications/${id}/book`,
+      request,
+    ),
 
   remove: (id: string) => apiDelete<void>(`/opportunity-applications/${id}`),
 };

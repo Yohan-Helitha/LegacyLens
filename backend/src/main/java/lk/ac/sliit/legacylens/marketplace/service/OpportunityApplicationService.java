@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.marketplace.service;
 
+import lk.ac.sliit.legacylens.marketplace.dto.BookApplicationRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityApplicationRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityApplicationResponse;
 
@@ -37,8 +38,14 @@ public interface OpportunityApplicationService {
      */
     OpportunityApplicationResponse rejectApplication(UUID creatorId, UUID applicationId);
 
-    /** Moves an APPROVED application to BOOKED — the "Book" button on the dashboard's Upcoming Booking tab. */
-    OpportunityApplicationResponse bookApplication(UUID creatorId, UUID applicationId);
+    /**
+     * Moves an APPROVED application to BOOKED and creates the real Job that
+     * backs it — the "Confirm Booking" form on the dashboard's Upcoming
+     * Booking tab. The creator's agreed date/time in the request becomes the
+     * new Job's schedule, which is why this Job then shows up automatically
+     * everywhere Jobs already do (Active/Upcoming tabs, the Schedule page).
+     */
+    OpportunityApplicationResponse bookApplication(UUID creatorId, UUID applicationId, BookApplicationRequest request);
 
     /** Removes a draft or submitted application — the Delete/Cancel action on either list. */
     void deleteApplication(UUID creatorId, UUID applicationId);

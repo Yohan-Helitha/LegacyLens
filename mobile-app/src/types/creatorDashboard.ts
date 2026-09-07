@@ -34,6 +34,8 @@ export interface JobResponse {
   /** Static, admin/seed-set flag — shown as a distinct dot colour on OpportunitySchedulePage's calendar. */
   urgent: boolean;
   scheduledAt: string | null;
+  /** Display text for the confirmed time range, e.g. "10:00 AM - 2:00 PM" — set only for Jobs created via booking. */
+  timeWindowText: string | null;
   completedAt: string | null;
 }
 

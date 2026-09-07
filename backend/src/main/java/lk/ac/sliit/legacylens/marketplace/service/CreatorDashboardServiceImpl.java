@@ -219,6 +219,7 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
                 .status(job.getStatus().name())
                 .urgent(job.isUrgent())
                 .scheduledAt(job.getScheduledAt())
+                .timeWindowText(job.getTimeWindowText())
                 .completedAt(job.getCompletedAt())
                 .build();
     }

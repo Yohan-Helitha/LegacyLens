@@ -59,6 +59,7 @@ const FALLBACK_PENDING_JOB: JobResponse = {
   status: 'ACTIVE',
   urgent: false,
   scheduledAt: null,
+  timeWindowText: null,
   completedAt: null,
 };
 
@@ -72,6 +73,7 @@ const FALLBACK_PUBLISHED_JOB: JobResponse = {
   status: 'COMPLETED',
   urgent: false,
   scheduledAt: null,
+  timeWindowText: null,
   completedAt: '2026-08-15T12:30:00',
 };
 

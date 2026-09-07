@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle, Path } from 'react-native-svg';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
@@ -148,6 +150,29 @@ function formatCompletedDate(iso: string): string {
 
 function formatAppDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+// Local (not UTC) y-m-d / HH:mm — avoids the date/time shifting a day or hour
+// off that toISOString() would cause for users west of UTC.
+function toDateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function toTimeKey(d: Date): string {
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${min}`;
+}
+
+function formatLongDate(d: Date): string {
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function formatClockTime(d: Date): string {
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
 function mapJobToItem(job: JobResponse): ActiveJobItem {
@@ -557,6 +582,16 @@ export const CreatorDashboard: React.FC<{
   // the Upcoming Booking tab. See ApprovedApplicationCard's comment above.
   const [approvedApplications, setApprovedApplications] = useState<OpportunityApplicationResponse[]>([]);
 
+  // "Confirm Booking" modal state — bookingTarget non-null means it's open.
+  const [bookingTarget, setBookingTarget] = useState<OpportunityApplicationResponse | null>(null);
+  const [confirmedDate, setConfirmedDate] = useState(new Date());
+  const [confirmedStartTime, setConfirmedStartTime] = useState(new Date());
+  const [confirmedEndTime, setConfirmedEndTime] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [booking, setBooking] = useState(false);
+
   useEffect(() => {
     creatorDashboardApi.getSummary().then(setSummary).catch(() => {});
     creatorDashboardApi
@@ -574,13 +609,43 @@ export const CreatorDashboard: React.FC<{
       .catch(() => {});
   }, []);
 
-  const handleBook = async (applicationId: string) => {
+  const openBookingModal = (app: OpportunityApplicationResponse) => {
+    const initialDate = app.scheduledDate ? new Date(app.scheduledDate) : new Date();
+    const defaultStart = new Date(initialDate);
+    defaultStart.setHours(9, 0, 0, 0);
+    const defaultEnd = new Date(initialDate);
+    defaultEnd.setHours(11, 0, 0, 0);
+
+    setBookingTarget(app);
+    setConfirmedDate(initialDate);
+    setConfirmedStartTime(defaultStart);
+    setConfirmedEndTime(defaultEnd);
+  };
+
+  const handleConfirmBooking = async () => {
+    if (!bookingTarget) return;
+
+    setBooking(true);
     try {
-      await opportunityApplicationApi.book(applicationId);
-      setApprovedApplications((prev) => prev.filter((a) => a.id !== applicationId));
+      await opportunityApplicationApi.book(bookingTarget.id, {
+        confirmedDate: toDateKey(confirmedDate),
+        startTime: toTimeKey(confirmedStartTime),
+        endTime: toTimeKey(confirmedEndTime),
+      });
+      setApprovedApplications((prev) => prev.filter((a) => a.id !== bookingTarget.id));
+      setBookingTarget(null);
+
+      // The booking just created a real Job — refresh the Upcoming tab so it
+      // appears immediately instead of only after switching tabs.
+      creatorDashboardApi
+        .getJobs('UPCOMING')
+        .then((data) => setJobsByTab((prev) => ({ ...prev, upcoming: data.map(mapJobToItem) })))
+        .catch(() => {});
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Could not book this opportunity.';
-      Alert.alert('Book failed', message);
+      const message = err instanceof ApiError ? err.message : 'Could not confirm this booking.';
+      Alert.alert('Booking failed', message);
+    } finally {
+      setBooking(false);
     }
   };
 
@@ -672,7 +737,7 @@ export const CreatorDashboard: React.FC<{
               ))}
               {activeTab === 'upcoming' &&
                 approvedApplications.map((app) => (
-                  <ApprovedApplicationCard key={app.id} item={app} onBook={() => handleBook(app.id)} />
+                  <ApprovedApplicationCard key={app.id} item={app} onBook={() => openBookingModal(app)} />
                 ))}
             </View>
           ) : (
@@ -690,6 +755,117 @@ export const CreatorDashboard: React.FC<{
       </ScrollView>
 
       <BottomNavBar activeTab="home" onNavigate={onNavigate} />
+
+      <Modal
+        visible={bookingTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBookingTarget(null)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>Confirm Booking</Text>
+
+            <Text style={s.modalLabel}>Opportunity</Text>
+            <Text style={s.modalValue}>{bookingTarget?.title}</Text>
+
+            <Text style={s.modalLabel}>Elder</Text>
+            <Text style={s.modalValue}>{bookingTarget?.elderName}</Text>
+
+            {bookingTarget?.location && (
+              <>
+                <Text style={s.modalLabel}>Location</Text>
+                <Text style={s.modalValue}>{bookingTarget.location}</Text>
+              </>
+            )}
+
+            <Text style={s.modalLabel}>Select Date</Text>
+            <Pressable
+              onPress={() => setShowDatePicker(true)}
+              style={({ pressed }) => [s.pickerField, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Select date"
+            >
+              <Text style={s.pickerFieldText}>{formatLongDate(confirmedDate)}</Text>
+            </Pressable>
+            {showDatePicker && (
+              <DateTimePicker
+                value={confirmedDate}
+                mode="date"
+                display="default"
+                minimumDate={new Date()}
+                onChange={(event: any, date?: Date) => {
+                  setShowDatePicker(false);
+                  if (event.type === 'set' && date) setConfirmedDate(date);
+                }}
+              />
+            )}
+
+            <Text style={s.modalLabel}>Select Time</Text>
+            <View style={s.timeRow}>
+              <Pressable
+                onPress={() => setShowStartTimePicker(true)}
+                style={({ pressed }) => [s.pickerField, { flex: 1 }, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Select start time"
+              >
+                <Text style={s.pickerFieldText}>{formatClockTime(confirmedStartTime)}</Text>
+              </Pressable>
+              <Text style={s.timeRowDash}>—</Text>
+              <Pressable
+                onPress={() => setShowEndTimePicker(true)}
+                style={({ pressed }) => [s.pickerField, { flex: 1 }, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Select end time"
+              >
+                <Text style={s.pickerFieldText}>{formatClockTime(confirmedEndTime)}</Text>
+              </Pressable>
+            </View>
+            {showStartTimePicker && (
+              <DateTimePicker
+                value={confirmedStartTime}
+                mode="time"
+                display="default"
+                onChange={(event: any, date?: Date) => {
+                  setShowStartTimePicker(false);
+                  if (event.type === 'set' && date) setConfirmedStartTime(date);
+                }}
+              />
+            )}
+            {showEndTimePicker && (
+              <DateTimePicker
+                value={confirmedEndTime}
+                mode="time"
+                display="default"
+                onChange={(event: any, date?: Date) => {
+                  setShowEndTimePicker(false);
+                  if (event.type === 'set' && date) setConfirmedEndTime(date);
+                }}
+              />
+            )}
+
+            <View style={s.modalBtnRow}>
+              <Pressable
+                onPress={() => setBookingTarget(null)}
+                style={({ pressed }) => [s.modalBtnCancel, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel booking"
+              >
+                <Text style={s.modalBtnCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleConfirmBooking}
+                disabled={booking}
+                style={({ pressed }) => [s.modalBtnConfirm, pressed && s.pressed, booking && { opacity: 0.7 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Confirm booking"
+              >
+                <Text style={s.modalBtnConfirmText}>{booking ? 'Booking…' : 'Confirm Booking'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -914,6 +1090,64 @@ const s = StyleSheet.create({
   pressed:      { opacity: 0.75 },
   pressedDark:  { backgroundColor: 'rgba(255,255,255,0.14)' },
   pressedLight: { opacity: 0.88 },
+
+  // ── Confirm Booking modal ────────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.md,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.xl,
+    padding: Spacing.md,
+    gap: 4,
+  },
+  modalTitle: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeMD,
+    color: D.onSurface,
+    marginBottom: 6,
+  },
+  modalLabel: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeXS,
+    color: D.onSurfaceVariant,
+    marginTop: 8,
+  },
+  modalValue: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeSM,
+    color: D.onSurface,
+  },
+  pickerField: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    borderRadius: Radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  pickerFieldText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurface },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  timeRowDash: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+  modalBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.md },
+  modalBtnCancel: {
+    paddingVertical: 10, paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full, borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+    alignItems: 'center', justifyContent: 'center', minHeight: 44,
+  },
+  modalBtnCancelText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
+  modalBtnConfirm: {
+    paddingVertical: 10, paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full, backgroundColor: D.primary,
+    alignItems: 'center', justifyContent: 'center', minHeight: 44,
+  },
+  modalBtnConfirmText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
 });
 
 export default CreatorDashboard;

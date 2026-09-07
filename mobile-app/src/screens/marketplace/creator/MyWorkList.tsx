@@ -45,6 +45,7 @@ const FALLBACK_ACTIVE_JOBS: JobResponse[] = [
     status: 'ACTIVE',
     urgent: false,
     scheduledAt: null,
+    timeWindowText: null,
     completedAt: null,
   },
   {
@@ -57,6 +58,7 @@ const FALLBACK_ACTIVE_JOBS: JobResponse[] = [
     status: 'ACTIVE',
     urgent: false,
     scheduledAt: null,
+    timeWindowText: null,
     completedAt: null,
   },
 ];

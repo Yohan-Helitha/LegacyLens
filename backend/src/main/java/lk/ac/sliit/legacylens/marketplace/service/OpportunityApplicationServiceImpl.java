@@ -2,12 +2,16 @@ package lk.ac.sliit.legacylens.marketplace.service;
 
 import lk.ac.sliit.legacylens.common.exception.InvalidApplicationStateException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
+import lk.ac.sliit.legacylens.marketplace.dto.BookApplicationRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityApplicationRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityApplicationResponse;
+import lk.ac.sliit.legacylens.marketplace.entity.Job;
+import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
+import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.users.entity.User;
@@ -16,6 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -32,17 +38,22 @@ import java.util.stream.Collectors;
 @Service
 public class OpportunityApplicationServiceImpl implements OpportunityApplicationService {
 
+    private static final DateTimeFormatter TIME_LABEL_FORMAT = DateTimeFormatter.ofPattern("h:mm a");
+
     private final OpportunityApplicationRepository opportunityApplicationRepository;
     private final OpportunityRepository opportunityRepository;
     private final UserRepository userRepository;
+    private final JobRepository jobRepository;
 
     public OpportunityApplicationServiceImpl(
             OpportunityApplicationRepository opportunityApplicationRepository,
             OpportunityRepository opportunityRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            JobRepository jobRepository) {
         this.opportunityApplicationRepository = opportunityApplicationRepository;
         this.opportunityRepository = opportunityRepository;
         this.userRepository = userRepository;
+        this.jobRepository = jobRepository;
     }
 
     @Override
@@ -143,7 +154,9 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
 
     @Override
     @Transactional
-    public OpportunityApplicationResponse bookApplication(UUID creatorId, UUID applicationId) {
+    public OpportunityApplicationResponse bookApplication(
+            UUID creatorId, UUID applicationId, BookApplicationRequest request) {
+
         OpportunityApplication application = opportunityApplicationRepository
                 .findByIdAndCreatorId(applicationId, creatorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
@@ -152,9 +165,29 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
             throw new InvalidApplicationStateException("Only an approved application can be booked.");
         }
 
+        Opportunity opportunity = application.getOpportunity();
+
+        Job job = new Job();
+        job.setCreator(application.getCreator());
+        job.setElder(opportunity.getElder());
+        job.setTitle(opportunity.getTitle());
+        job.setDescription(opportunity.getDescription());
+        job.setLocation(opportunity.getLocation());
+        job.setOfferedAmount(opportunity.getOfferedAmount());
+        job.setStatus(JobStatus.UPCOMING);
+        job.setScheduledAt(LocalDateTime.of(request.getConfirmedDate(), request.getStartTime()));
+        job.setTimeWindowText(formatTimeWindow(request.getStartTime(), request.getEndTime()));
+        job.setOpportunityId(opportunity.getId());
+        job.setApplicationId(application.getId());
+        jobRepository.save(job);
+
         application.setStatus(OpportunityApplicationStatus.BOOKED);
 
         return mapToResponse(opportunityApplicationRepository.save(application));
+    }
+
+    private static String formatTimeWindow(LocalTime start, LocalTime end) {
+        return start.format(TIME_LABEL_FORMAT) + " - " + end.format(TIME_LABEL_FORMAT);
     }
 
     @Override

@@ -23,5 +23,7 @@ public class JobResponse {
     private String status;
     private boolean urgent;
     private LocalDateTime scheduledAt;
+    /** Display text for the confirmed time range, e.g. "10:00 AM - 2:00 PM" — set only for Jobs created via booking. */
+    private String timeWindowText;
     private LocalDateTime completedAt;
 }

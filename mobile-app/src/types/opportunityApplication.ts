@@ -26,6 +26,16 @@ export interface OpportunityApplicationResponse {
   submittedAt: string | null;
 }
 
+/** Everything the "Confirm Booking" form sends — the creator's agreed date/time with the elder. */
+export interface BookApplicationRequest {
+  /** "YYYY-MM-DD" */
+  confirmedDate: string;
+  /** "HH:mm" */
+  startTime: string;
+  /** "HH:mm" */
+  endTime: string;
+}
+
 /** Everything the Save button on OpportunityApplicationForm sends. */
 export interface SaveOpportunityApplicationRequest {
   opportunityId: string;

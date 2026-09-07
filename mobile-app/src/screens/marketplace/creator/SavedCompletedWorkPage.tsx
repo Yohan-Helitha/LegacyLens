@@ -30,6 +30,7 @@ const DEMO_JOB: JobResponse = {
   status: 'ACTIVE',
   urgent: false,
   scheduledAt: null,
+  timeWindowText: null,
   completedAt: null,
 };
 

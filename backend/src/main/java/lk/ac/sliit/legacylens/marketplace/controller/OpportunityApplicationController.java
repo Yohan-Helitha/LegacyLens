@@ -3,6 +3,7 @@ package lk.ac.sliit.legacylens.marketplace.controller;
 import jakarta.validation.Valid;
 import lk.ac.sliit.legacylens.auth.security.CustomUserDetails;
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
+import lk.ac.sliit.legacylens.marketplace.dto.BookApplicationRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityApplicationRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityApplicationResponse;
 import lk.ac.sliit.legacylens.marketplace.service.OpportunityApplicationService;
@@ -118,14 +119,19 @@ public class OpportunityApplicationController {
         return ResponseEntity.ok(ApiResponse.ok("Application rejected", response));
     }
 
-    /** Moves an approved application to BOOKED — the "Book" button on the dashboard's Upcoming Booking tab. */
+    /**
+     * Moves an approved application to BOOKED and creates the real Job
+     * behind it — the "Confirm Booking" form on the dashboard's Upcoming
+     * Booking tab.
+     */
     @PostMapping("/{id}/book")
     public ResponseEntity<ApiResponse<OpportunityApplicationResponse>> book(
             @AuthenticationPrincipal CustomUserDetails principal,
-            @PathVariable UUID id) {
+            @PathVariable UUID id,
+            @Valid @RequestBody BookApplicationRequest request) {
 
         OpportunityApplicationResponse response = opportunityApplicationService.bookApplication(
-                principal.getUser().getId(), id);
+                principal.getUser().getId(), id, request);
 
         return ResponseEntity.ok(ApiResponse.ok("Application booked", response));
     }

@@ -99,7 +99,7 @@ function jobToScheduleItem(job: JobResponse): ScheduleItem | null {
     elderName: job.elderName,
     location: job.location,
     date: parseDateOnly(job.scheduledAt),
-    timeLabel: formatTime(job.scheduledAt),
+    timeLabel: job.timeWindowText ?? formatTime(job.scheduledAt),
     urgent: job.urgent,
   };
 }
@@ -134,6 +134,7 @@ const FALLBACK_JOBS: JobResponse[] = [
     status: 'UPCOMING',
     urgent: false,
     scheduledAt: '2026-08-30T12:30:00',
+    timeWindowText: null,
     completedAt: null,
   },
   {
@@ -146,6 +147,7 @@ const FALLBACK_JOBS: JobResponse[] = [
     status: 'UPCOMING',
     urgent: true,
     scheduledAt: '2026-08-30T15:30:00',
+    timeWindowText: null,
     completedAt: null,
   },
 ];
