@@ -19,23 +19,15 @@ interface UserNavigatorProps {
   navigation: NativeStackNavigationProp<RootStackParamList>;
 }
 
-/**
- * Self-contained general-user flow (home feed, cultural map, treasure hunt,
- * badges, profile), nested inside RootNavigator as a single 'User' route —
- * same pattern as CreatorNavigator/LearningNavigator. Originally this was
- * the app's own top-level manual screen-switching state machine (see
- * feature/lakni/home-page's App.tsx); relocated here so it mounts as one
- * screen instead of replacing the whole app, and so "Learn" / "Market" can
- * hand off to the existing LearningNavigator / CreatorNavigator stacks
- * instead of showing "Coming soon" placeholders.
- */
 export const UserNavigator: React.FC<UserNavigatorProps> = ({ navigation }) => {
   const [screen, setScreen] = useState<UserScreen>('home');
-  // Cultural map is expensive to mount (Mapbox) — mount it once on first
-  // visit and toggle visibility afterwards instead of remounting each time.
+  const [selectedPost, setSelectedPost] = useState<any>(null);
   const [hasVisitedMap, setHasVisitedMap] = useState(false);
 
-  const handleNavigate = (tab: string) => {
+  const handleNavigate = (tab: string, item?: any) => {
+    if (item) {
+      setSelectedPost(item);
+    }
     if (tab === 'learn') {
       navigation.navigate('Learning');
       return;
@@ -95,8 +87,11 @@ export const UserNavigator: React.FC<UserNavigatorProps> = ({ navigation }) => {
         onRequestClose={() => setScreen('home')}
       >
         <VideoDetailScreen
+          post={selectedPost}
           onBack={() => setScreen('home')}
           onNavigateMap={() => handleNavigate('map')}
+          onNavigateSearch={() => setScreen('home')}
+          onSelectRelatedPost={(p) => setSelectedPost(p)}
         />
       </Modal>
       <Modal
@@ -104,7 +99,11 @@ export const UserNavigator: React.FC<UserNavigatorProps> = ({ navigation }) => {
         animationType="slide"
         onRequestClose={() => setScreen('home')}
       >
-        <BlogDetailScreen onBack={() => setScreen('home')} />
+        <BlogDetailScreen
+          post={selectedPost}
+          onBack={() => setScreen('home')}
+          onNavigateSearch={() => setScreen('home')}
+        />
       </Modal>
 
       {showFooter && <UserFooter activeTab={footerActiveTab} onTabSelect={handleNavigate} />}
