@@ -6,9 +6,15 @@ import lk.ac.sliit.legacylens.home.entity.BlogItem;
 import lk.ac.sliit.legacylens.home.entity.FeedItem;
 import lk.ac.sliit.legacylens.home.entity.VideoItem;
 import lk.ac.sliit.legacylens.home.repository.FeedItemRepository;
+import lk.ac.sliit.legacylens.moderation.entity.ModerationQueueItem;
+import lk.ac.sliit.legacylens.moderation.entity.ModerationStatus;
+import lk.ac.sliit.legacylens.moderation.repository.ModerationQueueRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -16,16 +22,84 @@ public class FeedItemService {
 
     private final FeedItemRepository repository;
     private final lk.ac.sliit.legacylens.home.repository.FeedItemCommentRepository commentRepository;
+    private final ModerationQueueRepository moderationQueueRepository;
 
     public FeedItemService(FeedItemRepository repository, lk.ac.sliit.legacylens.home.repository.FeedItemCommentRepository commentRepository) {
+    public FeedItemService(
+            FeedItemRepository repository,
+            lk.ac.sliit.legacylens.home.repository.FeedItemCommentRepository commentRepository,
+            ModerationQueueRepository moderationQueueRepository) {
         this.repository = repository;
         this.commentRepository = commentRepository;
+        this.moderationQueueRepository = moderationQueueRepository;
     }
 
     public List<FeedItemResponse> getAllFeedItems() {
         return repository.findAll().stream()
+        List<FeedItemResponse> items = new ArrayList<>();
+
+        try {
+            List<ModerationQueueItem> publishedStories = moderationQueueRepository.findByStatus(ModerationStatus.PUBLISHED);
+            for (ModerationQueueItem story : publishedStories) {
+                items.add(mapStoryToFeedResponse(story));
+            }
+        } catch (Exception ignored) {
+        }
+
+        items.addAll(repository.findAll().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+                .collect(Collectors.toList()));
+
+        return items;
+    }
+
+    private FeedItemResponse mapStoryToFeedResponse(ModerationQueueItem story) {
+        FeedItemResponse res = new FeedItemResponse();
+        res.setId(story.getId() != null ? story.getId().toString() : UUID.randomUUID().toString());
+        res.setAuthor(story.getAuthorName());
+        res.setLocation("Sri Lanka");
+        res.setTags(story.getTags() != null ? Arrays.asList(story.getTags()) : List.of());
+        res.setLikesCount(0);
+        res.setCommentsCount(0);
+
+        String mediaType = story.getType() != null ? story.getType().toLowerCase() : "";
+        String method = story.getMethod() != null ? story.getMethod().toLowerCase() : "";
+
+        if ("video".equals(mediaType)) {
+            res.setType("video");
+            res.setTitle(story.getTitle());
+            res.setThumbnail(story.getImageUrl() != null && !story.getImageUrl().isBlank()
+                    ? story.getImageUrl()
+                    : "https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=600");
+            res.setVideoUrl(story.getMediaFilePath() != null && !story.getMediaFilePath().isBlank()
+                    ? story.getMediaFilePath()
+                    : "https://www.w3schools.com/html/mov_bbb.mp4");
+            res.setDuration(story.getMediaDurationMillis() != null && story.getMediaDurationMillis() > 0
+                    ? (story.getMediaDurationMillis() / 60000 + " mins")
+                    : "10:00");
+        } else if ("audio".equals(mediaType) || "recorded".equals(method)) {
+            res.setType("audio");
+            res.setName(story.getTitle());
+            res.setTitle(story.getTitle());
+            res.setTopic(story.getDescription());
+            res.setAvatar(story.getImageUrl() != null && !story.getImageUrl().isBlank()
+                    ? story.getImageUrl()
+                    : "https://i.pravatar.cc/150?img=1");
+            res.setDuration(story.getMediaDurationMillis() != null && story.getMediaDurationMillis() > 0
+                    ? (story.getMediaDurationMillis() / 60000 + " mins")
+                    : "12 mins");
+            res.setBars(List.of(2, 4, 3, 5, 2, 6, 4, 2, 3, 5, 2));
+        } else {
+            res.setType("blog");
+            res.setTitle(story.getTitle());
+            res.setThumbnail(story.getImageUrl() != null && !story.getImageUrl().isBlank()
+                    ? story.getImageUrl()
+                    : "https://images.unsplash.com/photo-1556679343-c7306c1976bc?q=80&w=600");
+            res.setExcerpt(story.getDescription());
+            res.setReadTime("5 min");
+        }
+        return res;
     }
 
     public List<lk.ac.sliit.legacylens.home.dto.CommentResponse> getComments(Long feedItemId) {
