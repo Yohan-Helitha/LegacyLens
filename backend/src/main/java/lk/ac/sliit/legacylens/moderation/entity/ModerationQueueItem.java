@@ -46,6 +46,12 @@ public class ModerationQueueItem {
     @Column(name = "method", length = 30)
     private String method;
 
+    @Column(name = "region", length = 100)
+    private String region;
+
+    @Column(name = "district", length = 100)
+    private String district;
+
     @Column(name = "author_id")
     private UUID authorId;
 

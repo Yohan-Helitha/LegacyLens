@@ -5,6 +5,8 @@ import lombok.Data;
 @Data
 public class UpdateModerationStatusRequest {
     private String status;
+    private String region;
+    private String district;
     private String rejectionReason;
     private String rejectionNotes;
     private String reason;

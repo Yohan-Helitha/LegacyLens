@@ -21,6 +21,8 @@ public class ModerationQueueItemResponse {
     private String authorUserId;
     private boolean elder;
     private String[] tags;
+    private String region;
+    private String district;
     private String status;
     private String rejectionReason;
     private String rejectionNotes;

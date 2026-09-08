@@ -25,9 +25,13 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final ModerationQueueRepository moderationQueueRepository;
+    private final lk.ac.sliit.legacylens.moderation.repository.StoryRegionRepository storyRegionRepository;
 
-    public ModerationQueueServiceImpl(ModerationQueueRepository moderationQueueRepository) {
+    public ModerationQueueServiceImpl(
+            ModerationQueueRepository moderationQueueRepository,
+            lk.ac.sliit.legacylens.moderation.repository.StoryRegionRepository storyRegionRepository) {
         this.moderationQueueRepository = moderationQueueRepository;
+        this.storyRegionRepository = storyRegionRepository;
     }
 
     @Override
@@ -80,11 +84,37 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
             item.setRejectionNotes(null);
         }
 
+        if (request.getRegion() != null && !request.getRegion().isBlank()) {
+            item.setRegion(request.getRegion());
+        }
+        if (request.getDistrict() != null) {
+            item.setDistrict(request.getDistrict());
+        }
+
         if (newStatus == ModerationStatus.PUBLISHED && item.getPublishedAt() == null) {
             item.setPublishedAt(LocalDateTime.now());
         }
 
         ModerationQueueItem saved = moderationQueueRepository.save(item);
+
+        // Sync story region record in story_regions table
+        if (saved.getRegion() != null && !saved.getRegion().isBlank()) {
+            try {
+                lk.ac.sliit.legacylens.moderation.entity.StoryRegion storyRegion = storyRegionRepository
+                        .findByStoryId(saved.getId())
+                        .orElseGet(() -> {
+                            lk.ac.sliit.legacylens.moderation.entity.StoryRegion sr = new lk.ac.sliit.legacylens.moderation.entity.StoryRegion();
+                            sr.setStoryId(saved.getId());
+                            return sr;
+                        });
+                storyRegion.setRegion(saved.getRegion());
+                storyRegion.setDistrict(saved.getDistrict());
+                storyRegionRepository.save(storyRegion);
+            } catch (Exception e) {
+                log.error("Failed to sync StoryRegion for story {}: {}", saved.getId(), e.getMessage());
+            }
+        }
+
         log.info("Updated moderation item {} status to {}", id, newStatus);
         return mapToResponse(saved);
     }
@@ -95,8 +125,33 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
         if (!moderationQueueRepository.existsById(id)) {
             throw new ResourceNotFoundException("Moderation item not found");
         }
+        try {
+            storyRegionRepository.deleteByStoryId(id);
+        } catch (Exception e) {
+            log.warn("Failed to delete StoryRegion for story {}: {}", id, e.getMessage());
+        }
         moderationQueueRepository.deleteById(id);
         log.info("Deleted moderation item {}", id);
+    }
+
+    @PostConstruct
+    public void syncExistingStoryRegions() {
+        try {
+            List<ModerationQueueItem> items = moderationQueueRepository.findAll();
+            for (ModerationQueueItem item : items) {
+                if (item.getRegion() != null && !item.getRegion().isBlank()) {
+                    if (storyRegionRepository.findByStoryId(item.getId()).isEmpty()) {
+                        lk.ac.sliit.legacylens.moderation.entity.StoryRegion sr = new lk.ac.sliit.legacylens.moderation.entity.StoryRegion();
+                        sr.setStoryId(item.getId());
+                        sr.setRegion(item.getRegion());
+                        sr.setDistrict(item.getDistrict());
+                        storyRegionRepository.save(sr);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("StoryRegion initial sync skipped or already completed: {}", e.getMessage());
+        }
     }
 
     private ModerationQueueItemResponse mapToResponse(ModerationQueueItem item) {
@@ -115,6 +170,8 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
                 .authorUserId(authorId)
                 .elder(item.isElder())
                 .tags(item.getTags() != null ? item.getTags() : new String[0])
+                .region(item.getRegion())
+                .district(item.getDistrict())
                 .status(item.getStatus() != null ? item.getStatus().name() : "PENDING")
                 .rejectionReason(item.getRejectionReason())
                 .rejectionNotes(item.getRejectionNotes())
