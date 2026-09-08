@@ -102,29 +102,6 @@ export interface AuditStreamEvent {
           </div>
         </app-header>
 
-        <!-- Real-Time Security Node Strip -->
-        <div class="bg-[#004343] text-white px-6 py-2 shrink-0 flex flex-wrap items-center justify-between text-[11px] font-mono border-b border-[#003131]">
-          <div class="flex items-center gap-3 flex-wrap">
-            <span class="flex items-center gap-1.5 text-emerald-300">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              ACCESS CONTROL NODE:
-            </span>
-            <span class="font-semibold text-white/90">Colombo Core Vault (Tier-IV PKI Enforced)</span>
-            <span class="text-white/40 hidden sm:inline">•</span>
-            <span class="text-white/80 hidden sm:inline">Cryptographic sync: <span class="text-emerald-300 font-bold">99.98% valid</span></span>
-          </div>
-
-          <div class="flex items-center gap-4 text-xs font-sans">
-            <div class="flex items-center gap-1.5 text-white/90">
-              <span class="material-symbols-outlined text-emerald-300 text-sm">shield</span>
-              <span class="font-semibold">Zero Active Breaches</span>
-            </div>
-            <button (click)="triggerHsmTelemetry()" class="text-emerald-300 hover:text-emerald-200 underline font-semibold text-[11px]">
-              Master HSM Telemetry
-            </button>
-          </div>
-        </div>
-
         <!-- Main Body Scroll Container -->
         <div class="flex-1 overflow-y-auto p-6 space-y-6">
           

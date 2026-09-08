@@ -27,7 +27,7 @@ import { AuthService } from '../../../app/core/services/auth.service';
         
         <!-- Search Bar (Optional) -->
         @if (showSearch) {
-          <div class="relative w-48 sm:w-72 md:w-80 hidden md:block">
+          <div class="relative w-36 sm:w-60 md:w-80 block">
             <span class="material-symbols-outlined absolute left-3 top-2 text-[#6f7978] text-lg">search</span>
             <input 
               type="text" 

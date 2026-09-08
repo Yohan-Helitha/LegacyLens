@@ -46,6 +46,22 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
+    path: 'opportunities',
+    redirectTo: 'opportunity-intake'
+  },
+  {
+    path: 'opportunity-management',
+    redirectTo: 'opportunity-intake'
+  },
+  {
+    path: 'opportunity-create',
+    redirectTo: 'opportunity-intake'
+  },
+  {
+    path: 'opportunity-drafts',
+    redirectTo: 'opportunity-intake'
+  },
+  {
     path: 'intake',
     redirectTo: 'opportunity-intake'
   },
@@ -72,20 +88,20 @@ export const routes: Routes = [
   },
   {
     path: 'verification',
-    redirectTo: 'verifications'
-  },
-  {
-    path: 'verifications',
     component: VerificationComponent,
     canActivate: [authGuard]
   },
   {
+    path: 'verifications',
+    redirectTo: 'verification'
+  },
+  {
     path: 'profile-verification',
-    redirectTo: 'verifications'
+    redirectTo: 'verification'
   },
   {
     path: 'elder-credentials-verification',
-    redirectTo: 'verifications'
+    redirectTo: 'verification'
   },
   {
     path: 'map',
@@ -107,7 +123,7 @@ export const routes: Routes = [
   },
   {
     path: 'analytics',
-    component: AnalyticsComponent,
+    component: DashboardComponent,
     canActivate: [authGuard]
   },
   {
@@ -141,16 +157,15 @@ export const routes: Routes = [
   },
   {
     path: 'profile-management',
-    component: ProfileManagementComponent,
-    canActivate: [authGuard]
+    redirectTo: 'verification'
   },
   {
     path: 'profileManagement',
-    redirectTo: 'profile-management'
+    redirectTo: 'verification'
   },
   {
     path: 'community-profiles',
-    redirectTo: 'profile-management'
+    redirectTo: 'verification'
   },
   {
     path: 'admin-profile',

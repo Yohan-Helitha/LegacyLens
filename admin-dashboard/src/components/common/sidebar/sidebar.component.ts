@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../app/core/services/auth.service';
@@ -8,149 +8,191 @@ import { AuthService } from '../../../app/core/services/auth.service';
   standalone: true,
   imports: [CommonModule, RouterModule],
   template: `
-    <aside class="w-64 bg-[#ffffff] border-r border-[#dde3eb] flex flex-col justify-between shrink-0 select-none h-screen sticky top-0 z-30 font-sans shadow-sm">
+    <aside 
+      [class.w-64]="isExpanded()"
+      [class.w-20]="!isExpanded()"
+      class="legacy-sidebar flex flex-col justify-between shrink-0 select-none h-screen sticky top-0 z-30 font-sans shadow-xl transition-all duration-300">
       
       <!-- Top Section: Brand + Navigation Links -->
-      <div class="flex flex-col flex-1 overflow-y-auto custom-scrollbar">
+      <div 
+        #sidebarScroll
+        (scroll)="onSidebarScroll($event)"
+        class="flex flex-col flex-1 overflow-y-auto custom-scrollbar overflow-x-hidden">
         
-        <!-- Brand Logo Header -->
-        <div class="p-5 flex items-center gap-3 border-b border-[#eceeed] bg-white sticky top-0 z-10">
-          <div class="w-10 h-10 rounded-xl bg-[#004343] flex items-center justify-center text-white shadow-md shadow-[#004343]/20">
-            <span class="material-symbols-outlined text-2xl">history_edu</span>
-          </div>
-          <div>
-            <h1 class="font-serif font-bold text-lg text-[#004343] leading-none tracking-tight">LegacyLens</h1>
-            <p class="text-[10px] font-semibold text-[#6f7978] tracking-widest uppercase mt-1">Admin Console</p>
-          </div>
+        <!-- Brand Header (No logo icon) -->
+        <div class="legacy-sidebar-header p-4 flex items-center justify-between sticky top-0 z-10">
+          @if (isExpanded()) {
+            <div class="min-w-0 transition-opacity duration-200 pl-1">
+              <h1 class="font-serif font-bold text-lg text-white leading-none tracking-tight truncate">LegacyLens</h1>
+              <p class="text-[10px] font-semibold text-emerald-300/80 tracking-widest uppercase mt-1">Admin Console</p>
+            </div>
+            <button 
+              (click)="toggleSidebar()" 
+              title="Collapse Sidebar"
+              class="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0">
+              <span class="material-symbols-outlined text-xl">menu_open</span>
+            </button>
+          } @else {
+            <button 
+              (click)="toggleSidebar()" 
+              title="Expand Sidebar"
+              class="w-full py-1.5 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer">
+              <span class="material-symbols-outlined text-xl">menu</span>
+            </button>
+          }
         </div>
 
         <!-- Navigation Links -->
-        <nav class="p-3 space-y-1 text-sm flex-1">
+        <nav class="p-3 space-y-1.5 text-sm flex-1">
           
           <!-- Core Operations Section Header -->
-          <div class="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#8b9695]">
-            Core Operations
-          </div>
+          @if (isExpanded()) {
+            <div class="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300/70">
+              Core Operations
+            </div>
+          } @else {
+            <div class="h-px bg-white/15 my-2"></div>
+          }
 
           <!-- 1. Overview + Analytics -->
           <a routerLink="/dashboard"
-             routerLinkActive="bg-[#004343] text-white shadow-sm font-semibold active-link"
+             routerLinkActive="active-link"
              [routerLinkActiveOptions]="{ exact: false }"
-             class="flex items-center justify-between px-3 py-2.5 rounded-lg text-[#3f4948] hover:bg-[#f2f4f3] hover:text-[#004343] transition-all group">
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-xl text-[#6f7978] group-hover:text-[#004343] transition-colors nav-icon">dashboard</span>
-              <span>Overview + Analytics</span>
+             [title]="isExpanded() ? '' : 'Overview + Analytics'"
+             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-xl nav-icon shrink-0">dashboard</span>
+              @if (isExpanded()) {
+                <span class="truncate">Overview + Analytics</span>
+              }
             </div>
           </a>
 
           <!-- 2. Moderation Queue -->
           <a routerLink="/moderation"
-             routerLinkActive="bg-[#004343] text-white shadow-sm font-semibold active-link"
-             class="flex items-center justify-between px-3 py-2.5 rounded-lg text-[#3f4948] hover:bg-[#f2f4f3] hover:text-[#004343] transition-all group">
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-xl text-[#6f7978] group-hover:text-[#004343] transition-colors nav-icon">fact_check</span>
-              <span>Moderation Queue</span>
+             routerLinkActive="active-link"
+             [title]="isExpanded() ? '' : 'Moderation Queue'"
+             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-xl nav-icon shrink-0">fact_check</span>
+              @if (isExpanded()) {
+                <span class="truncate">Moderation Queue</span>
+              }
             </div>
-            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-100 text-red-700 badge-pill">28</span>
           </a>
 
           <!-- 2.1 Opportunity Intake -->
           <a routerLink="/opportunity-intake"
-             routerLinkActive="bg-[#004343] text-white shadow-sm font-semibold active-link"
-             class="flex items-center justify-between px-3 py-2.5 rounded-lg text-[#3f4948] hover:bg-[#f2f4f3] hover:text-[#004343] transition-all group">
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-xl text-[#6f7978] group-hover:text-[#004343] transition-colors nav-icon">input</span>
-              <span>Opportunity Intake</span>
+             routerLinkActive="active-link"
+             [title]="isExpanded() ? '' : 'Opportunity Intake'"
+             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-xl nav-icon shrink-0">input</span>
+              @if (isExpanded()) {
+                <span class="truncate">Opportunity Intake</span>
+              }
             </div>
-            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-800 badge-pill">42</span>
           </a>
 
           <!-- 3. Profile Verification -->
           <a routerLink="/verification"
-             routerLinkActive="bg-[#004343] text-white shadow-sm font-semibold active-link"
-             class="flex items-center justify-between px-3 py-2.5 rounded-lg text-[#3f4948] hover:bg-[#f2f4f3] hover:text-[#004343] transition-all group">
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-xl text-[#6f7978] group-hover:text-[#004343] transition-colors nav-icon">verified_user</span>
-              <span>Profile Verification</span>
+             routerLinkActive="active-link"
+             [title]="isExpanded() ? '' : 'Profile Verification'"
+             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-xl nav-icon shrink-0">verified_user</span>
+              @if (isExpanded()) {
+                <span class="truncate">Profile Verification</span>
+              }
             </div>
-            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[#fe893e]/20 text-[#9b4600] badge-pill">14</span>
           </a>
 
           <!-- 4. Dispute Resolution -->
           <a routerLink="/disputes"
-             routerLinkActive="bg-[#004343] text-white shadow-sm font-semibold active-link"
-             class="flex items-center justify-between px-3 py-2.5 rounded-lg text-[#3f4948] hover:bg-[#f2f4f3] hover:text-[#004343] transition-all group">
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-xl text-[#6f7978] group-hover:text-[#004343] transition-colors nav-icon">gavel</span>
-              <span>Dispute Resolution</span>
+             routerLinkActive="active-link"
+             [title]="isExpanded() ? '' : 'Dispute Resolution'"
+             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-xl nav-icon shrink-0">gavel</span>
+              @if (isExpanded()) {
+                <span class="truncate">Dispute Resolution</span>
+              }
             </div>
-            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800 badge-pill">3</span>
           </a>
 
           <!-- 5. Cultural Map Management -->
           <a routerLink="/map"
-             routerLinkActive="bg-[#004343] text-white shadow-sm font-semibold active-link"
-             class="flex items-center justify-between px-3 py-2.5 rounded-lg text-[#3f4948] hover:bg-[#f2f4f3] hover:text-[#004343] transition-all group">
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-xl text-[#6f7978] group-hover:text-[#004343] transition-colors nav-icon">travel_explore</span>
-              <span>Cultural Map Management</span>
+             routerLinkActive="active-link"
+             [title]="isExpanded() ? '' : 'Cultural Map Management'"
+             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-xl nav-icon shrink-0">travel_explore</span>
+              @if (isExpanded()) {
+                <span class="truncate">Cultural Map Management</span>
+              }
             </div>
           </a>
 
           <!-- 6. Word of the day -->
           <a routerLink="/word-of-the-day"
-             routerLinkActive="bg-[#004343] text-white shadow-sm font-semibold active-link"
-             class="flex items-center justify-between px-3 py-2.5 rounded-lg text-[#3f4948] hover:bg-[#f2f4f3] hover:text-[#004343] transition-all group">
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-xl text-[#6f7978] group-hover:text-[#004343] transition-colors nav-icon">auto_stories</span>
-              <span>Word of the day</span>
+             routerLinkActive="active-link"
+             [title]="isExpanded() ? '' : 'Word of the day'"
+             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-xl nav-icon shrink-0">auto_stories</span>
+              @if (isExpanded()) {
+                <span class="truncate">Word of the day</span>
+              }
             </div>
-            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
           </a>
 
           <!-- Administration Section Header -->
-          <div class="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-[#8b9695]">
-            Administration
-          </div>
+          @if (isExpanded()) {
+            <div class="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300/70">
+              Administration
+            </div>
+          } @else {
+            <div class="h-px bg-white/15 my-2"></div>
+          }
 
           <!-- 7. Admins Management -->
           <a routerLink="/admin-management"
-             routerLinkActive="bg-[#004343] text-white shadow-sm font-semibold active-link"
-             class="flex items-center justify-between px-3 py-2.5 rounded-lg text-[#3f4948] hover:bg-[#f2f4f3] hover:text-[#004343] transition-all group">
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-xl text-[#6f7978] group-hover:text-[#004343] transition-colors nav-icon">manage_accounts</span>
-              <span>Admins Management</span>
+             routerLinkActive="active-link"
+             [title]="isExpanded() ? '' : 'Admins Management'"
+             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-xl nav-icon shrink-0">manage_accounts</span>
+              @if (isExpanded()) {
+                <span class="truncate">Admins Management</span>
+              }
             </div>
           </a>
 
-          <!-- 8. Profile Management -->
-          <a routerLink="/profile-management"
-             routerLinkActive="bg-[#004343] text-white shadow-sm font-semibold active-link"
-             class="flex items-center justify-between px-3 py-2.5 rounded-lg text-[#3f4948] hover:bg-[#f2f4f3] hover:text-[#004343] transition-all group">
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-xl text-[#6f7978] group-hover:text-[#004343] transition-colors nav-icon">badge</span>
-              <span>Profile Management</span>
-            </div>
-          </a>
 
           <!-- 9. Audit Log -->
           <a routerLink="/audit"
-             routerLinkActive="bg-[#004343] text-white shadow-sm font-semibold active-link"
-             class="flex items-center justify-between px-3 py-2.5 rounded-lg text-[#3f4948] hover:bg-[#f2f4f3] hover:text-[#004343] transition-all group">
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-xl text-[#6f7978] group-hover:text-[#004343] transition-colors nav-icon">receipt_long</span>
-              <span>Audit Log</span>
+             routerLinkActive="active-link"
+             [title]="isExpanded() ? '' : 'Audit Log'"
+             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-xl nav-icon shrink-0">receipt_long</span>
+              @if (isExpanded()) {
+                <span class="truncate">Audit Log</span>
+              }
             </div>
           </a>
 
           <!-- 10. Admin Profile -->
           <a routerLink="/admin-profile"
-             routerLinkActive="bg-[#004343] text-white shadow-sm font-semibold active-link"
+             routerLinkActive="active-link"
              [routerLinkActiveOptions]="{ exact: true }"
-             class="flex items-center justify-between px-3 py-2.5 rounded-lg text-[#3f4948] hover:bg-[#f2f4f3] hover:text-[#004343] transition-all group">
-            <div class="flex items-center gap-3">
-              <span class="material-symbols-outlined text-xl text-[#6f7978] group-hover:text-[#004343] transition-colors nav-icon">shield_person</span>
-              <span>Admin Profile</span>
+             [title]="isExpanded() ? '' : 'Admin Profile'"
+             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-xl nav-icon shrink-0">shield_person</span>
+              @if (isExpanded()) {
+                <span class="truncate">Admin Profile</span>
+              }
             </div>
           </a>
 
@@ -158,13 +200,15 @@ import { AuthService } from '../../../app/core/services/auth.service';
       </div>
 
       <!-- Bottom Section: Sign Out Only -->
-      <div class="p-4 border-t border-[#eceeed] bg-[#f8faf9] shrink-0">
+      <div class="legacy-sidebar-footer p-3 shrink-0">
         <button 
           (click)="onSignOut()" 
-          title="Sign Out" 
-          class="w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-[#ba1a1a] hover:bg-red-50 hover:border-red-200 border border-transparent rounded-lg transition-colors cursor-pointer">
-          <span>Sign Out</span>
-          <span class="material-symbols-outlined text-lg">logout</span>
+          [title]="isExpanded() ? 'Sign Out of Console' : 'Sign Out'" 
+          class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold text-red-300 hover:bg-red-500/25 hover:text-red-100 hover:border-red-400/40 border border-transparent rounded-xl transition-all cursor-pointer">
+          @if (isExpanded()) {
+            <span>Sign Out</span>
+          }
+          <span class="material-symbols-outlined text-lg" [class.mx-auto]="!isExpanded()">logout</span>
         </button>
       </div>
     </aside>
@@ -177,21 +221,23 @@ import { AuthService } from '../../../app/core/services/auth.service';
       background: transparent;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #dde3eb;
+      background: rgba(255, 255, 255, 0.2);
       border-radius: 4px;
-    }
-    .active-link .nav-icon {
-      color: #ffffff !important;
-    }
-    .active-link .badge-pill {
-      background-color: rgba(255, 255, 255, 0.2) !important;
-      color: #ffffff !important;
     }
   `]
 })
-export class SidebarComponent {
+export class SidebarComponent implements AfterViewInit {
+  @ViewChild('sidebarScroll') sidebarScrollRef!: ElementRef<HTMLDivElement>;
+
   private authService = inject(AuthService);
   private router = inject(Router);
+
+  // Sidebar expanded / collapsed state (persisted in localStorage)
+  isExpanded = signal<boolean>(
+    typeof window !== 'undefined' 
+      ? localStorage.getItem('sidebar_expanded') !== 'false' 
+      : true
+  );
 
   userName = computed(() => {
     return this.authService.currentUser()?.fullName || 'E. Vance';
@@ -214,6 +260,43 @@ export class SidebarComponent {
     }
     return name.slice(0, 2).toUpperCase();
   });
+
+  toggleSidebar(): void {
+    const nextState = !this.isExpanded();
+    this.isExpanded.set(nextState);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar_expanded', nextState.toString());
+    }
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => {
+      if (this.sidebarScrollRef?.nativeElement) {
+        const container = this.sidebarScrollRef.nativeElement;
+        const savedPos = sessionStorage.getItem('sidebar_scroll_top');
+        if (savedPos !== null) {
+          container.scrollTop = parseInt(savedPos, 10);
+        }
+
+        // Check if active link is scrolled into view; if not, scroll into view
+        const activeLink = container.querySelector('.active-link') as HTMLElement;
+        if (activeLink) {
+          const linkRect = activeLink.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
+          if (linkRect.bottom > containerRect.bottom || linkRect.top < containerRect.top) {
+            activeLink.scrollIntoView({ block: 'nearest', behavior: 'instant' as any });
+          }
+        }
+      }
+    }, 10);
+  }
+
+  onSidebarScroll(event: Event): void {
+    const target = event.target as HTMLElement;
+    if (target) {
+      sessionStorage.setItem('sidebar_scroll_top', target.scrollTop.toString());
+    }
+  }
 
   onSignOut(): void {
     this.authService.logout();

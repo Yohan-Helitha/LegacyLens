@@ -2,15 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── LegacyLens Global Styles ───────────────────────────────────────────── */
+/* ─── LegacyLens Global Design Tokens ────────────────────────────────────── */
+:root {
+  --color-primary: #004343;
+  --color-primary-dark: #003838;
+  --color-primary-container: #0f5c5c;
+  --color-secondary: #9b4600;
+  --color-secondary-container: #fe893e;
+  --color-accent: #fe893e;
+  --color-surface: #f8faf9;
+  --color-surface-container: #eceeed;
+  --color-surface-low: #f2f4f3;
+  --color-surface-white: #ffffff;
+  --color-text-main: #191c1c;
+  --color-text-muted: #6f7978;
+  --color-border: #dde3eb;
+  
+  --font-display: 'Source Serif 4', serif;
+  --font-body: 'Work Sans', sans-serif;
+}
 
-/* 1. Monsoon Coast design tokens — CSS custom properties                     */
-@import '../../shared/tokens/colors.css';
-
-/* 2. Google Fonts                                                             */
-@import url('https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400..700&family=Work+Sans:wght@400;500;600&display=swap');
-
-/* 3. Base resets                                                              */
+/* ─── Base Resets ────────────────────────────────────────────────────────── */
 *,
 *::before,
 *::after {
@@ -26,52 +38,106 @@ html {
 
 body {
   font-family: var(--font-body);
-  background-color: var(--color-dominant);
-  color: var(--color-text);
+  background-color: var(--color-surface);
+  color: var(--color-text-main);
   line-height: 1.5;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
-/* 4. Typography utilities                                                     */
+/* ─── Typography Defaults ────────────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
-  color: var(--color-secondary);
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
-a {
-  color: var(--color-secondary);
-  text-decoration: none;
-
-  &:hover {
-    color: var(--color-accent);
-  }
-}
-
-/* 5. Scrollbar theming (Chromium)                                             */
+/* ─── Custom Global Scrollbars ───────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-surface);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-secondary-subtle);
-  border-radius: var(--radius-full);
+  background: #dde3eb;
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-secondary);
+  background: #bfc8c8;
 }
 
-/* 6. Focus ring                                                               */
-:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
+/* ─── Global Sidebar Theme Styles ────────────────────────────────────────── */
+.legacy-sidebar {
+  background-color: #004343 !important;
+  color: #ffffff !important;
+  border-right: 1px solid #003131 !important;
 }
 
-/* 7. Selection                                                                */
+.legacy-sidebar-header {
+  background-color: #003838 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.legacy-sidebar-footer {
+  background-color: #003838 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.sidebar-nav-item {
+  color: rgba(255, 255, 255, 0.85) !important;
+  text-decoration: none !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.sidebar-nav-item .nav-icon {
+  color: rgba(167, 243, 208, 0.85) !important;
+  transition: color 0.2s ease !important;
+}
+
+/* Hover State: Soft Light Warm Orange Tint (Distinct from solid Active link) */
+.sidebar-nav-item:not(.active-link):hover {
+  background-color: rgba(254, 137, 62, 0.18) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+  transform: translateX(2px);
+}
+
+.sidebar-nav-item:not(.active-link):hover .nav-icon {
+  color: #fe893e !important;
+}
+
+.sidebar-nav-item:not(.active-link):hover .badge-pill {
+  background-color: rgba(254, 137, 62, 0.3) !important;
+  color: #ffdbc9 !important;
+}
+
+/* Active Link State: Solid Vibrant Brand Orange Highlight */
+.sidebar-nav-item.active-link {
+  background-color: #fe893e !important;
+  color: #2d1200 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 10px -2px rgba(254, 137, 62, 0.45) !important;
+}
+
+.sidebar-nav-item.active-link .nav-icon {
+  color: #2d1200 !important;
+}
+
+.sidebar-nav-item.active-link .badge-pill {
+  background-color: #2d1200 !important;
+  color: #fe893e !important;
+  border-color: transparent !important;
+}
+
+/* ─── Global Selection & Focus ───────────────────────────────────────────── */
 ::selection {
-  background: var(--color-secondary);
-  color: var(--color-white);
+  background: rgba(254, 137, 62, 0.25);
+  color: #9b4600;
+}
+
+:focus-visible {
+  outline: 2px solid #004343;
+  outline-offset: 2px;
 }
