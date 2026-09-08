@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -7,7 +7,9 @@ import Svg, { Path } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
-import { useMyWorkProgressStore, TOTAL_WORK_STEPS } from '../../../store/myWorkProgressStore';
+import { workProgressApi } from '../../../services/api/workProgressApi';
+import { ApiError } from '../../../services/api/client';
+import { TOTAL_WORK_STEPS, WorkMaterialResponse } from '../../../types/workProgress';
 
 // There's no per-job image field on the backend Job entity (unlike
 // Opportunity's heroImageUrl) — this bundled photo stands in for every job's
@@ -100,19 +102,34 @@ export const ContinueMyWorkPage: React.FC<{
   onSaveDraft: () => void;
   jobId: string | null;
   initialSteps: number;
-}> = ({ onNavigate, onBack, onSaveDraft, jobId, initialSteps }) => {
+}> = ({ onNavigate, onBack, onSaveDraft, jobId }) => {
   const id = jobId ?? 'unknown';
 
-  const completedSteps = useMyWorkProgressStore((st) => st.getCompletedSteps(id, initialSteps));
-  const materials = useMyWorkProgressStore((st) => st.getMaterials(id));
-  const note = useMyWorkProgressStore((st) => st.getNote(id));
-  const addMaterial = useMyWorkProgressStore((st) => st.addMaterial);
-  const removeMaterial = useMyWorkProgressStore((st) => st.removeMaterial);
-  const setNote = useMyWorkProgressStore((st) => st.setNote);
-  const advance = useMyWorkProgressStore((st) => st.advance);
-  const markSavedAsDraft = useMyWorkProgressStore((st) => st.markSavedAsDraft);
-
+  const [progress, setProgress] = useState<{ completedSteps: number; materials: WorkMaterialResponse[] } | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    workProgressApi
+      .getProgress(id)
+      .then((data) => {
+        if (cancelled) return;
+        setProgress(data);
+        setNoteText(data.note ?? '');
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(err instanceof ApiError ? err.message : 'Could not load this job.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const completedSteps = progress?.completedSteps ?? 0;
+  const materials = progress?.materials ?? [];
 
   const handleAddMaterial = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -126,32 +143,88 @@ export const ContinueMyWorkPage: React.FC<{
       quality: 0.85,
     });
 
-    if (!result.canceled && result.assets.length > 0) {
-      const asset = result.assets[0];
-      addMaterial(id, {
-        name: asset.fileName ?? `material-${Date.now()}.${asset.type === 'video' ? 'mp4' : 'jpg'}`,
+    if (result.canceled || result.assets.length === 0) return;
+    const asset = result.assets[0];
+
+    setUploading(true);
+    try {
+      const updated = await workProgressApi.addMaterial(id, {
         uri: asset.uri,
+        name: asset.fileName ?? `material-${Date.now()}.${asset.type === 'video' ? 'mp4' : 'jpg'}`,
+        type: asset.mimeType ?? (asset.type === 'video' ? 'video/mp4' : 'image/jpeg'),
       });
+      setProgress(updated);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not attach this material.';
+      Alert.alert('Upload failed', message);
+    } finally {
+      setUploading(false);
     }
   };
 
   const handleRemoveMaterial = (materialId: string, name: string) => {
     Alert.alert('Remove material?', `"${name}" will be removed from this job.`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => removeMaterial(id, materialId) },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const updated = await workProgressApi.removeMaterial(id, materialId);
+            setProgress(updated);
+          } catch (err) {
+            const message = err instanceof ApiError ? err.message : 'Could not remove this material.';
+            Alert.alert('Remove failed', message);
+          }
+        },
+      },
     ]);
   };
 
   // "Continuing" a step of work is what moves the stepper forward — there's
   // no separate per-step checklist on this page, so saving a draft is the
   // one action that advances Prep -> Record -> Edit -> Submit.
-  const handleSaveDraft = () => {
+  const handleSaveDraft = async () => {
     setSaving(true);
-    advance(id, initialSteps);
-    markSavedAsDraft(id);
-    setSaving(false);
-    Alert.alert('Saved', 'Your progress has been saved as a draft.', [{ text: 'OK', onPress: onSaveDraft }]);
+    try {
+      await workProgressApi.updateNote(id, noteText);
+      await workProgressApi.advance(id);
+      const finalState = await workProgressApi.markDraft(id);
+      setProgress(finalState);
+      Alert.alert('Saved', 'Your progress has been saved as a draft.', [{ text: 'OK', onPress: onSaveDraft }]);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not save your progress.';
+      Alert.alert('Save failed', message);
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+        <StatusBar style="dark" />
+        <TopAppBar onBack={onBack} />
+        <View style={s.loadingWrap}>
+          <Text style={s.loadingText}>{loadError}</Text>
+        </View>
+        <BottomNavBar activeTab="home" onNavigate={onNavigate} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!progress) {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+        <StatusBar style="dark" />
+        <TopAppBar onBack={onBack} />
+        <View style={s.loadingWrap}>
+          <Text style={s.loadingText}>Loading…</Text>
+        </View>
+        <BottomNavBar activeTab="home" onNavigate={onNavigate} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
@@ -183,12 +256,12 @@ export const ContinueMyWorkPage: React.FC<{
             ) : (
               materials.map((material) => (
                 <View key={material.id} style={s.materialRow}>
-                  <Text style={s.materialName} numberOfLines={1}>{material.name}</Text>
+                  <Text style={s.materialName} numberOfLines={1}>{material.fileName}</Text>
                   <Pressable
-                    onPress={() => handleRemoveMaterial(material.id, material.name)}
+                    onPress={() => handleRemoveMaterial(material.id, material.fileName)}
                     style={({ pressed }) => [s.materialTrashBtn, pressed && s.pressed]}
                     accessibilityRole="button"
-                    accessibilityLabel={`Remove ${material.name}`}
+                    accessibilityLabel={`Remove ${material.fileName}`}
                   >
                     <TrashIcon />
                   </Pressable>
@@ -198,11 +271,12 @@ export const ContinueMyWorkPage: React.FC<{
 
             <Pressable
               onPress={handleAddMaterial}
-              style={({ pressed }) => [s.addMaterialBtn, pressed && s.pressed]}
+              disabled={uploading}
+              style={({ pressed }) => [s.addMaterialBtn, pressed && s.pressed, uploading && { opacity: 0.7 }]}
               accessibilityRole="button"
               accessibilityLabel="Add material"
             >
-              <Text style={s.addMaterialBtnText}>{'+ Add Material'}</Text>
+              <Text style={s.addMaterialBtnText}>{uploading ? 'Uploading…' : '+ Add Material'}</Text>
             </Pressable>
           </View>
 
@@ -210,8 +284,8 @@ export const ContinueMyWorkPage: React.FC<{
             <Text style={s.sectionTitle}>Note & Written Content</Text>
             <TextInput
               style={s.noteInput}
-              value={note}
-              onChangeText={(text) => setNote(id, text)}
+              value={noteText}
+              onChangeText={setNoteText}
               placeholder="Write notes about the recording, ingredients, or steps here."
               placeholderTextColor={D.onSurfaceVariant}
               multiline
@@ -245,6 +319,8 @@ export default ContinueMyWorkPage;
 // ─────────────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.lg },
+  loadingText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, textAlign: 'center' },
 
   // ── App Bar ──────────────────────────────────────────────────────────────
   appBar: {

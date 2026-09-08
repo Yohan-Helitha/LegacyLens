@@ -25,9 +25,11 @@ import java.util.UUID;
 public class FileStorageService {
 
     private static final List<String> ALLOWED_CONTENT_TYPES = List.of(
-            "application/pdf", "image/jpeg", "image/png", "image/jpg"
+            "application/pdf", "image/jpeg", "image/png", "image/jpg",
+            // Work materials (photos/recordings attached on ContinueMyWorkPage) also ride through here.
+            "video/mp4", "video/quicktime", "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav"
     );
-    private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024; // 10MB
+    private static final long MAX_FILE_SIZE_BYTES = 50L * 1024 * 1024; // 50MB — video/audio work materials need more than a document scan does.
 
     @Value("${app.upload.dir:uploads}")
     private String uploadRootDir;
@@ -42,12 +44,12 @@ public class FileStorageService {
             throw new InvalidFileUploadException("A file is required");
         }
         if (file.getSize() > MAX_FILE_SIZE_BYTES) {
-            throw new InvalidFileUploadException("File must not exceed 10MB");
+            throw new InvalidFileUploadException("File must not exceed 50MB");
         }
 
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
-            throw new InvalidFileUploadException("Only PDF, JPG or PNG files are allowed");
+            throw new InvalidFileUploadException("Only PDF, image, video or audio files are allowed");
         }
 
         try {

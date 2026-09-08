@@ -7,8 +7,10 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
+import { workProgressApi } from '../../../services/api/workProgressApi';
 import type { JobResponse } from '../../../types/creatorDashboard';
-import { useMyWorkProgressStore, TOTAL_WORK_STEPS } from '../../../store/myWorkProgressStore';
+import { ApiError } from '../../../services/api/client';
+import { TOTAL_WORK_STEPS, WorkProgressResponse } from '../../../types/workProgress';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -29,44 +31,6 @@ const D = {
 const STEP_LABELS = ['Prep', 'Record', 'Edit', 'Submit'];
 
 type WorkTab = 'active' | 'submitted' | 'completed';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Fallback data — shown only if /api/creator-dashboard/jobs fails, so the
-// screen never renders blank.
-// ─────────────────────────────────────────────────────────────────────────────
-const FALLBACK_ACTIVE_JOBS: JobResponse[] = [
-  {
-    id: 'fallback-1',
-    title: 'Traditional Recipe Documentation',
-    description: '',
-    elderName: 'Mrs. Kamala Wijesinghe',
-    location: 'Matara',
-    offeredAmount: 3000,
-    status: 'ACTIVE',
-    urgent: false,
-    scheduledAt: null,
-    timeWindowText: null,
-    completedAt: null,
-  },
-  {
-    id: 'fallback-2',
-    title: 'Fishing Terms Documentation',
-    description: '',
-    elderName: 'Mr. Sunil Perera',
-    location: 'Negombo',
-    offeredAmount: 2500,
-    status: 'ACTIVE',
-    urgent: false,
-    scheduledAt: null,
-    timeWindowText: null,
-    completedAt: null,
-  },
-];
-
-/** Staggers the starting demo progress (2/4 then 1/4) so the list isn't all 0% on first load. */
-function defaultStepsForIndex(index: number): number {
-  return index % 2 === 0 ? 2 : 1;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Icons
@@ -195,24 +159,59 @@ export const MyWorkList: React.FC<{
   onContinueWork: (jobId: string, currentSteps: number) => void;
   onViewSubmittedWork: () => void;
 }> = ({ onNavigate, onBack, onContinueWork, onViewSubmittedWork }) => {
-  const [activeJobs, setActiveJobs] = useState<JobResponse[]>(FALLBACK_ACTIVE_JOBS);
+  const [workJobs, setWorkJobs] = useState<JobResponse[]>([]);
   const [completedJobs, setCompletedJobs] = useState<JobResponse[]>([]);
+  const [progressByJobId, setProgressByJobId] = useState<Record<string, WorkProgressResponse>>({});
   const [activeTab, setActiveTab] = useState<WorkTab>('active');
-
-  const completedStepsByJobId = useMyWorkProgressStore((st) => st.completedStepsByJobId);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    creatorDashboardApi.getJobs('ACTIVE').then(setActiveJobs).catch(() => {});
-    creatorDashboardApi.getJobs('COMPLETED').then(setCompletedJobs).catch(() => {});
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+
+    Promise.all([
+      creatorDashboardApi.getJobs('UPCOMING'),
+      creatorDashboardApi.getJobs('ACTIVE'),
+      creatorDashboardApi.getJobs('COMPLETED'),
+    ])
+      .then(async ([upcoming, active, completed]) => {
+        const jobsInProgress = [...upcoming, ...active];
+        const progressList = await Promise.all(
+          jobsInProgress.map((job) => workProgressApi.getProgress(job.id)),
+        );
+        if (cancelled) return;
+
+        const progressMap: Record<string, WorkProgressResponse> = {};
+        progressList.forEach((p) => {
+          progressMap[p.jobId] = p;
+        });
+
+        setWorkJobs(jobsInProgress);
+        setProgressByJobId(progressMap);
+        setCompletedJobs(completed);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setLoadError(err instanceof ApiError ? err.message : 'Could not load your work.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const activeWithSteps = useMemo(
     () =>
-      activeJobs.map((job, i) => ({
+      workJobs.map((job) => ({
         job,
-        steps: completedStepsByJobId[job.id] ?? defaultStepsForIndex(i),
+        steps: progressByJobId[job.id]?.completedSteps ?? 0,
       })),
-    [activeJobs, completedStepsByJobId],
+    [workJobs, progressByJobId],
   );
 
   const stillInProgress = activeWithSteps.filter((x) => x.steps < TOTAL_WORK_STEPS);
@@ -223,6 +222,34 @@ export const MyWorkList: React.FC<{
     // own "View Details" affordance and the Schedule page's "View".
     Alert.alert(title, 'Full work details aren’t available yet.');
   };
+
+  // Held back until every fetch above settles — real data only, no
+  // fallback/mock content, and a genuine failure shows as an error state.
+  if (loadError) {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+        <StatusBar style="dark" />
+        <TopAppBar onBack={onBack} />
+        <View style={s.loadingWrap}>
+          <Text style={s.loadingText}>{loadError}</Text>
+        </View>
+        <BottomNavBar activeTab="home" onNavigate={onNavigate} />
+      </SafeAreaView>
+    );
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+        <StatusBar style="dark" />
+        <TopAppBar onBack={onBack} />
+        <View style={s.loadingWrap}>
+          <Text style={s.loadingText}>Loading…</Text>
+        </View>
+        <BottomNavBar activeTab="home" onNavigate={onNavigate} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
@@ -361,6 +388,9 @@ const s = StyleSheet.create({
   },
   emptyState: { paddingVertical: Spacing.xl, alignItems: 'center' },
   emptyStateText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.lg },
+  loadingText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, textAlign: 'center' },
 
   // ── Card ─────────────────────────────────────────────────────────────────
   card: {

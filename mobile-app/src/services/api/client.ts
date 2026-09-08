@@ -104,3 +104,12 @@ export async function apiPatch<TResponse, TRequest = unknown>(
   const response = await apiClient.patch<ApiEnvelope<TResponse>>(url, body);
   return response.data.data as TResponse;
 }
+
+/** PUT helper that unwraps the ApiResponse envelope's `data` field. */
+export async function apiPut<TResponse, TRequest = unknown>(
+  url: string,
+  body: TRequest,
+): Promise<TResponse> {
+  const response = await apiClient.put<ApiEnvelope<TResponse>>(url, body);
+  return response.data.data as TResponse;
+}
