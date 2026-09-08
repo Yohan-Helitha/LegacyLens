@@ -213,13 +213,6 @@ const ClockIcon: React.FC<IconProps> = ({ size = 14, color = D.secondary }) => (
   </Svg>
 );
 
-const PersonIcon: React.FC<IconProps> = ({ size = 14, color = D.secondary }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none">
-    <Circle cx="12" cy="8" r="4" />
-    <Path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" />
-  </Svg>
-);
-
 const TrashIcon: React.FC<IconProps> = ({ size = 18, color = D.secondary }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <Line x1="4" y1="7" x2="20" y2="7" />
@@ -333,42 +326,44 @@ const ScheduledJobCard: React.FC<{
   onView: () => void;
   onRemove: () => void;
 }> = ({ item, onView, onRemove }) => (
-  <View style={s.jobCard}>
+  <View style={[s.jobCard, { borderLeftColor: item.urgent ? D.urgentDot : D.primary }]}>
     <View style={s.jobCardHeaderRow}>
-      <View style={{ flex: 1, gap: 4 }}>
+      <View style={s.jobIconBox}>
+        <Text style={{ fontSize: 18 }}>🎥</Text>
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
         {item.urgent && (
           <View style={s.urgentBadge}>
             <Text style={s.urgentBadgeText}>Urgent</Text>
           </View>
         )}
         <Text style={s.jobTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={s.jobClient}>{item.elderName}</Text>
+      </View>
+      <View style={{ alignItems: 'flex-end', gap: 8 }}>
         <View style={s.scheduleStatusBadge}>
           <Text style={s.scheduleStatusText}>{item.statusLabel}</Text>
         </View>
+        <Pressable
+          onPress={onRemove}
+          style={({ pressed }) => [s.trashBtn, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Remove from schedule"
+        >
+          <TrashIcon />
+        </Pressable>
       </View>
-      <Pressable
-        onPress={onRemove}
-        style={({ pressed }) => [s.trashBtn, pressed && s.pressed]}
-        accessibilityRole="button"
-        accessibilityLabel="Remove from schedule"
-      >
-        <TrashIcon />
-      </Pressable>
     </View>
 
-    <View style={{ gap: 8 }}>
-      <View style={s.jobInfoRow}>
-        <PersonIcon />
-        <Text style={s.jobInfoText}>{item.elderName}</Text>
-      </View>
-      <View style={s.jobInfoRow}>
-        <ClockIcon />
-        <Text style={s.jobInfoText}>{item.timeLabel}</Text>
+    <View style={s.jobMetaRow}>
+      <View style={s.jobMetaItem}>
+        <View style={s.jobMetaIconBox}><ClockIcon size={12} color={D.secondary} /></View>
+        <Text style={s.jobMetaText}>{item.timeLabel}</Text>
       </View>
       {item.location && (
-        <View style={s.jobInfoRow}>
-          <PinIcon />
-          <Text style={s.jobInfoText}>{item.location}</Text>
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}><PinIcon size={12} color={D.secondary} /></View>
+          <Text style={s.jobMetaText}>{item.location}</Text>
         </View>
       )}
     </View>
@@ -472,7 +467,10 @@ export const OpportunitySchedulePage: React.FC<{
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.breadcrumb}>Schedule Booking.....</Text>
+        <View style={{ gap: 2 }}>
+          <Text style={s.pageTitle}>My Schedule</Text>
+          <Text style={s.pageSubtitle}>Confirmed bookings and upcoming sessions</Text>
+        </View>
 
         <Calendar
           visibleMonth={visibleMonth}
@@ -483,27 +481,35 @@ export const OpportunitySchedulePage: React.FC<{
           onNextMonth={() => setVisibleMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
         />
 
-        <View style={s.legendRow}>
-          <View style={s.legendItemsRow}>
-            <View style={s.legendItem}>
+        <View style={s.legendSection}>
+          <View style={s.legendRow}>
+            <View style={s.legendChip}>
               <View style={[s.legendDot, { backgroundColor: D.primary }]} />
-              <Text style={s.legendText}>Booking</Text>
+              <Text style={s.legendChipText}>Booking</Text>
             </View>
-            <View style={s.legendItem}>
+            <View style={[s.legendChip, s.legendChipUrgent]}>
               <View style={[s.legendDot, { backgroundColor: D.urgentDot }]} />
-              <Text style={s.legendText}>Urgent</Text>
+              <Text style={[s.legendChipText, { color: D.urgentDot }]}>Urgent</Text>
             </View>
           </View>
           <Text style={s.legendHint}>Different colours on one date mean different bookings.</Text>
         </View>
 
-        <View style={{ gap: 2 }}>
-          <Text style={s.selectedHeading}>{formatSelectedHeading(selectedDate)}</Text>
-          <Text style={s.selectedSubtext}>
-            {selectedItems.length === 0
-              ? 'No scheduled work.'
-              : `${selectedItems.length} scheduled work${selectedItems.length > 1 ? 's' : ''}.`}
-          </Text>
+        <View style={s.selectedCard}>
+          <View style={[s.selectedAccentBar, { backgroundColor: selectedItems.length > 0 ? D.primary : D.surfaceVariant }]} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={s.selectedHeading}>{formatSelectedHeading(selectedDate)}</Text>
+            <Text style={s.selectedSubtext}>
+              {selectedItems.length === 0
+                ? 'No scheduled work.'
+                : `${selectedItems.length} scheduled work${selectedItems.length > 1 ? 's' : ''}.`}
+            </Text>
+          </View>
+          {selectedItems.length > 0 && (
+            <View style={s.selectedCountBadge}>
+              <Text style={s.selectedCountText}>{selectedItems.length}</Text>
+            </View>
+          )}
         </View>
 
         {selectedItems.length === 0 ? (
@@ -572,11 +578,13 @@ const s = StyleSheet.create({
     paddingBottom: Spacing.lg,
     gap: Spacing.md,
   },
-  breadcrumb: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeSM,
+  pageTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeXL,
     color: D.onSurface,
+    letterSpacing: -0.3,
   },
+  pageSubtitle: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
 
   // ── Calendar ─────────────────────────────────────────────────────────────
   calendarCard: {
@@ -586,20 +594,24 @@ const s = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   calendarHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: D.primary, paddingVertical: 12, paddingHorizontal: Spacing.sm,
+    backgroundColor: D.primary, paddingVertical: 14, paddingHorizontal: Spacing.md,
   },
-  calendarNavBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  calendarNavBtn: {
+    width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
   calendarMonthText: {
     fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeMD,
+    fontSize: Typography.sizeLG,
     color: '#ffffff',
+    letterSpacing: 0.2,
   },
   weekdayRow: {
     flexDirection: 'row',
@@ -630,21 +642,38 @@ const s = StyleSheet.create({
   dayDot: { width: 4, height: 4, borderRadius: 2 },
 
   // ── Legend ───────────────────────────────────────────────────────────────
-  legendRow: { gap: 4 },
-  legendItemsRow: { flexDirection: 'row', gap: Spacing.md },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendSection: { gap: 6 },
+  legendRow: { flexDirection: 'row', gap: Spacing.sm },
+  legendChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: D.surfaceContainerLow, borderRadius: Radii.full,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  legendChipUrgent: { backgroundColor: '#fbecea' },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
+  legendChipText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
   legendHint: { fontFamily: Typography.fontBody, fontSize: 11, color: D.onSurfaceVariant },
 
   // ── Selected date summary ────────────────────────────────────────────────
+  selectedCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: D.surfaceContainerLowest, borderRadius: Radii.lg,
+    paddingVertical: Spacing.sm, paddingHorizontal: Spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+  },
+  selectedAccentBar: { width: 4, alignSelf: 'stretch', borderRadius: Radii.full },
   selectedHeading: {
     fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeXL,
+    fontSize: Typography.sizeLG,
     color: D.onSurface,
     letterSpacing: -0.2,
   },
   selectedSubtext: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+  selectedCountBadge: {
+    width: 28, height: 28, borderRadius: 14, backgroundColor: D.secondaryContainer,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  selectedCountText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSecondaryContainer },
 
   emptyState: { paddingVertical: Spacing.lg, alignItems: 'center' },
   emptyStateText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
@@ -656,15 +685,18 @@ const s = StyleSheet.create({
     padding: Spacing.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
+    borderLeftWidth: 3,
     gap: Spacing.sm,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
     elevation: 1,
   },
-  jobCardHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.sm },
-  jobTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, lineHeight: 20, color: D.onSurface },
+  jobCardHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  jobIconBox: { width: 40, height: 40, borderRadius: Radii.lg, backgroundColor: D.surfaceContainerLow, alignItems: 'center', justifyContent: 'center' },
+  jobTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 22, color: D.onSurface },
+  jobClient: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.primary },
   urgentBadge: {
     alignSelf: 'flex-start', backgroundColor: D.urgentDot, borderRadius: Radii.full,
     paddingHorizontal: 10, paddingVertical: 2,
@@ -672,14 +704,23 @@ const s = StyleSheet.create({
   urgentBadgeText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.4 },
   scheduleStatusBadge: {
     alignSelf: 'flex-start', backgroundColor: D.secondaryContainer, borderRadius: Radii.full,
-    paddingHorizontal: 9, paddingVertical: 4, marginTop: 2,
+    paddingHorizontal: 9, paddingVertical: 4,
   },
   scheduleStatusText: {
     fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSecondaryContainer, letterSpacing: 0.8,
   },
   trashBtn: { padding: 2 },
-  jobInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  jobInfoText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurface },
+  jobMetaRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md,
+    paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant,
+  },
+  jobMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  jobMetaIconBox: {
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: 'rgba(232, 121, 46, 0.12)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  jobMetaText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, letterSpacing: 0.2 },
   viewBtn: {
     backgroundColor: D.primary, borderRadius: Radii.full,
     paddingVertical: 11, alignItems: 'center', justifyContent: 'center', minHeight: 44,
