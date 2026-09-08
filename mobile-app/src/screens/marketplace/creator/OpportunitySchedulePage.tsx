@@ -14,9 +14,7 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
-import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
 import type { JobResponse } from '../../../types/creatorDashboard';
-import type { OpportunityApplicationResponse } from '../../../types/opportunityApplication';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -39,6 +37,9 @@ const D = {
 
   /** Alert red — reserved for urgent work only, never used elsewhere in this screen's palette. */
   urgentDot: '#C0392B',
+
+  secondaryContainer:   '#fff0e6',
+  onSecondaryContainer: '#9e4a0d',
 } as const;
 
 /**
@@ -66,12 +67,8 @@ function computeDotColors(dayItems: ScheduleItem[]): string[] {
 }
 
 /**
- * A calendar entry can come from two different backend sources — a
- * confirmed Job, or an opportunity application the knowledge holder has
- * already APPROVED (booked, but not yet turned into a Job — there's no
- * "approve" endpoint that creates one yet, see opportunityApplicationApi).
- * Both get normalised into this one shape so the Calendar/ScheduledJobCard
- * below don't need to know which source a given booking came from.
+ * A calendar entry always comes from a real, confirmed Job — created only
+ * once a creator has booked an approved application.
  */
 interface ScheduleItem {
   id: string;
@@ -81,11 +78,12 @@ interface ScheduleItem {
   date: Date;
   timeLabel: string;
   urgent: boolean;
-  /** Set only for application-sourced items — lets "View" open the real opportunity instead of just going back. */
+  /** Mirrors the same status pill shown on the Opportunity/Submitted Application cards. */
+  statusLabel: string;
   opportunityId?: string;
 }
 
-/** A plain y-m-d string (from JobResponse.scheduledAt or OpportunityApplicationResponse.scheduledDate) parsed without UTC shifting. */
+/** A plain y-m-d string (from JobResponse.scheduledAt) parsed without UTC shifting. */
 function parseDateOnly(isoDateOrDateTime: string): Date {
   const [y, m, d] = isoDateOrDateTime.slice(0, 10).split('-').map(Number);
   return new Date(y, m - 1, d);
@@ -101,21 +99,8 @@ function jobToScheduleItem(job: JobResponse): ScheduleItem | null {
     date: parseDateOnly(job.scheduledAt),
     timeLabel: job.timeWindowText ?? formatTime(job.scheduledAt),
     urgent: job.urgent,
-  };
-}
-
-function approvedApplicationToScheduleItem(app: OpportunityApplicationResponse): ScheduleItem | null {
-  if (!app.scheduledDate) return null;
-  return {
-    id: `application-${app.id}`,
-    title: app.title,
-    elderName: app.elderName,
-    location: app.location,
-    date: parseDateOnly(app.scheduledDate),
-    timeLabel: app.timeWindowText ?? '—',
-    // Applications have no urgency concept of their own yet — only Jobs do.
-    urgent: false,
-    opportunityId: app.opportunityId,
+    // Any Job that reached the schedule page came from a confirmed booking.
+    statusLabel: 'Booked',
   };
 }
 
@@ -357,6 +342,9 @@ const ScheduledJobCard: React.FC<{
           </View>
         )}
         <Text style={s.jobTitle} numberOfLines={2}>{item.title}</Text>
+        <View style={s.scheduleStatusBadge}>
+          <Text style={s.scheduleStatusText}>{item.statusLabel}</Text>
+        </View>
       </View>
       <Pressable
         onPress={onRemove}
@@ -406,7 +394,6 @@ export const OpportunitySchedulePage: React.FC<{
   onViewOpportunity?: (opportunityId: string) => void;
 }> = ({ onNavigate, onBack, onViewOpportunity }) => {
   const [jobs, setJobs] = useState<JobResponse[]>(FALLBACK_JOBS);
-  const [approvedApplications, setApprovedApplications] = useState<OpportunityApplicationResponse[]>([]);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [visibleMonth, setVisibleMonth] = useState<Date>(startOfMonth(new Date(FALLBACK_JOBS[0].scheduledAt!)));
   const [selectedKey, setSelectedKey] = useState<string>(dateKey(new Date(FALLBACK_JOBS[0].scheduledAt!)));
@@ -424,31 +411,12 @@ export const OpportunitySchedulePage: React.FC<{
         }
       })
       .catch(() => {});
-
-    // Booked-but-not-yet-a-Job — see ScheduleItem's javadoc comment above.
-    opportunityApplicationApi
-      .getMyApplications()
-      // TEMPORARY: there's no knowledge-holder/elder side yet to actually set
-      // an application to APPROVED (see OpportunityApplicationStatus's
-      // javadoc — nothing sets it today), which would otherwise block every
-      // submitted application from ever showing up here. Treating a
-      // submitted (PENDING) application as booked lets the rest of the
-      // creator workflow (schedule, payments, etc.) be exercised end-to-end
-      // in the meantime. Restore the real gate once elder approval exists:
-      // .then((apps) => setApprovedApplications(apps.filter((a) => a.status === 'APPROVED')))
-      .then((apps) =>
-        setApprovedApplications(apps.filter((a) => a.status === 'PENDING' || a.status === 'APPROVED')),
-      )
-      .catch(() => {});
   }, []);
 
   const scheduleItems = useMemo(() => {
     const jobItems = jobs.map(jobToScheduleItem).filter((x): x is ScheduleItem => x !== null);
-    const applicationItems = approvedApplications
-      .map(approvedApplicationToScheduleItem)
-      .filter((x): x is ScheduleItem => x !== null);
-    return [...jobItems, ...applicationItems].filter((item) => !removedIds.has(item.id));
-  }, [jobs, approvedApplications, removedIds]);
+    return jobItems.filter((item) => !removedIds.has(item.id));
+  }, [jobs, removedIds]);
 
   const itemsByDateKey = useMemo(() => {
     const map: Record<string, ScheduleItem[]> = {};
@@ -702,6 +670,13 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 2,
   },
   urgentBadgeText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.4 },
+  scheduleStatusBadge: {
+    alignSelf: 'flex-start', backgroundColor: D.secondaryContainer, borderRadius: Radii.full,
+    paddingHorizontal: 9, paddingVertical: 4, marginTop: 2,
+  },
+  scheduleStatusText: {
+    fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSecondaryContainer, letterSpacing: 0.8,
+  },
   trashBtn: { padding: 2 },
   jobInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   jobInfoText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurface },
