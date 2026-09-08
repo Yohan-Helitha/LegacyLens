@@ -641,6 +641,10 @@ export const CreatorDashboard: React.FC<{
         .getJobs('UPCOMING')
         .then((data) => setJobsByTab((prev) => ({ ...prev, upcoming: data.map(mapJobToItem) })))
         .catch(() => {});
+
+      // Booking confirmed — jump straight to the Schedule page so the
+      // creator sees it marked on the calendar right away.
+      onOpenSchedule();
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Could not confirm this booking.';
       Alert.alert('Booking failed', message);
