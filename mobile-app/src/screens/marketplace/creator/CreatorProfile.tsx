@@ -160,7 +160,8 @@ const DetailRow: React.FC<{ label: string; value: string; isLast?: boolean }> = 
 export const CreatorProfile: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onOpenMyWork: () => void;
-}> = ({ onNavigate, onOpenMyWork }) => {
+  onOpenSavedApplications: () => void;
+}> = ({ onNavigate, onOpenMyWork, onOpenSavedApplications }) => {
   const [name, setName] = useState(FALLBACK_NAME);
   const [avatarUri, setAvatarUri] = useState(FALLBACK_AVATAR);
   const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
@@ -198,7 +199,7 @@ export const CreatorProfile: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
 
       <ScrollView
         style={s.scroll}

@@ -23,7 +23,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
  * "back" target) and owns the side-menu drawer.
  */
 type CreatorTopAppBarProps =
-  | { variant: 'menu'; onOpenMyWork: () => void }
+  | { variant: 'menu'; onOpenMyWork: () => void; onOpenSavedApplications: () => void }
   | { variant: 'back'; onBack: () => void };
 
 export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
@@ -108,6 +108,22 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
                     <MaterialIcons name="work-outline" size={18} color={D.primary} />
                   </View>
                   <Text style={s.menuItemText}>My Work</Text>
+                  <MaterialIcons name="chevron-right" size={20} color={D.onSurfaceVariant} />
+                </Pressable>
+
+                <Pressable
+                  onPress={() => {
+                    setMenuOpen(false);
+                    props.onOpenSavedApplications();
+                  }}
+                  style={({ pressed }) => [s.menuItem, pressed && s.menuItemPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="My Applications"
+                >
+                  <View style={s.menuItemIconChip}>
+                    <MaterialIcons name="assignment" size={18} color={D.primary} />
+                  </View>
+                  <Text style={s.menuItemText}>My Applications</Text>
                   <MaterialIcons name="chevron-right" size={20} color={D.onSurfaceVariant} />
                 </Pressable>
               </View>
@@ -209,7 +225,7 @@ const s = StyleSheet.create({
   menuCloseBtn: { width: 32, height: 32, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center' },
   menuCloseText: { fontSize: 16, color: D.onSurfaceVariant },
 
-  menuItems: { flex: 1 },
+  menuItems: { flex: 1, gap: 2 },
   menuItem: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingVertical: 10, paddingHorizontal: 8, borderRadius: Radii.lg,

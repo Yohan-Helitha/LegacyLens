@@ -187,6 +187,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onNavigate={handleNavigate}
           onViewDetail={handleViewDetail}
           onOpenMyWork={handleOpenMyWork}
+          onOpenSavedApplications={handleOpenSavedApplications}
         />
       )}
       {screen === 'detail' && (
@@ -218,6 +219,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onNavigate={handleNavigate}
           onSubmit={handleApplicationSubmit}
           onOpenMyWork={handleOpenMyWork}
+          onOpenSavedApplications={handleOpenSavedApplications}
         />
       )}
       {screen === 'pending' && (
@@ -225,16 +227,23 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onBackToHome={handleBackToHome}
           onReapply={() => setScreen('apply')}
           onOpenMyWork={handleOpenMyWork}
+          onOpenSavedApplications={handleOpenSavedApplications}
         />
       )}
       {screen === 'inbox' && (
-        <InApp onNavigate={handleNavigate} onOpenConversation={handleOpenConversation} onOpenMyWork={handleOpenMyWork} />
+        <InApp
+          onNavigate={handleNavigate}
+          onOpenConversation={handleOpenConversation}
+          onOpenMyWork={handleOpenMyWork}
+          onOpenSavedApplications={handleOpenSavedApplications}
+        />
       )}
       {screen === 'conversation' && (
         <InboxMessage
           onNavigate={handleNavigate}
           onBack={handleBackToInbox}
           onOpenMyWork={handleOpenMyWork}
+          onOpenSavedApplications={handleOpenSavedApplications}
           conversationId={selectedConversationId}
         />
       )}
@@ -244,7 +253,13 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
       {screen === 'log-payment' && (
         <LogPaymentPage onNavigate={handleNavigate} onBack={handleBackToDashboard} onSaved={handlePaymentSaved} />
       )}
-      {screen === 'profile' && <CreatorProfile onNavigate={handleNavigate} onOpenMyWork={handleOpenMyWork} />}
+      {screen === 'profile' && (
+        <CreatorProfile
+          onNavigate={handleNavigate}
+          onOpenMyWork={handleOpenMyWork}
+          onOpenSavedApplications={handleOpenSavedApplications}
+        />
+      )}
       {screen === 'schedule' && (
         <OpportunitySchedulePage
           onNavigate={handleNavigate}

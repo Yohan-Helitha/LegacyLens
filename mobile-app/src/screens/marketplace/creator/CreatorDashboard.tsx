@@ -92,51 +92,6 @@ const TAB_TO_STATUS: Record<JobTab, DashboardJobStatus> = {
   completed: 'COMPLETED',
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Fallback data — shown only if the /api/creator-dashboard/** call fails
-// (e.g. no connectivity), so the screen never renders blank or broken.
-// ─────────────────────────────────────────────────────────────────────────────
-const FALLBACK_SUMMARY: CreatorDashboardSummaryResponse = {
-  rating: 4.8,
-  completedJobsCount: 24,
-  contributionsCount: 38,
-  collectedToday: 2300,
-};
-
-const FALLBACK_ACTIVE_JOBS: ActiveJobItem[] = [
-  {
-    id: 'fallback-1',
-    icon: '🎥',
-    title: 'Recording Local History',
-    client: 'Mrs. Kamala Wijesinghe',
-    description:
-      'Recording oral history regarding the 1970s textile industry in Colombo, focusing on traditional methods and personal anecdotes.',
-    location: 'Colombo South',
-    dueText: 'Due in 3 days',
-    statusLabel: 'IN PROGRESS',
-  },
-  {
-    id: 'fallback-2',
-    icon: '🎥',
-    title: 'Traditional Food Recipe Documentation',
-    client: 'Mrs. Kamala Wijesinghe',
-    description:
-      'Recording the step-by-step preparation of a traditional Negombo family recipe, including ingredient measurements and cooking techniques.',
-    location: 'Negombo',
-    dueText: 'Due in 3 days',
-    statusLabel: 'IN PROGRESS',
-  },
-];
-
-const FALLBACK_REVIEWS: ReviewItem[] = [
-  {
-    id: 'fallback-1',
-    quote:
-      'Incredibly patient and captured my grandmother’s stories perfectly. The audio quality is fantastic.',
-    author: 'Surangi D.',
-  },
-];
-
 function formatDueDate(iso: string): string {
   const diffDays = Math.round((new Date(iso).getTime() - Date.now()) / 86400000);
   if (diffDays > 1) return `Due in ${diffDays} days`;
@@ -248,7 +203,7 @@ const GreetingSection: React.FC = () => (
 // MetricsSection  (stats card + balance card)
 // ─────────────────────────────────────────────────────────────────────────────
 const MetricsSection: React.FC<{
-  summary: CreatorDashboardSummaryResponse;
+  summary: CreatorDashboardSummaryResponse | null;
   onOpenHistory: () => void;
   onAddPayment: () => void;
 }> = ({ summary, onOpenHistory, onAddPayment }) => (
@@ -256,12 +211,12 @@ const MetricsSection: React.FC<{
     {/* ── Stats row ─────────────────────────────────────────────────────── */}
     <View style={s.statsCard}>
       <View style={s.ratingRow}>
-        <Text style={s.ratingValue}>{summary.rating != null ? summary.rating.toFixed(1) : '—'}</Text>
+        <Text style={s.ratingValue}>{summary?.rating != null ? summary.rating.toFixed(1) : '—'}</Text>
         <StarIcon size={20} color={D.tertiaryContainer} />
       </View>
       <View style={s.statsRight}>
-        <Text style={s.statsJobCount}>{summary.completedJobsCount} completed jobs</Text>
-        <Text style={s.statsContrib}>{summary.contributionsCount} contributions</Text>
+        <Text style={s.statsJobCount}>{summary ? `${summary.completedJobsCount} completed jobs` : 'Loading…'}</Text>
+        <Text style={s.statsContrib}>{summary ? `${summary.contributionsCount} contributions` : ''}</Text>
       </View>
     </View>
 
@@ -272,7 +227,7 @@ const MetricsSection: React.FC<{
 
       <Text style={s.balanceLabel}>COLLECTED TODAY</Text>
       <Text style={s.balanceAmount}>
-        LKR {Math.round(summary.collectedToday ?? 0).toLocaleString('en-US')}
+        {summary ? `LKR ${Math.round(summary.collectedToday ?? 0).toLocaleString('en-US')}` : 'LKR —'}
       </Text>
 
       <View style={s.balanceBtnRow}>
@@ -432,7 +387,7 @@ const ApprovedApplicationCard: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 // FeedbackSection
 // ─────────────────────────────────────────────────────────────────────────────
-const FeedbackSection: React.FC<{ rating: number | null; reviews: ReviewItem[] }> = ({ rating, reviews }) => (
+const FeedbackSection: React.FC<{ rating: number | null; reviews: ReviewItem[] | null }> = ({ rating, reviews }) => (
   <View style={s.section}>
     <View style={s.sectionHeader}>
       <Text style={s.sectionTitle}>Client Feedback</Text>
@@ -442,18 +397,28 @@ const FeedbackSection: React.FC<{ rating: number | null; reviews: ReviewItem[] }
       </View>
     </View>
 
-    <View style={{ gap: Spacing.sm }}>
-      {reviews.map((review) => (
-        <View key={review.id} style={s.feedbackCard}>
-          {/* Decorative large quote mark */}
-          <Text style={s.quoteDecor}>{'“'}</Text>
-          {/* Left accent bar */}
-          <View style={s.quoteBar} />
-          <Text style={s.quoteText}>{`“${review.quote}”`}</Text>
-          <Text style={s.quoteAuthor}>{`— ${review.author}`}</Text>
-        </View>
-      ))}
-    </View>
+    {reviews === null ? (
+      <View style={s.emptyState}>
+        <Text style={s.emptyStateText}>Loading…</Text>
+      </View>
+    ) : reviews.length === 0 ? (
+      <View style={s.emptyState}>
+        <Text style={s.emptyStateText}>No reviews yet.</Text>
+      </View>
+    ) : (
+      <View style={{ gap: Spacing.sm }}>
+        {reviews.map((review) => (
+          <View key={review.id} style={s.feedbackCard}>
+            {/* Decorative large quote mark */}
+            <Text style={s.quoteDecor}>{'“'}</Text>
+            {/* Left accent bar */}
+            <View style={s.quoteBar} />
+            <Text style={s.quoteText}>{`“${review.quote}”`}</Text>
+            <Text style={s.quoteAuthor}>{`— ${review.author}`}</Text>
+          </View>
+        ))}
+      </View>
+    )}
   </View>
 );
 
@@ -542,10 +507,11 @@ export const CreatorDashboard: React.FC<{
   onOpenSavedApplications: () => void;
 }> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork, onAddPayment, onOpenSavedApplications }) => {
   const [activeTab, setActiveTab] = useState<JobTab>('active');
-  const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
-  const [reviews, setReviews] = useState<ReviewItem[]>(FALLBACK_REVIEWS);
+  const [summary, setSummary] = useState<CreatorDashboardSummaryResponse | null>(null);
+  const [reviews, setReviews] = useState<ReviewItem[] | null>(null);
   const [jobsByTab, setJobsByTab] = useState<Partial<Record<JobTab, ActiveJobItem[]>>>({});
   const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobsError, setJobsError] = useState(false);
 
   // Approved-but-not-yet-booked applications — shown alongside real Jobs in
   // the Upcoming Booking tab. See ApprovedApplicationCard's comment above.
@@ -562,15 +528,14 @@ export const CreatorDashboard: React.FC<{
   const [booking, setBooking] = useState(false);
 
   useEffect(() => {
-    creatorDashboardApi.getSummary().then(setSummary).catch(() => {});
+    creatorDashboardApi
+      .getSummary()
+      .then(setSummary)
+      .catch(() => setSummary({ rating: null, completedJobsCount: 0, contributionsCount: 0, collectedToday: 0 }));
     creatorDashboardApi
       .getReviews(5)
-      .then((data) => {
-        if (data.length > 0) {
-          setReviews(data.map((r) => ({ id: r.id, quote: r.comment, author: r.elderName })));
-        }
-      })
-      .catch(() => {});
+      .then((data) => setReviews(data.map((r) => ({ id: r.id, quote: r.comment, author: r.elderName }))))
+      .catch(() => setReviews([]));
 
     opportunityApplicationApi
       .getMyApplications()
@@ -625,6 +590,7 @@ export const CreatorDashboard: React.FC<{
   useEffect(() => {
     let cancelled = false;
     setJobsLoading(true);
+    setJobsError(false);
 
     creatorDashboardApi
       .getJobs(TAB_TO_STATUS[activeTab])
@@ -634,9 +600,7 @@ export const CreatorDashboard: React.FC<{
         }
       })
       .catch(() => {
-        if (!cancelled && activeTab === 'active') {
-          setJobsByTab((prev) => (prev.active ? prev : { ...prev, active: FALLBACK_ACTIVE_JOBS }));
-        }
+        if (!cancelled) setJobsError(true);
       })
       .finally(() => {
         if (!cancelled) setJobsLoading(false);
@@ -653,7 +617,7 @@ export const CreatorDashboard: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
 
       <ScrollView
         style={s.scroll}
@@ -679,11 +643,6 @@ export const CreatorDashboard: React.FC<{
               label="Active Jobs"
               active={activeTab === 'active'}
               onPress={() => setActiveTab('active')}
-            />
-            <TabPill
-              label="My Applications"
-              active={false}
-              onPress={onOpenSavedApplications}
             />
             <TabPill
               label="Upcoming Booking"
@@ -716,13 +675,17 @@ export const CreatorDashboard: React.FC<{
           ) : (
             <View style={s.emptyState}>
               <Text style={s.emptyStateText}>
-                {jobsLoading && !currentJobs ? 'Loading…' : 'No jobs to show.'}
+                {jobsLoading && !currentJobs
+                  ? 'Loading…'
+                  : jobsError
+                    ? "Couldn't load jobs. Pull down to try again."
+                    : 'No jobs to show.'}
               </Text>
             </View>
           )}
         </View>
 
-        <FeedbackSection rating={summary.rating} reviews={reviews} />
+        <FeedbackSection rating={summary?.rating ?? null} reviews={reviews} />
         <RecentWorkSection />
         <View style={{ height: 8 }} />
       </ScrollView>

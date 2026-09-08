@@ -359,7 +359,8 @@ export const OpportunityPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onViewDetail: (opportunityId: string) => void;
   onOpenMyWork: () => void;
-}> = ({ onNavigate, onViewDetail, onOpenMyWork }) => {
+  onOpenSavedApplications: () => void;
+}> = ({ onNavigate, onViewDetail, onOpenMyWork, onOpenSavedApplications }) => {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -441,7 +442,7 @@ export const OpportunityPage: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
 
       <ScrollView
         style={s.scroll}

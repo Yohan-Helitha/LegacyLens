@@ -82,7 +82,8 @@ export const CreatorVerificationUpdatePage: React.FC<{
   /** Rejected applicants can edit and resubmit — see CreatorApplicationServiceImpl. */
   onReapply?: () => void;
   onOpenMyWork: () => void;
-}> = ({ onBackToHome, onReapply, onOpenMyWork }) => {
+  onOpenSavedApplications: () => void;
+}> = ({ onBackToHome, onReapply, onOpenMyWork, onOpenSavedApplications }) => {
   const [state, setState] = useState<ViewState>('LOADING');
 
   const fetchStatus = useCallback(() => {
@@ -101,7 +102,7 @@ export const CreatorVerificationUpdatePage: React.FC<{
     return (
       <SafeAreaView style={s.safeArea} edges={['top', 'bottom'] as const}>
         <StatusBar style="dark" />
-        <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
+        <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
         <View style={s.loadingContent}>
           <ActivityIndicator size="large" color={D.primary} />
         </View>
@@ -113,7 +114,7 @@ export const CreatorVerificationUpdatePage: React.FC<{
     return (
       <SafeAreaView style={s.safeArea} edges={['top', 'bottom'] as const}>
         <StatusBar style="dark" />
-        <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
+        <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
         <View style={s.content}>
           <View style={s.centerGroup}>
             <View style={s.heroBlock}>
@@ -142,7 +143,7 @@ export const CreatorVerificationUpdatePage: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top', 'bottom'] as const}>
       <StatusBar style="dark" />
 
-      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
 
       <View style={s.content}>
         <View style={s.centerGroup}>
