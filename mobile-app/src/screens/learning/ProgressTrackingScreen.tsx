@@ -86,148 +86,130 @@ export default function ProgressTrackingScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>
-        My Progress
-      </Text>
+  <View style={styles.container}>
 
-      {/* Statistics */}
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>
-            {tracksStarted}
-          </Text>
+    <Text style={styles.header}>
+      My Progress
+    </Text>
 
-          <Text style={styles.statLabel}>
-            Tracks Started
-          </Text>
-        </View>
+    {/* Statistics */}
+    <View style={styles.statsRow}>
 
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>
-            {lessonsCompleted}
-          </Text>
+      <View style={styles.statCard}>
+        <Text style={styles.statValue}>
+          {tracksStarted}
+        </Text>
 
-          <Text style={styles.statLabel}>
-            Lessons Done
-          </Text>
-        </View>
-
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>
-            {totalXp}
-          </Text>
-
-          <Text style={styles.statLabel}>
-            Total XP
-          </Text>
-        </View>
+        <Text style={styles.statLabel}>
+          Tracks Started
+        </Text>
       </View>
 
-      {/* Overall Progress */}
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>
-          Overall Learning Progress
+      <View style={styles.statCard}>
+        <Text style={styles.statValue}>
+          {lessonsCompleted}
         </Text>
 
-        <Text style={styles.summaryText}>
-          {lessonsCompleted} of {totalLessons} lessons completed
+        <Text style={styles.statLabel}>
+          Lessons Done
         </Text>
-
-        <Text style={styles.percentageText}>
-          {overallProgress}%
-        </Text>
-
-        <View style={styles.progressBarBackground}>
-          <View
-            style={[
-              styles.progressBarFill,
-              {
-                width: `${overallProgress}%`,
-              },
-            ]}
-          />
-        </View>
       </View>
 
-      {/* Streak */}
-      <View style={styles.streakCard}>
-        <Text style={styles.streakHeadline}>
-          🔥 Learning Streak
+      <View style={styles.statCard}>
+        <Text style={styles.statValue}>
+          {totalXp}
         </Text>
 
-        <View style={styles.weekRow}>
-          {DAY_LABELS.map((day) => (
-            <View
-              key={day}
-              style={styles.dayColumn}
-            >
-              <View style={styles.dayDot} />
-
-              <Text style={styles.dayLabel}>
-                {day}
-              </Text>
-            </View>
-          ))}
-        </View>
+        <Text style={styles.statLabel}>
+          Total XP
+        </Text>
       </View>
 
-      {/* Tracks */}
-      <Text style={styles.sectionTitle}>
-        My Tracks
-      </Text>
-
-      {trackProgress.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>
-            You haven't started any learning tracks yet.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={trackProgress}
-          keyExtractor={(item) =>
-            item.trackId.toString()
-          }
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <View style={styles.trackRow}>
-              <View style={styles.trackHeader}>
-                <Text style={styles.trackTitle}>
-                  {item.trackTitle}
-                </Text>
-
-                <Text style={styles.trackPercentage}>
-                  {item.progressPercentage}%
-                </Text>
-              </View>
-
-              <View style={styles.progressBarBackground}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    {
-                      width: `${item.progressPercentage}%`,
-                    },
-                  ]}
-                />
-              </View>
-
-              <View style={styles.trackInfoRow}>
-                <Text style={styles.trackSubtext}>
-                  {item.completedLessons} of {item.totalLessons} lessons
-                </Text>
-
-                <Text style={styles.trackXp}>
-                  +{item.xpEarned} XP
-                </Text>
-              </View>
-            </View>
-          )}
-        />
-      )}
     </View>
-  );
+
+    {/* Overall Progress */}
+    <View style={styles.summaryCard}>
+
+      <Text style={styles.summaryTitle}>
+        Learning Progress
+      </Text>
+
+      <Text style={styles.summaryText}>
+        {lessonsCompleted} of {totalLessons} lessons completed
+      </Text>
+
+      <View style={styles.progressBarBackground}>
+        <View
+          style={[
+            styles.progressBarFill,
+            {
+              width: `${overallProgress}%`,
+            },
+          ]}
+        />
+      </View>
+
+      <Text style={styles.progressPercentage}>
+        {overallProgress}%
+      </Text>
+
+    </View>
+
+    {/* My Tracks */}
+    <Text style={styles.sectionTitle}>
+      My Tracks
+    </Text>
+
+    <FlatList
+      data={trackProgress}
+      keyExtractor={(item) => item.trackId.toString()}
+      showsVerticalScrollIndicator={false}
+      renderItem={({ item }) => (
+        <View style={styles.trackRow}>
+
+          <View style={styles.trackHeader}>
+
+            <Text style={styles.trackTitle}>
+              {item.trackTitle}
+            </Text>
+
+            <Text style={styles.trackPercentage}>
+              {item.progressPercentage}%
+            </Text>
+
+          </View>
+
+          <View style={styles.progressBarBackground}>
+
+            <View
+              style={[
+                styles.progressBarFill,
+                {
+                  width: `${item.progressPercentage}%`,
+                },
+              ]}
+            />
+
+          </View>
+
+          <View style={styles.trackInfoRow}>
+
+            <Text style={styles.trackInfo}>
+              {item.completedLessons} of {item.totalLessons} lessons
+            </Text>
+
+            <Text style={styles.trackInfo}>
+              +{item.xpEarned} XP
+            </Text>
+
+          </View>
+
+        </View>
+      )}
+    />
+
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
