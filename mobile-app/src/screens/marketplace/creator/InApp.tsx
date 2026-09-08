@@ -14,6 +14,7 @@ import Svg, { Path } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 
 // Reusing the two elder portraits already bundled for the Opportunity feature —
 // this screen has no messaging backend yet (see note below), so conversation
@@ -97,37 +98,6 @@ const EditIcon: React.FC<{ size?: number; color?: string }> = ({ size = 20, colo
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC = () => (
-  <View style={s.appBar}>
-    <Pressable
-      style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Open menu"
-    >
-      <View style={s.hamburger}>
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-      </View>
-    </Pressable>
-
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-
-    <Pressable
-      style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Notifications"
-    >
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FilterBar
@@ -200,7 +170,8 @@ const ConversationCard: React.FC<{ item: Conversation; onPress: () => void }> = 
 export const InApp: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onOpenConversation: (conversationId: string) => void;
-}> = ({ onNavigate, onOpenConversation }) => {
+  onOpenMyWork: () => void;
+}> = ({ onNavigate, onOpenConversation, onOpenMyWork }) => {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -216,7 +187,7 @@ export const InApp: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
 
       <ScrollView
         style={s.scroll}

@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Typography, Spacing, Radii } from '../../../theme';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { creatorApplicationApi } from '../../../services/api/creatorApplicationApi';
 import type { CreatorApplicationStatus } from '../../../types/creatorApplication';
 
@@ -73,38 +74,6 @@ const STATUS_CONTENT: Record<CreatorApplicationStatus, StatusContent> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC = () => (
-  <View style={s.appBar}>
-    <Pressable
-      style={({ pressed }) => [s.appBarIconBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Open menu"
-    >
-      <View style={s.hamburger}>
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-      </View>
-    </Pressable>
-
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-
-    <Pressable
-      style={({ pressed }) => [s.appBarIconBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Notifications"
-    >
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -112,7 +81,8 @@ export const CreatorVerificationUpdatePage: React.FC<{
   onBackToHome?: () => void;
   /** Rejected applicants can edit and resubmit — see CreatorApplicationServiceImpl. */
   onReapply?: () => void;
-}> = ({ onBackToHome, onReapply }) => {
+  onOpenMyWork: () => void;
+}> = ({ onBackToHome, onReapply, onOpenMyWork }) => {
   const [state, setState] = useState<ViewState>('LOADING');
 
   const fetchStatus = useCallback(() => {
@@ -131,7 +101,7 @@ export const CreatorVerificationUpdatePage: React.FC<{
     return (
       <SafeAreaView style={s.safeArea} edges={['top', 'bottom'] as const}>
         <StatusBar style="dark" />
-        <TopAppBar />
+        <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
         <View style={s.loadingContent}>
           <ActivityIndicator size="large" color={D.primary} />
         </View>
@@ -143,7 +113,7 @@ export const CreatorVerificationUpdatePage: React.FC<{
     return (
       <SafeAreaView style={s.safeArea} edges={['top', 'bottom'] as const}>
         <StatusBar style="dark" />
-        <TopAppBar />
+        <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
         <View style={s.content}>
           <View style={s.centerGroup}>
             <View style={s.heroBlock}>
@@ -172,7 +142,7 @@ export const CreatorVerificationUpdatePage: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top', 'bottom'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
 
       <View style={s.content}>
         <View style={s.centerGroup}>

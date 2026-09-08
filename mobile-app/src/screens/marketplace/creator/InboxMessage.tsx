@@ -14,6 +14,7 @@ import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { CONVERSATIONS } from './InApp';
 
 const KAMALA_AVATAR = require('../../../../assets/images/avatars/elder-woman.png');
@@ -140,27 +141,6 @@ const DEFAULT_DETAIL: ConversationDetail = CONVERSATION_DETAILS['1'];
 // ─────────────────────────────────────────────────────────────────────────────
 // TopAppBar
 // ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC = () => (
-  <View style={s.appBar}>
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Open menu">
-      <View style={s.hamburger}>
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-      </View>
-    </Pressable>
-
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Notifications">
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
@@ -168,8 +148,9 @@ const TopAppBar: React.FC = () => (
 export const InboxMessage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
+  onOpenMyWork: () => void;
   conversationId: string | null;
-}> = ({ onNavigate, onBack, conversationId }) => {
+}> = ({ onNavigate, onBack, onOpenMyWork, conversationId }) => {
   const contact = CONVERSATIONS.find((c) => c.id === conversationId) ?? CONVERSATIONS[0];
   const detail = (conversationId && CONVERSATION_DETAILS[conversationId]) || DEFAULT_DETAIL;
 
@@ -187,7 +168,7 @@ export const InboxMessage: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
 
       {/* Conversation header */}
       <View style={s.convHeader}>

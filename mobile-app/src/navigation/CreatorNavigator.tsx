@@ -186,6 +186,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
         <OpportunityPage
           onNavigate={handleNavigate}
           onViewDetail={handleViewDetail}
+          onOpenMyWork={handleOpenMyWork}
         />
       )}
       {screen === 'detail' && (
@@ -213,21 +214,27 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
         />
       )}
       {screen === 'apply' && (
-        <BecomeCreatorApplication onNavigate={handleNavigate} onSubmit={handleApplicationSubmit} />
+        <BecomeCreatorApplication
+          onNavigate={handleNavigate}
+          onSubmit={handleApplicationSubmit}
+          onOpenMyWork={handleOpenMyWork}
+        />
       )}
       {screen === 'pending' && (
         <CreatorVerificationUpdatePage
           onBackToHome={handleBackToHome}
           onReapply={() => setScreen('apply')}
+          onOpenMyWork={handleOpenMyWork}
         />
       )}
       {screen === 'inbox' && (
-        <InApp onNavigate={handleNavigate} onOpenConversation={handleOpenConversation} />
+        <InApp onNavigate={handleNavigate} onOpenConversation={handleOpenConversation} onOpenMyWork={handleOpenMyWork} />
       )}
       {screen === 'conversation' && (
         <InboxMessage
           onNavigate={handleNavigate}
           onBack={handleBackToInbox}
+          onOpenMyWork={handleOpenMyWork}
           conversationId={selectedConversationId}
         />
       )}
@@ -237,7 +244,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
       {screen === 'log-payment' && (
         <LogPaymentPage onNavigate={handleNavigate} onBack={handleBackToDashboard} onSaved={handlePaymentSaved} />
       )}
-      {screen === 'profile' && <CreatorProfile onNavigate={handleNavigate} />}
+      {screen === 'profile' && <CreatorProfile onNavigate={handleNavigate} onOpenMyWork={handleOpenMyWork} />}
       {screen === 'schedule' && (
         <OpportunitySchedulePage
           onNavigate={handleNavigate}

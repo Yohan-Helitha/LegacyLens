@@ -6,6 +6,7 @@ import Svg, { Path } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
 import { workProgressApi } from '../../../services/api/workProgressApi';
 import { ApiError } from '../../../services/api/client';
@@ -55,23 +56,6 @@ const TrashIcon: React.FC<{ size?: number; color?: string }> = ({ size = 18, col
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC<{ onBack: () => void }> = ({ onBack }) => (
-  <View style={s.appBar}>
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} onPress={onBack} accessibilityRole="button" accessibilityLabel="Go back">
-      <Text style={s.backArrow}>{'←'}</Text>
-    </Pressable>
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Notifications">
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
@@ -175,7 +159,7 @@ export const SavedCompletedWorkPage: React.FC<{
     return (
       <SafeAreaView style={s.safeArea} edges={['top'] as const}>
         <StatusBar style="dark" />
-        <TopAppBar onBack={onBack} />
+        <CreatorTopAppBar variant="back" onBack={onBack} />
         <View style={s.loadingWrap}>
           <Text style={s.loadingText}>{loadError}</Text>
         </View>
@@ -188,7 +172,7 @@ export const SavedCompletedWorkPage: React.FC<{
     return (
       <SafeAreaView style={s.safeArea} edges={['top'] as const}>
         <StatusBar style="dark" />
-        <TopAppBar onBack={onBack} />
+        <CreatorTopAppBar variant="back" onBack={onBack} />
         <View style={s.loadingWrap}>
           <Text style={s.loadingText}>Loading…</Text>
         </View>
@@ -201,7 +185,7 @@ export const SavedCompletedWorkPage: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar onBack={onBack} />
+      <CreatorTopAppBar variant="back" onBack={onBack} />
 
       <ScrollView
         style={s.scroll}

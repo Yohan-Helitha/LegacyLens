@@ -6,6 +6,7 @@ import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
 import { ApiError } from '../../../services/api/client';
 import type { OpportunityApplicationResponse } from '../../../types/opportunityApplication';
@@ -73,23 +74,6 @@ const TrashIcon: React.FC<IconProps> = ({ size = 18, color = D.secondary }) => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC<{ onBack: () => void }> = ({ onBack }) => (
-  <View style={s.appBar}>
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} onPress={onBack} accessibilityRole="button" accessibilityLabel="Go back">
-      <Text style={s.backArrow}>{'←'}</Text>
-    </Pressable>
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Notifications">
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared bits
@@ -210,7 +194,7 @@ export const SavedOpportunityApplication: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar onBack={onBack} />
+      <CreatorTopAppBar variant="back" onBack={onBack} />
 
       <ScrollView
         style={s.scroll}

@@ -14,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { profileApi } from '../../../services/api/profileApi';
 import { creatorApplicationApi } from '../../../services/api/creatorApplicationApi';
 import { ApiError } from '../../../services/api/client';
@@ -103,37 +104,6 @@ function humanizeField(field: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC = () => (
-  <View style={s.appBar}>
-    <Pressable
-      style={({ pressed }) => [s.appBarIconBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Open menu"
-    >
-      <View style={s.hamburger}>
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-      </View>
-    </Pressable>
-
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-
-    <Pressable
-      style={({ pressed }) => [s.appBarIconBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Notifications"
-    >
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FormSection — card wrapper with an uppercase teal section label
@@ -245,7 +215,8 @@ const RadioRow: React.FC<{
 export const BecomeCreatorApplication: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onSubmit?: () => void;
-}> = ({ onNavigate, onSubmit }) => {
+  onOpenMyWork: () => void;
+}> = ({ onNavigate, onSubmit, onOpenMyWork }) => {
   // Full Name / Phone Number / City / NIC Number are never typed in here —
   // they're auto-filled from the applicant's own account (read-only below).
   const cachedUser = useAuthStore((s: { user: AuthUser | null }) => s.user);
@@ -375,7 +346,7 @@ export const BecomeCreatorApplication: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
 
       <ScrollView
         style={s.scroll}

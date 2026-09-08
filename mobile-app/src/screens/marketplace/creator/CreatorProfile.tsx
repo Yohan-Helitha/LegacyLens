@@ -13,6 +13,7 @@ import Svg, { Path } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { profileApi } from '../../../services/api/profileApi';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
 import { creatorApplicationApi } from '../../../services/api/creatorApplicationApi';
@@ -123,30 +124,6 @@ const PencilIcon: React.FC<{ size?: number; color?: string }> = ({ size = 18, co
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar — same layout/icons as CreatorDashboard's
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC = () => (
-  <View style={s.appBar}>
-    <Pressable style={({ pressed }) => [s.appBarIconBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Open menu">
-      <View style={s.hamburger}>
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-      </View>
-    </Pressable>
-
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-
-    <Pressable style={({ pressed }) => [s.appBarIconBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Notifications">
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Reusable section card
 // ─────────────────────────────────────────────────────────────────────────────
@@ -182,7 +159,8 @@ const DetailRow: React.FC<{ label: string; value: string; isLast?: boolean }> = 
 // ─────────────────────────────────────────────────────────────────────────────
 export const CreatorProfile: React.FC<{
   onNavigate: (tab: NavTab) => void;
-}> = ({ onNavigate }) => {
+  onOpenMyWork: () => void;
+}> = ({ onNavigate, onOpenMyWork }) => {
   const [name, setName] = useState(FALLBACK_NAME);
   const [avatarUri, setAvatarUri] = useState(FALLBACK_AVATAR);
   const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
@@ -220,7 +198,7 @@ export const CreatorProfile: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
 
       <ScrollView
         style={s.scroll}

@@ -7,6 +7,7 @@ import Svg, { Path } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { workProgressApi } from '../../../services/api/workProgressApi';
 import { ApiError } from '../../../services/api/client';
 import { TOTAL_WORK_STEPS, WorkMaterialResponse } from '../../../types/workProgress';
@@ -50,23 +51,6 @@ const TrashIcon: React.FC<{ size?: number; color?: string }> = ({ size = 16, col
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC<{ onBack: () => void }> = ({ onBack }) => (
-  <View style={s.appBar}>
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} onPress={onBack} accessibilityRole="button" accessibilityLabel="Go back">
-      <Text style={s.backArrow}>{'←'}</Text>
-    </Pressable>
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Notifications">
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Stepper
@@ -204,7 +188,7 @@ export const ContinueMyWorkPage: React.FC<{
     return (
       <SafeAreaView style={s.safeArea} edges={['top'] as const}>
         <StatusBar style="dark" />
-        <TopAppBar onBack={onBack} />
+        <CreatorTopAppBar variant="back" onBack={onBack} />
         <View style={s.loadingWrap}>
           <Text style={s.loadingText}>{loadError}</Text>
         </View>
@@ -217,7 +201,7 @@ export const ContinueMyWorkPage: React.FC<{
     return (
       <SafeAreaView style={s.safeArea} edges={['top'] as const}>
         <StatusBar style="dark" />
-        <TopAppBar onBack={onBack} />
+        <CreatorTopAppBar variant="back" onBack={onBack} />
         <View style={s.loadingWrap}>
           <Text style={s.loadingText}>Loading…</Text>
         </View>
@@ -230,7 +214,7 @@ export const ContinueMyWorkPage: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar onBack={onBack} />
+      <CreatorTopAppBar variant="back" onBack={onBack} />
 
       <ScrollView
         style={s.scroll}

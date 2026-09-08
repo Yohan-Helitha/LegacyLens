@@ -16,6 +16,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
 import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
 import { ApiError } from '../../../services/api/client';
@@ -223,38 +224,6 @@ const ClockIcon: React.FC<IconProps> = ({ size = 13, color = '#E8792E' }) => (
   </Svg>
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC = () => (
-  <View style={s.appBar}>
-    <Pressable
-      style={({ pressed }) => [s.appBarIconBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Open menu"
-    >
-      <View style={s.hamburger}>
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-      </View>
-    </Pressable>
-
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-
-    <Pressable
-      style={({ pressed }) => [s.appBarIconBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Notifications"
-    >
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GreetingSection
@@ -684,7 +653,7 @@ export const CreatorDashboard: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} />
 
       <ScrollView
         style={s.scroll}
@@ -881,40 +850,6 @@ const GALLERY_SIZE = 128;
 
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
-
-  // ── App Bar ────────────────────────────────────────────────────────────────
-  appBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    height: 56,
-    backgroundColor: D.surfaceContainerLowest,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: D.surfaceVariant,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  appBarIconBtn: {
-    width: 44, height: 44, borderRadius: Radii.full,  // 44pt touch target
-    alignItems: 'center', justifyContent: 'center',
-  },
-  appBarTitle: {
-    fontFamily: Typography.fontDisplay,
-    fontSize: Typography.sizeLG,      // 18sp
-    lineHeight: Typography.sizeLG * 1.4,
-    color: '#0F5C5C',                 // teal (30% rule)
-    letterSpacing: -0.3,
-  },
-  hamburger:     { gap: 4 },
-  hamburgerLine: { width: 18, height: 2, borderRadius: 1, backgroundColor: '#0F5C5C' },
-  bellWrapper: { alignItems: 'center' },
-  bellTop:     { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#0F5C5C', marginBottom: 1 },
-  bellBody:    { width: 14, height: 13, borderWidth: 1.5, borderColor: '#0F5C5C', borderRadius: 7, borderBottomWidth: 0 },
-  bellClapper: { width: 5, height: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: '#0F5C5C' },
 
   // ── Scroll ─────────────────────────────────────────────────────────────────
   scroll: { flex: 1 },
