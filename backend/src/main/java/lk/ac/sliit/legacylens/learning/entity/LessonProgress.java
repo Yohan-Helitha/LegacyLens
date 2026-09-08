@@ -1,7 +1,7 @@
 package lk.ac.sliit.legacylens.learning.entity;
 
 import jakarta.persistence.*;
-
+import java.time.LocalDateTime;
 @Entity
 @Table(
     name = "lesson_progress",
@@ -30,6 +30,9 @@ public class LessonProgress {
 
     @Column(nullable = false)
     private Integer xpEarned = 0;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
 
     public LessonProgress() {
     }
@@ -81,4 +84,12 @@ public class LessonProgress {
     public void setXpEarned(Integer xpEarned) {
         this.xpEarned = xpEarned;
     }
+
+    public LocalDateTime getCompletedAt() {
+    return completedAt;
+}
+
+public void setCompletedAt(LocalDateTime completedAt) {
+    this.completedAt = completedAt;
+}
 }

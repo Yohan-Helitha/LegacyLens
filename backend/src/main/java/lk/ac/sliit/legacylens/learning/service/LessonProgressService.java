@@ -2,6 +2,7 @@ package lk.ac.sliit.legacylens.learning.service;
 
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.learning.dto.LessonProgressResponse;
+import lk.ac.sliit.legacylens.learning.dto.StreakResponse;
 import lk.ac.sliit.legacylens.learning.dto.TrackProgressResponse;
 import lk.ac.sliit.legacylens.learning.entity.Lesson;
 import lk.ac.sliit.legacylens.learning.entity.LessonProgress;
@@ -11,8 +12,16 @@ import lk.ac.sliit.legacylens.learning.repository.LessonRepository;
 import lk.ac.sliit.legacylens.learning.repository.LearningTrackRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 @Service
 public class LessonProgressService {
 
@@ -148,6 +157,11 @@ public class LessonProgressService {
         progress.setScore(score);
         progress.setXpEarned(xpEarned);
 
+
+        if (completed) {
+        progress.setCompletedAt(LocalDateTime.now());
+        }
+
         return lessonProgressRepository.save(progress);
     }
 
@@ -255,6 +269,54 @@ public class LessonProgressService {
         progress.setScore(correctAnswers);
         progress.setXpEarned(xpEarned);
 
+
+        if (completed) {
+        progress.setCompletedAt(LocalDateTime.now());
+        }
+
         return lessonProgressRepository.save(progress);
     }
+
+    public StreakResponse getStreak(Long userId) {
+
+    Set<LocalDate> completedDates =
+            lessonProgressRepository.findByUserId(userId)
+                    .stream()
+                    .filter(LessonProgress::isCompleted)
+                    .map(LessonProgress::getCompletedAt)
+                    .filter(Objects::nonNull)
+                    .map(LocalDateTime::toLocalDate)
+                    .collect(Collectors.toSet());
+
+    LocalDate today = LocalDate.now();
+
+    int currentStreak = 0;
+    LocalDate date = today;
+
+    while (completedDates.contains(date)) {
+        currentStreak++;
+        date = date.minusDays(1);
+    }
+
+    LocalDate monday =
+            today.with(
+                    TemporalAdjusters.previousOrSame(
+                            DayOfWeek.MONDAY
+                    )
+            );
+
+    List<Boolean> last7Days =
+            IntStream.range(0, 7)
+                    .mapToObj(i ->
+                            completedDates.contains(
+                                    monday.plusDays(i)
+                            )
+                    )
+                    .toList();
+
+    return new StreakResponse(
+            currentStreak,
+            last7Days
+    );
+}
 }
