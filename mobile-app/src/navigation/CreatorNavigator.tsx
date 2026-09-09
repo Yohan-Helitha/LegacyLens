@@ -60,6 +60,8 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [selectedJobTitle, setSelectedJobTitle] = useState<string | null>(null);
+  const [selectedJobElderName, setSelectedJobElderName] = useState<string | null>(null);
 
   /**
    * Shared navigation handler passed to all screens.
@@ -127,8 +129,10 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleOpenMyWork = () => setScreen('my-work');
 
   /** Called when "Continue Work" is pressed on a card in MyWorkList */
-  const handleContinueWork = (jobId: string) => {
+  const handleContinueWork = (jobId: string, title: string, elderName: string) => {
     setSelectedJobId(jobId);
+    setSelectedJobTitle(title);
+    setSelectedJobElderName(elderName);
     setScreen('continue-work');
   };
 
@@ -139,8 +143,10 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleOpenSavedDrafts = () => setScreen('saved-completed-work');
 
   /** Called when "View & Edit" is pressed on a draft in SavedCompletedWorkPage */
-  const handleEditWorkDraft = (jobId: string) => {
+  const handleEditWorkDraft = (jobId: string, title: string, elderName: string) => {
     setSelectedJobId(jobId);
+    setSelectedJobTitle(title);
+    setSelectedJobElderName(elderName);
     setScreen('continue-work');
   };
 
@@ -278,6 +284,8 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onBack={handleBackToMyWork}
           onSaveDraft={handleOpenSavedDrafts}
           jobId={selectedJobId}
+          jobTitle={selectedJobTitle}
+          elderName={selectedJobElderName}
         />
       )}
       {screen === 'saved-completed-work' && (

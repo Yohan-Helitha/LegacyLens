@@ -112,7 +112,9 @@ export const ContinueMyWorkPage: React.FC<{
   onBack: () => void;
   onSaveDraft: () => void;
   jobId: string | null;
-}> = ({ onNavigate, onBack, onSaveDraft, jobId }) => {
+  jobTitle?: string | null;
+  elderName?: string | null;
+}> = ({ onNavigate, onBack, onSaveDraft, jobId, jobTitle, elderName }) => {
   const id = jobId ?? 'unknown';
 
   const [progress, setProgress] = useState<WorkProgressResponse | null>(null);
@@ -281,6 +283,13 @@ export const ContinueMyWorkPage: React.FC<{
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {(jobTitle || elderName) && (
+          <View style={s.jobHeader}>
+            {jobTitle ? <Text style={s.jobHeaderTitle} numberOfLines={2}>{jobTitle}</Text> : null}
+            {elderName ? <Text style={s.jobHeaderElder}>{elderName}</Text> : null}
+          </View>
+        )}
+
         <View style={s.heroWrapper}>
           <Image source={GENERIC_HERO_IMAGE} style={s.heroImage} resizeMode="cover" accessibilityLabel="Work in progress" />
         </View>
@@ -426,6 +435,11 @@ const s = StyleSheet.create({
     paddingBottom: Spacing.lg,
     gap: Spacing.md,
   },
+
+  // ── Job header ───────────────────────────────────────────────────────────
+  jobHeader: { gap: 2 },
+  jobHeaderTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 22, color: D.onSurface },
+  jobHeaderElder: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.primary },
 
   // ── Hero ─────────────────────────────────────────────────────────────────
   heroWrapper: { width: '100%', aspectRatio: 4 / 2.7, borderRadius: Radii.xl, overflow: 'hidden' },

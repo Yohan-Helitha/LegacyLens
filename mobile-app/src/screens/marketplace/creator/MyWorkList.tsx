@@ -141,7 +141,7 @@ const WorkCard: React.FC<{
 export const MyWorkList: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
-  onContinueWork: (jobId: string) => void;
+  onContinueWork: (jobId: string, title: string, elderName: string) => void;
   onViewSubmittedWork: () => void;
 }> = ({ onNavigate, onBack, onContinueWork, onViewSubmittedWork }) => {
   const [workJobs, setWorkJobs] = useState<JobResponse[]>([]);
@@ -275,7 +275,7 @@ export const MyWorkList: React.FC<{
                 progressPercentage={percentage}
                 completedSteps={steps}
                 variant="continue"
-                onContinue={() => onContinueWork(job.id)}
+                onContinue={() => onContinueWork(job.id, job.title, job.elderName)}
                 onView={() => handleView(job.title)}
               />
             ))

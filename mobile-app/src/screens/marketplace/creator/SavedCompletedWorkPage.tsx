@@ -63,7 +63,7 @@ const TrashIcon: React.FC<{ size?: number; color?: string }> = ({ size = 18, col
 export const SavedCompletedWorkPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
-  onEditDraft: (jobId: string) => void;
+  onEditDraft: (jobId: string, title: string, elderName: string) => void;
 }> = ({ onNavigate, onBack, onEditDraft }) => {
   const [jobs, setJobs] = useState<JobResponse[]>([]);
   const [progressByJobId, setProgressByJobId] = useState<Record<string, WorkProgressResponse>>({});
@@ -254,7 +254,7 @@ export const SavedCompletedWorkPage: React.FC<{
 
             <View style={s.actionsRow}>
               <Pressable
-                onPress={() => onEditDraft(current.id)}
+                onPress={() => onEditDraft(current.id, current.title, current.elderName)}
                 style={({ pressed }) => [s.outlineBtn, pressed && s.pressed]}
                 accessibilityRole="button"
                 accessibilityLabel={`View and edit ${current.title}`}
