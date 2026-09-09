@@ -3,6 +3,7 @@ package lk.ac.sliit.legacylens.marketplace.controller;
 import jakarta.validation.Valid;
 import lk.ac.sliit.legacylens.auth.security.CustomUserDetails;
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
+import lk.ac.sliit.legacylens.marketplace.dto.UpdateChecklistItemRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.UpdateWorkNoteRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.WorkProgressResponse;
 import lk.ac.sliit.legacylens.marketplace.service.JobWorkProgressService;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -46,14 +48,18 @@ public class JobWorkProgressController {
                 jobWorkProgressService.getProgress(principal.getUser().getId(), jobId)));
     }
 
-    /** Moves the stepper forward one stage — the same action "Save As a Draft" triggers on ContinueMyWorkPage. */
-    @PostMapping("/advance")
-    public ResponseEntity<ApiResponse<WorkProgressResponse>> advance(
+    /** Checks/unchecks one required task — the only action that ever changes progressPercentage. */
+    @PatchMapping("/checklist/{checklistItemId}")
+    public ResponseEntity<ApiResponse<WorkProgressResponse>> updateChecklistItem(
             @AuthenticationPrincipal CustomUserDetails principal,
-            @PathVariable UUID jobId) {
+            @PathVariable UUID jobId,
+            @PathVariable UUID checklistItemId,
+            @Valid @RequestBody UpdateChecklistItemRequest request) {
 
         return ResponseEntity.ok(ApiResponse.ok(
-                jobWorkProgressService.advance(principal.getUser().getId(), jobId)));
+                jobWorkProgressService.updateChecklistItem(
+                        principal.getUser().getId(), jobId, checklistItemId,
+                        request.getCompleted(), request.getNote())));
     }
 
     @PutMapping("/note")
@@ -86,7 +92,7 @@ public class JobWorkProgressController {
                 jobWorkProgressService.removeMaterial(principal.getUser().getId(), jobId, materialId)));
     }
 
-    /** Flags the current progress as an explicit draft — shown on SavedCompletedWorkPage. */
+    /** Flags the current progress as an explicit draft — shown on SavedCompletedWorkPage. Never touches the checklist. */
     @PostMapping("/draft")
     public ResponseEntity<ApiResponse<WorkProgressResponse>> markDraft(
             @AuthenticationPrincipal CustomUserDetails principal,
@@ -96,7 +102,7 @@ public class JobWorkProgressController {
                 jobWorkProgressService.markDraft(principal.getUser().getId(), jobId)));
     }
 
-    /** Finalises a draft for review — forces the stepper to Submit and moves the job into MyWorkList's "Submitted" tab. */
+    /** Finalises a draft for review — clears the draft flag and moves the job into MyWorkList's "Submitted" tab. */
     @PostMapping("/submit")
     public ResponseEntity<ApiResponse<WorkProgressResponse>> submitDraft(
             @AuthenticationPrincipal CustomUserDetails principal,
@@ -106,7 +112,7 @@ public class JobWorkProgressController {
                 jobWorkProgressService.submitDraft(principal.getUser().getId(), jobId)));
     }
 
-    /** Discards all progress, materials and notes for this job. */
+    /** Discards all progress, materials, notes and checklist completion for this job. */
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> resetProgress(
             @AuthenticationPrincipal CustomUserDetails principal,

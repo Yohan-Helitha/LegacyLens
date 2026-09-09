@@ -11,7 +11,7 @@ import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
 import { workProgressApi } from '../../../services/api/workProgressApi';
 import type { JobResponse } from '../../../types/creatorDashboard';
 import { ApiError } from '../../../services/api/client';
-import { TOTAL_WORK_STEPS, WorkProgressResponse } from '../../../types/workProgress';
+import { WorkProgressResponse, stepsForStage } from '../../../types/workProgress';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -97,11 +97,12 @@ const Stepper: React.FC<{ completedSteps: number }> = ({ completedSteps }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 const WorkCard: React.FC<{
   job: JobResponse;
+  progressPercentage: number;
   completedSteps: number;
   variant: 'continue' | 'submitted' | 'completed';
   onContinue: () => void;
   onView: () => void;
-}> = ({ job, completedSteps, variant, onContinue, onView }) => (
+}> = ({ job, progressPercentage, completedSteps, variant, onContinue, onView }) => (
   <View style={s.card}>
     <Text style={s.cardTitle} numberOfLines={2}>{job.title}</Text>
     <View style={s.contributorRow}>
@@ -111,7 +112,7 @@ const WorkCard: React.FC<{
 
     <View style={s.progressHeaderRow}>
       <Text style={s.progressLabel}>Overall Progress</Text>
-      <Text style={s.progressValue}>{Math.round((completedSteps / TOTAL_WORK_STEPS) * 100)}%</Text>
+      <Text style={s.progressValue}>{progressPercentage}%</Text>
     </View>
 
     <Stepper completedSteps={completedSteps} />
@@ -140,7 +141,7 @@ const WorkCard: React.FC<{
 export const MyWorkList: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
-  onContinueWork: (jobId: string, currentSteps: number) => void;
+  onContinueWork: (jobId: string) => void;
   onViewSubmittedWork: () => void;
 }> = ({ onNavigate, onBack, onContinueWork, onViewSubmittedWork }) => {
   const [workJobs, setWorkJobs] = useState<JobResponse[]>([]);
@@ -189,17 +190,25 @@ export const MyWorkList: React.FC<{
     };
   }, []);
 
-  const activeWithSteps = useMemo(
+  const activeWithProgress = useMemo(
     () =>
-      workJobs.map((job) => ({
-        job,
-        steps: progressByJobId[job.id]?.completedSteps ?? 0,
-      })),
+      workJobs.map((job) => {
+        const progress = progressByJobId[job.id];
+        return {
+          job,
+          percentage: progress?.progressPercentage ?? 0,
+          steps: stepsForStage(progress?.currentStage ?? 'PREP'),
+          // A job only counts as "Submitted" once it's actually been sent for
+          // review — not just because its checklist happens to read 100%,
+          // since a creator can submit early or keep polishing after 100%.
+          submitted: Boolean(progress?.submittedAt) && !progress?.draft,
+        };
+      }),
     [workJobs, progressByJobId],
   );
 
-  const stillInProgress = activeWithSteps.filter((x) => x.steps < TOTAL_WORK_STEPS);
-  const submitted = activeWithSteps.filter((x) => x.steps >= TOTAL_WORK_STEPS);
+  const stillInProgress = activeWithProgress.filter((x) => !x.submitted);
+  const submitted = activeWithProgress.filter((x) => x.submitted);
 
   const handleView = (title: string) => {
     // No per-job detail screen exists yet — same stopgap as the Dashboard's
@@ -259,13 +268,14 @@ export const MyWorkList: React.FC<{
           stillInProgress.length === 0 ? (
             <View style={s.emptyState}><Text style={s.emptyStateText}>No work in progress right now.</Text></View>
           ) : (
-            stillInProgress.map(({ job, steps }) => (
+            stillInProgress.map(({ job, percentage, steps }) => (
               <WorkCard
                 key={job.id}
                 job={job}
+                progressPercentage={percentage}
                 completedSteps={steps}
                 variant="continue"
-                onContinue={() => onContinueWork(job.id, steps)}
+                onContinue={() => onContinueWork(job.id)}
                 onView={() => handleView(job.title)}
               />
             ))
@@ -276,11 +286,12 @@ export const MyWorkList: React.FC<{
           submitted.length === 0 ? (
             <View style={s.emptyState}><Text style={s.emptyStateText}>Nothing submitted yet.</Text></View>
           ) : (
-            submitted.map(({ job }) => (
+            submitted.map(({ job, percentage, steps }) => (
               <WorkCard
                 key={job.id}
                 job={job}
-                completedSteps={TOTAL_WORK_STEPS}
+                progressPercentage={percentage}
+                completedSteps={steps}
                 variant="submitted"
                 onContinue={() => {}}
                 onView={onViewSubmittedWork}
@@ -297,7 +308,8 @@ export const MyWorkList: React.FC<{
               <WorkCard
                 key={job.id}
                 job={job}
-                completedSteps={TOTAL_WORK_STEPS}
+                progressPercentage={100}
+                completedSteps={4}
                 variant="completed"
                 onContinue={() => {}}
                 onView={onViewSubmittedWork}

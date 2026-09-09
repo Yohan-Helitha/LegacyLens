@@ -63,7 +63,7 @@ const TrashIcon: React.FC<{ size?: number; color?: string }> = ({ size = 18, col
 export const SavedCompletedWorkPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
-  onEditDraft: (jobId: string, currentSteps: number) => void;
+  onEditDraft: (jobId: string) => void;
 }> = ({ onNavigate, onBack, onEditDraft }) => {
   const [jobs, setJobs] = useState<JobResponse[]>([]);
   const [progressByJobId, setProgressByJobId] = useState<Record<string, WorkProgressResponse>>({});
@@ -114,9 +114,8 @@ export const SavedCompletedWorkPage: React.FC<{
   }, [drafts.length, index]);
 
   const current = drafts[index];
-  const steps = current ? (progressByJobId[current.id]?.completedSteps ?? 0) : 0;
 
-  const handleSubmitForReview = () => {
+  const submitCurrent = () => {
     if (!current) return;
     Alert.alert('Submit for review?', `"${current.title}" will be sent to ${current.elderName} to review.`, [
       { text: 'Cancel', style: 'cancel' },
@@ -133,6 +132,27 @@ export const SavedCompletedWorkPage: React.FC<{
         },
       },
     ]);
+  };
+
+  // Submitting doesn't force checklist items complete or bump the percentage
+  // to 100 — if tasks remain unchecked, warn first and let the creator decide.
+  const handleSubmitForReview = () => {
+    if (!current) return;
+    const checklist = progressByJobId[current.id]?.checklistItems ?? [];
+    const incompleteCount = checklist.filter((item) => !item.completed).length;
+
+    if (incompleteCount > 0) {
+      Alert.alert(
+        'Not all tasks are complete',
+        `${incompleteCount} task${incompleteCount === 1 ? '' : 's'} on this job ${incompleteCount === 1 ? 'is' : 'are'} still unchecked. Submit anyway?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Continue', onPress: submitCurrent },
+        ],
+      );
+    } else {
+      submitCurrent();
+    }
   };
 
   const handleDelete = () => {
@@ -234,7 +254,7 @@ export const SavedCompletedWorkPage: React.FC<{
 
             <View style={s.actionsRow}>
               <Pressable
-                onPress={() => onEditDraft(current.id, steps)}
+                onPress={() => onEditDraft(current.id)}
                 style={({ pressed }) => [s.outlineBtn, pressed && s.pressed]}
                 accessibilityRole="button"
                 accessibilityLabel={`View and edit ${current.title}`}

@@ -60,7 +60,6 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [selectedJobSteps, setSelectedJobSteps] = useState(0);
 
   /**
    * Shared navigation handler passed to all screens.
@@ -128,9 +127,8 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleOpenMyWork = () => setScreen('my-work');
 
   /** Called when "Continue Work" is pressed on a card in MyWorkList */
-  const handleContinueWork = (jobId: string, currentSteps: number) => {
+  const handleContinueWork = (jobId: string) => {
     setSelectedJobId(jobId);
-    setSelectedJobSteps(currentSteps);
     setScreen('continue-work');
   };
 
@@ -141,9 +139,8 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleOpenSavedDrafts = () => setScreen('saved-completed-work');
 
   /** Called when "View & Edit" is pressed on a draft in SavedCompletedWorkPage */
-  const handleEditWorkDraft = (jobId: string, currentSteps: number) => {
+  const handleEditWorkDraft = (jobId: string) => {
     setSelectedJobId(jobId);
-    setSelectedJobSteps(currentSteps);
     setScreen('continue-work');
   };
 
@@ -281,7 +278,6 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onBack={handleBackToMyWork}
           onSaveDraft={handleOpenSavedDrafts}
           jobId={selectedJobId}
-          initialSteps={selectedJobSteps}
         />
       )}
       {screen === 'saved-completed-work' && (

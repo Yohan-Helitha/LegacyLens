@@ -10,8 +10,8 @@ public interface JobWorkProgressService {
 
     WorkProgressResponse getProgress(UUID creatorId, UUID jobId);
 
-    /** Moves one step forward (Prep -> Record -> Edit -> Submit), capped at TOTAL_STEPS. */
-    WorkProgressResponse advance(UUID creatorId, UUID jobId);
+    /** Checks/unchecks one of the job's checklist items — the only thing that ever changes progressPercentage. */
+    WorkProgressResponse updateChecklistItem(UUID creatorId, UUID jobId, UUID checklistItemId, boolean completed, String note);
 
     WorkProgressResponse updateNote(UUID creatorId, UUID jobId, String note);
 
@@ -19,12 +19,12 @@ public interface JobWorkProgressService {
 
     WorkProgressResponse removeMaterial(UUID creatorId, UUID jobId, UUID materialId);
 
-    /** "Save As a Draft" — flags the current progress as an explicit draft. */
+    /** "Save As a Draft" — flags the current progress as an explicit draft. Never touches checklist completion. */
     WorkProgressResponse markDraft(UUID creatorId, UUID jobId);
 
-    /** Finalises a draft for review: forces completedSteps to TOTAL_STEPS and clears the draft flag. */
+    /** "Submit for Review" — clears the draft flag and stamps submittedAt. Does not force checklist items complete. */
     WorkProgressResponse submitDraft(UUID creatorId, UUID jobId);
 
-    /** Discards all progress, materials and notes for a job — "Delete" on a saved draft. */
+    /** Discards all progress, materials, notes and checklist completion for a job — "Delete" on a saved draft. */
     void resetProgress(UUID creatorId, UUID jobId);
 }

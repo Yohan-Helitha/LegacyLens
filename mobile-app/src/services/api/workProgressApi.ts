@@ -1,4 +1,4 @@
-import { apiClient, apiDelete, apiGet, apiPost, apiPut } from './client';
+import { apiClient, apiDelete, apiGet, apiPatch, apiPost, apiPut } from './client';
 import { WorkMaterialFile, WorkProgressResponse } from '../../types/workProgress';
 
 /** Matches ApiEnvelope in client.ts — not exported there, so mirrored here. */
@@ -13,8 +13,12 @@ export const workProgressApi = {
   getProgress: (jobId: string) =>
     apiGet<WorkProgressResponse>(`/jobs/${jobId}/work-progress`),
 
-  advance: (jobId: string) =>
-    apiPost<WorkProgressResponse, undefined>(`/jobs/${jobId}/work-progress/advance`, undefined),
+  /** Checks/unchecks one required task — the only action that ever changes progressPercentage. */
+  updateChecklistItem: (jobId: string, checklistItemId: string, completed: boolean) =>
+    apiPatch<WorkProgressResponse, { completed: boolean }>(
+      `/jobs/${jobId}/work-progress/checklist/${checklistItemId}`,
+      { completed },
+    ),
 
   updateNote: (jobId: string, note: string) =>
     apiPut<WorkProgressResponse, { note: string }>(`/jobs/${jobId}/work-progress/note`, { note }),

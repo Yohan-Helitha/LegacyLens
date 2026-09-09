@@ -10,7 +10,7 @@ import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { workProgressApi } from '../../../services/api/workProgressApi';
 import { ApiError } from '../../../services/api/client';
-import { TOTAL_WORK_STEPS, WorkMaterialResponse } from '../../../types/workProgress';
+import { ChecklistItemResponse, WorkProgressResponse, stepsForStage } from '../../../types/workProgress';
 
 // There's no per-job image field on the backend Job entity (unlike
 // Opportunity's heroImageUrl) — this bundled photo stands in for every job's
@@ -28,6 +28,8 @@ const D = {
 
   primary:              '#0F5C5C',
   secondary:            '#E8792E',
+  secondaryContainer:   '#fff0e6',
+  onSecondaryContainer: '#9e4a0d',
 
   onSurface:        '#202428',
   onSurfaceVariant: '#4a5568',
@@ -51,6 +53,13 @@ const TrashIcon: React.FC<{ size?: number; color?: string }> = ({ size = 16, col
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ProgressBar
+// ─────────────────────────────────────────────────────────────────────────────
+const ProgressBar: React.FC<{ percentage: number }> = ({ percentage }) => (
+  <View style={s.progressBarTrack}>
+    <View style={[s.progressBarFill, { width: `${Math.max(0, Math.min(100, percentage))}%` }]} />
+  </View>
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Stepper
@@ -78,6 +87,24 @@ const Stepper: React.FC<{ completedSteps: number }> = ({ completedSteps }) => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ChecklistRow
+// ─────────────────────────────────────────────────────────────────────────────
+const ChecklistRow: React.FC<{ item: ChecklistItemResponse; onToggle: () => void }> = ({ item, onToggle }) => (
+  <Pressable
+    onPress={onToggle}
+    style={({ pressed }) => [s.checklistRow, pressed && s.pressed]}
+    accessibilityRole="checkbox"
+    accessibilityState={{ checked: item.completed }}
+    accessibilityLabel={item.label}
+  >
+    <View style={[s.checklistCheckbox, item.completed && s.checklistCheckboxDone]}>
+      {item.completed && <CheckIcon size={12} />}
+    </View>
+    <Text style={[s.checklistLabel, item.completed && s.checklistLabelDone]}>{item.label}</Text>
+  </Pressable>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
 export const ContinueMyWorkPage: React.FC<{
@@ -85,11 +112,10 @@ export const ContinueMyWorkPage: React.FC<{
   onBack: () => void;
   onSaveDraft: () => void;
   jobId: string | null;
-  initialSteps: number;
 }> = ({ onNavigate, onBack, onSaveDraft, jobId }) => {
   const id = jobId ?? 'unknown';
 
-  const [progress, setProgress] = useState<{ completedSteps: number; materials: WorkMaterialResponse[] } | null>(null);
+  const [progress, setProgress] = useState<WorkProgressResponse | null>(null);
   const [noteText, setNoteText] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -112,8 +138,43 @@ export const ContinueMyWorkPage: React.FC<{
     };
   }, [id]);
 
-  const completedSteps = progress?.completedSteps ?? 0;
   const materials = progress?.materials ?? [];
+  const checklistItems = progress?.checklistItems ?? [];
+
+  const handleToggleChecklistItem = async (item: ChecklistItemResponse) => {
+    if (!progress) return;
+    const nextCompleted = !item.completed;
+
+    // Optimistic flip so the checkbox/percentage/stepper respond instantly;
+    // replaced by the server's real recalculation once it resolves.
+    setProgress((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        checklistItems: prev.checklistItems.map((i) =>
+          i.id === item.id ? { ...i, completed: nextCompleted } : i,
+        ),
+      };
+    });
+
+    try {
+      const updated = await workProgressApi.updateChecklistItem(id, item.id, nextCompleted);
+      setProgress(updated);
+    } catch (err) {
+      // Roll back the optimistic flip on failure.
+      setProgress((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          checklistItems: prev.checklistItems.map((i) =>
+            i.id === item.id ? { ...i, completed: item.completed } : i,
+          ),
+        };
+      });
+      const message = err instanceof ApiError ? err.message : 'Could not update this task.';
+      Alert.alert('Update failed', message);
+    }
+  };
 
   const handleAddMaterial = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -165,14 +226,13 @@ export const ContinueMyWorkPage: React.FC<{
     ]);
   };
 
-  // "Continuing" a step of work is what moves the stepper forward — there's
-  // no separate per-step checklist on this page, so saving a draft is the
-  // one action that advances Prep -> Record -> Edit -> Submit.
+  // Saves the note and flags this job as a draft only — it must NOT touch
+  // checklist completion or the progress percentage. Real progress only ever
+  // moves when a checklist item itself is checked/unchecked.
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
       await workProgressApi.updateNote(id, noteText);
-      await workProgressApi.advance(id);
       const finalState = await workProgressApi.markDraft(id);
       setProgress(finalState);
       Alert.alert('Saved', 'Your progress has been saved as a draft.', [{ text: 'OK', onPress: onSaveDraft }]);
@@ -228,10 +288,32 @@ export const ContinueMyWorkPage: React.FC<{
         <View style={s.card}>
           <View style={s.progressHeaderRow}>
             <Text style={s.progressLabel}>Overall Progress</Text>
-            <Text style={s.progressValue}>{Math.round((completedSteps / TOTAL_WORK_STEPS) * 100)}%</Text>
+            <View style={s.progressHeaderRight}>
+              <Text style={s.progressValue}>{progress.progressPercentage}% Complete</Text>
+              {progress.draft && (
+                <View style={s.draftBadge}>
+                  <Text style={s.draftBadgeText}>DRAFT</Text>
+                </View>
+              )}
+            </View>
           </View>
 
-          <Stepper completedSteps={completedSteps} />
+          <ProgressBar percentage={progress.progressPercentage} />
+
+          <Stepper completedSteps={stepsForStage(progress.currentStage)} />
+
+          <View style={{ gap: Spacing.sm }}>
+            <Text style={s.sectionTitle}>What needs to be prepared</Text>
+            {checklistItems.length === 0 ? (
+              <Text style={s.emptyMaterialsText}>No tasks added yet.</Text>
+            ) : (
+              <View style={{ gap: 2 }}>
+                {checklistItems.map((item) => (
+                  <ChecklistRow key={item.id} item={item} onToggle={() => handleToggleChecklistItem(item)} />
+                ))}
+              </View>
+            )}
+          </View>
 
           <View style={{ gap: Spacing.sm }}>
             <Text style={s.sectionTitle}>Collected Materiels</Text>
@@ -365,7 +447,21 @@ const s = StyleSheet.create({
   },
   progressHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   progressLabel: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+  progressHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   progressValue: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: D.onSurface },
+  draftBadge: {
+    backgroundColor: D.secondaryContainer, borderRadius: Radii.full,
+    paddingHorizontal: 9, paddingVertical: 3,
+  },
+  draftBadgeText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: D.onSecondaryContainer, letterSpacing: 0.6 },
+
+  // ── Progress bar ─────────────────────────────────────────────────────────
+  progressBarTrack: {
+    height: 8, borderRadius: Radii.full, backgroundColor: D.surfaceVariant, overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%', borderRadius: Radii.full, backgroundColor: D.secondary,
+  },
 
   // ── Stepper ──────────────────────────────────────────────────────────────
   stepperRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', paddingHorizontal: Spacing.xs },
@@ -376,6 +472,20 @@ const s = StyleSheet.create({
   stepLabel: { fontFamily: Typography.fontBodyMed, fontSize: 10, color: D.onSurfaceVariant },
   stepConnector: { flex: 1, height: 1.5, backgroundColor: '#a0aab0', marginTop: 10 },
   stepConnectorDone: { backgroundColor: D.secondary, height: 2 },
+
+  // ── Checklist ────────────────────────────────────────────────────────────
+  checklistRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 8, paddingHorizontal: 4, borderRadius: Radii.md,
+  },
+  checklistCheckbox: {
+    width: 22, height: 22, borderRadius: Radii.sm,
+    borderWidth: 2, borderColor: D.secondary, backgroundColor: '#ffffff',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  checklistCheckboxDone: { backgroundColor: D.secondary },
+  checklistLabel: { flex: 1, fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurface },
+  checklistLabelDone: { color: D.onSurfaceVariant, textDecorationLine: 'line-through' },
 
   // ── Materials ────────────────────────────────────────────────────────────
   sectionTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurface, letterSpacing: 0.3 },
