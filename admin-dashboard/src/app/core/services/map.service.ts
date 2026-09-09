@@ -198,4 +198,17 @@ export class MapService {
       })
     );
   }
+
+  /**
+   * Fetch dynamic Mapbox Public Token securely from backend
+   */
+  getMapboxToken(): Observable<string> {
+    return this.http.get<any>(`${environment.apiUrl}/map/token`).pipe(
+      map(res => (res && res.data && res.data.mapboxToken ? res.data.mapboxToken : '')),
+      catchError(err => {
+        console.warn('[MapService] Could not fetch dynamic Mapbox token from backend:', err);
+        return of('');
+      })
+    );
+  }
 }

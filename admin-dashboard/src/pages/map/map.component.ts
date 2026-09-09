@@ -672,8 +672,12 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
                         <!-- Coordinates (Lng / Lat) with Map Interaction Hint -->
                         <div>
                           <div class="flex items-center justify-between mb-1.5">
-                            <label class="block text-xs font-bold text-[#191c1c]">
+                            <label class="block text-xs font-bold text-[#191c1c] flex items-center gap-2">
                               Precise GPS Target (Lng, Lat) <span class="text-red-500">*</span>
+                              <button type="button" (click)="fetchUserLocation()" class="bg-[#004343] text-white px-2 py-1 rounded text-[10px] flex items-center gap-1 hover:bg-[#003333] transition-colors cursor-pointer shadow-xs">
+                                <span class="material-symbols-outlined text-[12px]">my_location</span>
+                                Fetch Location
+                              </button>
                             </label>
                             <span class="text-[10px] text-[#004343] font-bold">
                               💡 Click on the right map to pin
@@ -1458,13 +1462,19 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   toastMessage = signal<string | null>(null);
   isDestructiveToast = signal<boolean>(false);
 
-  // Map Location Search State
+  // Map Location Search & Dynamic Mapbox Token State
+  currentMapboxToken = signal<string>(environment.mapboxToken || '');
   mapLocationSearchQuery = signal<string>('');
   mapSearchResults = signal<MapLocationSearchResult[]>([]);
   isSearchingMapLocation = signal<boolean>(false);
   showMapSearchResults = signal<boolean>(false);
   selectedMapLocationName = signal<string | null>(null);
   private searchDebounceTimer: any = null;
+  private tokenLoadPromise: Promise<void> | null = null;
+
+  getMapboxAccessToken(): string {
+    return this.currentMapboxToken() || environment.mapboxToken || '';
+  }
 
   // Search & Filters
   searchQuery: string = '';
@@ -1518,6 +1528,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   // Mapbox Instance & Settings
   mapInstance: any = null;
   pickerMarker: any = null;
+  showPointer: boolean = false;
   landmarkMarkers: any[] = [];
   activeMapStyle: string = 'satellite-streets-v12';
 
@@ -1606,12 +1617,26 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       this.loadHuntDataForLandmark(this.landmarks()[0]);
     }
     this.refreshAllData();
+    // Dynamically retrieve Mapbox public token from backend .env
+    this.tokenLoadPromise = new Promise<void>((resolve) => {
+      this.mapService.getMapboxToken().subscribe(token => {
+        if (token) {
+          this.currentMapboxToken.set(token);
+          if (typeof mapboxgl !== 'undefined') {
+            mapboxgl.accessToken = token;
+          }
+        }
+        resolve();
+      });
+    });
   }
 
   ngAfterViewInit(): void {
-    setTimeout(() => {
-      this.initMapbox();
-    }, 250);
+    this.tokenLoadPromise?.then(() => {
+      setTimeout(() => {
+        this.initMapbox();
+      }, 250);
+    });
   }
 
   ngOnDestroy(): void {
@@ -1633,14 +1658,18 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.activeTab() === tab) return;
     this.activeTab.set(tab);
     if (tab === 'landmarks') {
-      setTimeout(() => this.initMapbox(), 250);
+      this.tokenLoadPromise?.then(() => {
+        setTimeout(() => this.initMapbox(), 250);
+      });
     }
   }
 
   setLandmarkSubTab(subTab: 'add_edit' | 'details'): void {
     if (this.landmarkSubTab() === subTab) return;
     this.landmarkSubTab.set(subTab);
-    setTimeout(() => this.initMapbox(), 250);
+    this.tokenLoadPromise?.then(() => {
+      setTimeout(() => this.initMapbox(), 250);
+    });
   }
 
   refreshAllData(): void {
@@ -1735,7 +1764,15 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       this.mapInstance = null;
     }
 
-    mapboxgl.accessToken = environment.mapboxToken;
+    const token = this.getMapboxAccessToken();
+    if (!token) {
+      console.warn('[Mapbox] Token not yet loaded, waiting for backend .env token...');
+      setTimeout(() => this.initMapbox(targetCoordinates, targetZoom), 300);
+      return;
+    }
+    if (typeof mapboxgl !== 'undefined') {
+      mapboxgl.accessToken = token;
+    }
 
     const initialCenter = targetCoordinates || (this.isEditMode() && this.landmarkForm.longitude && this.landmarkForm.latitude
       ? [this.landmarkForm.longitude, this.landmarkForm.latitude]
@@ -1833,6 +1870,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
             this.landmarkForm.longitude = lng;
             this.landmarkForm.latitude = lat;
 
+            this.showPointer = true;
             this.updatePickerMarkerPosition(lng, lat);
             this.showToast(`Pinned GPS: ${lng}°, ${lat}°`);
           });
@@ -1876,6 +1914,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   renderPickerMarker(): void {
+    if (!this.showPointer) return;
     if (!this.mapInstance || typeof mapboxgl === 'undefined') return;
 
     if (this.pickerMarker) {
@@ -1919,6 +1958,13 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   updatePickerMarkerPosition(lng: number, lat: number): void {
+    if (!this.showPointer) {
+      if (this.pickerMarker) {
+        this.pickerMarker.remove();
+        this.pickerMarker = null;
+      }
+      return;
+    }
     if (this.pickerMarker) {
       this.pickerMarker.setLngLat([lng, lat]);
     } else {
@@ -1950,20 +1996,13 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
       el.innerHTML = `
         <div style="
-          width: 80px;
-          height: 80px;
-          background: radial-gradient(circle, #0f172a 0%, #004343 100%);
-          border: 2.5px solid #004343;
-          border-radius: 18px;
-          box-shadow: 0 10px 25px -3px rgba(0,0,0,0.5), 0 4px 6px -4px rgba(0,0,0,0.3);
-          overflow: hidden;
+          width: 140px;
+          height: 140px;
           position: relative;
-          transition: transform 0.25s ease, box-shadow 0.25s ease;">
+          transition: transform 0.25s ease;">
           
           <model-viewer
             src="${modelUrl}"
-            auto-rotate
-            rotation-per-second="25deg"
             camera-controls
             disable-zoom
             interaction-prompt="none"
@@ -1971,18 +2010,6 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
             exposure="1.1"
             style="width: 100%; height: 100%; background: transparent; outline: none; pointer-events: none;">
           </model-viewer>
-
-          <div style="
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            background: rgba(0,0,0,0.65);
-            border-radius: 6px;
-            padding: 2px 4px;
-            display: flex;
-            align-items: center;">
-            <span class="material-symbols-outlined" style="font-size: 11px; color: #fe893e;">${icon}</span>
-          </div>
         </div>
 
         <div style="
@@ -2003,25 +2030,12 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
           text-align: center;">
           ${l.name}
         </div>
-
-        <div style="
-          width: 0;
-          height: 0;
-          border-left: 5px solid transparent;
-          border-right: 5px solid transparent;
-          border-top: 6px solid #004343;
-          margin-top: -1px;"></div>
       `;
 
-      // Hover animation
-      el.addEventListener('mouseenter', () => {
-        el.style.transform = 'scale(1.1) translateY(-6px)';
-        el.style.zIndex = '999';
-      });
-      el.addEventListener('mouseleave', () => {
-        el.style.transform = 'scale(1) translateY(0)';
-        el.style.zIndex = 'auto';
-      });
+      // Keep marker on top when interacting (no scale/translate — interferes with model-viewer mouse events)
+      el.style.zIndex = '1';
+      el.addEventListener('mouseenter', () => { el.style.zIndex = '999'; });
+      el.addEventListener('mouseleave', () => { el.style.zIndex = '1'; });
 
       const popup = new mapboxgl.Popup({ offset: [0, -45], closeButton: false }).setHTML(`
         <div style="font-family: 'Work Sans', sans-serif; padding: 6px; max-width: 240px;">
@@ -2148,6 +2162,39 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  fetchUserLocation(): void {
+    if (navigator.geolocation) {
+      this.showToast('Fetching location...', false);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          this.zone.run(() => {
+            const lng = Number(position.coords.longitude.toFixed(6));
+            const lat = Number(position.coords.latitude.toFixed(6));
+            
+            this.landmarkForm.longitude = lng;
+            this.landmarkForm.latitude = lat;
+            
+            this.showPointer = true;
+            this.updatePickerMarkerPosition(lng, lat);
+            
+            if (this.mapInstance) {
+              this.mapInstance.flyTo({ center: [lng, lat], zoom: 15 });
+            }
+            this.showToast('Location fetched successfully!');
+          });
+        },
+        (error) => {
+          this.zone.run(() => {
+            this.showToast('Error fetching location: ' + error.message, true);
+          });
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      this.showToast('Geolocation is not supported by this browser.', true);
+    }
+  }
+
   // --- FORM INTERACTIONS & REGION/DISTRICT LOGIC ---
   onFormRegionChange(regionName: string): void {
     this.landmarkForm.region = regionName;
@@ -2202,6 +2249,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onCoordinatesManualChange(): void {
     if (this.landmarkForm.longitude && this.landmarkForm.latitude) {
+      this.showPointer = true;
       this.updatePickerMarkerPosition(this.landmarkForm.longitude, this.landmarkForm.latitude);
       if (this.mapInstance) {
         this.mapInstance.flyTo({
@@ -2263,7 +2311,8 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     // 2. Fetch from Mapbox Geocoding API for Sri Lanka (country=lk)
-    const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${environment.mapboxToken}&country=lk&types=poi,address,neighborhood,place,locality,region,district&limit=7`;
+    const token = this.getMapboxAccessToken();
+    const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&country=lk&types=poi,address,neighborhood,place,locality,region,district&limit=7`;
 
     this.http.get<any>(mapboxUrl).subscribe({
       next: (resp) => {
@@ -2534,7 +2583,8 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     // Automatically search location on map when Landmark Name is given
     this.landmarkNameSearchDebounce = setTimeout(() => {
       this.onMapLocationSearchInput(trimmed);
-      const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(trimmed)}.json?access_token=${environment.mapboxToken}&country=lk&types=poi,address,neighborhood,place,locality,region,district&limit=1`;
+      const token = this.getMapboxAccessToken();
+      const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(trimmed)}.json?access_token=${token}&country=lk&types=poi,address,neighborhood,place,locality,region,district&limit=1`;
       this.http.get<any>(mapboxUrl).subscribe({
         next: (resp) => {
           if (resp && resp.features && resp.features.length > 0) {
@@ -2560,6 +2610,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
               });
             }
 
+            this.showPointer = true;
             this.updatePickerMarkerPosition(lng, lat);
             if (this.mapInstance) {
               this.mapInstance.flyTo({
@@ -2592,6 +2643,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   switchToCreateMode(): void {
     this.isEditMode.set(false);
     this.selectedLandmarkDbId = null;
+    this.showPointer = false;
     this.resetLandmarkForm();
   }
 
@@ -2620,6 +2672,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   navigateToEditLandmark(landmark: LandmarkDTO): void {
     this.isEditMode.set(true);
     this.selectedLandmarkDbId = landmark.dbId || landmark.id;
+    this.showPointer = true;
     
     const landmarkType = this.getLandmarkType(landmark);
     const modelUrl = this.getLandmarkModelUrl(landmark);
