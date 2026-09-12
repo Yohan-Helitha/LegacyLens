@@ -69,14 +69,20 @@ const Stepper: React.FC<{ completedSteps: number }> = ({ completedSteps }) => (
   <View style={s.stepperRow}>
     {STEP_LABELS.map((label, i) => {
       const done = i < completedSteps;
+      const isCurrent = i === completedSteps;
       const connectorDone = i < completedSteps - 1;
       return (
         <React.Fragment key={label}>
           <View style={s.stepItem}>
-            <View style={[s.stepCircle, done ? s.stepCircleDone : s.stepCircleTodo]}>
+            <View
+              style={[
+                s.stepCircle,
+                done ? s.stepCircleDone : isCurrent ? s.stepCircleCurrent : s.stepCircleTodo,
+              ]}
+            >
               {done && <CheckIcon />}
             </View>
-            <Text style={s.stepLabel}>{label}</Text>
+            <Text style={[s.stepLabel, (done || isCurrent) && s.stepLabelActive]}>{label}</Text>
           </View>
           {i < STEP_LABELS.length - 1 && (
             <View style={[s.stepConnector, connectorDone && s.stepConnectorDone]} />
@@ -488,8 +494,10 @@ const s = StyleSheet.create({
   stepItem: { alignItems: 'center', gap: 4, width: 44 },
   stepCircle: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   stepCircleDone: { backgroundColor: D.secondary },
-  stepCircleTodo: { backgroundColor: '#ffffff', borderWidth: 2, borderColor: D.secondary },
+  stepCircleCurrent: { backgroundColor: '#ffffff', borderWidth: 2.5, borderColor: D.secondary },
+  stepCircleTodo: { backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#a0aab0' },
   stepLabel: { fontFamily: Typography.fontBodyMed, fontSize: 10, color: D.onSurfaceVariant },
+  stepLabelActive: { color: D.onSurface },
   stepConnector: { flex: 1, height: 1.5, backgroundColor: '#a0aab0', marginTop: 10 },
   stepConnectorDone: { backgroundColor: D.secondary, height: 2 },
 

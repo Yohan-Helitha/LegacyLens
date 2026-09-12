@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -12,6 +12,11 @@ import { workProgressApi } from '../../../services/api/workProgressApi';
 import type { JobResponse } from '../../../types/creatorDashboard';
 import { ApiError } from '../../../services/api/client';
 import { WorkProgressResponse, stepsForStage } from '../../../types/workProgress';
+import { resolveOpportunityImage } from '../../../utils/opportunityImages';
+
+// Only for jobs with no photo of their own and no linked opportunity either
+// (directly-seeded rows) — see resolveOpportunityImage/Job.heroImageUrl.
+const GENERIC_HERO_IMAGE = require('../../../../assets/images/work/traditional-rice-menu.jpg');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -24,12 +29,24 @@ const D = {
 
   primary:              '#0F5C5C',
   secondary:            '#E8792E',
+  secondaryContainer:   '#fff0e6',
+  onSecondaryContainer: '#9e4a0d',
 
   onSurface:        '#202428',
   onSurfaceVariant: '#4a5568',
 } as const;
 
 const STEP_LABELS = ['Prep', 'Record', 'Edit', 'Submit'];
+
+/** Same "Due in N days" phrasing as CreatorDashboard's job cards. */
+function formatDueText(iso: string | null): string | null {
+  if (!iso) return null;
+  const diffDays = Math.round((new Date(iso).getTime() - Date.now()) / 86400000);
+  if (diffDays > 1) return `Due in ${diffDays} days`;
+  if (diffDays === 1) return 'Due tomorrow';
+  if (diffDays === 0) return 'Due today';
+  return 'Overdue';
+}
 
 type WorkTab = 'active' | 'submitted' | 'completed';
 
@@ -68,20 +85,37 @@ const TabPill: React.FC<{ label: string; active: boolean; onPress: () => void }>
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Stepper — 4-stage progress row (Prep / Record / Edit / Submit)
+// ProgressBar
+// ─────────────────────────────────────────────────────────────────────────────
+const ProgressBar: React.FC<{ percentage: number }> = ({ percentage }) => (
+  <View style={s.progressBarTrack}>
+    <View style={[s.progressBarFill, { width: `${Math.max(0, Math.min(100, percentage))}%` }]} />
+  </View>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stepper — 4-stage progress row (Prep / Record / Edit / Submit). The step at
+// `completedSteps` (the next one up) gets a bold ring to mark it as current,
+// distinct from the plain grey outline on steps that haven't started yet.
 // ─────────────────────────────────────────────────────────────────────────────
 const Stepper: React.FC<{ completedSteps: number }> = ({ completedSteps }) => (
   <View style={s.stepperRow}>
     {STEP_LABELS.map((label, i) => {
       const done = i < completedSteps;
+      const isCurrent = i === completedSteps;
       const connectorDone = i < completedSteps - 1;
       return (
         <React.Fragment key={label}>
           <View style={s.stepItem}>
-            <View style={[s.stepCircle, done ? s.stepCircleDone : s.stepCircleTodo]}>
+            <View
+              style={[
+                s.stepCircle,
+                done ? s.stepCircleDone : isCurrent ? s.stepCircleCurrent : s.stepCircleTodo,
+              ]}
+            >
               {done && <CheckIcon />}
             </View>
-            <Text style={s.stepLabel}>{label}</Text>
+            <Text style={[s.stepLabel, (done || isCurrent) && s.stepLabelActive]}>{label}</Text>
           </View>
           {i < STEP_LABELS.length - 1 && (
             <View style={[s.stepConnector, connectorDone && s.stepConnectorDone]} />
@@ -97,43 +131,73 @@ const Stepper: React.FC<{ completedSteps: number }> = ({ completedSteps }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 const WorkCard: React.FC<{
   job: JobResponse;
+  heroImageUrl: string | null;
+  materialsCount: number;
   progressPercentage: number;
   completedSteps: number;
   variant: 'continue' | 'submitted' | 'completed';
   onContinue: () => void;
   onView: () => void;
-}> = ({ job, progressPercentage, completedSteps, variant, onContinue, onView }) => (
-  <View style={s.card}>
-    <Text style={s.cardTitle} numberOfLines={2}>{job.title}</Text>
-    <View style={s.contributorRow}>
-      <PersonIcon />
-      <Text style={s.contributorText}>{job.elderName}</Text>
-    </View>
+}> = ({ job, heroImageUrl, materialsCount, progressPercentage, completedSteps, variant, onContinue, onView }) => {
+  const dueText = formatDueText(job.scheduledAt);
 
-    <View style={s.progressHeaderRow}>
-      <Text style={s.progressLabel}>Overall Progress</Text>
-      <Text style={s.progressValue}>{progressPercentage}%</Text>
-    </View>
+  return (
+    <View style={s.card}>
+      {dueText && (
+        <View style={s.chipsRow}>
+          <View style={s.dueChip}>
+            <Text style={s.dueChipText}>{dueText}</Text>
+          </View>
+        </View>
+      )}
 
-    <Stepper completedSteps={completedSteps} />
-
-    {variant === 'continue' && (
-      <Pressable onPress={onContinue} style={({ pressed }) => [s.continueBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel={`Continue work on ${job.title}`}>
-        <Text style={s.continueBtnText}>Continue Work</Text>
-      </Pressable>
-    )}
-    {variant === 'submitted' && (
-      <View style={s.awaitingPill}>
-        <Text style={s.awaitingPillText}>Awaiting Review</Text>
+      <Text style={s.cardTitle} numberOfLines={2}>{job.title}</Text>
+      <View style={s.contributorRow}>
+        <PersonIcon />
+        <Text style={s.contributorText}>{job.elderName}</Text>
       </View>
-    )}
-    {variant === 'completed' && (
-      <Pressable onPress={onView} style={({ pressed }) => [s.viewBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel={`View ${job.title}`}>
-        <Text style={s.viewBtnText}>View</Text>
-      </Pressable>
-    )}
-  </View>
-);
+
+      <View style={s.progressCard}>
+        <View style={s.progressHeaderRow}>
+          <Text style={s.progressLabel}>Overall Progress</Text>
+          <Text style={s.progressValue}>{progressPercentage}%</Text>
+        </View>
+        <ProgressBar percentage={progressPercentage} />
+        <Stepper completedSteps={completedSteps} />
+      </View>
+
+      <View style={s.cardPhotoWrapper}>
+        <Image
+          source={resolveOpportunityImage(heroImageUrl) ?? GENERIC_HERO_IMAGE}
+          style={s.cardPhoto}
+          resizeMode="cover"
+          accessibilityLabel={job.title}
+        />
+        {materialsCount > 0 && (
+          <View style={s.materialsBadge}>
+            <Text style={s.materialsBadgeText}>{materialsCount} file{materialsCount === 1 ? '' : 's'}</Text>
+          </View>
+        )}
+      </View>
+
+      {variant === 'continue' && (
+        <Pressable onPress={onContinue} style={({ pressed }) => [s.continueBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel={`Continue work on ${job.title}`}>
+          <Text style={s.continueBtnText}>{'Continue Work  →'}</Text>
+        </Pressable>
+      )}
+      {variant === 'submitted' && (
+        <View style={s.awaitingPill}>
+          <Text style={s.awaitingPillText}>Awaiting Review</Text>
+        </View>
+      )}
+      {variant === 'completed' && (
+        <Pressable onPress={onView} style={({ pressed }) => [s.viewBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel={`View ${job.title}`}>
+          <Text style={s.viewBtnText}>View</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
@@ -196,6 +260,8 @@ export const MyWorkList: React.FC<{
         const progress = progressByJobId[job.id];
         return {
           job,
+          heroImageUrl: progress?.heroImageUrl ?? null,
+          materialsCount: progress?.materials.length ?? 0,
           percentage: progress?.progressPercentage ?? 0,
           steps: stepsForStage(progress?.currentStage ?? 'PREP'),
           // A job only counts as "Submitted" once it's actually been sent for
@@ -268,10 +334,12 @@ export const MyWorkList: React.FC<{
           stillInProgress.length === 0 ? (
             <View style={s.emptyState}><Text style={s.emptyStateText}>No work in progress right now.</Text></View>
           ) : (
-            stillInProgress.map(({ job, percentage, steps }) => (
+            stillInProgress.map(({ job, heroImageUrl, materialsCount, percentage, steps }) => (
               <WorkCard
                 key={job.id}
                 job={job}
+                heroImageUrl={heroImageUrl}
+                materialsCount={materialsCount}
                 progressPercentage={percentage}
                 completedSteps={steps}
                 variant="continue"
@@ -286,10 +354,12 @@ export const MyWorkList: React.FC<{
           submitted.length === 0 ? (
             <View style={s.emptyState}><Text style={s.emptyStateText}>Nothing submitted yet.</Text></View>
           ) : (
-            submitted.map(({ job, percentage, steps }) => (
+            submitted.map(({ job, heroImageUrl, materialsCount, percentage, steps }) => (
               <WorkCard
                 key={job.id}
                 job={job}
+                heroImageUrl={heroImageUrl}
+                materialsCount={materialsCount}
                 progressPercentage={percentage}
                 completedSteps={steps}
                 variant="submitted"
@@ -308,6 +378,8 @@ export const MyWorkList: React.FC<{
               <WorkCard
                 key={job.id}
                 job={job}
+                heroImageUrl={null}
+                materialsCount={0}
                 progressPercentage={100}
                 completedSteps={4}
                 variant="completed"
@@ -401,41 +473,73 @@ const s = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
-  cardTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, lineHeight: 20, color: D.onSurface },
+  cardTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 22, color: D.onSurface, marginTop: 2 },
   contributorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   contributorText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
 
-  progressHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.sm },
+  // ── Chips ────────────────────────────────────────────────────────────────
+  chipsRow: { flexDirection: 'row', gap: Spacing.xs },
+  dueChip: {
+    backgroundColor: D.secondaryContainer, borderRadius: Radii.full,
+    paddingHorizontal: 10, paddingVertical: 3,
+  },
+  dueChipText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: D.onSecondaryContainer, letterSpacing: 0.3 },
+
+  // ── Progress card ────────────────────────────────────────────────────────
+  progressCard: {
+    backgroundColor: D.surface, borderRadius: Radii.lg, padding: Spacing.sm,
+    marginTop: Spacing.md, gap: Spacing.sm,
+  },
+  progressHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   progressLabel: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
-  progressValue: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
+  progressValue: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
+
+  // ── Progress bar ─────────────────────────────────────────────────────────
+  progressBarTrack: { height: 6, borderRadius: Radii.full, backgroundColor: D.surfaceVariant, overflow: 'hidden' },
+  progressBarFill: { height: '100%', borderRadius: Radii.full, backgroundColor: D.secondary },
 
   // ── Stepper ──────────────────────────────────────────────────────────────
   stepperRow: {
     flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center',
-    marginTop: Spacing.md, marginBottom: Spacing.lg, paddingHorizontal: Spacing.xs,
+    marginTop: Spacing.xs, paddingHorizontal: Spacing.xs,
   },
   stepItem: { alignItems: 'center', gap: 4, width: 44 },
   stepCircle: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   stepCircleDone: { backgroundColor: D.secondary },
-  stepCircleTodo: { backgroundColor: '#ffffff', borderWidth: 2, borderColor: D.secondary },
+  stepCircleCurrent: { backgroundColor: '#ffffff', borderWidth: 2.5, borderColor: D.secondary },
+  stepCircleTodo: { backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: D.outline },
   stepLabel: { fontFamily: Typography.fontBodyMed, fontSize: 10, color: D.onSurfaceVariant },
+  stepLabelActive: { color: D.onSurface },
   stepConnector: { flex: 1, height: 1.5, backgroundColor: D.outline, marginTop: 10 },
   stepConnectorDone: { backgroundColor: D.secondary, height: 2 },
 
+  // ── Card photo ───────────────────────────────────────────────────────────
+  cardPhotoWrapper: {
+    marginTop: Spacing.md, borderRadius: Radii.lg, overflow: 'hidden',
+    aspectRatio: 16 / 9,
+  },
+  cardPhoto: { width: '100%', height: '100%' },
+  materialsBadge: {
+    position: 'absolute', right: 8, bottom: 8,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: Radii.full,
+    paddingHorizontal: 10, paddingVertical: 3,
+  },
+  materialsBadgeText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff' },
+
   // ── Buttons ──────────────────────────────────────────────────────────────
   continueBtn: {
-    backgroundColor: D.primary, borderRadius: Radii.full,
+    backgroundColor: D.primary, borderRadius: Radii.full, marginTop: Spacing.md,
     paddingVertical: 11, alignItems: 'center', justifyContent: 'center', minHeight: 44,
   },
   continueBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff', letterSpacing: 0.3 },
   viewBtn: {
     backgroundColor: D.surfaceContainerLowest, borderRadius: Radii.full, borderWidth: 1.5, borderColor: D.secondary,
-    paddingVertical: 10, alignItems: 'center', justifyContent: 'center', minHeight: 44,
+    marginTop: Spacing.md, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', minHeight: 44,
   },
   viewBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
   awaitingPill: {
     backgroundColor: '#f0f5f5', borderRadius: Radii.full, borderWidth: 1, borderColor: D.surfaceVariant,
-    paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
+    marginTop: Spacing.md, paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
   },
   awaitingPillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, letterSpacing: 0.3 },
 

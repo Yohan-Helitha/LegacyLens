@@ -205,8 +205,15 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         return checklistProgressRepository.findByJobIdOrderByChecklistItem_SortOrderAsc(job.getId());
     }
 
-    /** Jobs created via a real booking carry their opportunity's photo; directly-seeded jobs have none. */
+    /**
+     * A job's own heroImageUrl wins when set (the only option for directly-
+     * seeded jobs with no real opportunity behind them); otherwise falls back
+     * to the linked Opportunity's photo for jobs created via a real booking.
+     */
     private String resolveHeroImageUrl(Job job) {
+        if (job.getHeroImageUrl() != null) {
+            return job.getHeroImageUrl();
+        }
         if (job.getOpportunityId() == null) {
             return null;
         }

@@ -61,6 +61,16 @@ public class Job {
     @Column(length = 150)
     private String location;
 
+    /**
+     * This job's own photo — same "local:<key>" or real-URL convention as
+     * Opportunity.heroImageUrl (see resolveOpportunityImage on the frontend).
+     * Only needed for jobs seeded directly with no real opportunity behind
+     * them; a job created via a real booking instead falls back to its
+     * linked Opportunity's photo (see JobWorkProgressServiceImpl).
+     */
+    @Column(name = "hero_image_url", length = 500)
+    private String heroImageUrl;
+
     /** Amount agreed with the elder, paid in cash directly to the creator — not processed by this platform. */
     @Column(name = "offered_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal offeredAmount;
