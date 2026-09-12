@@ -23,6 +23,9 @@ public class WorkProgressResponse {
 
     private UUID jobId;
 
+    /** The linked Opportunity's hero image, if this job was created via a real booking. Null otherwise. */
+    private String heroImageUrl;
+
     /** completedChecklistItems / totalChecklistItems * 100, rounded. 0 when there are no checklist items yet. */
     private int progressPercentage;
 

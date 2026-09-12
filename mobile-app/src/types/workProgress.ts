@@ -42,6 +42,8 @@ export interface WorkMaterialResponse {
  */
 export interface WorkProgressResponse {
   jobId: string;
+  /** The linked Opportunity's photo, present only when this job came from a real booking — see resolveOpportunityImage. */
+  heroImageUrl: string | null;
   progressPercentage: number;
   currentStage: WorkStage;
   note: string | null;

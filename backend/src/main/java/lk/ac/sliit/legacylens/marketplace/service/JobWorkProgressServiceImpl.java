@@ -8,12 +8,14 @@ import lk.ac.sliit.legacylens.marketplace.dto.WorkProgressResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.Job;
 import lk.ac.sliit.legacylens.marketplace.entity.JobWorkMaterial;
 import lk.ac.sliit.legacylens.marketplace.entity.JobWorkProgress;
+import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityChecklistItem;
 import lk.ac.sliit.legacylens.marketplace.entity.WorkChecklistProgress;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.JobWorkMaterialRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.JobWorkProgressRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityChecklistItemRepository;
+import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.WorkChecklistProgressRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +37,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
     private final JobWorkMaterialRepository workMaterialRepository;
     private final OpportunityChecklistItemRepository checklistItemRepository;
     private final WorkChecklistProgressRepository checklistProgressRepository;
+    private final OpportunityRepository opportunityRepository;
     private final FileStorageService fileStorageService;
 
     public JobWorkProgressServiceImpl(
@@ -43,6 +46,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
             JobWorkMaterialRepository workMaterialRepository,
             OpportunityChecklistItemRepository checklistItemRepository,
             WorkChecklistProgressRepository checklistProgressRepository,
+            OpportunityRepository opportunityRepository,
             FileStorageService fileStorageService) {
 
         this.jobRepository = jobRepository;
@@ -50,6 +54,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         this.workMaterialRepository = workMaterialRepository;
         this.checklistItemRepository = checklistItemRepository;
         this.checklistProgressRepository = checklistProgressRepository;
+        this.opportunityRepository = opportunityRepository;
         this.fileStorageService = fileStorageService;
     }
 
@@ -200,6 +205,16 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         return checklistProgressRepository.findByJobIdOrderByChecklistItem_SortOrderAsc(job.getId());
     }
 
+    /** Jobs created via a real booking carry their opportunity's photo; directly-seeded jobs have none. */
+    private String resolveHeroImageUrl(Job job) {
+        if (job.getOpportunityId() == null) {
+            return null;
+        }
+        return opportunityRepository.findById(job.getOpportunityId())
+                .map(Opportunity::getHeroImageUrl)
+                .orElse(null);
+    }
+
     private static String stageForPercentage(int percentage) {
         if (percentage >= 100) return "COMPLETED";
         if (percentage >= 75) return "SUBMIT";
@@ -239,6 +254,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
 
         return WorkProgressResponse.builder()
                 .jobId(job.getId())
+                .heroImageUrl(resolveHeroImageUrl(job))
                 .progressPercentage(percentage)
                 .currentStage(stageForPercentage(percentage))
                 .note(progress.getNote())

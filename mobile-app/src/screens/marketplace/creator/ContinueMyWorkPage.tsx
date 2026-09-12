@@ -11,10 +11,11 @@ import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { workProgressApi } from '../../../services/api/workProgressApi';
 import { ApiError } from '../../../services/api/client';
 import { ChecklistItemResponse, WorkProgressResponse, stepsForStage } from '../../../types/workProgress';
+import { resolveOpportunityImage } from '../../../utils/opportunityImages';
 
-// There's no per-job image field on the backend Job entity (unlike
-// Opportunity's heroImageUrl) — this bundled photo stands in for every job's
-// workspace hero until that field exists.
+// Fallback only for jobs with no linked Opportunity (e.g. directly-seeded
+// rows) — a real booking's job shows its opportunity's actual photo instead,
+// see resolveHeroImage below.
 const GENERIC_HERO_IMAGE = require('../../../../assets/images/work/traditional-rice-menu.jpg');
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -291,7 +292,12 @@ export const ContinueMyWorkPage: React.FC<{
         )}
 
         <View style={s.heroWrapper}>
-          <Image source={GENERIC_HERO_IMAGE} style={s.heroImage} resizeMode="cover" accessibilityLabel="Work in progress" />
+          <Image
+            source={resolveOpportunityImage(progress.heroImageUrl) ?? GENERIC_HERO_IMAGE}
+            style={s.heroImage}
+            resizeMode="cover"
+            accessibilityLabel="Work in progress"
+          />
         </View>
 
         <View style={s.card}>
