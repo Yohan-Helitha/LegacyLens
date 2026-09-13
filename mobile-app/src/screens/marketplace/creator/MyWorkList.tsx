@@ -501,6 +501,7 @@ const s = StyleSheet.create({
 
   // ── Progress card ────────────────────────────────────────────────────────
   progressCard: {
+    alignSelf: 'stretch', width: '100%',
     backgroundColor: D.surface, borderRadius: Radii.lg, padding: Spacing.sm,
     marginTop: Spacing.md, gap: Spacing.sm,
   },
@@ -529,10 +530,11 @@ const s = StyleSheet.create({
 
   // ── Card photo ───────────────────────────────────────────────────────────
   cardPhotoWrapper: {
+    alignSelf: 'stretch', width: '100%',
     marginTop: Spacing.md, borderRadius: Radii.lg, overflow: 'hidden',
     aspectRatio: 16 / 9,
   },
-  cardPhoto: { width: '100%', height: '100%' },
+  cardPhoto: { width: '100%', height: '100%', resizeMode: 'cover' },
   materialsBadge: {
     position: 'absolute', right: 8, bottom: 8,
     backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: Radii.full,
