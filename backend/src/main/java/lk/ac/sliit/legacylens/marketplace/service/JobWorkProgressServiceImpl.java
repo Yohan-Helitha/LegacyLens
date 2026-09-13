@@ -5,6 +5,7 @@ import lk.ac.sliit.legacylens.common.storage.FileStorageService;
 import lk.ac.sliit.legacylens.marketplace.dto.ChecklistItemResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.WorkMaterialResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.WorkProgressResponse;
+import lk.ac.sliit.legacylens.marketplace.entity.ChecklistStage;
 import lk.ac.sliit.legacylens.marketplace.entity.Job;
 import lk.ac.sliit.legacylens.marketplace.entity.JobWorkMaterial;
 import lk.ac.sliit.legacylens.marketplace.entity.JobWorkProgress;
@@ -222,12 +223,31 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .orElse(null);
     }
 
-    private static String stageForPercentage(int percentage) {
-        if (percentage >= 100) return "COMPLETED";
-        if (percentage >= 75) return "SUBMIT";
-        if (percentage >= 50) return "EDIT";
-        if (percentage >= 25) return "RECORD";
-        return "PREP";
+    private static final List<ChecklistStage> STAGE_ORDER =
+            List.of(ChecklistStage.PREP, ChecklistStage.RECORD, ChecklistStage.EDIT, ChecklistStage.SUBMIT);
+
+    /**
+     * A stage is "done" only once every checklist item tagged with it is
+     * completed — never inferred from the overall percentage. A stage with no
+     * items tagged for it (a job type that skips that stage) counts as
+     * vacuously done, so the stepper moves straight past it.
+     */
+    private static String currentStageFor(List<WorkChecklistProgress> checklist) {
+        if (checklist.isEmpty()) {
+            return "PREP";
+        }
+        if (checklist.stream().allMatch(WorkChecklistProgress::isCompleted)) {
+            return "COMPLETED";
+        }
+        for (ChecklistStage stage : STAGE_ORDER) {
+            boolean stageDone = checklist.stream()
+                    .filter(cp -> cp.getChecklistItem().getStage() == stage)
+                    .allMatch(WorkChecklistProgress::isCompleted);
+            if (!stageDone) {
+                return stage.name();
+            }
+        }
+        return ChecklistStage.SUBMIT.name();
     }
 
     private WorkProgressResponse mapToResponse(JobWorkProgress progress) {
@@ -263,7 +283,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .jobId(job.getId())
                 .heroImageUrl(resolveHeroImageUrl(job))
                 .progressPercentage(percentage)
-                .currentStage(stageForPercentage(percentage))
+                .currentStage(currentStageFor(checklist))
                 .note(progress.getNote())
                 .draft(progress.isDraft())
                 .submittedAt(progress.getSubmittedAt())

@@ -2,6 +2,8 @@ package lk.ac.sliit.legacylens.marketplace.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -50,6 +52,11 @@ public class OpportunityChecklistItem {
 
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
+
+    /** Which stepper stage (Prep/Record/Edit/Submit) this task belongs to. */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private ChecklistStage stage = ChecklistStage.PREP;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
