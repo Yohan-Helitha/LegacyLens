@@ -24,11 +24,13 @@ const GENERIC_HERO_IMAGE = require('../../../../assets/images/work/traditional-r
 const D = {
   surface:                '#EDEFEE',
   surfaceContainerLowest: '#ffffff',
+  surfaceContainer:       '#e4efef',
   surfaceVariant:         '#c8dcdc',
   outline:                '#a0aab0',
 
   primary:              '#0F5C5C',
   secondary:            '#E8792E',
+  onSecondary:          '#ffffff',
   secondaryContainer:   '#fff0e6',
   onSecondaryContainer: '#9e4a0d',
 
@@ -437,14 +439,23 @@ const s = StyleSheet.create({
   bellClapper:  { width: 5, height: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: D.primary },
 
   // ── Header / Tabs ────────────────────────────────────────────────────────
-  headerSection: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: Spacing.xs, gap: Spacing.sm },
-  pageHeading: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
-  tabsRow: { flexDirection: 'row', gap: Spacing.sm },
-  tabPill: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: Radii.md },
-  tabPillActive: { backgroundColor: D.primary },
-  tabPillInactive: { backgroundColor: 'transparent', borderWidth: 1, borderColor: D.outline },
-  tabPillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
-  tabPillTextActive: { color: '#ffffff' },
+  headerSection: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: Spacing.xs, gap: Spacing.md },
+  pageHeading: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeXL,
+    lineHeight: Typography.sizeXL * 1.2,
+    color: D.primary,
+    letterSpacing: -0.3,
+  },
+  tabsRow: { flexDirection: 'row', gap: Spacing.sm, paddingBottom: 4 },
+  tabPill: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: Radii.full },
+  tabPillActive: {
+    backgroundColor: D.secondary,
+    shadowColor: D.secondary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
+  },
+  tabPillInactive: { backgroundColor: D.surfaceContainer, borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant },
+  tabPillText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, letterSpacing: 0.3 },
+  tabPillTextActive: { color: D.onSecondary },
 
   // ── Scroll ───────────────────────────────────────────────────────────────
   scroll: { flex: 1 },
@@ -461,17 +472,20 @@ const s = StyleSheet.create({
   loadingText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, textAlign: 'center' },
 
   // ── Card ─────────────────────────────────────────────────────────────────
+  // A softer, wider shadow plus a faint white top edge gives the card a
+  // subtle "glass" lift off the page background, instead of the flat
+  // hairline-bordered look every other list card here uses.
   card: {
     backgroundColor: D.surfaceContainerLowest,
     borderRadius: Radii.xl,
     padding: Spacing.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: D.surfaceVariant,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+    shadowColor: D.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
   },
   cardTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 22, color: D.onSurface, marginTop: 2 },
   contributorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
