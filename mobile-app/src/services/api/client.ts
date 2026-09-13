@@ -89,3 +89,31 @@ export async function apiGet<TResponse>(url: string): Promise<TResponse> {
   const response = await apiClient.get<ApiEnvelope<TResponse>>(url);
   return response.data.data as TResponse;
 }
+
+/**
+ * POST helper for multipart/form-data bodies (file uploads) — everything
+ * else goes through apiPost's JSON path. Overrides the client's default
+ * JSON content-type per request; RN's XHR layer fills in the boundary
+ * itself once it sees a FormData body.
+ */
+export async function apiPostForm<TResponse>(url: string, formData: FormData): Promise<TResponse> {
+  const response = await apiClient.post<ApiEnvelope<TResponse>>(url, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data.data as TResponse;
+}
+
+/** PATCH helper that unwraps the ApiResponse envelope's `data` field. */
+export async function apiPatch<TResponse, TRequest = unknown>(
+  url: string,
+  body: TRequest,
+): Promise<TResponse> {
+  const response = await apiClient.patch<ApiEnvelope<TResponse>>(url, body);
+  return response.data.data as TResponse;
+}
+
+/** DELETE helper that unwraps the ApiResponse envelope's `data` field. */
+export async function apiDelete<TResponse = void>(url: string): Promise<TResponse> {
+  const response = await apiClient.delete<ApiEnvelope<TResponse>>(url);
+  return response.data.data as TResponse;
+}

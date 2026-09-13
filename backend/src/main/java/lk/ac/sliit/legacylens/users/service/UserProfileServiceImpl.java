@@ -100,8 +100,11 @@ public class UserProfileServiceImpl implements UserProfileService {
         return KnowledgeHolderProfileDto.builder()
                 .primaryRegion(profile.getPrimaryRegion())
                 .knownTopics(profile.getKnownTopics())
+                .preferredContentTypes(profile.getPreferredContentTypes())
+                .otherTopicNote(profile.getOtherTopicNote())
                 .trustScore(profile.getTrustScore())
                 .bio(profile.getBio())
+                .verificationStatus(profile.getVerificationStatus().name())
                 .build();
     }
 

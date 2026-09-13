@@ -37,8 +37,11 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints — no token required. Cities must be public
                 // too: the signup form needs the list before the user has an
-                // account or a token.
-                .requestMatchers("/api/auth/**", "/api/cities/**").permitAll()
+                // account or a token. /uploads/** is served straight to
+                // <Video>/<Audio> elements in the app, which can't attach an
+                // Authorization header, so uploaded media is deliberately
+                // unauthenticated (obscurity via random filenames only).
+                .requestMatchers("/api/auth/**", "/api/cities/**", "/uploads/**").permitAll()
                 // Everything else requires authentication
                 .anyRequest().authenticated()
             )

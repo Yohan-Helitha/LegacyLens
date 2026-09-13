@@ -13,6 +13,8 @@ export { SettingsListRow } from './SettingsListRow';
 export { BottomNavBar } from './BottomNavBar';
 export type { NavTab } from './BottomNavBar';
 export { Avatar } from './Avatar';
+export { RoundIconButton } from './RoundIconButton';
+export { ConfirmDialog } from './ConfirmDialog';
 export { Header } from './Header';
 export * from './UserFooter';
 export * from './AdminFooter';

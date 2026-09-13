@@ -20,8 +20,18 @@ const DEV_FALLBACK_HOST = Platform.select({
  * needed. Falls back to the platform-appropriate localhost otherwise.
  */
 export function getApiBaseUrl(): string {
+  return `${getApiOrigin()}/api`;
+}
+
+/** Same host as getApiBaseUrl(), without the /api prefix — static assets like /uploads/** live here. */
+export function getApiOrigin(): string {
   const configured = process.env.EXPO_PUBLIC_API_BASE_URL;
   const base = configured && configured.trim().length > 0 ? configured.trim() : DEV_FALLBACK_HOST;
 
-  return `${base.replace(/\/+$/, '')}/api`;
+  return base.replace(/\/+$/, '');
+}
+
+/** Resolves a root-relative media path (e.g. "/uploads/stories/xxx.m4a") into a full playable URL. */
+export function getMediaUrl(relativePath: string): string {
+  return `${getApiOrigin()}${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
 }
