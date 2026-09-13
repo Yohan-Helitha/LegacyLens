@@ -450,8 +450,8 @@ const s = StyleSheet.create({
 
   // ── Job header ───────────────────────────────────────────────────────────
   jobHeader: { gap: 2 },
-  jobHeaderTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 22, color: D.onSurface },
-  jobHeaderElder: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.primary },
+  jobHeaderTitle: { fontFamily: Typography.fontDisplay, fontSize: 20, lineHeight: 26, color: D.onSurface, letterSpacing: -0.2 },
+  jobHeaderElder: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.primary },
 
   // ── Hero ─────────────────────────────────────────────────────────────────
   heroWrapper: { width: '100%', aspectRatio: 4 / 2.7, borderRadius: Radii.xl, overflow: 'hidden' },
