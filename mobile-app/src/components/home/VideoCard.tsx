@@ -5,6 +5,7 @@ import { Video, ResizeMode } from 'expo-av';
 import { styles } from './VideoCard.styles';
 import { FeedCardActions } from './FeedCardActions';
 import { VideoLoader } from './VideoLoader';
+import { homeApi } from '../../services/api/homeApi';
 
 export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModalVisible, onNavigate, loadedVideoIds }: any) => {
   const [isMuted, setIsMuted] = useState(false);
@@ -69,8 +70,11 @@ export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModal
 
         <FeedCardActions
           theme="dark"
-          initialLikes={Math.floor(Math.random() * 500) + 20}
-          initialComments={Math.floor(Math.random() * 100) + 5}
+          initialLikes={v.likesCount || 0}
+          initialComments={v.commentsCount || 0}
+          onLikePress={() => {
+            if (v.id) homeApi.likePost(v.id).catch(console.error);
+          }}
           onCommentPress={() => {
             setActivePostId(item.id);
             setCommentModalVisible(true);

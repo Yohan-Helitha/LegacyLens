@@ -22,6 +22,7 @@ target/
 *.env
 application-local.yml
 application-local.properties
+backend/seed-*.js
 
 # ─── IDE ──────────────────────────────────────────────────────────────────────
 .vscode/

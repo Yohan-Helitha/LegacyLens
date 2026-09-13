@@ -305,7 +305,7 @@ export const VideoDetailScreen: React.FC<{
                   );
                 })}
               </View>
-              {selectedAnswer && (
+              {!!selectedAnswer && (
                 <View style={styles.quizExplanationBox}>
                   <Text style={styles.quizExplanationText}>
                     <Text style={{ color: selectedAnswer === 'Kaduru Wood' ? '#4CAF50' : '#F44336', fontWeight: 'bold' }}>
@@ -349,6 +349,7 @@ export const VideoDetailScreen: React.FC<{
       </ScrollView>
       )}
 
-      {/* Floating Action Bar */}    </View>
+      {/* Floating Action Bar */}
+    </View>
   );
 };

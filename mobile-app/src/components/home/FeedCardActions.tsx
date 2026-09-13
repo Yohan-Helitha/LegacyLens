@@ -9,11 +9,12 @@ import { styles } from './VideoCard.styles';
 interface FeedCardActionsProps {
   initialLikes: number;
   initialComments: number;
+  onLikePress?: () => void;
   onCommentPress: () => void;
   theme?: 'light' | 'dark';
 }
 
-export const FeedCardActions = ({ initialLikes, initialComments, onCommentPress, theme = 'light' }: FeedCardActionsProps) => {
+export const FeedCardActions = ({ initialLikes, initialComments, onLikePress, onCommentPress, theme = 'light' }: FeedCardActionsProps) => {
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [likesCount, setLikesCount] = useState(initialLikes);
@@ -54,6 +55,7 @@ export const FeedCardActions = ({ initialLikes, initialComments, onCommentPress,
     if (newLiked) {
       playSound('like');
       setLikesCount(likesCount + 1);
+      if (onLikePress) onLikePress();
       Animated.sequence([
         Animated.timing(heartScale, { toValue: 1.25, duration: 100, useNativeDriver: true }),
         Animated.timing(heartScale, { toValue: 0.95, duration: 80, useNativeDriver: true }),

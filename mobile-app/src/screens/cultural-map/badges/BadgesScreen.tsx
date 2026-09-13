@@ -42,144 +42,6 @@ export interface TimelineItem {
   textureType: 'clay' | 'start';
 }
 
-const EARNED_BADGES: BadgeItem[] = [
-  {
-    id: 'kandyan-rhythm',
-    title: 'Kandyan Rhythm Keeper',
-    category: 'Traditional Dance',
-    textureType: 'wood',
-    imageSource: require('../../../../assets/badges/1.png'),
-    earnedDate: 'Dec 12, 2023',
-    howEarned:
-      'Successfully identified and played the traditional Gata Bera rhythms in the Kandy cultural challenge.',
-    culturalContext:
-      'The Gata Bera is a traditional Sri Lankan drum essential to Kandyan dance. Carved from native woods, its distinct sounds dictate the rhythm of sacred rituals.',
-    isUnlocked: true,
-  },
-  {
-    id: 'sigiriya-explorer',
-    title: 'Sigiriya Explorer',
-    category: 'Ancient Architecture',
-    textureType: 'clay',
-    imageSource: require('../../../../assets/badges/2.png'),
-    earnedDate: 'May 28, 2024',
-    howEarned:
-      'Explored the ancient Sigiriya Citadel and decrypted the celestial water garden watercraft riddles.',
-    culturalContext:
-      'Sigiriya is an 5th-century ancient palace fortress famous for its frescoes, mirror wall, and advanced hydraulic engineering.',
-    isUnlocked: true,
-  },
-  {
-    id: 'ceylon-tea',
-    title: 'Ceylon Tea Master',
-    category: 'Hill Country Heritage',
-    textureType: 'brass',
-    imageSource: require('../../../../assets/badges/3.png'),
-    earnedDate: 'Aug 10, 2024',
-    howEarned:
-      'Navigated the lush tea estates of Nuwara Eliya and mastered the delicate art of tea leaf plucking.',
-    culturalContext:
-      'Ceylon Tea is world-renowned for its crisp aroma and rich flavor, introduced during the colonial era and grown in Sri Lanka\'s central highlands.',
-    isUnlocked: true,
-    isFullWidth: true,
-  },
-];
-
-const LOCKED_BADGES: BadgeItem[] = [
-  {
-    id: 'galle-fort',
-    title: 'Galle Fort Navigator',
-    category: 'Coastal History',
-    textureType: 'locked',
-    imageSource: require('../../../../assets/badges/4.png'),
-    isUnlocked: false,
-  },
-  {
-    id: 'temple-tooth',
-    title: 'Temple of the Tooth Pilgrim',
-    category: 'Sacred Relic',
-    textureType: 'locked',
-    imageSource: require('../../../../assets/badges/5.png'),
-    isUnlocked: false,
-  },
-  {
-    id: 'vesak-lantern',
-    title: 'Vesak Illuminator',
-    category: 'Festival of Lights',
-    textureType: 'locked',
-    imageSource: require('../../../../assets/badges/6.png'),
-    isUnlocked: false,
-  },
-  {
-    id: 'stilt-fisher',
-    title: 'Stilt Fisher\'s Balance',
-    category: 'Coastal Tradition',
-    textureType: 'locked',
-    imageSource: require('../../../../assets/badges/7.png'),
-    isUnlocked: false,
-  },
-  {
-    id: 'yala-tracker',
-    title: 'Yala Wildlife Tracker',
-    category: 'Nature Reserve',
-    textureType: 'locked',
-    imageSource: require('../../../../assets/badges/8.png'),
-    isUnlocked: false,
-  },
-  {
-    id: 'ruwanwelisaya',
-    title: 'Ruwanwelisaya Devotee',
-    category: 'Ancient Stupa',
-    textureType: 'locked',
-    imageSource: require('../../../../assets/badges/9.png'),
-    isUnlocked: false,
-  },
-  {
-    id: 'mask-artisan',
-    title: 'Devil Mask Artisan',
-    category: 'Ambalangoda Crafts',
-    textureType: 'locked',
-    imageSource: require('../../../../assets/badges/10.png'),
-    isUnlocked: false,
-  },
-  {
-    id: 'nine-arch',
-    title: 'Nine Arch Wanderer',
-    category: 'Railway Heritage',
-    textureType: 'rare',
-    imageSource: require('../../../../assets/badges/11.png'),
-    isUnlocked: false,
-    isFullWidth: true,
-  },
-];
-
-const TIMELINE_ITEMS: TimelineItem[] = [
-  {
-    id: 'tl-1',
-    date: 'Aug 2024',
-    title: 'Ceylon Tea Master Earned',
-    description: 'Mastered the delicate art of tea leaf plucking.',
-    imageSource: require('../../../../assets/badges/3.png'),
-    textureType: 'clay',
-  },
-  {
-    id: 'tl-2',
-    date: 'May 2024',
-    title: 'Sigiriya Explorer Earned',
-    description: 'Completed Sigiriya Rock Fortress hunt.',
-    imageSource: require('../../../../assets/badges/2.png'),
-    textureType: 'clay',
-  },
-  {
-    id: 'tl-3',
-    date: 'Dec 2023',
-    title: 'Kandyan Rhythm Keeper Earned',
-    description: 'Played the traditional Gata Bera rhythms.',
-    imageSource: require('../../../../assets/badges/1.png'),
-    textureType: 'start',
-  },
-];
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Component Definition
 // ─────────────────────────────────────────────────────────────────────────────
@@ -188,10 +50,44 @@ interface BadgesProps {
 }
 
 import { useTreasureHunt } from '../../../context/TreasureHuntContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
-  const { unlockedBadges } = useTreasureHunt();
-  const ALL_BADGES = [...EARNED_BADGES, ...LOCKED_BADGES];
+  const { unlockedBadges, allBadges: dbBadges, fetchBadges } = useTreasureHunt();
+  
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchBadges();
+    }, [fetchBadges])
+  );
+
+  const BADGE_IMAGES: Record<string, any> = {
+    '1.png': require('../../../../assets/badges/1.png'),
+    '2.png': require('../../../../assets/badges/2.png'),
+    '3.png': require('../../../../assets/badges/3.png'),
+    '4.png': require('../../../../assets/badges/4.png'),
+    '5.png': require('../../../../assets/badges/5.png'),
+    '6.png': require('../../../../assets/badges/6.png'),
+    '7.png': require('../../../../assets/badges/7.png'),
+    '8.png': require('../../../../assets/badges/8.png'),
+    '9.png': require('../../../../assets/badges/9.png'),
+    '10.png': require('../../../../assets/badges/10.png'),
+    '11.png': require('../../../../assets/badges/11.png'),
+  };
+
+  const ALL_BADGES: BadgeItem[] = (dbBadges || []).map(dbBadge => {
+    return {
+      id: dbBadge.id,
+      title: dbBadge.title,
+      imageSource: BADGE_IMAGES[dbBadge.image] || BADGE_IMAGES['1.png'],
+      category: 'Cultural Heritage',
+      textureType: 'locked',
+      howEarned: `Completed the ${dbBadge.title} hunt.`,
+      culturalContext: `A symbol of Sri Lanka's rich cultural heritage.`,
+      earnedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      isUnlocked: false
+    };
+  });
   
   const earnedBadges = unlockedBadges
     .map(id => ALL_BADGES.find(b => b.id === id))
@@ -199,7 +95,7 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
     .map(b => ({
       ...b,
       isUnlocked: true,
-      textureType: b.textureType === 'locked' ? 'wood' : b.textureType,
+      textureType: 'wood' as 'wood', // dynamically assigned default unlocked texture
     }));
 
   const timelineItems = [...earnedBadges].reverse().map((badge, index, arr) => ({
@@ -310,7 +206,7 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
 
                 {/* Progress Bar */}
                 <View style={styles.progressBarTrack}>
-                  <View style={[styles.progressBarFill, { width: '33%' }]} />
+                  <View style={[styles.progressBarFill, { width: `${Math.round((earnedBadges.length / (ALL_BADGES.length || 1)) * 100)}%` }]} />
                 </View>
 
                 <Text style={styles.progressCounterText}>{earnedBadges.length} / {ALL_BADGES.length} Badges Collected</Text>

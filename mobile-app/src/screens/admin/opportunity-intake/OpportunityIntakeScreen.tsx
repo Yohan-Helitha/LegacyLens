@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Modal, Image, TextInput } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 import { styles } from './OpportunityIntakeScreen.styles';
@@ -7,9 +7,9 @@ import { styles } from './OpportunityIntakeScreen.styles';
 type FilterType = 'All' | 'Fully Listened' | 'Partially Listened' | 'Unlistened' | 'Need Review';
 
 const FILTERS = [
-  { id: 'All', label: 'All', count: '18', color: 'transparent' },
-  { id: 'Fully Listened', label: 'Fully Listened', count: '6', color: '#10b981' },
-  { id: 'Partially Listened', label: 'Partially Listened', count: '4', color: Colors.accent },
+  { id: 'All', label: 'All', count: '10', color: 'transparent' },
+  { id: 'Fully Listened', label: 'Fully Listened', count: '3', color: '#10b981' },
+  { id: 'Partially Listened', label: 'Partially Listened', count: '2', color: Colors.accent },
   { id: 'Unlistened', label: 'Unlistened', count: '2', color: '#ba1a1a' },
   { id: 'Need Review', label: 'Need Review', count: '3', color: '#d8dad9', icon: 'priority-high' },
 ];
@@ -18,7 +18,7 @@ const MOCK_DATA = [
   {
     id: '1',
     name: 'Mrs. Kamala Wijesinghe',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAw8_8bd1MoyfJOKvJlrxTI2jRbmuJbNjnMKw6zNr3QdMvvsfVqB6AXP74y7Ou5vKdO6sHAW129RAum1ATnF-2q5QtvTGrE3gGsHEANkAIOd1Mp04HlJxImdYnEtvYPfYnrGnQnL8oaKr3BsyMvpR4gGAMkr4qd_MFsWeYOaHtLlRLVSdUlfU_s0rLEGIGxZT7An4nSkXePTOC2uVGXDcRVRIiyPPuPYD4GJC8F4t7RGWdO9hT0vQp_',
+    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAH7-D0WjeNXK_Uvi1YZNypRZpKGGl9ARF1OKGCgjzzafTdzi8Ud7a87lLHmWiiVEq5vag2cvWWxwzmy3U9vqJrUCKglNcD31GjQoTz08zh1v8l_A0LQUFVwUPofpc3e2gWIjg-JTxerNyJTGxOUTfZzxS-ofTS1rkBaoNyoWQD_uP-wC8BSVLAfVekBtK4CMvHbz429JBR8A--jPYPo-JYjldjylfqD5YdNb57YR8okDiLlN7_u0PG',
     verified: true,
     location: 'Matara',
     date: '18 Aug 2026',
@@ -50,6 +50,97 @@ const MOCK_DATA = [
     date: '20 Aug 2026',
     time: '02:20 PM',
     duration: '15:45',
+    status: 'Fully Listened',
+    statusColor: '#10b981',
+    type: 'done',
+  },
+  {
+    id: '4',
+    name: 'Mr. Sunil Karunaratne',
+    avatar: 'https://i.pravatar.cc/150?img=12',
+    verified: true,
+    location: 'Kandy',
+    date: '21 Aug 2026',
+    time: '11:00 AM',
+    duration: '10:20',
+    status: 'Need Review',
+    statusColor: '#e8792e',
+    type: 'review',
+  },
+  {
+    id: '5',
+    name: 'Mrs. Sunethra Fernando',
+    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAw8_8bd1MoyfJOKvJlrxTI2jRbmuJbNjnMKw6zNr3QdMvvsfVqB6AXP74y7Ou5vKdO6sHAW129RAum1ATnF-2q5QtvTGrE3gGsHEANkAIOd1Mp04HlJxImdYnEtvYPfYnrGnQnL8oaKr3BsyMvpR4gGAMkr4qd_MFsWeYOaHtLlRLVSdUlfU_s0rLEGIGxZT7An4nSkXePTOC2uVGXDcRVRIiyPPuPYD4GJC8F4t7RGWdO9hT0vQp_',
+    verified: false,
+    location: 'Colombo',
+    date: '22 Aug 2026',
+    time: '04:15 PM',
+    duration: '06:40',
+    status: 'Partially Listened (02:10 / 06:40)',
+    statusColor: Colors.accent,
+    type: 'partial',
+  },
+  {
+    id: '6',
+    name: 'Mr. Ranjith Silva',
+    avatar: 'https://i.pravatar.cc/150?img=8',
+    verified: true,
+    location: 'Jaffna',
+    date: '22 Aug 2026',
+    time: '09:30 AM',
+    duration: '18:15',
+    status: 'Fully Listened',
+    statusColor: '#10b981',
+    type: 'done',
+  },
+  {
+    id: '7',
+    name: 'Mrs. Pushpa Kumari',
+    avatar: 'https://i.pravatar.cc/150?img=9',
+    verified: false,
+    location: 'Kurunegala',
+    date: '23 Aug 2026',
+    time: '08:00 AM',
+    duration: '11:50',
+    status: 'Not Listened',
+    statusColor: '#ba1a1a',
+    type: 'unread',
+  },
+  {
+    id: '8',
+    name: 'Mr. Mahinda Rajapaksa',
+    avatar: 'https://i.pravatar.cc/150?img=13',
+    verified: false,
+    location: 'Hambantota',
+    date: '23 Aug 2026',
+    time: '10:30 AM',
+    duration: '14:25',
+    status: 'Need Review',
+    statusColor: '#e8792e',
+    type: 'review',
+  },
+  {
+    id: '9',
+    name: 'Mrs. Seetha Ranjani',
+    avatar: 'https://i.pravatar.cc/150?img=10',
+    verified: true,
+    location: 'Badulla',
+    date: '23 Aug 2026',
+    time: '11:15 AM',
+    duration: '09:45',
+    status: 'Need Review',
+    statusColor: '#e8792e',
+    type: 'review',
+  },
+  {
+    id: '10',
+    name: 'Mr. Nihal Perera',
+    avatar: 'https://i.pravatar.cc/150?img=14',
+    verified: false,
+    location: 'Negombo',
+    date: '23 Aug 2026',
+    time: '11:45 AM',
+    duration: '07:30',
     status: 'Fully Listened',
     statusColor: '#10b981',
     type: 'done',
@@ -138,7 +229,7 @@ const PlayableCard = ({ item, setPreviewVisible, onOpenReview }: any) => {
 
       {/* Action Area */}
       <View style={styles.actionArea}>
-        {item.type === 'partial' ? (
+        {(item.type === 'partial' || item.type === 'review') ? (
           <TouchableOpacity style={styles.btnPrimary} onPress={() => setPreviewVisible(true)} activeOpacity={0.8}>
             <Text style={styles.btnPrimaryText}>Review</Text>
             <MaterialIcons name="arrow-forward" size={18} color={Colors.white} />
@@ -165,6 +256,12 @@ export const OpportunityIntakeScreen: React.FC<{ onOpenReview?: () => void }> = 
   const [isPlaying, setIsPlaying] = useState(false); // Start paused
   const [progress, setProgress] = useState(14);
 
+  // Search & Filter States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [locationFilter, setLocationFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'nameAsc' | 'nameDesc'>('newest');
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isPlaying && previewVisible && progress < 45) {
@@ -184,6 +281,93 @@ export const OpportunityIntakeScreen: React.FC<{ onOpenReview?: () => void }> = 
         <View style={styles.titleArea}>
           <Text style={styles.pageTitle}>Cultural Knowledge Intake</Text>
         </View>
+
+        {/* Search & Filter Header */}
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+          <View style={[styles.searchBar, { flex: 1 }]}>
+            <MaterialIcons name="search" size={20} color="#0f5c5c" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search recordings..."
+              placeholderTextColor={Colors.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <MaterialIcons name="close" size={20} color={Colors.textMuted} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+          <TouchableOpacity
+            style={[styles.filterButton, filtersOpen && styles.filterButtonActive]}
+            onPress={() => setFiltersOpen(!filtersOpen)}
+          >
+            <MaterialIcons name="tune" size={20} color={filtersOpen ? Colors.white : '#0f5c5c'} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Expanded Filters Drawer */}
+        {filtersOpen && (
+          <View style={styles.filterDrawer}>
+            {/* Filter by Location */}
+            <View>
+              <Text style={styles.filterDrawerTitle}>Location / Region:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                {['all', 'Matara', 'Anuradhapura', 'Galle', 'Kandy', 'Colombo', 'Jaffna', 'Kurunegala', 'Hambantota', 'Badulla', 'Negombo'].map((loc) => {
+                  const isActive = locationFilter === loc;
+                  return (
+                    <TouchableOpacity
+                      key={loc}
+                      style={{
+                        backgroundColor: isActive ? '#0f5c5c' : '#eceeed',
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 12
+                      }}
+                      onPress={() => setLocationFilter(loc)}
+                    >
+                      <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 11, color: isActive ? Colors.white : Colors.text }}>
+                        {loc === 'all' ? 'All Locations' : loc}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Sort Options */}
+            <View>
+              <Text style={styles.filterDrawerTitle}>Sort Order:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                {[
+                  { value: 'newest', label: 'Date: Newest First' },
+                  { value: 'oldest', label: 'Date: Oldest First' },
+                  { value: 'nameAsc', label: 'Name: A to Z' },
+                  { value: 'nameDesc', label: 'Name: Z to A' }
+                ].map((option) => {
+                  const isActive = sortOrder === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={{
+                        backgroundColor: isActive ? '#0f5c5c' : '#eceeed',
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 12
+                      }}
+                      onPress={() => setSortOrder(option.value as any)}
+                    >
+                      <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 11, color: isActive ? Colors.white : Colors.text }}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        )}
 
         {/* Filters Scroll */}
         <View style={styles.filterWrapper}>
@@ -222,11 +406,40 @@ export const OpportunityIntakeScreen: React.FC<{ onOpenReview?: () => void }> = 
         {/* Cards */}
         <View style={styles.listContainer}>
           {MOCK_DATA.filter(item => {
-            if (activeFilter === 'All') return true;
-            if (activeFilter === 'Fully Listened') return item.type === 'done';
-            if (activeFilter === 'Partially Listened') return item.type === 'partial';
-            if (activeFilter === 'Unlistened') return item.type === 'unread';
-            return false;
+            // Tab filter
+            if (activeFilter === 'Fully Listened' && item.type !== 'done') return false;
+            if (activeFilter === 'Partially Listened' && item.type !== 'partial') return false;
+            if (activeFilter === 'Unlistened' && item.type !== 'unread') return false;
+            if (activeFilter === 'Need Review' && item.type !== 'review') return false;
+
+            // Search filter
+            if (searchQuery) {
+              const query = searchQuery.toLowerCase();
+              const nameMatch = item.name.toLowerCase().includes(query);
+              const locMatch = item.location.toLowerCase().includes(query);
+              if (!nameMatch && !locMatch) return false;
+            }
+
+            // Location filter
+            if (locationFilter !== 'all' && item.location.toLowerCase() !== locationFilter.toLowerCase()) {
+              return false;
+            }
+
+            return true;
+          }).sort((a, b) => {
+            if (sortOrder === 'newest') {
+              return parseInt(b.id) - parseInt(a.id);
+            }
+            if (sortOrder === 'oldest') {
+              return parseInt(a.id) - parseInt(b.id);
+            }
+            if (sortOrder === 'nameAsc') {
+              return a.name.localeCompare(b.name);
+            }
+            if (sortOrder === 'nameDesc') {
+              return b.name.localeCompare(a.name);
+            }
+            return 0;
           }).map((item) => (
             <PlayableCard key={item.id} item={item} setPreviewVisible={setPreviewVisible} onOpenReview={onOpenReview} />
           ))}

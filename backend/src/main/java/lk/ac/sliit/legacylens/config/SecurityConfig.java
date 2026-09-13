@@ -41,7 +41,7 @@ public class SecurityConfig {
                 // <Video>/<Audio> elements in the app, which can't attach an
                 // Authorization header, so uploaded media is deliberately
                 // unauthenticated (obscurity via random filenames only).
-                .requestMatchers("/api/auth/**", "/api/cities/**", "/uploads/**").permitAll()
+                .requestMatchers("/api/auth/**", "/api/cities/**", "/uploads/**", "/api/home/**").permitAll()
                 // Everything else requires authentication
                 .anyRequest().authenticated()
             )

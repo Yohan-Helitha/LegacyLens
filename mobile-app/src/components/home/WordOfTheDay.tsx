@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Share, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, Share, Animated, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../theme';
 import { styles } from './WordOfTheDay.styles';
+import { homeApi, WordOfTheDayResponse } from '../../services/api/homeApi';
 
 export const WordOfTheDay = () => {
   const [liked, setLiked] = useState(false);
@@ -15,15 +16,33 @@ export const WordOfTheDay = () => {
   const saveTranslateY = useRef(new Animated.Value(0)).current;
   const shareScale = useRef(new Animated.Value(1)).current;
 
-  const word = "ගොවියා";
-  const transliteration = "Goviya (Farmer)";
-  const definition = "Historically meant \"Protector of the Earth\" before modern agricultural connotations.";
+  const [wordData, setWordData] = useState<WordOfTheDayResponse | null>(null);
 
   useEffect(() => {
+    const fetchWord = async () => {
+      try {
+        const data = await homeApi.getWordOfToday();
+        setWordData(data);
+      } catch (error) {
+        console.error('Error fetching word of the day:', error);
+      }
+    };
+    fetchWord();
+
     return () => {
       Speech.stop();
     };
   }, []);
+
+  if (!wordData) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', minHeight: 200 }]}>
+        <ActivityIndicator size="large" color={Colors.secondary} />
+      </View>
+    );
+  }
+
+  const { word, transliteration, definition } = wordData;
 
   const playSound = async (type: 'like' | 'save' | 'share') => {
     try {

@@ -25,120 +25,25 @@ const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.57;
 
+import { mapApi, MapLandmarkResponse } from '../../services/api/mapApi';
+import { useTreasureHunt } from '../../context/TreasureHuntContext';
+
 type Mode = 'explore' | 'treasure_hunt';
 
-import mockData from '../admin/mockData.json';
-
-interface CulturalArea {
-  id: string;
-  name: string;
-  description: string;
-  lng: number;
-  lat: number;
-  icon: string;
-  isEvent?: boolean;
-  image?: string;
-  modelUrl?: string;
-  region: string;
-}
-
-const AREAS: CulturalArea[] = mockData.mapLocations;
-
-const TREASURE_HUNT = {
-  clues: [
-    'I rise from the jungle as a mighty rock fortress. Kings once lived atop me. Find me in the north-central plains.',
-    'You found Sigiriya! Now head south to the city of gems — precious stones have been mined here for over 2,000 years.',
-  ],
-  targets: ['sigiriya', 'ratnapura'],
-  reward: 250,
-};
-
 const REGIONS = [
-  {
-    id: 'all',
-    label: 'All Regions',
-    desc: 'Explore the entire island',
-    lng: 80.85,
-    lat: 7.8,
-    zoom: 7.2,
-    regionName: 'All',
-  },
-  {
-    id: 'r1',
-    label: 'Northern Sri Lanka',
-    desc: 'Jaffna / Mannar / Kilinochchi / Mullaitivu',
-    lng: 80.4,
-    lat: 9.3,
-    zoom: 7.5,
-    regionName: 'Northern Province',
-  },
-  {
-    id: 'r2',
-    label: 'North Central',
-    desc: 'Anuradhapura / Polonnaruwa',
-    lng: 80.5,
-    lat: 8.2,
-    zoom: 8.2,
-    regionName: 'North Central Province',
-  },
-  {
-    id: 'r3',
-    label: 'Eastern Sri Lanka',
-    desc: 'Trincomalee / Batticaloa / Ampara',
-    lng: 81.4,
-    lat: 7.8,
-    zoom: 7.5,
-    regionName: 'Eastern Province',
-  },
-  {
-    id: 'r4',
-    label: 'North Western',
-    desc: 'Puttalam / Kurunegala',
-    lng: 80.1,
-    lat: 7.7,
-    zoom: 8.2,
-    regionName: 'North Western Province',
-  },
-  {
-    id: 'r5',
-    label: 'Central Highlands',
-    desc: 'Kandy / Matale / Nuwara Eliya',
-    lng: 80.7,
-    lat: 7.1,
-    zoom: 8.5,
-    regionName: 'Central Highlands',
-  },
-  {
-    id: 'r6',
-    label: 'Uva & Eastern Highlands',
-    desc: 'Badulla / Monaragala',
-    lng: 81.2,
-    lat: 6.9,
-    zoom: 8.2,
-    regionName: 'Uva Province',
-  },
-  {
-    id: 'r7',
-    label: 'Western Sri Lanka',
-    desc: 'Colombo / Gampaha / Kalutara',
-    lng: 80.0,
-    lat: 6.9,
-    zoom: 8.5,
-    regionName: 'Western Province',
-  },
-  {
-    id: 'r8',
-    label: 'Southern & Sabaragamuwa',
-    desc: 'Galle / Matara / Ratnapura / Kegalle',
-    lng: 80.5,
-    lat: 6.3,
-    zoom: 8.2,
-    regionName: 'Southern Province',
-  },
+  { id: 'all', label: 'All Regions', desc: 'Explore the entire island', lng: 80.85, lat: 7.8, zoom: 7.2, regionName: 'All' },
+  { id: 'r1', label: 'Northern Sri Lanka', desc: 'Jaffna / Mannar / Kilinochchi / Mullaitivu', lng: 80.4, lat: 9.3, zoom: 7.5, regionName: 'Northern Province' },
+  { id: 'r2', label: 'North Central', desc: 'Anuradhapura / Polonnaruwa', lng: 80.5, lat: 8.2, zoom: 8.2, regionName: 'North Central Province' },
+  { id: 'r3', label: 'Eastern Sri Lanka', desc: 'Trincomalee / Batticaloa / Ampara', lng: 81.4, lat: 7.8, zoom: 7.5, regionName: 'Eastern Province' },
+  { id: 'r4', label: 'North Western', desc: 'Puttalam / Kurunegala', lng: 80.1, lat: 7.7, zoom: 8.2, regionName: 'North Western Province' },
+  { id: 'r5', label: 'Central Highlands', desc: 'Kandy / Matale / Nuwara Eliya', lng: 80.7, lat: 7.1, zoom: 8.5, regionName: 'Central Highlands' },
+  { id: 'r6', label: 'Uva & Eastern Highlands', desc: 'Badulla / Monaragala', lng: 81.2, lat: 6.9, zoom: 8.2, regionName: 'Uva Province' },
+  { id: 'r7', label: 'Western Sri Lanka', desc: 'Colombo / Gampaha / Kalutara', lng: 80.0, lat: 6.9, zoom: 8.5, regionName: 'Western Province' },
+  { id: 'r8', label: 'Southern & Sabaragamuwa', desc: 'Galle / Matara / Ratnapura / Kegalle', lng: 80.5, lat: 6.3, zoom: 8.2, regionName: 'Southern Province' }
 ];
 
 // ── Mapbox HTML injected into WebView ─────────────────────────────────────────
-const buildMapHTML = (token: string, areas: CulturalArea[]) => {
+const buildMapHTML = (token: string, areas: MapLandmarkResponse[]) => {
   const geojsonFeatures = areas.map(a => ({
     type: 'Feature',
     geometry: { type: 'Point', coordinates: [a.lng, a.lat] },
@@ -146,7 +51,6 @@ const buildMapHTML = (token: string, areas: CulturalArea[]) => {
       id: a.id,
       name: a.name,
       icon: a.icon,
-      isEvent: a.isEvent ?? false,
       image: a.image,
       modelUrl: a.modelUrl,
       region: a.region,
@@ -379,8 +283,6 @@ window.filterRegion = function(regionName, lng, lat, zoom) {
 </html>`;
 };
 
-// ── Cached module-level HTML — computed once, never rebuilt ──────────────────
-const MAP_HTML = buildMapHTML(MAPBOX_TOKEN, AREAS);
 
 // ── Animated Loading Square ───────────────────────────────────────────────────
 const AnimatedLoader = () => {
@@ -539,8 +441,11 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
   isActive = true,
   initialRegion,
 }) => {
+  const { unlockedBadges } = useTreasureHunt();
   const [mode, setMode] = useState<Mode>('explore');
-  const [selectedArea, setSelectedArea] = useState<CulturalArea | null>(null);
+  const [areas, setAreas] = useState<MapLandmarkResponse[]>([]);
+  const [mapHtml, setMapHtml] = useState<string | null>(null);
+  const [selectedArea, setSelectedArea] = useState<MapLandmarkResponse | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [huntStep, setHuntStep] = useState(0);
   const [treasureFound, setTreasureFound] = useState(false);
@@ -552,6 +457,21 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
 
   const soundRef = useRef<Audio.Sound | null>(null);
   const soundIdRef = useRef(0);
+
+  React.useEffect(() => {
+    const fetchLandmarks = async () => {
+      try {
+        const response = await mapApi.getLandmarks();
+        if (response && response.length > 0) {
+          setAreas(response);
+          setMapHtml(buildMapHTML(MAPBOX_TOKEN, response));
+        }
+      } catch (e) {
+        console.log('Failed to fetch landmarks', e);
+      }
+    };
+    fetchLandmarks();
+  }, []);
 
   React.useEffect(() => {
     if (initialRegion && webViewRef.current && !isMapLoading) {
@@ -671,14 +591,15 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
         return;
       }
       if (msg.type === 'MARKER_PRESS') {
-        const area = AREAS.find(a => a.id === msg.id);
+        const area = areas.find(a => a.id === msg.id);
         if (!area) return;
 
         // Treasure Hunt logic
         if (mode === 'treasure_hunt') {
-          const target = TREASURE_HUNT.targets[huntStep];
+          const targets = areas.filter(a => a.badge != null).map(a => a.id);
+          const target = targets[huntStep];
           if (msg.id === target) {
-            if (huntStep + 1 >= TREASURE_HUNT.targets.length) {
+            if (huntStep + 1 >= targets.length) {
               setTreasureFound(true);
             } else {
               setHuntStep(prev => prev + 1);
@@ -721,19 +642,21 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
       )}
 
       {/* ── Mapbox GL via WebView ──────────────────────────────────── */}
-      <WebView
-        ref={webViewRef}
-        style={StyleSheet.absoluteFill}
-        source={{ html: MAP_HTML }}
-        originWhitelist={['*']}
-        onMessage={handleMessage}
-        javaScriptEnabled={true}
-        domStorageEnabled={true}
-        mixedContentMode="always"
-        allowsInlineMediaPlayback={true}
-        mediaPlaybackRequiresUserAction={false}
-        cacheEnabled={true}
-      />
+      {mapHtml && (
+        <WebView
+          ref={webViewRef}
+          style={StyleSheet.absoluteFill}
+          source={{ html: mapHtml }}
+          originWhitelist={['*']}
+          onMessage={handleMessage}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          mixedContentMode="always"
+          allowsInlineMediaPlayback={true}
+          mediaPlaybackRequiresUserAction={false}
+          cacheEnabled={true}
+        />
+      )}
 
       {/* ── Left Sidebar Filter ────────────────────────────────────── */}
       <Animated.View
@@ -792,7 +715,7 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
             style={{ width: 64, height: 64, resizeMode: 'contain' }}
           />
           <View style={styles.hudBadge}>
-            <Text style={styles.hudBadgeText}>3</Text>
+            <Text style={styles.hudBadgeText}>{unlockedBadges.length}</Text>
           </View>
         </TouchableOpacity>
 
@@ -866,7 +789,7 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
           <View style={styles.treasureFoundContainer}>
             <Ionicons name="star" size={52} color={Colors.accent} />
             <Text style={styles.treasureTitle}>All Treasures Found!</Text>
-            <Text style={styles.treasureReward}>+{TREASURE_HUNT.reward} XP Earned</Text>
+            <Text style={styles.treasureReward}>+500 XP Earned</Text>
             <TouchableOpacity style={styles.exploreBtn} onPress={handleResetMode}>
               <Text style={styles.exploreBtnText}>Claim Reward</Text>
             </TouchableOpacity>

@@ -4,6 +4,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { styles } from './BlogCard.styles';
 import { FeedCardActions } from './FeedCardActions';
 
+import { homeApi } from '../../services/api/homeApi';
+
 export const BlogCard = ({ b, item, setActivePostId, setCommentModalVisible, onNavigate }: any) => {
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={() => onNavigate?.('blog')} style={styles.premiumCard}>
@@ -32,8 +34,11 @@ export const BlogCard = ({ b, item, setActivePostId, setCommentModalVisible, onN
 
         <FeedCardActions
           theme="dark"
-          initialLikes={Math.floor(Math.random() * 500) + 20}
-          initialComments={Math.floor(Math.random() * 100) + 5}
+          initialLikes={b.likesCount || 0}
+          initialComments={b.commentsCount || 0}
+          onLikePress={() => {
+            if (b.id) homeApi.likePost(b.id).catch(console.error);
+          }}
           onCommentPress={() => {
             setActivePostId(item.id);
             setCommentModalVisible(true);
