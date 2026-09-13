@@ -1,9 +1,9 @@
 package lk.ac.sliit.legacylens.common.storage;
 
+import lk.ac.sliit.legacylens.common.exception.FileStorageException;
 import lk.ac.sliit.legacylens.common.exception.InvalidFileUploadException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -13,56 +13,134 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
- * Saves uploaded files to a local directory on disk and returns a
- * "/uploads/..." URL clients can use to fetch them back — see WebConfig's
- * resource handler for that mapping. No cloud storage (S3, etc.) is wired
- * up in this project yet; swap this implementation out if one is added
- * later, callers only depend on {@link #store}.
+ * Local-disk storage for uploaded files — story recordings/videos as well as
+ * creator verification proof documents. Everything lives under one root
+ * directory (see app.storage.upload-dir), organized into subfolders per
+ * resource type (e.g. "stories", "creator-proofs").
+ *
+ * This is a placeholder for a real object store (S3 / Supabase Storage) —
+ * swapping it later only means replacing this one class, since callers only
+ * ever see relative paths or "/uploads/..." URLs, never the filesystem layout.
  */
 @Service
 public class FileStorageService {
 
-    private static final List<String> ALLOWED_CONTENT_TYPES = List.of(
-            "application/pdf", "image/jpeg", "image/png", "image/jpg"
-    );
-    private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024; // 10MB
+    private static final Pattern SAFE_EXTENSION = Pattern.compile("^\\.[A-Za-z0-9]{1,10}$");
 
-    @Value("${app.upload.dir:uploads}")
-    private String uploadRootDir;
+    private final Path rootDir;
+
+    public FileStorageService(@Value("${app.storage.upload-dir}") String uploadDir) {
+        this.rootDir = Paths.get(uploadDir).toAbsolutePath().normalize();
+
+        try {
+            Files.createDirectories(rootDir);
+        } catch (IOException e) {
+            throw new FileStorageException("Could not create upload directory: " + rootDir, e);
+        }
+    }
+
+    /** Absolute path to the storage root — used to wire up static serving of /uploads/**. */
+    public Path getRootDir() {
+        return rootDir;
+    }
 
     /**
-     * Stores the file under {@code {uploadRootDir}/{subDirectory}/} using a
-     * generated name (never the client-supplied filename, to avoid path
-     * traversal / collisions) and returns the public "/uploads/..." URL.
+     * Saves the file under {@code subfolder} with a random name (the
+     * original filename is never trusted or persisted). Returns a path
+     * relative to the storage root, e.g. "stories/3f9c...-e1.m4a".
      */
-    public String store(MultipartFile file, String subDirectory) {
+    public String store(MultipartFile file, String subfolder) {
+        if (file == null || file.isEmpty()) {
+            throw new FileStorageException("Cannot store an empty file");
+        }
+
+        return writeFile(file, subfolder);
+    }
+
+    /**
+     * Like {@link #store(MultipartFile, String)}, but validates the file's
+     * content type and size first (throwing {@link InvalidFileUploadException}
+     * on failure) and returns the public "/uploads/..." URL instead of a bare
+     * relative path — used for uploads served straight back to the client,
+     * e.g. creator verification proof documents.
+     */
+    public String store(MultipartFile file, String subDirectory, List<String> allowedContentTypes, long maxFileSizeBytes) {
         if (file == null || file.isEmpty()) {
             throw new InvalidFileUploadException("A file is required");
         }
-        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
-            throw new InvalidFileUploadException("File must not exceed 10MB");
+        if (file.getSize() > maxFileSizeBytes) {
+            throw new InvalidFileUploadException("File must not exceed " + (maxFileSizeBytes / (1024 * 1024)) + "MB");
         }
 
         String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
-            throw new InvalidFileUploadException("Only PDF, JPG or PNG files are allowed");
+        if (contentType == null || !allowedContentTypes.contains(contentType.toLowerCase(Locale.ROOT))) {
+            throw new InvalidFileUploadException("Only " + String.join(", ", allowedContentTypes) + " files are allowed");
         }
+
+        return "/uploads/" + writeFile(file, subDirectory);
+    }
+
+    /** Best-effort delete — silently no-ops on a blank path or a file that's already gone. */
+    public void delete(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            return;
+        }
+
+        Path target = resolveWithinRoot(relativePath);
 
         try {
-            Path targetDir = Paths.get(uploadRootDir, subDirectory).normalize();
-            Files.createDirectories(targetDir);
-
-            String extension = StringUtils.getFilenameExtension(file.getOriginalFilename());
-            String generatedName = UUID.randomUUID() + (extension != null ? "." + extension : "");
-
-            Path targetFile = targetDir.resolve(generatedName).normalize();
-            file.transferTo(targetFile);
-
-            return "/uploads/" + subDirectory + "/" + generatedName;
-        } catch (IOException ex) {
-            throw new InvalidFileUploadException("Failed to store the uploaded file");
+            Files.deleteIfExists(target);
+        } catch (IOException e) {
+            throw new FileStorageException("Failed to delete file: " + relativePath, e);
         }
+    }
+
+    /** Resolves a stored relative path back to an absolute filesystem path (e.g. for streaming it back). */
+    public Path resolve(String relativePath) {
+        return resolveWithinRoot(relativePath);
+    }
+
+    /** Writes the file under {@code subfolder} with a random name and returns the relative path. */
+    private String writeFile(MultipartFile file, String subfolder) {
+        String filename = UUID.randomUUID() + safeExtension(file.getOriginalFilename());
+        Path targetDir = resolveWithinRoot(subfolder);
+        Path target = targetDir.resolve(filename);
+
+        try {
+            Files.createDirectories(targetDir);
+            file.transferTo(target);
+        } catch (IOException e) {
+            throw new FileStorageException("Failed to store uploaded file", e);
+        }
+
+        return subfolder + "/" + filename;
+    }
+
+    /** Keeps every resolved path inside the storage root, even if a caller passes "../../etc/passwd". */
+    private Path resolveWithinRoot(String relativePath) {
+        Path resolved = rootDir.resolve(relativePath).normalize();
+
+        if (!resolved.startsWith(rootDir)) {
+            throw new FileStorageException("Invalid storage path: " + relativePath);
+        }
+
+        return resolved;
+    }
+
+    private String safeExtension(String originalFilename) {
+        if (originalFilename == null) {
+            return "";
+        }
+
+        int dot = originalFilename.lastIndexOf('.');
+        if (dot < 0) {
+            return "";
+        }
+
+        String extension = originalFilename.substring(dot).toLowerCase();
+        return SAFE_EXTENSION.matcher(extension).matches() ? extension : "";
     }
 }

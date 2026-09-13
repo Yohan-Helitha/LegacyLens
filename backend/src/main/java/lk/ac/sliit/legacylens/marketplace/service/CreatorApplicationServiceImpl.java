@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -25,8 +26,13 @@ import java.util.UUID;
 @Service
 public class CreatorApplicationServiceImpl implements CreatorApplicationService {
 
-    /** Subdirectory (under app.upload.dir) that verification proof files are stored in. */
+    /** Subdirectory (under app.storage.upload-dir) that verification proof files are stored in. */
     private static final String PROOF_UPLOAD_SUBDIR = "creator-proofs";
+
+    private static final List<String> ALLOWED_PROOF_CONTENT_TYPES = List.of(
+            "application/pdf", "image/jpeg", "image/png", "image/jpg"
+    );
+    private static final long MAX_PROOF_FILE_SIZE_BYTES = 10L * 1024 * 1024; // 10MB
 
     private final CreatorApplicationRepository creatorApplicationRepository;
     private final UserRepository userRepository;
@@ -59,7 +65,8 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
                     "You already have a creator application on file.");
         }
 
-        String proofDocumentUrl = fileStorageService.store(request.getProofDocument(), PROOF_UPLOAD_SUBDIR);
+        String proofDocumentUrl = fileStorageService.store(
+                request.getProofDocument(), PROOF_UPLOAD_SUBDIR, ALLOWED_PROOF_CONTENT_TYPES, MAX_PROOF_FILE_SIZE_BYTES);
 
         // full_name / phone_number / city / nic_number are never taken from
         // the request — always snapshotted from the user's own verified
