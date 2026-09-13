@@ -8,7 +8,7 @@ import lk.ac.sliit.legacylens.learning.service.LessonProgressService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.Authentication;
-
+import lk.ac.sliit.legacylens.learning.dto.StreakResponse;
 import java.util.List;
 
 @RestController
@@ -125,4 +125,15 @@ public class LessonProgressController {
                 lessonProgressService.getUserTrackProgress(userId)
         );
     }
+
+    @GetMapping("/me/streak")
+public ResponseEntity<StreakResponse> getMyStreak(
+        Authentication authentication) {
+
+    Long userId = Long.valueOf(authentication.getName());
+
+    return ResponseEntity.ok(
+            lessonProgressService.getStreak(userId)
+    );
+}
 }

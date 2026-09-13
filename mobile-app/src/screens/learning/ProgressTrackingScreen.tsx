@@ -20,33 +20,52 @@ interface TrackProgress {
   xpEarned: number;
 }
 
+interface StreakResponse {
+  currentStreakDays: number;
+  last7Days: boolean[];
+}
+
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function ProgressTrackingScreen() {
   const [trackProgress, setTrackProgress] = useState<TrackProgress[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [streak, setStreak] = useState<StreakResponse>({
+  currentStreakDays: 0,
+  last7Days: [false, false, false, false, false, false, false],
+});
+
   useEffect(() => {
     loadTrackProgress();
   }, []);
 
   const loadTrackProgress = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const data = await apiGet<TrackProgress[]>(
-        '/learning/progress/tracks/me'
-      );
+    const data = await apiGet<TrackProgress[]>(
+      '/learning/progress/tracks/me'
+    );
 
-      console.log('TRACK PROGRESS:', data);
+    console.log('TRACK PROGRESS:', data);
 
-      setTrackProgress(data);
-    } catch (error) {
-      console.log('TRACK PROGRESS ERROR:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setTrackProgress(data);
+
+    const streakData = await apiGet<StreakResponse>(
+      '/learning/progress/me/streak'
+    );
+
+    console.log('STREAK DATA:', streakData);
+
+    setStreak(streakData);
+
+  } catch (error) {
+    console.log('PROGRESS / STREAK ERROR:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Total number of tracks the user has started
   const tracksStarted = trackProgress.length;
@@ -159,6 +178,34 @@ export default function ProgressTrackingScreen() {
     <Text style={styles.sectionTitle}>
       My Tracks
     </Text>
+
+    {/* Current Streak */}
+<View style={styles.streakCard}>
+
+  <Text style={styles.streakHeadline}>
+    🔥 {streak.currentStreakDays} Day Streak
+  </Text>
+
+  <View style={styles.weekRow}>
+    {DAY_LABELS.map((day, index) => (
+      <View key={day} style={styles.dayColumn}>
+
+        <View
+          style={[
+            styles.dayDot,
+            streak.last7Days[index] && styles.progressBarFill,
+          ]}
+        />
+
+        <Text style={styles.dayLabel}>
+          {day}
+        </Text>
+
+      </View>
+    ))}
+  </View>
+
+</View>
 
     <FlatList
       data={trackProgress}
