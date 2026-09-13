@@ -21,6 +21,9 @@ public class ChecklistItemResponse {
     /** PREP/RECORD/EDIT/SUBMIT — lets the frontend update the stepper instantly on toggle, without waiting on the server round-trip. */
     private String stage;
 
+    /** When true, uploading a material auto-completes this task instead of requiring a separate manual check. */
+    private boolean requiresMaterial;
+
     private boolean completed;
     private LocalDateTime completedAt;
     private String note;

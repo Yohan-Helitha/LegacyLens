@@ -108,7 +108,12 @@ const ChecklistRow: React.FC<{ item: ChecklistItemResponse; disabled: boolean; o
     <View style={[s.checklistCheckbox, item.completed && s.checklistCheckboxDone]}>
       {item.completed && <CheckIcon size={12} />}
     </View>
-    <Text style={[s.checklistLabel, item.completed && s.checklistLabelDone]}>{item.label}</Text>
+    <View style={{ flex: 1 }}>
+      <Text style={[s.checklistLabel, item.completed && s.checklistLabelDone]}>{item.label}</Text>
+      {item.requiresMaterial && !item.completed && (
+        <Text style={s.checklistHint}>Attach a photo/video below to complete this automatically.</Text>
+      )}
+    </View>
   </Pressable>
 );
 
@@ -525,7 +530,7 @@ const s = StyleSheet.create({
 
   // ── Checklist ────────────────────────────────────────────────────────────
   checklistRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
     paddingVertical: 8, paddingHorizontal: 4, borderRadius: Radii.md,
   },
   checklistCheckbox: {
@@ -536,6 +541,7 @@ const s = StyleSheet.create({
   checklistCheckboxDone: { backgroundColor: D.secondary },
   checklistLabel: { flex: 1, fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurface },
   checklistLabelDone: { color: D.onSurfaceVariant, textDecorationLine: 'line-through' },
+  checklistHint: { fontFamily: Typography.fontBody, fontSize: 11, color: D.secondary, marginTop: 2 },
 
   // ── Materials ────────────────────────────────────────────────────────────
   sectionTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurface, letterSpacing: 0.3 },

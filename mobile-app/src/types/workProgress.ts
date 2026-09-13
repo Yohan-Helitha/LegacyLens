@@ -27,6 +27,8 @@ export interface ChecklistItemResponse {
   sortOrder: number;
   /** Which stepper stage this task belongs to — lets the UI update the stepper instantly on toggle, see deriveStageAndPercentage. */
   stage: ChecklistStage;
+  /** When true, uploading a material in "Collected Materials" auto-completes this task instead of needing a manual tap. */
+  requiresMaterial: boolean;
   completed: boolean;
   completedAt: string | null;
   note: string | null;

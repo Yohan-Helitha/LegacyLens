@@ -58,6 +58,15 @@ public class OpportunityChecklistItem {
     @Column(nullable = false, length = 20)
     private ChecklistStage stage = ChecklistStage.PREP;
 
+    /**
+     * Whether uploading a material (see JobWorkProgressServiceImpl.addMaterial)
+     * should auto-complete this task — for tasks that literally are "capture/
+     * attach a photo or recording", so the creator doesn't have to separately
+     * tick the checkbox after already uploading the file it describes.
+     */
+    @Column(name = "requires_material", nullable = false)
+    private boolean requiresMaterial = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -111,6 +111,8 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         material.setFileUrl(fileUrl);
         workMaterialRepository.save(material);
 
+        autoCompleteMaterialTask(job);
+
         return mapToResponse(progress);
     }
 
@@ -207,6 +209,23 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
     }
 
     /**
+     * Marks the first not-yet-completed "requires a material" checklist item
+     * (e.g. "Capture supporting photos") as done, since the creator just
+     * uploaded exactly what that task asked for — saves them a separate
+     * manual tap on the checkbox for something they've already provided.
+     */
+    private void autoCompleteMaterialTask(Job job) {
+        ensureChecklistProgress(job).stream()
+                .filter(cp -> cp.getChecklistItem().isRequiresMaterial() && !cp.isCompleted())
+                .findFirst()
+                .ifPresent(cp -> {
+                    cp.setCompleted(true);
+                    cp.setCompletedAt(LocalDateTime.now());
+                    checklistProgressRepository.save(cp);
+                });
+    }
+
+    /**
      * A job's own heroImageUrl wins when set (the only option for directly-
      * seeded jobs with no real opportunity behind them); otherwise falls back
      * to the linked Opportunity's photo for jobs created via a real booking.
@@ -264,6 +283,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                         .label(cp.getChecklistItem().getLabel())
                         .sortOrder(cp.getChecklistItem().getSortOrder())
                         .stage(cp.getChecklistItem().getStage().name())
+                        .requiresMaterial(cp.getChecklistItem().isRequiresMaterial())
                         .completed(cp.isCompleted())
                         .completedAt(cp.getCompletedAt())
                         .note(cp.getNote())
