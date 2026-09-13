@@ -10,7 +10,7 @@ import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { workProgressApi } from '../../../services/api/workProgressApi';
 import { ApiError } from '../../../services/api/client';
-import { ChecklistItemResponse, WorkProgressResponse, stepsForStage } from '../../../types/workProgress';
+import { ChecklistItemResponse, WorkProgressResponse, deriveStageAndPercentage, stepsForStage } from '../../../types/workProgress';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
 
 // Fallback only for jobs with no linked Opportunity (e.g. directly-seeded
@@ -96,12 +96,13 @@ const Stepper: React.FC<{ completedSteps: number }> = ({ completedSteps }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 // ChecklistRow
 // ─────────────────────────────────────────────────────────────────────────────
-const ChecklistRow: React.FC<{ item: ChecklistItemResponse; onToggle: () => void }> = ({ item, onToggle }) => (
+const ChecklistRow: React.FC<{ item: ChecklistItemResponse; disabled: boolean; onToggle: () => void }> = ({ item, disabled, onToggle }) => (
   <Pressable
     onPress={onToggle}
-    style={({ pressed }) => [s.checklistRow, pressed && s.pressed]}
+    disabled={disabled}
+    style={({ pressed }) => [s.checklistRow, pressed && s.pressed, disabled && { opacity: 0.5 }]}
     accessibilityRole="checkbox"
-    accessibilityState={{ checked: item.completed }}
+    accessibilityState={{ checked: item.completed, disabled }}
     accessibilityLabel={item.label}
   >
     <View style={[s.checklistCheckbox, item.completed && s.checklistCheckboxDone]}>
@@ -129,6 +130,7 @@ export const ContinueMyWorkPage: React.FC<{
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [pendingChecklistItemId, setPendingChecklistItemId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -151,18 +153,31 @@ export const ContinueMyWorkPage: React.FC<{
   const checklistItems = progress?.checklistItems ?? [];
 
   const handleToggleChecklistItem = async (item: ChecklistItemResponse) => {
-    if (!progress) return;
+    // Block a second tap while one toggle is still in flight — otherwise two
+    // overlapping requests can resolve out of order and each one's full
+    // server snapshot stomps on the other's optimistic checkbox, making a
+    // different item appear to flip on its own.
+    if (!progress || pendingChecklistItemId) return;
     const nextCompleted = !item.completed;
 
-    // Optimistic flip so the checkbox/percentage/stepper respond instantly;
-    // replaced by the server's real recalculation once it resolves.
+    setPendingChecklistItemId(item.id);
+
+    // Optimistic flip so the checkbox AND the stepper/percentage respond
+    // instantly, using the same stage-completeness rule the backend uses —
+    // otherwise the stepper would sit still until the server round-trip
+    // resolves, which reads as "stuck one click behind." Replaced by the
+    // server's real recalculation once it resolves.
     setProgress((prev) => {
       if (!prev) return prev;
+      const nextItems = prev.checklistItems.map((i) =>
+        i.id === item.id ? { ...i, completed: nextCompleted } : i,
+      );
+      const { percentage, stage } = deriveStageAndPercentage(nextItems);
       return {
         ...prev,
-        checklistItems: prev.checklistItems.map((i) =>
-          i.id === item.id ? { ...i, completed: nextCompleted } : i,
-        ),
+        checklistItems: nextItems,
+        progressPercentage: percentage,
+        currentStage: stage,
       };
     });
 
@@ -182,6 +197,8 @@ export const ContinueMyWorkPage: React.FC<{
       });
       const message = err instanceof ApiError ? err.message : 'Could not update this task.';
       Alert.alert('Update failed', message);
+    } finally {
+      setPendingChecklistItemId(null);
     }
   };
 
@@ -330,7 +347,12 @@ export const ContinueMyWorkPage: React.FC<{
             ) : (
               <View style={{ gap: 2 }}>
                 {checklistItems.map((item) => (
-                  <ChecklistRow key={item.id} item={item} onToggle={() => handleToggleChecklistItem(item)} />
+                  <ChecklistRow
+                    key={item.id}
+                    item={item}
+                    disabled={pendingChecklistItemId !== null}
+                    onToggle={() => handleToggleChecklistItem(item)}
+                  />
                 ))}
               </View>
             )}

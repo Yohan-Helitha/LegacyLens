@@ -19,13 +19,47 @@ export function stepsForStage(stage: WorkStage): number {
   }
 }
 
+export type ChecklistStage = 'PREP' | 'RECORD' | 'EDIT' | 'SUBMIT';
+
 export interface ChecklistItemResponse {
   id: string;
   label: string;
   sortOrder: number;
+  /** Which stepper stage this task belongs to — lets the UI update the stepper instantly on toggle, see deriveStageAndPercentage. */
+  stage: ChecklistStage;
   completed: boolean;
   completedAt: string | null;
   note: string | null;
+}
+
+const STAGE_ORDER: ChecklistStage[] = ['PREP', 'RECORD', 'EDIT', 'SUBMIT'];
+
+/**
+ * Mirrors the backend's currentStage/progressPercentage calculation
+ * (JobWorkProgressServiceImpl) so the UI can update the checkbox, the
+ * percentage, AND the stepper all in the same instant a box is tapped,
+ * instead of the stepper waiting on the server round-trip. The server's
+ * response remains the authoritative value once it arrives.
+ */
+export function deriveStageAndPercentage(items: ChecklistItemResponse[]): { percentage: number; stage: WorkStage } {
+  const total = items.length;
+  if (total === 0) {
+    return { percentage: 0, stage: 'PREP' };
+  }
+  const completedCount = items.filter((i) => i.completed).length;
+  const percentage = Math.round((completedCount * 100) / total);
+
+  if (items.every((i) => i.completed)) {
+    return { percentage, stage: 'COMPLETED' };
+  }
+  for (const stage of STAGE_ORDER) {
+    const stageItems = items.filter((i) => i.stage === stage);
+    const stageDone = stageItems.every((i) => i.completed);
+    if (!stageDone) {
+      return { percentage, stage };
+    }
+  }
+  return { percentage, stage: 'SUBMIT' };
 }
 
 export interface WorkMaterialResponse {

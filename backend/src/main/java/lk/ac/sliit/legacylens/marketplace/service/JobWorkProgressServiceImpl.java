@@ -263,6 +263,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                         .id(cp.getChecklistItem().getId())
                         .label(cp.getChecklistItem().getLabel())
                         .sortOrder(cp.getChecklistItem().getSortOrder())
+                        .stage(cp.getChecklistItem().getStage().name())
                         .completed(cp.isCompleted())
                         .completedAt(cp.getCompletedAt())
                         .note(cp.getNote())

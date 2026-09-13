@@ -17,6 +17,10 @@ public class ChecklistItemResponse {
     private UUID id;
     private String label;
     private int sortOrder;
+
+    /** PREP/RECORD/EDIT/SUBMIT — lets the frontend update the stepper instantly on toggle, without waiting on the server round-trip. */
+    private String stage;
+
     private boolean completed;
     private LocalDateTime completedAt;
     private String note;
