@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,9 +10,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import * as ImagePicker from 'expo-image-picker';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { profileApi } from '../../../services/api/profileApi';
+import { creatorApplicationApi } from '../../../services/api/creatorApplicationApi';
+import { ApiError } from '../../../services/api/client';
+import { useAuthStore } from '../../../store/authStore';
+import type { AuthUser } from '../../../store/authStore';
+import type { UserProfile } from '../../../types/profile';
+import type {
+  CreatorApplicationProofFile,
+  ExperienceLevel as ApiExperienceLevel,
+} from '../../../types/creatorApplication';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind colour system — Monsoon Coast)
@@ -44,7 +56,7 @@ const D = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-type ExperienceLevel = 'new' | 'some' | 'experienced';
+type ExperienceOptionKey = 'new' | 'some' | 'experienced';
 
 const SKILL_OPTIONS = [
   'Photography',
@@ -61,11 +73,34 @@ const INTEREST_OPTIONS = [
   'Traditional Dance',
 ] as const;
 
-const EXPERIENCE_OPTIONS: { key: ExperienceLevel; label: string }[] = [
+const EXPERIENCE_OPTIONS: { key: ExperienceOptionKey; label: string }[] = [
   { key: 'new',          label: 'New to content documentation' },
   { key: 'some',         label: 'Some Experience' },
   { key: 'experienced',  label: 'Experienced' },
 ];
+
+/** UI radio key -> backend ExperienceLevel enum name. */
+const EXPERIENCE_LEVEL_API: Record<ExperienceOptionKey, ApiExperienceLevel> = {
+  new: 'NEW_TO_DOCUMENTATION',
+  some: 'SOME_EXPERIENCE',
+  experienced: 'EXPERIENCED',
+};
+
+/** Human-readable labels for CreatorApplicationRequest field names, as they
+ * appear in ApiError.fieldErrors on a 400 from GlobalExceptionHandler. */
+const FIELD_LABELS: Record<string, string> = {
+  email: 'Email',
+  aboutYou: 'About You',
+  skills: 'My Skill',
+  interests: 'Interests',
+  experienceLevel: 'Experience',
+  experienceDescription: 'Experience description',
+  proofDocument: 'Verification proof file',
+};
+
+function humanizeField(field: string): string {
+  return FIELD_LABELS[field] ?? field;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TopAppBar
@@ -122,7 +157,7 @@ const FormField: React.FC<{
   onChangeText: (v: string) => void;
   placeholder?: string;
   secureIcon?: boolean;
-  keyboardType?: 'default' | 'phone-pad' | 'numeric';
+  keyboardType?: 'default' | 'phone-pad' | 'numeric' | 'email-address';
 }> = ({ label, value, onChangeText, placeholder, secureIcon, keyboardType = 'default' }) => (
   <View style={s.fieldGroup}>
     <Text style={s.fieldLabel}>{label}</Text>
@@ -134,8 +169,28 @@ const FormField: React.FC<{
         placeholder={placeholder}
         placeholderTextColor={D.outline}
         keyboardType={keyboardType}
+        autoCapitalize={keyboardType === 'email-address' ? 'none' : 'sentences'}
       />
       {secureIcon && <Text style={s.lockIcon}>{'🔒'}</Text>}
+    </View>
+  </View>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ReadOnlyField — auto-filled from the user's own account, not editable here
+// ─────────────────────────────────────────────────────────────────────────────
+const ReadOnlyField: React.FC<{
+  label: string;
+  value: string;
+  lockIcon?: boolean;
+}> = ({ label, value, lockIcon }) => (
+  <View style={s.fieldGroup}>
+    <Text style={s.fieldLabel}>{label}</Text>
+    <View style={[s.fieldInputWrapper, s.fieldInputWrapperLocked]}>
+      <Text style={s.fieldReadOnlyValue} numberOfLines={1}>
+        {value || '—'}
+      </Text>
+      {lockIcon && <Text style={s.lockIcon}>{'🔒'}</Text>}
     </View>
   </View>
 );
@@ -191,22 +246,130 @@ export const BecomeCreatorApplication: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onSubmit?: () => void;
 }> = ({ onNavigate, onSubmit }) => {
-  const [fullName, setFullName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [city, setCity] = useState('');
-  const [nicNumber, setNicNumber] = useState('');
+  // Full Name / Phone Number / City / NIC Number are never typed in here —
+  // they're auto-filled from the applicant's own account (read-only below).
+  const cachedUser = useAuthStore((s: { user: AuthUser | null }) => s.user);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    profileApi
+      .getMe()
+      .then((data) => {
+        if (!cancelled) setProfile(data);
+      })
+      .catch(() => {
+        // Non-fatal — the fields below fall back to cached auth-store data.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const fullName = profile?.fullName ?? cachedUser?.fullName ?? '';
+  const phoneNumber = profile?.phoneNumber ?? cachedUser?.phoneNumber ?? '';
+  const city = profile?.city?.name ?? '';
+  const nicNumber = profile?.nicNumber ?? '';
+
+  const [email, setEmail] = useState('');
   const [aboutYou, setAboutYou] = useState('');
   const [skills, setSkills] = useState<Record<string, boolean>>({});
   const [interests, setInterests] = useState<Record<string, boolean>>({});
-  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | null>(null);
+  const [experienceLevel, setExperienceLevel] = useState<ExperienceOptionKey | null>(null);
   const [experienceDetails, setExperienceDetails] = useState('');
-  const [proofSelected, setProofSelected] = useState(false);
+  const [proofFile, setProofFile] = useState<CreatorApplicationProofFile | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const toggleSkill = (skill: string) =>
     setSkills(prev => ({ ...prev, [skill]: !prev[skill] }));
 
   const toggleInterest = (interest: string) =>
     setInterests(prev => ({ ...prev, [interest]: !prev[interest] }));
+
+  const handlePickProof = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission required',
+        'Legacy Lens needs access to your photo library to attach a verification proof file. Please enable it in Settings.',
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      const asset = result.assets[0];
+      setProofFile({
+        uri: asset.uri,
+        name: asset.fileName ?? `proof-${Date.now()}.jpg`,
+        type: asset.mimeType ?? 'image/jpeg',
+      });
+    }
+  };
+
+  const handleSubmit = async () => {
+    const selectedSkills = SKILL_OPTIONS.filter(skill => skills[skill]);
+    const selectedInterests = INTEREST_OPTIONS.filter(interest => interests[interest]);
+
+    if (!email.trim()) {
+      Alert.alert('Missing information', 'Please enter your email address.');
+      return;
+    }
+    if (!aboutYou.trim()) {
+      Alert.alert('Missing information', 'Please tell us a bit about yourself.');
+      return;
+    }
+    if (selectedSkills.length === 0) {
+      Alert.alert('Missing information', 'Please select at least one skill.');
+      return;
+    }
+    if (selectedInterests.length === 0) {
+      Alert.alert('Missing information', 'Please select at least one interest.');
+      return;
+    }
+    if (!experienceLevel) {
+      Alert.alert('Missing information', 'Please select your experience level.');
+      return;
+    }
+    if (!experienceDetails.trim()) {
+      Alert.alert('Missing information', 'Please tell us about your experience.');
+      return;
+    }
+    if (!proofFile) {
+      Alert.alert('Missing information', 'Please attach a verification proof file.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await creatorApplicationApi.submit({
+        email: email.trim(),
+        aboutYou: aboutYou.trim(),
+        skills: selectedSkills,
+        interests: selectedInterests,
+        experienceLevel: EXPERIENCE_LEVEL_API[experienceLevel],
+        experienceDescription: experienceDetails.trim(),
+        proofDocument: proofFile,
+      });
+      onSubmit?.();
+    } catch (err) {
+      if (err instanceof ApiError && err.fieldErrors && Object.keys(err.fieldErrors).length > 0) {
+        const details = Object.entries(err.fieldErrors)
+          .map(([field, reason]) => `${humanizeField(field)}: ${reason}`)
+          .join('\n');
+        Alert.alert('Please fix the following', details);
+      } else {
+        const message = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
+        Alert.alert('Submission failed', message);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
@@ -230,14 +393,16 @@ export const BecomeCreatorApplication: React.FC<{
 
         {/* ── Section 1 — Your Information ─────────────────────────────── */}
         <FormSection title="Your Information">
-          <FormField label="Full Name" value={fullName} onChangeText={setFullName} placeholder="Enter your full name" />
-          <FormField label="Phone Number" value={phoneNumber} onChangeText={setPhoneNumber} placeholder="07X XXX XXXX" keyboardType="phone-pad" />
-          <FormField label="City" value={city} onChangeText={setCity} placeholder="Enter your city" />
-          <FormField label="NIC Number" value={nicNumber} onChangeText={setNicNumber} placeholder="Enter your NIC number" secureIcon />
+          <ReadOnlyField label="Full Name" value={fullName} />
+          <ReadOnlyField label="Phone Number" value={phoneNumber} />
+          <FormField label="Email" value={email} onChangeText={setEmail} placeholder="Enter your email address" keyboardType="email-address" />
+          <ReadOnlyField label="City" value={city} />
+          <ReadOnlyField label="NIC Number" value={nicNumber} lockIcon />
           <View style={s.helperRow}>
             <Text style={s.helperIcon}>{'ℹ️'}</Text>
             <Text style={s.helperText}>
-              Your NIC number is used only for verification. It won't be shown publicly.
+              Full Name, Phone Number, City and NIC Number are taken from your account and can't be edited here.
+              Your NIC number is used only for verification — it won't be shown publicly.
             </Text>
           </View>
         </FormSection>
@@ -303,7 +468,7 @@ export const BecomeCreatorApplication: React.FC<{
         {/* ── Section 6 — Verification ─────────────────────────────────── */}
         <FormSection title="Verification">
           <Pressable
-            onPress={() => setProofSelected(true)}
+            onPress={handlePickProof}
             style={({ pressed }) => [s.uploadBox, pressed && s.uploadBoxPressed]}
             accessibilityRole="button"
             accessibilityLabel="Upload supporting proof"
@@ -312,7 +477,7 @@ export const BecomeCreatorApplication: React.FC<{
               <Text style={s.uploadIconArrow}>{'↑'}</Text>
             </View>
             <Text style={s.uploadTitle}>
-              {proofSelected ? 'File Selected' : 'Uploading Supporting Proof'}
+              {proofFile ? proofFile.name : 'Uploading Supporting Proof'}
             </Text>
             <Text style={s.uploadSubtitle}>
               Portfolio, previous work or organization proof (LinkedIn profile, etc.)
@@ -322,12 +487,19 @@ export const BecomeCreatorApplication: React.FC<{
 
         {/* ── Submit ────────────────────────────────────────────────────── */}
         <Pressable
-          onPress={onSubmit}
-          style={({ pressed }) => [s.submitBtn, pressed && s.submitBtnPressed]}
+          onPress={handleSubmit}
+          disabled={submitting}
+          style={({ pressed }) => [
+            s.submitBtn,
+            (pressed || submitting) && s.submitBtnPressed,
+          ]}
           accessibilityRole="button"
           accessibilityLabel="Submit for review"
+          accessibilityState={{ disabled: submitting }}
         >
-          <Text style={s.submitBtnText}>Submit For Review</Text>
+          <Text style={s.submitBtnText}>
+            {submitting ? 'Submitting…' : 'Submit For Review'}
+          </Text>
         </Pressable>
 
         <View style={{ height: 8 }} />
@@ -455,6 +627,15 @@ const s = StyleSheet.create({
     minHeight: 44,                    // 44pt touch target
   },
   lockIcon: { fontSize: 14, marginLeft: Spacing.xs },
+  fieldInputWrapperLocked: { opacity: 0.65 },
+  fieldReadOnlyValue: {
+    flex: 1,
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeMD,      // 16sp — matches the editable inputs
+    color: D.onSurface,
+    paddingVertical: 12,
+    minHeight: 44,                    // 44pt touch target
+  },
 
   helperRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: -Spacing.xs },
   helperIcon: { fontSize: 12, lineHeight: 18 },

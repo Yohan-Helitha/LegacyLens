@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,9 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { opportunityApi } from '../../../services/api/opportunityApi';
+import type { OpportunityCardResponse } from '../../../types/opportunity';
+import { resolveOpportunityImage, resolveAvatarImage } from '../../../utils/opportunityImages';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -51,7 +54,85 @@ const D = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-type FilterKey  = 'all' | 'nearby' | 'photography' | 'writing';
+type FilterKey  = 'all' | 'nearby' | 'photography' | 'writing' | 'documentation';
+
+/** Shown for an elder with no uploaded profile photo. */
+const PLACEHOLDER_AVATAR =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuBdukQOb20lmYsNjgSC79bwk6nR11u86Bj87jNIlc_ZQzQ97BxLNMhydins5gSF08W2CSQyNGsh4guyGBVX0htKvkNTzRAY76Yfv8jK-W-9Z-cW30fTc-tVqTE_3MXVnOr3daWdokTEReYQUt-ciXqQB8LF7qkH10d4SgSRvnxi4hdlzLG5RUNcZvLxKkHwfHK5wXsfSfaNkQJdZelcgow41KGgsq77Fkd9zgLSrunJwEJsg3U5ZQcTdg';
+
+/** Google Maps-style location pin, in the requested #336574 tone. */
+const LocationPinIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path
+      d="M12 2C7.86 2 4.5 5.36 4.5 9.5c0 5.62 6.55 11.54 6.83 11.79a1 1 0 0 0 1.34 0c.28-.25 6.83-6.17 6.83-11.79C19.5 5.36 16.14 2 12 2z"
+      fill="#336574"
+    />
+    <Circle cx="12" cy="9.5" r="2.6" fill="#ffffff" />
+  </Svg>
+);
+
+function joinMeta(a: string | null | undefined, b: string | null | undefined): string {
+  return [a, b].filter(Boolean).join(' · ');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fallback data — shown only if the /api/opportunities/** call fails or
+// returns nothing yet (e.g. no connectivity), so the screen never renders
+// blank or broken.
+// ─────────────────────────────────────────────────────────────────────────────
+const FALLBACK_RECOMMENDED: OpportunityCardResponse = {
+  id: 'fallback-recommended',
+  title: 'Traditional Fishing Terms Documentation.',
+  description: '',
+  heroImageUrl: 'local:fisheries',
+  location: 'Negombo',
+  category: 'Photography',
+  locationType: null,
+  matchPercentage: 70,
+  urgent: false,
+  dueAt: null,
+  elderName: '',
+  elderAvatarUrl: null,
+  elderLocation: null,
+  createdAt: new Date().toISOString(),
+};
+
+const FALLBACK_URGENT: OpportunityCardResponse = {
+  id: 'fallback-urgent',
+  title: 'Record Oral History: The 2004 Tsunami.',
+  description: '',
+  heroImageUrl: 'local:galle-coast',
+  location: 'Galle',
+  category: 'Oral History',
+  locationType: null,
+  matchPercentage: null,
+  urgent: true,
+  dueAt: new Date(Date.now() + 1 * 86400000).toISOString(),
+  elderName: '',
+  elderAvatarUrl: null,
+  elderLocation: null,
+  createdAt: new Date().toISOString(),
+};
+
+const FALLBACK_RECENT: OpportunityCardResponse[] = [
+  {
+    id: 'fallback-recent-1',
+    title: 'Photograph Antique Mask Collection.',
+    description:
+      'Need high-resolution macro photography of traditional kolam masks for digital archive. Lighting equipment provided.',
+    heroImageUrl: null,
+    location: 'Galle Fort',
+    category: 'Photography',
+    locationType: 'On-Site',
+    matchPercentage: null,
+    urgent: false,
+    dueAt: null,
+    elderName: 'P. M. Amanda',
+    elderAvatarUrl: PLACEHOLDER_AVATAR,
+    elderLocation: 'Galle Fort',
+    createdAt: new Date().toISOString(),
+  },
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline icon helpers (emoji / primitive, zero extra dependencies)
@@ -106,15 +187,24 @@ const HeroSection: React.FC = () => (
 // ─────────────────────────────────────────────────────────────────────────────
 // SearchBar
 // ─────────────────────────────────────────────────────────────────────────────
-const SearchBar: React.FC = () => (
+const SearchBar: React.FC<{ value: string; onChangeText: (text: string) => void }> = ({
+  value,
+  onChangeText,
+}) => (
   <View style={s.searchWrapper}>
-    <Text style={s.searchIcon}>{'\uD83D\uDD0D'}</Text>
+    <View style={s.searchIcon}>
+      <View style={s.searchIconRing} />
+      <View style={s.searchIconHandle} />
+    </View>
     <TextInput
       style={s.searchInput}
+      value={value}
+      onChangeText={onChangeText}
       placeholder="Search opportunities..."
       placeholderTextColor={D.outline}
       returnKeyType="search"
       accessibilityLabel="Search opportunities"
+      clearButtonMode="while-editing"
     />
   </View>
 );
@@ -127,6 +217,7 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'nearby',      label: 'Nearby'      },
   { key: 'photography', label: 'Photography' },
   { key: 'writing',     label: 'Writing'     },
+  { key: 'documentation', label: 'Documentation' },
 ];
 
 const FilterBar: React.FC<{
@@ -161,40 +252,36 @@ const FilterBar: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 // RecommendedCard
 // ─────────────────────────────────────────────────────────────────────────────
-const RecommendedCard: React.FC<{ onViewDetail: () => void }> = ({ onViewDetail }) => (
+const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void }> = ({
+  item,
+  onViewDetail,
+}) => (
   <View style={s.section}>
     <Text style={s.sectionTitle}>Recommended For You</Text>
 
     <Pressable
       style={({ pressed }) => [s.recommendedCard, pressed && s.cardPressed]}
       accessibilityRole="button"
-      accessibilityLabel="Traditional fishing Terms Documentation opportunity"
+      accessibilityLabel={`${item.title} opportunity`}
     >
       <View style={s.recommendedImgWrapper}>
         <Image
-          source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCFr_TbcDqpHAlACc9VJ5pActhPIFGIsUJ5Val-M3PTLC8liXo9lhIPWRmRLTMdt7SATshX_8VwcUiJR1eqHCDiDuAln_uGewTtk4vmOjRFMTqLjR1nKQgnlc71zSDsHzVIGqsZ1k1hSQrZuLi3ala7icWEN17LBpFIR1mcTipGJsFpRRjPH4axYH_wtiVcVxHP7IFId9YFNYXPncgm0hEUHyjaMrnnu1HDSgmnJJUkQ7QaNl4RBfUvEw' }}
+          source={resolveOpportunityImage(item.heroImageUrl)}
           style={s.recommendedImg}
-          accessibilityLabel="Traditional stilt fishermen at sunset"
+          accessibilityLabel={item.title}
         />
-        <View style={s.matchBadge}>
-          <Text style={s.matchStar}>{'★'}</Text>
-          <Text style={s.matchText}>88% MATCH</Text>
-        </View>
-        <Pressable
-          style={({ pressed }) => [s.bookmarkBtn, pressed && s.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Bookmark this opportunity"
-        >
-          <Text style={{ fontSize: 16 }}>{'\uD83D\uDD16'}</Text>
-        </Pressable>
+        {item.matchPercentage != null && (
+          <View style={s.matchBadge}>
+            <Text style={s.matchStar}>{'\u2605'}</Text>
+            <Text style={s.matchText}>{item.matchPercentage}% MATCH</Text>
+          </View>
+        )}
       </View>
 
       <View style={s.recommendedBody}>
         <View style={{ gap: 4 }}>
-          <Text style={s.cardTitle}>Traditional fishing Terms Documentation.</Text>
-          <Text style={s.cardMeta}>
-            {'Negombo (Sinhala) \u00B7 Linguistic Preservation Project'}
-          </Text>
+          <Text style={s.cardTitle}>{item.title}</Text>
+          <Text style={s.cardMeta}>{joinMeta(item.location, item.category)}</Text>
         </View>
         <View style={s.cardCta}>
           <Pressable
@@ -213,40 +300,38 @@ const RecommendedCard: React.FC<{ onViewDetail: () => void }> = ({ onViewDetail 
 // ─────────────────────────────────────────────────────────────────────────────
 // UrgentSection
 // ─────────────────────────────────────────────────────────────────────────────
-const UrgentSection: React.FC<{ onViewDetail: () => void }> = ({ onViewDetail }) => (
+const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void }> = ({
+  item,
+  onViewDetail,
+}) => (
   <View style={s.section}>
-    <View style={s.sectionHeaderRow}>
-      <View style={s.urgentTitleRow}>
-        <Text style={{ fontSize: 18 }}>{'\uD83D\uDD25'}</Text>
-        <Text style={s.sectionTitle}>Urgent Missions</Text>
-      </View>
-      <View style={s.dueBadge}>
-        <Text style={s.dueBadgeText}>Due in 3 days</Text>
-      </View>
+    <View style={s.urgentTitleRow}>
+      <Text style={{ fontSize: 18 }}>{'\uD83D\uDD25'}</Text>
+      <Text style={s.sectionTitle}>Urgent Missions</Text>
     </View>
 
     <Pressable
       style={({ pressed }) => [s.urgentCard, pressed && s.cardPressed]}
       accessibilityRole="button"
-      accessibilityLabel="Record Oral History: The 2004 Tsunami opportunity"
+      accessibilityLabel={`${item.title} opportunity`}
     >
       <Image
-        source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDNuYBn9vgG-Scml9WfKG-IA5mKz3UpPYXevIrDmEWaiYMqQX4Kj_zP7RwweCA8hq8LF4I-B8XwDZR3V04dMiatepJP6eeAmeCNW6dlwaSASf5iNnszv_If-_W8mmH2vkSs1_BK4_IIftYhP2egnPNYWOl2x_hUMwiCq2vKwgB5Y6R5h5C4uK_yl4ZUbhMRQ1S5_d2BhTQfNcnA1Btr-jDRRTzFWyqduDzamQG4hKOa-iSiSGNmQNaifQ' }}
+        source={resolveOpportunityImage(item.heroImageUrl)}
         style={s.urgentThumb}
-        accessibilityLabel="Galle Fort coastal ruins documentary photo"
+        accessibilityLabel={item.title}
       />
       <View style={s.urgentBody}>
         <Text style={s.urgentTitle} numberOfLines={2}>
-          {'Record Oral History: The 2004 Tsunami.'}
+          {item.title}
         </Text>
         <View style={s.urgentMeta}>
           <View style={s.urgentMetaItem}>
             <Text style={s.metaIcon}>{'\uD83C\uDF99'}</Text>
-            <Text style={s.urgentMetaText}>Oral History</Text>
+            <Text style={s.urgentMetaText}>{item.category}</Text>
           </View>
           <View style={s.urgentMetaItem}>
-            <Text style={s.metaIcon}>{'\uD83D\uDCCD'}</Text>
-            <Text style={s.urgentMetaText}>Galle</Text>
+            <LocationPinIcon size={14} />
+            <Text style={s.urgentMetaText}>{item.location}</Text>
           </View>
         </View>
         <View style={s.urgentCtaRow}>
@@ -264,65 +349,92 @@ const UrgentSection: React.FC<{ onViewDetail: () => void }> = ({ onViewDetail })
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// RecentOpportunityCard
+// ─────────────────────────────────────────────────────────────────────────────
+const RecentOpportunityCard: React.FC<{
+  item: OpportunityCardResponse;
+  onApply: () => void;
+  onViewDetail: () => void;
+}> = ({ item, onApply, onViewDetail }) => (
+  <Pressable
+    style={({ pressed }) => [s.recentCard, pressed && s.cardPressed]}
+    accessibilityRole="button"
+    accessibilityLabel={`${item.title} opportunity`}
+  >
+    <View style={s.recentHeader}>
+      <View style={s.authorRow}>
+        <Image
+          source={resolveAvatarImage(item.elderAvatarUrl) ?? { uri: PLACEHOLDER_AVATAR }}
+          style={s.authorAvatar}
+          accessibilityLabel={`${item.elderName} profile photo`}
+        />
+        <View>
+          <Text style={s.authorName}>{item.elderName}</Text>
+          <Text style={s.authorLocation}>{item.elderLocation}</Text>
+        </View>
+      </View>
+      <View style={s.tagsRow}>
+        {item.category && (
+          <View style={s.tagSecondary}>
+            <Text style={s.tagSecondaryText}>{item.category}</Text>
+          </View>
+        )}
+        {item.locationType && (
+          <View style={s.tagNeutral}>
+            <Text style={s.tagNeutralText}>{item.locationType}</Text>
+          </View>
+        )}
+      </View>
+    </View>
+
+    <View style={s.recentContent}>
+      <Text style={s.cardTitle}>{item.title}</Text>
+      <Text style={s.recentDesc} numberOfLines={2}>
+        {item.description}
+      </Text>
+    </View>
+
+    <View style={s.recentActions}>
+      <Pressable
+        onPress={onViewDetail}
+        style={({ pressed }) => pressed ? [s.pressed] : []}
+        accessibilityRole="button"
+      >
+        <Text style={s.ctaTextMuted}>{'View Opportunity  \u2192'}</Text>
+      </Pressable>
+      <Pressable
+        style={({ pressed }) => [s.applyBtn, pressed && s.pressed]}
+        onPress={onApply}
+        accessibilityRole="button"
+        accessibilityLabel={`Apply for ${item.title}`}
+      >
+        <Text style={s.applyBtnText}>Apply</Text>
+      </Pressable>
+    </View>
+  </Pressable>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // RecentSection
 // ─────────────────────────────────────────────────────────────────────────────
-const RecentSection: React.FC<{ onApply: () => void; onViewDetail: () => void }> = ({ onApply, onViewDetail }) => (
+const RecentSection: React.FC<{
+  items: OpportunityCardResponse[];
+  onApply: (id: string) => void;
+  onViewDetail: (id: string) => void;
+}> = ({ items, onApply, onViewDetail }) => (
   <View style={s.section}>
     <Text style={s.sectionTitle}>Recent Postings</Text>
 
-    <Pressable
-      style={({ pressed }) => [s.recentCard, pressed && s.cardPressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Photograph Antique Mask Collection opportunity"
-    >
-      <View style={s.recentHeader}>
-        <View style={s.authorRow}>
-          <Image
-            source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBdukQOb20lmYsNjgSC79bwk6nR11u86Bj87jNIlc_ZQzQ97BxLNMhydins5gSF08W2CSQyNGsh4guyGBVX0htKvkNTzRAY76Yfv8jK-W-9Z-cW30fTc-tVqTE_3MXVnOr3daWdokTEReYQUt-ciXqQB8LF7qkH10d4SgSRvnxi4hdlzLG5RUNcZvLxKkHwfHK5wXsfSfaNkQJdZelcgow41KGgsq77Fkd9zgLSrunJwEJsg3U5ZQcTdg' }}
-            style={s.authorAvatar}
-            accessibilityLabel="P.M. Amanda profile photo"
-          />
-          <View>
-            <Text style={s.authorName}>P. M. Amanda</Text>
-            <Text style={s.authorLocation}>Galle Fort</Text>
-          </View>
-        </View>
-        <View style={s.tagsRow}>
-          <View style={s.tagSecondary}>
-            <Text style={s.tagSecondaryText}>Photography</Text>
-          </View>
-          <View style={s.tagNeutral}>
-            <Text style={s.tagNeutralText}>On-Site</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={s.recentContent}>
-        <Text style={s.cardTitle}>Photograph Antique Mask Collection.</Text>
-        <Text style={s.recentDesc} numberOfLines={2}>
-          Need high-resolution macro photography of traditional kolam masks for
-          digital archive. Lighting equipment provided.
-        </Text>
-      </View>
-
-      <View style={s.recentActions}>
-        <Pressable
-          onPress={onViewDetail}
-          style={({ pressed }) => pressed ? [s.pressed] : []}
-          accessibilityRole="button"
-        >
-          <Text style={s.ctaTextMuted}>{'View Opportunity  \u2192'}</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [s.applyBtn, pressed && s.pressed]}
-          onPress={onApply}
-          accessibilityRole="button"
-          accessibilityLabel="Apply for Photograph Antique Mask Collection"
-        >
-          <Text style={s.applyBtnText}>Apply</Text>
-        </Pressable>
-      </View>
-    </Pressable>
+    <View style={{ gap: Spacing.md }}>
+      {items.map((item) => (
+        <RecentOpportunityCard
+          key={item.id}
+          item={item}
+          onApply={() => onApply(item.id)}
+          onViewDetail={() => onViewDetail(item.id)}
+        />
+      ))}
+    </View>
   </View>
 );
 
@@ -333,9 +445,56 @@ const RecentSection: React.FC<{ onApply: () => void; onViewDetail: () => void }>
 // ─────────────────────────────────────────────────────────────────────────────
 export const OpportunityPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
-  onApply: () => void;
-}> = ({ onNavigate, onApply }) => {
+  onViewDetail: (opportunityId: string) => void;
+  onOpenSavedApplications: () => void;
+}> = ({ onNavigate, onViewDetail, onOpenSavedApplications }) => {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [recommended, setRecommended] = useState<OpportunityCardResponse>(FALLBACK_RECOMMENDED);
+  const [urgent, setUrgent] = useState<OpportunityCardResponse | null>(FALLBACK_URGENT);
+  const [recent, setRecent] = useState<OpportunityCardResponse[]>(FALLBACK_RECENT);
+
+  useEffect(() => {
+    opportunityApi
+      .getRecommended(1)
+      .then((data) => {
+        if (data.length > 0) setRecommended(data[0]);
+      })
+      .catch(() => {});
+
+    opportunityApi
+      .getUrgent(1)
+      .then((data) => setUrgent(data.length > 0 ? data[0] : null))
+      .catch(() => {});
+
+    opportunityApi
+      .getRecent(10)
+      .then((data) => {
+        if (data.length > 0) setRecent(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const matchesFilters = (item: OpportunityCardResponse): boolean => {
+    // 'nearby' needs the creator's own location to mean anything — no proximity
+    // data is available client-side yet, so it passes through like 'all' for now.
+    if (activeFilter !== 'all' && activeFilter !== 'nearby') {
+      const category = (item.category ?? '').toLowerCase();
+      if (!category.includes(activeFilter)) return false;
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      item.title.toLowerCase().includes(q) ||
+      (item.location ?? '').toLowerCase().includes(q) ||
+      (item.category ?? '').toLowerCase().includes(q)
+    );
+  };
+
+  const showRecommended = matchesFilters(recommended);
+  const showUrgent = urgent != null && matchesFilters(urgent);
+  const filteredRecent = recent.filter(matchesFilters);
+  const hasAnyResults = showRecommended || showUrgent || filteredRecent.length > 0;
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
@@ -350,11 +509,32 @@ export const OpportunityPage: React.FC<{
         keyboardShouldPersistTaps="handled"
       >
         <HeroSection />
-        <SearchBar />
+        <View style={s.myApplicationsRow}>
+          <Pressable
+            onPress={onOpenSavedApplications}
+            style={({ pressed }) => pressed && s.pressed}
+            accessibilityRole="button"
+            accessibilityLabel="My Applications"
+          >
+            <Text style={s.myApplicationsText}>My Applications ›</Text>
+          </Pressable>
+        </View>
+        <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
         <FilterBar active={activeFilter} onSelect={setActiveFilter} />
-        <RecommendedCard onViewDetail={onApply} />
-        <UrgentSection onViewDetail={onApply} />
-        <RecentSection onApply={onApply} onViewDetail={onApply} />
+        {showRecommended && (
+          <RecommendedCard item={recommended} onViewDetail={() => onViewDetail(recommended.id)} />
+        )}
+        {showUrgent && urgent && (
+          <UrgentSection item={urgent} onViewDetail={() => onViewDetail(urgent.id)} />
+        )}
+        {filteredRecent.length > 0 && (
+          <RecentSection items={filteredRecent} onApply={onViewDetail} onViewDetail={onViewDetail} />
+        )}
+        {!hasAnyResults && (
+          <View style={s.emptyState}>
+            <Text style={s.emptyStateText}>No opportunities match your search.</Text>
+          </View>
+        )}
         <View style={{ height: 8 }} />
       </ScrollView>
 
@@ -368,7 +548,7 @@ export default OpportunityPage;
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
-const THUMB_SIZE = 96;
+const THUMB_SIZE = 72;
 
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
@@ -410,14 +590,20 @@ const s = StyleSheet.create({
   // ── Scroll ─────────────────────────────────────────────────────────────────
   scroll: { flex: 1 },
   scrollContent: {
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.lg,
-    gap: Spacing.lg,
+    gap: Spacing.md,
   },
 
   // ── Hero ───────────────────────────────────────────────────────────────────
   heroSection: { gap: Spacing.xs },
+  myApplicationsRow: { alignItems: 'flex-end' },
+  myApplicationsText: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeXS,
+    color: D.secondary,
+  },
   heroTitle: {
     fontFamily: Typography.fontDisplay,
     fontSize: Typography.sizeXL,      // 24sp — standard h1 for mobile
@@ -449,7 +635,17 @@ const s = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
-  searchIcon:  { fontSize: 16, marginRight: Spacing.sm },
+  searchIcon:  { width: 16, height: 16, marginRight: Spacing.sm },
+  searchIconRing: {
+    width: 11, height: 11, borderRadius: 6,
+    borderWidth: 1.6, borderColor: D.primary,
+  },
+  searchIconHandle: {
+    position: 'absolute', right: 0, bottom: 0,
+    width: 6, height: 1.6, borderRadius: 1,
+    backgroundColor: D.primary,
+    transform: [{ rotate: '45deg' }],
+  },
   searchInput: {
     flex: 1,
     fontFamily: Typography.fontBody,
@@ -477,8 +673,7 @@ const s = StyleSheet.create({
   filterChipTextActive: { color: '#ffffff' },
 
   // ── Section ────────────────────────────────────────────────────────────────
-  section:          { gap: Spacing.md },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  section:          { gap: Spacing.sm },
   sectionTitle:     {
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeLG,      // 18sp — section heading
@@ -487,13 +682,6 @@ const s = StyleSheet.create({
     letterSpacing: -0.1,
   },
   urgentTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  dueBadge: {
-    backgroundColor: 'rgba(255,223,152,0.3)',
-    borderRadius: Radii.md,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  dueBadgeText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: D.tertiaryContainer, letterSpacing: 0.3 },
 
   // ── Recommended Card ───────────────────────────────────────────────────────
   recommendedCard: {
@@ -511,24 +699,13 @@ const s = StyleSheet.create({
   matchBadge: {
     position: 'absolute', top: 16, left: 16,
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: 'rgba(20,20,20,0.55)',
     borderRadius: Radii.full,
     paddingHorizontal: 10, paddingVertical: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08, shadowRadius: 4, elevation: 2,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
   },
-  matchStar: { fontSize: 12, color: D.tertiaryFixedDim },
-  matchText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: D.onSurface, letterSpacing: 0.5 },
-  bookmarkBtn: {
-    position: 'absolute', top: 16, right: 16,
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08, shadowRadius: 3, elevation: 2,
-  },
-  recommendedBody: { padding: 20, gap: Spacing.md },
+  matchStar: { fontSize: 12, color: '#FFD166' },
+  matchText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.5 },
+  recommendedBody: { padding: 16, gap: Spacing.sm },
   cardCta: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: D.surfaceVariant,
@@ -596,8 +773,8 @@ const s = StyleSheet.create({
   // ── Recent Card ────────────────────────────────────────────────────────────
   recentCard: {
     backgroundColor: D.surfaceContainerLowest,
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 20,
+    padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
     shadowColor: D.primary,
@@ -605,7 +782,7 @@ const s = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 20,
     elevation: 2,
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   recentHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   authorRow:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
@@ -661,6 +838,14 @@ const s = StyleSheet.create({
     elevation: 3,
   },
   applyBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: '#ffffff' },
+
+  // ── Empty state ────────────────────────────────────────────────────────────
+  emptyState: { alignItems: 'center', paddingVertical: Spacing.xl },
+  emptyStateText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    color: D.onSurfaceVariant,
+  },
 
   // ── Press feedback ─────────────────────────────────────────────────────────
   pressed: { opacity: 0.75 },
