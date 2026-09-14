@@ -1,22 +1,54 @@
 // src/screens/learning/TrackDetailScreen.tsx
 import React from 'react';
 import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
-import { mockTracks, mockLessons } from '../../constants/mockLearningData';
-import { Lesson } from '../../types/learning';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
-
+import { useRoute } from '@react-navigation/native';
+import { RouteProp } from '@react-navigation/native';
+import { useEffect, useState } from 'react';
+import { apiGet } from '../../services/api/client';
+import { Track, Lesson } from '../../types/learning';
 const CURRENT_TRACK_ID = 'track-1';
 
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'TrackDetail'>;
 
 export default function TrackDetailScreen() {
+
+  
+  const route = useRoute<RouteProp<LearningStackParamList, 'TrackDetail'>>();
+  console.log('SELECTED TRACK ID:', route.params.trackId);
   const navigation = useNavigation<NavigationProp>();
 
-  const track = mockTracks.find((t) => t.id === CURRENT_TRACK_ID);
-  const lessons = mockLessons.filter((l) => l.trackId === CURRENT_TRACK_ID);
+  const [track, setTrack] = useState<Track | null>(null);
+const [lessons, setLessons] = useState<Lesson[]>([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  const loadTrack = async () => {
+    try {
+      const trackId = route.params.trackId;
+
+      const trackData = await apiGet<Track>(
+            `/learning/tracks/${trackId}`
+          );
+
+          const lessonsData = await apiGet<Lesson[]>(
+            `/learning/tracks/${trackId}/lessons`
+          );
+
+          setTrack(trackData);
+          setLessons(lessonsData);
+        } catch (error) {
+          console.error('Failed to load track:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      loadTrack();
+    }, [route.params.trackId]);
 
   if (!track) {
     return (
@@ -26,7 +58,12 @@ export default function TrackDetailScreen() {
     );
   }
 
-  const progressPercent = Math.round((track.completedLessons / track.totalLessons) * 100);
+  const completedLessons = track.completedLessons ?? 0;
+
+const progressPercent =
+  track.totalLessons === 0
+    ? 0
+    : Math.round((completedLessons / track.totalLessons) * 100);
 
   const statusLabel = (status: Lesson['status']) => {
     if (status === 'completed') return '✓ Completed';
@@ -38,7 +75,7 @@ export default function TrackDetailScreen() {
     <Pressable
       style={styles.lessonRow}
       onPress={() =>
-        item.type === 'quiz'
+        item.type.toLowerCase() === 'quiz'
           ? navigation.navigate('Quiz', { lessonId: item.id })
           : navigation.navigate('Flashcard', { lessonId: item.id })
       }
@@ -66,7 +103,7 @@ export default function TrackDetailScreen() {
         <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
       </View>
       <Text style={styles.progressText}>
-        {track.completedLessons} of {track.totalLessons} lessons completed · {progressPercent}%
+        {completedLessons} of {track.totalLessons} lessons completed · {progressPercent}%
       </Text>
 
       <Text style={styles.sectionTitle}>Lessons</Text>

@@ -38,7 +38,11 @@ public class SecurityConfig {
                 // Public endpoints — no token required. Cities must be public
                 // too: the signup form needs the list before the user has an
                 // account or a token.
-                .requestMatchers("/api/auth/**", "/api/cities/**").permitAll()
+                .requestMatchers(
+    "/api/auth/**",
+    "/api/cities/**",
+    "/api/learning/tracks/**"
+).permitAll()
                 // Everything else requires authentication
                 .anyRequest().authenticated()
             )

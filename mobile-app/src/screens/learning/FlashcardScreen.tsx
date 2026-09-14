@@ -1,23 +1,92 @@
 // src/screens/learning/FlashcardScreen.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { mockFlashcards } from '../../constants/mockLearningData';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
-import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
-
-const CURRENT_LESSON_ID = 'lesson-1';
-
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { apiGet } from '../../services/api/client';
+import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'Flashcard'>;
 
 export default function FlashcardScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const cards = mockFlashcards.filter((c) => c.lessonId === CURRENT_LESSON_ID);
+  const route = useRoute<RouteProp<LearningStackParamList, 'Flashcard'>>();
+
+console.log('SELECTED LESSON ID:', route.params.lessonId);
+
+  const [cards, setCards] = useState<any[]>([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  const loadFlashcards = async () => {
+    try {
+      const data = await apiGet<any[]>(
+        `/learning/lessons/${route.params.lessonId}/flashcards`
+      );
+
+      console.log('FLASHCARDS:', data);
+
+      setCards(data);
+    } catch (error: any) {
+      console.log('FLASHCARD ERROR:', error);
+      console.log('FLASHCARD ERROR MESSAGE:', error?.message);
+      console.log('FLASHCARD ERROR STATUS:', error?.status);
+      console.log('FLASHCARD FIELD ERRORS:', error?.fieldErrors);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadFlashcards();
+}, [route.params.lessonId]);
+
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
 
   const card = cards[index];
+
+  const player = useAudioPlayer(card?.audioUrl ? { uri: card.audioUrl } : null);
+
+  useEffect(() => {
+    setAudioModeAsync({ playsInSilentMode: true }).catch((err) =>
+      console.log('AUDIO MODE ERROR:', err)
+    );
+  }, []);
+
+  useEffect(() => {
+    player.pause();
+    if (card?.audioUrl) {
+      console.log('LOADING AUDIO:', card.audioUrl);
+      player.replace({ uri: card.audioUrl });
+    }
+  }, [card?.audioUrl]);
+
+  // Stop playback if the learner navigates away from this screen entirely
+  // (e.g. backs out mid-clip or jumps to the quiz).
+  useEffect(() => {
+    return () => {
+      player.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    const subscription = player.addListener('playbackStatusUpdate', (status: any) => {
+      console.log('AUDIO STATUS:', JSON.stringify(status));
+    });
+    return () => subscription.remove();
+  }, [player]);
+
+  const playPronunciation = async () => {
+    if (!card?.audioUrl) return;
+    try {
+      await player.seekTo(0);
+      await player.play();
+      console.log('PLAY CALLED, isPlaying:', player.playing);
+    } catch (error: any) {
+      console.log('AUDIO PLAY ERROR:', error?.message ?? error);
+    }
+  };
 
   const goNext = () => {
     setFlipped(false);
@@ -28,6 +97,16 @@ export default function FlashcardScreen() {
     setFlipped(false);
     setIndex((prev) => Math.max(prev - 1, 0));
   };
+
+  if (loading) {
+  return (
+    <View style={styles.container}>
+      <Text style={{ color: Colors.text }}>
+        Loading flashcards...
+      </Text>
+    </View>
+  );
+}
 
   if (!card) {
     return (
@@ -48,9 +127,13 @@ export default function FlashcardScreen() {
         {!flipped ? (
           <>
             <Text style={styles.word}>{card.word}</Text>
-            <Pressable style={styles.playButton}>
-              <Text style={styles.playButtonText}>▶ Play Pronunciation</Text>
-            </Pressable>
+            {card.audioUrl ? (
+              <Pressable style={styles.playButton} onPress={playPronunciation}>
+                <Text style={styles.playButtonText}>▶ Play Pronunciation</Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.hint}>No audio for this word</Text>
+            )}
             <Text style={styles.hint}>Tap to flip</Text>
           </>
         ) : (
@@ -73,7 +156,11 @@ export default function FlashcardScreen() {
 
       <Pressable
         style={styles.quizButton}
-        onPress={() => navigation.navigate('Quiz', { lessonId: 'lesson-2' })}
+        onPress={() =>
+  navigation.navigate('Quiz', {
+    lessonId: route.params.lessonId,
+  })
+}
       >
         <Text style={styles.quizButtonText}>Take Quiz</Text>
       </Pressable>

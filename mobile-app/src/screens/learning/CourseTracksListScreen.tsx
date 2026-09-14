@@ -1,16 +1,37 @@
 // src/screens/learning/CourseTracksListScreen.tsx
 import React from 'react';
 import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
-import { mockTracks } from '../../constants/mockLearningData';
 import { Track } from '../../types/learning'
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
+import { useEffect, useState } from 'react';
+import { apiGet } from '../../services/api/client';
 
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'CourseTracksList'>;
 
 export default function CourseTracksListScreen() {
+
+    const [tracks, setTracks] = useState<Track[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadTracks = async () => {
+      try {
+        const data = await apiGet<Track[]>('/learning/tracks');
+        console.log('LEARNING TRACKS:', data);
+        setTracks(data);
+      } catch (error) {
+        console.error('Failed to load learning tracks:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTracks();
+  }, []);
+
   const navigation = useNavigation<NavigationProp>();
   const renderTrack = ({ item }: { item: Track }) => {
     const progressPercent = Math.round((item.completedLessons / item.totalLessons) * 100);
@@ -40,7 +61,7 @@ export default function CourseTracksListScreen() {
     <View style={styles.container}>
       <Text style={styles.header}>Learning Tracks</Text>
       <FlatList
-        data={mockTracks}
+        data={tracks}
         keyExtractor={(item) => item.id}
         renderItem={renderTrack}
         contentContainerStyle={styles.list}
