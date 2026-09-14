@@ -6,7 +6,9 @@ import {
   Text,
   FlatList,
   StyleSheet,
+  Pressable,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { apiGet } from '../../services/api/client';
@@ -28,6 +30,7 @@ interface StreakResponse {
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function ProgressTrackingScreen() {
+  const navigation = useNavigation();
   const [trackProgress, setTrackProgress] = useState<TrackProgress[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -107,9 +110,20 @@ export default function ProgressTrackingScreen() {
   return (
   <View style={styles.container}>
 
-    <Text style={styles.header}>
-      My Progress
-    </Text>
+    <View style={styles.headerRow}>
+      <Pressable onPress={() => navigation.goBack()}>
+        <Text style={styles.backArrow}>←</Text>
+      </Pressable>
+      <Text style={styles.header}>
+        My Progress
+      </Text>
+      <Pressable
+        style={styles.badgesButton}
+        onPress={() => navigation.navigate('BadgesStreaks' as never)}
+      >
+        <Text style={styles.badgesButtonText}>🏅 Badges</Text>
+      </Pressable>
+    </View>
 
     {/* Statistics */}
     <View style={styles.statsRow}>
@@ -275,11 +289,35 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
 
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+  },
+
+  backArrow: {
+    fontSize: Typography.sizeLG,
+    color: Colors.text,
+  },
+
   header: {
     fontFamily: Typography.fontDisplay,
-    fontSize: Typography.sizeXL,
+    fontSize: Typography.sizeXL - 4,
     color: Colors.text,
-    marginBottom: Spacing.md,
+  },
+
+  badgesButton: {
+    backgroundColor: Colors.accentSubtle,
+    borderRadius: Radii.full,
+    paddingHorizontal: Spacing.sm + 4,
+    paddingVertical: Spacing.xs + 2,
+  },
+
+  badgesButtonText: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeXS + 1,
+    color: Colors.accent,
   },
 
   statsRow: {

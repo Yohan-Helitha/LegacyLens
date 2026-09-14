@@ -1,63 +1,86 @@
 // src/screens/learning/FlashcardScreen.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import Svg, { Defs, LinearGradient, Stop, Circle, Polygon } from 'react-native-svg';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { apiGet } from '../../services/api/client';
 import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
+
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'Flashcard'>;
+
+/** Circular gradient play button with a triangle glyph drawn in SVG. */
+function PlayButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.playButton, pressed && styles.playButtonPressed]}>
+      <Svg width={22} height={22} viewBox="0 0 22 22">
+        <Defs>
+          <LinearGradient id="playGrad" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={Colors.accent} />
+            <Stop offset="1" stopColor={Colors.secondary} />
+          </LinearGradient>
+        </Defs>
+        <Circle cx="11" cy="11" r="11" fill="url(#playGrad)" />
+        <Polygon points="8.5,6.5 16,11 8.5,15.5" fill={Colors.white} />
+      </Svg>
+      <Text style={styles.playButtonText}>Play Pronunciation</Text>
+    </Pressable>
+  );
+}
 
 export default function FlashcardScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProp<LearningStackParamList, 'Flashcard'>>();
 
-console.log('SELECTED LESSON ID:', route.params.lessonId);
-
   const [cards, setCards] = useState<any[]>([]);
-const [loading, setLoading] = useState(true);
-
-useEffect(() => {
-  const loadFlashcards = async () => {
-    try {
-      const data = await apiGet<any[]>(
-        `/learning/lessons/${route.params.lessonId}/flashcards`
-      );
-
-      console.log('FLASHCARDS:', data);
-
-      setCards(data);
-    } catch (error: any) {
-      console.log('FLASHCARD ERROR:', error);
-      console.log('FLASHCARD ERROR MESSAGE:', error?.message);
-      console.log('FLASHCARD ERROR STATUS:', error?.status);
-      console.log('FLASHCARD FIELD ERRORS:', error?.fieldErrors);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  loadFlashcards();
-}, [route.params.lessonId]);
-
+  const [loading, setLoading] = useState(true);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+
+  useEffect(() => {
+    const loadFlashcards = async () => {
+      try {
+        const data = await apiGet<any[]>(
+          `/learning/lessons/${route.params.lessonId}/flashcards`
+        );
+        setCards(data);
+      } catch (error: any) {
+        console.log('FLASHCARD ERROR:', error?.message ?? error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFlashcards();
+  }, [route.params.lessonId]);
 
   const card = cards[index];
 
   const player = useAudioPlayer(card?.audioUrl ? { uri: card.audioUrl } : null);
 
+  // expo-audio can release the native player object before React runs our
+  // cleanup (e.g. on unmount / fast navigation). Calling pause() on it then
+  // throws "Unable to find the native shared object..." — harmless in that
+  // case, since there's nothing left to pause. Swallow it here.
+  const safePause = () => {
+    try {
+      player.pause();
+    } catch (error: any) {
+      console.log('AUDIO PAUSE (already released):', error?.message ?? error);
+    }
+  };
+
   useEffect(() => {
     setAudioModeAsync({ playsInSilentMode: true }).catch((err) =>
-      console.log('AUDIO MODE ERROR:', err)
+      console.log('AUDIO MODE ERROR:', err?.message ?? err)
     );
   }, []);
 
   useEffect(() => {
-    player.pause();
+    safePause();
     if (card?.audioUrl) {
-      console.log('LOADING AUDIO:', card.audioUrl);
       player.replace({ uri: card.audioUrl });
     }
   }, [card?.audioUrl]);
@@ -66,23 +89,15 @@ useEffect(() => {
   // (e.g. backs out mid-clip or jumps to the quiz).
   useEffect(() => {
     return () => {
-      player.pause();
+      safePause();
     };
   }, []);
-
-  useEffect(() => {
-    const subscription = player.addListener('playbackStatusUpdate', (status: any) => {
-      console.log('AUDIO STATUS:', JSON.stringify(status));
-    });
-    return () => subscription.remove();
-  }, [player]);
 
   const playPronunciation = async () => {
     if (!card?.audioUrl) return;
     try {
       await player.seekTo(0);
       await player.play();
-      console.log('PLAY CALLED, isPlaying:', player.playing);
     } catch (error: any) {
       console.log('AUDIO PLAY ERROR:', error?.message ?? error);
     }
@@ -99,14 +114,12 @@ useEffect(() => {
   };
 
   if (loading) {
-  return (
-    <View style={styles.container}>
-      <Text style={{ color: Colors.text }}>
-        Loading flashcards...
-      </Text>
-    </View>
-  );
-}
+    return (
+      <View style={styles.container}>
+        <Text style={{ color: Colors.text }}>Loading flashcards...</Text>
+      </View>
+    );
+  }
 
   if (!card) {
     return (
@@ -116,6 +129,9 @@ useEffect(() => {
     );
   }
 
+  const isFirst = index === 0;
+  const isLast = index === cards.length - 1;
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -123,18 +139,33 @@ useEffect(() => {
         <Text style={styles.counter}>{index + 1} / {cards.length}</Text>
       </View>
 
+      <View style={styles.progressRow}>
+        {cards.map((_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.progressDot,
+              i === index && styles.progressDotActive,
+              i < index && styles.progressDotDone,
+            ]}
+          />
+        ))}
+      </View>
+
       <Pressable style={styles.card} onPress={() => setFlipped(!flipped)}>
+        <View style={styles.flipHint}>
+          <Text style={styles.flipHintText}>⟳</Text>
+        </View>
+
         {!flipped ? (
           <>
             <Text style={styles.word}>{card.word}</Text>
             {card.audioUrl ? (
-              <Pressable style={styles.playButton} onPress={playPronunciation}>
-                <Text style={styles.playButtonText}>▶ Play Pronunciation</Text>
-              </Pressable>
+              <PlayButton onPress={playPronunciation} />
             ) : (
               <Text style={styles.hint}>No audio for this word</Text>
             )}
-            <Text style={styles.hint}>Tap to flip</Text>
+            <Text style={styles.tapHint}>Tap card to flip</Text>
           </>
         ) : (
           <>
@@ -146,21 +177,29 @@ useEffect(() => {
       </Pressable>
 
       <View style={styles.navRow}>
-        <Pressable style={styles.navButton} onPress={goPrev}>
-          <Text style={styles.navButtonText}>← Previous</Text>
+        <Pressable
+          style={[styles.navButton, isFirst && styles.navButtonDisabled]}
+          onPress={goPrev}
+          disabled={isFirst}
+        >
+          <Text style={[styles.navButtonText, isFirst && styles.navButtonTextDisabled]}>← Previous</Text>
         </Pressable>
-        <Pressable style={styles.navButton} onPress={goNext}>
-          <Text style={styles.navButtonText}>Next →</Text>
+        <Pressable
+          style={[styles.navButton, isLast && styles.navButtonDisabled]}
+          onPress={goNext}
+          disabled={isLast}
+        >
+          <Text style={[styles.navButtonText, isLast && styles.navButtonTextDisabled]}>Next →</Text>
         </Pressable>
       </View>
 
       <Pressable
-        style={styles.quizButton}
+        style={({ pressed }) => [styles.quizButton, pressed && styles.quizButtonPressed]}
         onPress={() =>
-  navigation.navigate('Quiz', {
-    lessonId: route.params.lessonId,
-  })
-}
+          navigation.navigate('Quiz', {
+            lessonId: route.params.lessonId,
+          })
+        }
       >
         <Text style={styles.quizButtonText}>Take Quiz</Text>
       </Pressable>
@@ -170,9 +209,15 @@ useEffect(() => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dominant, paddingTop: 50, paddingHorizontal: Spacing.md },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg - 4 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   header: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: Colors.text },
   counter: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS + 1, color: Colors.textMuted },
+
+  progressRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.lg - 4 },
+  progressDot: { flex: 1, height: 4, borderRadius: Radii.full, backgroundColor: Colors.surface },
+  progressDotDone: { backgroundColor: Colors.secondary },
+  progressDotActive: { backgroundColor: Colors.accent },
+
   card: {
     backgroundColor: Colors.white,
     borderRadius: Radii.xl,
@@ -180,13 +225,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.lg,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    shadowColor: Colors.secondaryDark,
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
     marginBottom: Spacing.lg - 4,
+    borderWidth: 1,
+    borderColor: Colors.surface,
   },
+  flipHint: {
+    position: 'absolute',
+    top: Spacing.sm + 2,
+    right: Spacing.sm + 2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.dominant,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flipHintText: { fontSize: 15, color: Colors.textMuted },
   word: {
     fontFamily: Typography.fontDisplay,
     fontSize: Typography.size2XL,
@@ -195,14 +254,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   playButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs + 2,
     backgroundColor: Colors.secondarySubtle,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
-    borderRadius: Radii.lg,
+    borderRadius: Radii.full,
     marginBottom: Spacing.lg - 4,
   },
+  playButtonPressed: { opacity: 0.8, transform: [{ scale: 0.98 }] },
   playButtonText: { color: Colors.secondary, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM },
-  hint: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.textMuted },
+  hint: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.textMuted, marginBottom: Spacing.lg - 4 },
+  tapHint: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.textMuted },
   meaning: {
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeXL - 2,
@@ -218,9 +282,24 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm + 4,
   },
   recordedBy: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.secondary, fontStyle: 'italic' },
+
   navRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.lg - 4 },
   navButton: { paddingVertical: Spacing.sm + 2, paddingHorizontal: Spacing.md },
+  navButtonDisabled: { opacity: 0.35 },
   navButtonText: { color: Colors.accent, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM },
-  quizButton: { backgroundColor: Colors.accent, borderRadius: Radii.lg + 2, paddingVertical: Spacing.sm + 6, alignItems: 'center' },
+  navButtonTextDisabled: { color: Colors.textMuted },
+
+  quizButton: {
+    backgroundColor: Colors.accent,
+    borderRadius: Radii.lg + 2,
+    paddingVertical: Spacing.sm + 6,
+    alignItems: 'center',
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  quizButtonPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
   quizButtonText: { color: Colors.white, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM + 1 },
 });

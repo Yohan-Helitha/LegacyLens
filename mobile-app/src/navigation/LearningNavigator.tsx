@@ -1,7 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import DevPreviewScreen from '../screens/learning/DevPreviewScreen';
 import CourseTracksListScreen from '../screens/learning/CourseTracksListScreen';
 import TrackDetailScreen from '../screens/learning/TrackDetailScreen';
 import FlashcardScreen from '../screens/learning/FlashcardScreen';
@@ -41,8 +40,6 @@ export type LearningStackParamList = {
   Certificate: {
     trackId: string;
   };
-
-  DevPreview: undefined;
 };
 
 const Stack = createNativeStackNavigator<LearningStackParamList>();
@@ -53,11 +50,6 @@ export default function LearningNavigator() {
       <Stack.Screen
         name="CourseTracksList"
         component={CourseTracksListScreen}
-      />
-
-      <Stack.Screen
-        name="DevPreview"
-        component={DevPreviewScreen}
       />
 
       <Stack.Screen
