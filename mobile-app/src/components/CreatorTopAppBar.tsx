@@ -23,7 +23,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
  * "back" target) and owns the side-menu drawer.
  */
 type CreatorTopAppBarProps =
-  | { variant: 'menu'; onOpenMyWork: () => void; onOpenSavedApplications: () => void }
+  | { variant: 'menu'; onOpenMyWork: () => void; onOpenSavedApplications: () => void; onOpenRejectedWork: () => void }
   | { variant: 'back'; onBack: () => void };
 
 export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
@@ -124,6 +124,22 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
                     <MaterialIcons name="assignment" size={18} color={D.primary} />
                   </View>
                   <Text style={s.menuItemText}>My Applications</Text>
+                  <MaterialIcons name="chevron-right" size={20} color={D.onSurfaceVariant} />
+                </Pressable>
+
+                <Pressable
+                  onPress={() => {
+                    setMenuOpen(false);
+                    props.onOpenRejectedWork();
+                  }}
+                  style={({ pressed }) => [s.menuItem, pressed && s.menuItemPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Rejected Submissions"
+                >
+                  <View style={[s.menuItemIconChip, s.menuItemIconChipDanger]}>
+                    <MaterialIcons name="report-problem" size={18} color={D.danger} />
+                  </View>
+                  <Text style={s.menuItemText}>Rejected Submissions</Text>
                   <MaterialIcons name="chevron-right" size={20} color={D.onSurfaceVariant} />
                 </Pressable>
               </View>

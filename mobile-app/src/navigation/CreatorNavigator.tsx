@@ -16,6 +16,7 @@ import { ContinueMyWorkPage } from '../screens/marketplace/creator/ContinueMyWor
 import { SavedCompletedWorkPage } from '../screens/marketplace/creator/SavedCompletedWorkPage';
 import { SubmittedWorkDetailPage } from '../screens/marketplace/creator/SubmittedWorkDetailPage';
 import { LogPaymentPage } from '../screens/marketplace/creator/LogPaymentPage';
+import { RejectedWorkPage } from '../screens/marketplace/creator/RejectedWorkPage';
 import type { NavTab } from '../components/BottomNavBar';
 
 export type CreatorScreen =
@@ -35,7 +36,8 @@ export type CreatorScreen =
   | 'continue-work'
   | 'saved-completed-work'
   | 'submitted-work'
-  | 'log-payment';
+  | 'log-payment'
+  | 'rejected-work';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -129,6 +131,18 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   /** Called when a job card is pressed on CreatorDashboard */
   const handleOpenMyWork = () => setScreen('my-work');
 
+  /** Called when "Rejected Submissions" is pressed in the side menu */
+  const handleOpenRejectedWork = () => setScreen('rejected-work');
+
+  /** Called when "View & Edit" is pressed on a card in RejectedWorkPage */
+  const handleEditRejectedWork = (jobId: string, title: string, elderName: string, location: string | null) => {
+    setSelectedJobId(jobId);
+    setSelectedJobTitle(title);
+    setSelectedJobElderName(elderName);
+    setSelectedJobLocation(location);
+    setScreen('continue-work');
+  };
+
   /** Called when "Continue Work" is pressed on a card in MyWorkList */
   const handleContinueWork = (jobId: string, title: string, elderName: string, location: string | null) => {
     setSelectedJobId(jobId);
@@ -186,6 +200,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onOpenMyWork={handleOpenMyWork}
           onAddPayment={handleOpenLogPayment}
           onOpenSavedApplications={handleOpenSavedApplications}
+          onOpenRejectedWork={handleOpenRejectedWork}
         />
       )}
       {screen === 'market' && (
@@ -194,6 +209,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onViewDetail={handleViewDetail}
           onOpenMyWork={handleOpenMyWork}
           onOpenSavedApplications={handleOpenSavedApplications}
+          onOpenRejectedWork={handleOpenRejectedWork}
         />
       )}
       {screen === 'detail' && (
@@ -226,6 +242,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onSubmit={handleApplicationSubmit}
           onOpenMyWork={handleOpenMyWork}
           onOpenSavedApplications={handleOpenSavedApplications}
+          onOpenRejectedWork={handleOpenRejectedWork}
         />
       )}
       {screen === 'pending' && (
@@ -234,6 +251,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onReapply={() => setScreen('apply')}
           onOpenMyWork={handleOpenMyWork}
           onOpenSavedApplications={handleOpenSavedApplications}
+          onOpenRejectedWork={handleOpenRejectedWork}
         />
       )}
       {screen === 'inbox' && (
@@ -242,6 +260,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onOpenConversation={handleOpenConversation}
           onOpenMyWork={handleOpenMyWork}
           onOpenSavedApplications={handleOpenSavedApplications}
+          onOpenRejectedWork={handleOpenRejectedWork}
         />
       )}
       {screen === 'conversation' && (
@@ -250,6 +269,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onBack={handleBackToInbox}
           onOpenMyWork={handleOpenMyWork}
           onOpenSavedApplications={handleOpenSavedApplications}
+          onOpenRejectedWork={handleOpenRejectedWork}
           conversationId={selectedConversationId}
         />
       )}
@@ -264,6 +284,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onNavigate={handleNavigate}
           onOpenMyWork={handleOpenMyWork}
           onOpenSavedApplications={handleOpenSavedApplications}
+          onOpenRejectedWork={handleOpenRejectedWork}
         />
       )}
       {screen === 'schedule' && (
@@ -297,6 +318,13 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onNavigate={handleNavigate}
           onBack={handleBackToMyWork}
           onEditDraft={handleEditWorkDraft}
+        />
+      )}
+      {screen === 'rejected-work' && (
+        <RejectedWorkPage
+          onNavigate={handleNavigate}
+          onBack={handleBackToDashboard}
+          onEditWork={handleEditRejectedWork}
         />
       )}
       {screen === 'submitted-work' && (

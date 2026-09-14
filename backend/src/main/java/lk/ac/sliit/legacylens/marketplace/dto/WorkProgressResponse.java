@@ -36,6 +36,11 @@ public class WorkProgressResponse {
     private String story;
     private boolean draft;
     private LocalDateTime submittedAt;
+
+    /** True when an admin sent this submission back for fixes — see JobWorkProgress.rejected. */
+    private boolean rejected;
+    private String rejectionReason;
+    private LocalDateTime rejectedAt;
     private List<WorkMaterialResponse> materials;
     private List<ChecklistItemResponse> checklistItems;
 }

@@ -217,7 +217,8 @@ export const BecomeCreatorApplication: React.FC<{
   onSubmit?: () => void;
   onOpenMyWork: () => void;
   onOpenSavedApplications: () => void;
-}> = ({ onNavigate, onSubmit, onOpenMyWork, onOpenSavedApplications }) => {
+  onOpenRejectedWork: () => void;
+}> = ({ onNavigate, onSubmit, onOpenMyWork, onOpenSavedApplications, onOpenRejectedWork }) => {
   // Full Name / Phone Number / City / NIC Number are never typed in here —
   // they're auto-filled from the applicant's own account (read-only below).
   const cachedUser = useAuthStore((s: { user: AuthUser | null }) => s.user);
@@ -347,7 +348,7 @@ export const BecomeCreatorApplication: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} onOpenRejectedWork={onOpenRejectedWork} />
 
       <ScrollView
         style={s.scroll}

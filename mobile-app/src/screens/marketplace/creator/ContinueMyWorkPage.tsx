@@ -34,6 +34,9 @@ const D = {
 
   onSurface:        '#202428',
   onSurfaceVariant: '#4a5568',
+
+  danger:          '#C0392B',
+  dangerContainer: 'rgba(192, 57, 43, 0.10)',
 } as const;
 
 const STEP_LABELS = ['Prep', 'Record', 'Edit', 'Submit'];
@@ -329,6 +332,15 @@ export const ContinueMyWorkPage: React.FC<{
           </View>
         )}
 
+        {progress.rejected && (
+          <View style={s.rejectionBanner}>
+            <Text style={s.rejectionBannerTitle}>Changes requested</Text>
+            <Text style={s.rejectionBannerText}>
+              {progress.rejectionReason ?? 'An admin sent this back — please review and resubmit.'}
+            </Text>
+          </View>
+        )}
+
         <View style={s.heroWrapper}>
           <Image
             source={resolveOpportunityImage(progress.heroImageUrl) ?? GENERIC_HERO_IMAGE}
@@ -506,6 +518,15 @@ const s = StyleSheet.create({
   jobHeader: { gap: 2 },
   jobHeaderInstruction: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, marginBottom: 2 },
   jobHeaderTitle: { fontFamily: Typography.fontDisplay, fontSize: 20, lineHeight: 26, color: D.onSurface, letterSpacing: -0.2 },
+
+  // ── Rejection banner ────────────────────────────────────────────────────
+  rejectionBanner: {
+    backgroundColor: D.dangerContainer, borderRadius: Radii.lg,
+    borderWidth: 1, borderColor: D.danger,
+    padding: Spacing.sm, marginTop: Spacing.sm, gap: 2,
+  },
+  rejectionBannerTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.danger },
+  rejectionBannerText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurface },
   jobHeaderElder: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.primary },
 
   // ── Hero ─────────────────────────────────────────────────────────────────

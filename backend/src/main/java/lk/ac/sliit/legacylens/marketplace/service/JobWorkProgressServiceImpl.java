@@ -153,6 +153,13 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
             progress.setSubmittedAt(LocalDateTime.now());
         }
 
+        // Resubmitting addresses whatever the admin flagged — clear the
+        // rejection so this leaves RejectedWorkPage and goes back to
+        // awaiting review, same as any other fresh submission.
+        progress.setRejected(false);
+        progress.setRejectionReason(null);
+        progress.setRejectedAt(null);
+
         return mapToResponse(workProgressRepository.save(progress));
     }
 
@@ -310,6 +317,9 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .story(progress.getStory())
                 .draft(progress.isDraft())
                 .submittedAt(progress.getSubmittedAt())
+                .rejected(progress.isRejected())
+                .rejectionReason(progress.getRejectionReason())
+                .rejectedAt(progress.getRejectedAt())
                 .materials(materials)
                 .checklistItems(checklistItems)
                 .build();

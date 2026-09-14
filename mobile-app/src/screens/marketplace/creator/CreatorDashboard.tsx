@@ -505,7 +505,8 @@ export const CreatorDashboard: React.FC<{
   onOpenMyWork: () => void;
   onAddPayment: () => void;
   onOpenSavedApplications: () => void;
-}> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork, onAddPayment, onOpenSavedApplications }) => {
+  onOpenRejectedWork: () => void;
+}> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork, onAddPayment, onOpenSavedApplications, onOpenRejectedWork }) => {
   const [activeTab, setActiveTab] = useState<JobTab>('active');
   const [summary, setSummary] = useState<CreatorDashboardSummaryResponse | null>(null);
   const [reviews, setReviews] = useState<ReviewItem[] | null>(null);
@@ -617,7 +618,7 @@ export const CreatorDashboard: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} onOpenRejectedWork={onOpenRejectedWork} />
 
       <ScrollView
         style={s.scroll}

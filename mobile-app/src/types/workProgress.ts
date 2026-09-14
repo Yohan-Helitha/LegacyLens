@@ -87,6 +87,10 @@ export interface WorkProgressResponse {
   story: string | null;
   draft: boolean;
   submittedAt: string | null;
+  /** True when an admin sent this submission back with a reason instead of accepting it — see RejectedWorkPage. */
+  rejected: boolean;
+  rejectionReason: string | null;
+  rejectedAt: string | null;
   materials: WorkMaterialResponse[];
   checklistItems: ChecklistItemResponse[];
 }

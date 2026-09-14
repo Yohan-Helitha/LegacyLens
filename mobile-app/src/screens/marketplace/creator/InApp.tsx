@@ -172,7 +172,8 @@ export const InApp: React.FC<{
   onOpenConversation: (conversationId: string) => void;
   onOpenMyWork: () => void;
   onOpenSavedApplications: () => void;
-}> = ({ onNavigate, onOpenConversation, onOpenMyWork, onOpenSavedApplications }) => {
+  onOpenRejectedWork: () => void;
+}> = ({ onNavigate, onOpenConversation, onOpenMyWork, onOpenSavedApplications, onOpenRejectedWork }) => {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -188,7 +189,7 @@ export const InApp: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} onOpenRejectedWork={onOpenRejectedWork} />
 
       <ScrollView
         style={s.scroll}

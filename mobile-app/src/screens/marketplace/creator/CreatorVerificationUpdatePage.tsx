@@ -83,7 +83,8 @@ export const CreatorVerificationUpdatePage: React.FC<{
   onReapply?: () => void;
   onOpenMyWork: () => void;
   onOpenSavedApplications: () => void;
-}> = ({ onBackToHome, onReapply, onOpenMyWork, onOpenSavedApplications }) => {
+  onOpenRejectedWork: () => void;
+}> = ({ onBackToHome, onReapply, onOpenMyWork, onOpenSavedApplications, onOpenRejectedWork }) => {
   const [state, setState] = useState<ViewState>('LOADING');
 
   const fetchStatus = useCallback(() => {
@@ -102,7 +103,7 @@ export const CreatorVerificationUpdatePage: React.FC<{
     return (
       <SafeAreaView style={s.safeArea} edges={['top', 'bottom'] as const}>
         <StatusBar style="dark" />
-        <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
+        <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} onOpenRejectedWork={onOpenRejectedWork} />
         <View style={s.loadingContent}>
           <ActivityIndicator size="large" color={D.primary} />
         </View>
@@ -114,7 +115,7 @@ export const CreatorVerificationUpdatePage: React.FC<{
     return (
       <SafeAreaView style={s.safeArea} edges={['top', 'bottom'] as const}>
         <StatusBar style="dark" />
-        <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
+        <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} onOpenRejectedWork={onOpenRejectedWork} />
         <View style={s.content}>
           <View style={s.centerGroup}>
             <View style={s.heroBlock}>
@@ -143,7 +144,7 @@ export const CreatorVerificationUpdatePage: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top', 'bottom'] as const}>
       <StatusBar style="dark" />
 
-      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} onOpenRejectedWork={onOpenRejectedWork} />
 
       <View style={s.content}>
         <View style={s.centerGroup}>

@@ -60,6 +60,23 @@ public class JobWorkProgress {
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
+    /**
+     * Set when an admin sends this submission back with a reason instead of
+     * accepting it — surfaced on RejectedWorkPage and as a banner on
+     * ContinueMyWorkPage. Cleared automatically once the creator fixes the
+     * issue and resubmits (see JobWorkProgressServiceImpl#submitDraft).
+     * There's no admin review UI yet, so this is set directly the same way
+     * every other not-yet-built admin action in this codebase is seeded.
+     */
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean rejected = false;
+
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
+    @Column(name = "rejected_at")
+    private LocalDateTime rejectedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

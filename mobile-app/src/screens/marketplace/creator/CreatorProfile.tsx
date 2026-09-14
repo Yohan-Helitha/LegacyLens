@@ -161,7 +161,8 @@ export const CreatorProfile: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onOpenMyWork: () => void;
   onOpenSavedApplications: () => void;
-}> = ({ onNavigate, onOpenMyWork, onOpenSavedApplications }) => {
+  onOpenRejectedWork: () => void;
+}> = ({ onNavigate, onOpenMyWork, onOpenSavedApplications, onOpenRejectedWork }) => {
   const [name, setName] = useState(FALLBACK_NAME);
   const [avatarUri, setAvatarUri] = useState(FALLBACK_AVATAR);
   const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
@@ -199,7 +200,7 @@ export const CreatorProfile: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} onOpenRejectedWork={onOpenRejectedWork} />
 
       <ScrollView
         style={s.scroll}

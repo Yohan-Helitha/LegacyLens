@@ -150,8 +150,9 @@ export const InboxMessage: React.FC<{
   onBack: () => void;
   onOpenMyWork: () => void;
   onOpenSavedApplications: () => void;
+  onOpenRejectedWork: () => void;
   conversationId: string | null;
-}> = ({ onNavigate, onBack, onOpenMyWork, onOpenSavedApplications, conversationId }) => {
+}> = ({ onNavigate, onBack, onOpenMyWork, onOpenSavedApplications, onOpenRejectedWork, conversationId }) => {
   const contact = CONVERSATIONS.find((c) => c.id === conversationId) ?? CONVERSATIONS[0];
   const detail = (conversationId && CONVERSATION_DETAILS[conversationId]) || DEFAULT_DETAIL;
 
@@ -169,7 +170,7 @@ export const InboxMessage: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} onOpenRejectedWork={onOpenRejectedWork} />
 
       {/* Conversation header */}
       <View style={s.convHeader}>
