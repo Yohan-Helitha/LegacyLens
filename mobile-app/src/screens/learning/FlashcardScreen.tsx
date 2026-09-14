@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { apiGet } from '../../services/api/client';
+import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'Flashcard'>;
 
 export default function FlashcardScreen() {
@@ -44,6 +45,48 @@ useEffect(() => {
   const [flipped, setFlipped] = useState(false);
 
   const card = cards[index];
+
+  const player = useAudioPlayer(card?.audioUrl ? { uri: card.audioUrl } : null);
+
+  useEffect(() => {
+    setAudioModeAsync({ playsInSilentMode: true }).catch((err) =>
+      console.log('AUDIO MODE ERROR:', err)
+    );
+  }, []);
+
+  useEffect(() => {
+    player.pause();
+    if (card?.audioUrl) {
+      console.log('LOADING AUDIO:', card.audioUrl);
+      player.replace({ uri: card.audioUrl });
+    }
+  }, [card?.audioUrl]);
+
+  // Stop playback if the learner navigates away from this screen entirely
+  // (e.g. backs out mid-clip or jumps to the quiz).
+  useEffect(() => {
+    return () => {
+      player.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    const subscription = player.addListener('playbackStatusUpdate', (status: any) => {
+      console.log('AUDIO STATUS:', JSON.stringify(status));
+    });
+    return () => subscription.remove();
+  }, [player]);
+
+  const playPronunciation = async () => {
+    if (!card?.audioUrl) return;
+    try {
+      await player.seekTo(0);
+      await player.play();
+      console.log('PLAY CALLED, isPlaying:', player.playing);
+    } catch (error: any) {
+      console.log('AUDIO PLAY ERROR:', error?.message ?? error);
+    }
+  };
 
   const goNext = () => {
     setFlipped(false);
@@ -84,9 +127,13 @@ useEffect(() => {
         {!flipped ? (
           <>
             <Text style={styles.word}>{card.word}</Text>
-            <Pressable style={styles.playButton}>
-              <Text style={styles.playButtonText}>▶ Play Pronunciation</Text>
-            </Pressable>
+            {card.audioUrl ? (
+              <Pressable style={styles.playButton} onPress={playPronunciation}>
+                <Text style={styles.playButtonText}>▶ Play Pronunciation</Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.hint}>No audio for this word</Text>
+            )}
             <Text style={styles.hint}>Tap to flip</Text>
           </>
         ) : (

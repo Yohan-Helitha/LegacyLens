@@ -1,16 +1,45 @@
 // src/screens/learning/BadgesStreaksScreen.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
-import { mockBadges, mockProgress } from '../../constants/mockLearningData';
 import { Badge } from '../../types/learning';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { useNavigation } from '@react-navigation/native';
+import { apiGet } from '../../services/api/client';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+type StreakData = {
+  currentStreakDays: number;
+  last7Days: boolean[];
+};
+
 export default function BadgesStreaksScreen() {
   const navigation = useNavigation();
-  const { currentStreakDays, last7Days } = mockProgress;
+
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [streak, setStreak] = useState<StreakData>({ currentStreakDays: 0, last7Days: [false, false, false, false, false, false, false] });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [badgeData, streakData] = await Promise.all([
+          apiGet<Badge[]>('/learning/badges/me'),
+          apiGet<StreakData>('/learning/progress/me/streak'),
+        ]);
+        setBadges(badgeData);
+        setStreak(streakData);
+      } catch (error: any) {
+        console.log('BADGES/STREAK ERROR:', error?.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const { currentStreakDays, last7Days } = streak;
 
   const renderBadge = ({ item }: { item: Badge }) => (
     <View style={[styles.badgeCard, !item.earned && styles.badgeCardLocked]}>
@@ -49,14 +78,18 @@ export default function BadgesStreaksScreen() {
       </View>
 
       <Text style={styles.sectionTitle}>My Badges</Text>
-      <FlatList
-        data={mockBadges}
-        keyExtractor={(item) => item.id}
-        renderItem={renderBadge}
-        numColumns={3}
-        columnWrapperStyle={styles.badgeRow}
-        contentContainerStyle={styles.badgeGrid}
-      />
+      {loading ? (
+        <Text style={styles.motivationText}>Loading badges...</Text>
+      ) : (
+        <FlatList
+          data={badges}
+          keyExtractor={(item) => item.id}
+          renderItem={renderBadge}
+          numColumns={3}
+          columnWrapperStyle={styles.badgeRow}
+          contentContainerStyle={styles.badgeGrid}
+        />
+      )}
     </View>
   );
 }

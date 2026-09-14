@@ -1,23 +1,72 @@
 // src/screens/learning/CertificateScreen.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
-import { useNavigation } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
+import { apiGet } from '../../services/api/client';
 
-// Hardcoded for now — later comes from navigation params / API
-const MOCK_CERTIFICATE = {
-  learnerName: 'Savindu Herath',
-  trackTitle: 'Southern Fishing Dialect',
-  completionDate: '17 August 2026',
+type CertificateData = {
+  trackId: number;
+  trackTitle: string;
+  learnerName: string;
+  completionDate: string;
 };
 
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'Certificate'>;
 
 export default function CertificateScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { learnerName, trackTitle, completionDate } = MOCK_CERTIFICATE;
+  const route = useRoute<RouteProp<LearningStackParamList, 'Certificate'>>();
+
+  const [certificate, setCertificate] = useState<CertificateData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadCertificate = async () => {
+      try {
+        const data = await apiGet<CertificateData>(
+          `/learning/certificates/me/tracks/${route.params.trackId}`
+        );
+        setCertificate(data);
+      } catch (error: any) {
+        setErrorMessage(error?.message ?? 'Could not load your certificate.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCertificate();
+  }, [route.params.trackId]);
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ color: Colors.text }}>Loading certificate...</Text>
+      </View>
+    );
+  }
+
+  if (errorMessage || !certificate) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.header}>Certificate of Completion</Text>
+        <Text style={{ color: Colors.textMuted, textAlign: 'center' }}>
+          {errorMessage ?? 'Complete this track to earn your certificate.'}
+        </Text>
+        <Pressable
+          style={styles.backLink}
+          onPress={() => navigation.navigate('TrackDetail', { trackId: route.params.trackId })}
+        >
+          <Text style={styles.backLinkText}>Back to Track</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const { learnerName, trackTitle, completionDate } = certificate;
 
   return (
     <View style={styles.container}>
@@ -51,7 +100,7 @@ export default function CertificateScreen() {
 
       <Pressable
         style={styles.backLink}
-        onPress={() => navigation.navigate('TrackDetail', { trackId: 'track-1' })}
+        onPress={() => navigation.navigate('TrackDetail', { trackId: route.params.trackId })}
       >
         <Text style={styles.backLinkText}>Back to Track</Text>
       </Pressable>

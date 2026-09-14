@@ -44,4 +44,16 @@ public interface LessonProgressRepository
             @Param("userId") Long userId,
             @Param("trackId") Long trackId
     );
+
+    @Query("""
+        SELECT MAX(lp.completedAt)
+        FROM LessonProgress lp
+        WHERE lp.userId = :userId
+          AND lp.lesson.track.id = :trackId
+          AND lp.completed = true
+    """)
+    java.time.LocalDateTime findLatestCompletionForTrack(
+            @Param("userId") Long userId,
+            @Param("trackId") Long trackId
+    );
 }
