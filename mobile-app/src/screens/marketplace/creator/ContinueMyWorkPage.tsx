@@ -127,11 +127,13 @@ export const ContinueMyWorkPage: React.FC<{
   jobId: string | null;
   jobTitle?: string | null;
   elderName?: string | null;
-}> = ({ onNavigate, onBack, onSaveDraft, jobId, jobTitle, elderName }) => {
+  location?: string | null;
+}> = ({ onNavigate, onBack, onSaveDraft, jobId, jobTitle, elderName, location }) => {
   const id = jobId ?? 'unknown';
 
   const [progress, setProgress] = useState<WorkProgressResponse | null>(null);
-  const [noteText, setNoteText] = useState('');
+  const [introductionText, setIntroductionText] = useState('');
+  const [storyText, setStoryText] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -144,7 +146,8 @@ export const ContinueMyWorkPage: React.FC<{
       .then((data) => {
         if (cancelled) return;
         setProgress(data);
-        setNoteText(data.note ?? '');
+        setIntroductionText(data.introduction ?? '');
+        setStoryText(data.story ?? '');
       })
       .catch((err) => {
         if (!cancelled) setLoadError(err instanceof ApiError ? err.message : 'Could not load this job.');
@@ -263,7 +266,7 @@ export const ContinueMyWorkPage: React.FC<{
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
-      await workProgressApi.updateNote(id, noteText);
+      await workProgressApi.updateNote(id, introductionText, storyText);
       const finalState = await workProgressApi.markDraft(id);
       setProgress(finalState);
       Alert.alert('Saved', 'Your progress has been saved as a draft.', [{ text: 'OK', onPress: onSaveDraft }]);
@@ -312,10 +315,17 @@ export const ContinueMyWorkPage: React.FC<{
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {(jobTitle || elderName) && (
+        {(jobTitle || elderName || location) && (
           <View style={s.jobHeader}>
+            <Text style={s.jobHeaderInstruction}>Complete the tasks below and prepare your content for review.</Text>
             {jobTitle ? <Text style={s.jobHeaderTitle} numberOfLines={2}>{jobTitle}</Text> : null}
-            {elderName ? <Text style={s.jobHeaderElder}>{elderName}</Text> : null}
+            {(elderName || location) && (
+              <Text style={s.jobHeaderElder}>
+                {elderName}
+                {elderName && location ? '  ·  ' : ''}
+                {location}
+              </Text>
+            )}
           </View>
         )}
 
@@ -396,15 +406,32 @@ export const ContinueMyWorkPage: React.FC<{
 
           <View style={{ gap: Spacing.sm }}>
             <Text style={s.sectionTitle}>Note & Written Content</Text>
-            <TextInput
-              style={s.noteInput}
-              value={noteText}
-              onChangeText={setNoteText}
-              placeholder="Write notes about the recording, ingredients, or steps here."
-              placeholderTextColor={D.onSurfaceVariant}
-              multiline
-              textAlignVertical="top"
-            />
+
+            <View style={{ gap: 4 }}>
+              <Text style={s.noteSubLabel}>Introduction</Text>
+              <TextInput
+                style={s.noteInput}
+                value={introductionText}
+                onChangeText={setIntroductionText}
+                placeholder="Set the scene — who, where, and what this piece is about."
+                placeholderTextColor={D.onSurfaceVariant}
+                multiline
+                textAlignVertical="top"
+              />
+            </View>
+
+            <View style={{ gap: 4 }}>
+              <Text style={s.noteSubLabel}>Story / Main Content</Text>
+              <TextInput
+                style={s.noteInput}
+                value={storyText}
+                onChangeText={setStoryText}
+                placeholder="Write the full story, ingredients, steps, or transcript here."
+                placeholderTextColor={D.onSurfaceVariant}
+                multiline
+                textAlignVertical="top"
+              />
+            </View>
           </View>
         </View>
 
@@ -477,6 +504,7 @@ const s = StyleSheet.create({
 
   // ── Job header ───────────────────────────────────────────────────────────
   jobHeader: { gap: 2 },
+  jobHeaderInstruction: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, marginBottom: 2 },
   jobHeaderTitle: { fontFamily: Typography.fontDisplay, fontSize: 20, lineHeight: 26, color: D.onSurface, letterSpacing: -0.2 },
   jobHeaderElder: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.primary },
 
@@ -545,6 +573,7 @@ const s = StyleSheet.create({
 
   // ── Materials ────────────────────────────────────────────────────────────
   sectionTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurface, letterSpacing: 0.3 },
+  noteSubLabel: { fontFamily: Typography.fontBodyMed, fontSize: 11, color: D.onSurfaceVariant, letterSpacing: 0.2 },
   emptyMaterialsText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
   materialRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

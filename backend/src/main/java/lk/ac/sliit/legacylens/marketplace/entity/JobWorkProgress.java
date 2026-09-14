@@ -44,8 +44,13 @@ public class JobWorkProgress {
     @Column(name = "completed_steps", nullable = false, columnDefinition = "integer default 0")
     private int completedSteps = 0;
 
+    /** The opening/context write-up — first of the two "Note & Written Content" sub-sections. */
     @Column(columnDefinition = "TEXT")
-    private String note;
+    private String introduction;
+
+    /** The full story/main content write-up — second of the two "Note & Written Content" sub-sections. */
+    @Column(columnDefinition = "TEXT")
+    private String story;
 
     /** Explicitly saved via "Save As a Draft" — cleared once the work is actually submitted for review. */
     @Column(nullable = false, columnDefinition = "boolean default false")

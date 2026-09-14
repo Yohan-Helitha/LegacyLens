@@ -13,7 +13,7 @@ public interface JobWorkProgressService {
     /** Checks/unchecks one of the job's checklist items — the only thing that ever changes progressPercentage. */
     WorkProgressResponse updateChecklistItem(UUID creatorId, UUID jobId, UUID checklistItemId, boolean completed, String note);
 
-    WorkProgressResponse updateNote(UUID creatorId, UUID jobId, String note);
+    WorkProgressResponse updateNote(UUID creatorId, UUID jobId, String introduction, String story);
 
     WorkProgressResponse addMaterial(UUID creatorId, UUID jobId, MultipartFile file);
 

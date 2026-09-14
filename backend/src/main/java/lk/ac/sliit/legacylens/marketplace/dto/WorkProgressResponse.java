@@ -32,7 +32,8 @@ public class WorkProgressResponse {
     /** PREP / RECORD / EDIT / SUBMIT / COMPLETED — derived from progressPercentage, purely a display summary. */
     private String currentStage;
 
-    private String note;
+    private String introduction;
+    private String story;
     private boolean draft;
     private LocalDateTime submittedAt;
     private List<WorkMaterialResponse> materials;

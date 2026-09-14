@@ -69,7 +69,8 @@ public class JobWorkProgressController {
             @Valid @RequestBody UpdateWorkNoteRequest request) {
 
         return ResponseEntity.ok(ApiResponse.ok(
-                jobWorkProgressService.updateNote(principal.getUser().getId(), jobId, request.getNote())));
+                jobWorkProgressService.updateNote(
+                        principal.getUser().getId(), jobId, request.getIntroduction(), request.getStory())));
     }
 
     @PostMapping(value = "/materials", consumes = "multipart/form-data")

@@ -82,7 +82,9 @@ export interface WorkProgressResponse {
   heroImageUrl: string | null;
   progressPercentage: number;
   currentStage: WorkStage;
-  note: string | null;
+  /** The two "Note & Written Content" sub-sections — kept as separate fields, not one combined note. */
+  introduction: string | null;
+  story: string | null;
   draft: boolean;
   submittedAt: string | null;
   materials: WorkMaterialResponse[];

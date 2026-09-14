@@ -20,8 +20,11 @@ export const workProgressApi = {
       { completed },
     ),
 
-  updateNote: (jobId: string, note: string) =>
-    apiPut<WorkProgressResponse, { note: string }>(`/jobs/${jobId}/work-progress/note`, { note }),
+  updateNote: (jobId: string, introduction: string, story: string) =>
+    apiPut<WorkProgressResponse, { introduction: string; story: string }>(
+      `/jobs/${jobId}/work-progress/note`,
+      { introduction, story },
+    ),
 
   markDraft: (jobId: string) =>
     apiPost<WorkProgressResponse, undefined>(`/jobs/${jobId}/work-progress/draft`, undefined),

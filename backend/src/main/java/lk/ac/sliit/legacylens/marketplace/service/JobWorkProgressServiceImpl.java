@@ -90,10 +90,11 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
 
     @Override
     @Transactional
-    public WorkProgressResponse updateNote(UUID creatorId, UUID jobId, String note) {
+    public WorkProgressResponse updateNote(UUID creatorId, UUID jobId, String introduction, String story) {
         Job job = getOwnedJob(creatorId, jobId);
         JobWorkProgress progress = getOrCreateProgress(job);
-        progress.setNote(note);
+        progress.setIntroduction(introduction);
+        progress.setStory(story);
         return mapToResponse(workProgressRepository.save(progress));
     }
 
@@ -305,7 +306,8 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .heroImageUrl(resolveHeroImageUrl(job))
                 .progressPercentage(percentage)
                 .currentStage(currentStageFor(checklist))
-                .note(progress.getNote())
+                .introduction(progress.getIntroduction())
+                .story(progress.getStory())
                 .draft(progress.isDraft())
                 .submittedAt(progress.getSubmittedAt())
                 .materials(materials)
