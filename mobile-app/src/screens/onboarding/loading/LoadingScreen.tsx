@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import {
   Animated,
   Easing,
@@ -187,31 +187,37 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onFinish }) => {
   const [reduceMotion, setReduceMotion] = React.useState(false);
 
   // Animation values
-  const ringAnim    = useRef(new Animated.Value(0)).current;
-  const coreAnim    = useRef(new Animated.Value(0)).current;
-  const logoEnter   = useRef(new Animated.Value(0)).current;
-  const textEnter   = useRef(new Animated.Value(0)).current;
+  const ringAnim     = useRef(new Animated.Value(0)).current;
+  const coreAnim     = useRef(new Animated.Value(0)).current;
+  const logoEnter    = useRef(new Animated.Value(0)).current;
+  const textEnter    = useRef(new Animated.Value(0)).current;
   const taglineEnter = useRef(new Animated.Value(0)).current;
-  const dotsEnter   = useRef(new Animated.Value(0)).current;
+  const dotsEnter    = useRef(new Animated.Value(0)).current;
+  // Controls the full-screen fade-out before leaving
+  const screenOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
   }, []);
 
-  // ── Auto-navigate timer (3 seconds) ────────────────────────────────────────
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onFinish?.();
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, [onFinish]);
+  /** Fade-out then call onFinish */
+  const handleFinish = useCallback(() => {
+    if (!onFinish) return;
+    Animated.timing(screenOpacity, {
+      toValue: 0,
+      duration: 400,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => onFinish());
+  }, [onFinish, screenOpacity]);
 
   useEffect(() => {
     if (reduceMotion) {
       // Skip animations — just show everything fully
       [logoEnter, textEnter, taglineEnter, dotsEnter].forEach(v => v.setValue(1));
-      return;
+      // Still honour the 3-second timer
+      const t = setTimeout(handleFinish, 3_000);
+      return () => clearTimeout(t);
     }
 
     // ── Entrance sequence ─────────────────────────────────────────────────
@@ -242,36 +248,38 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onFinish }) => {
     ]).start();
 
     // ── Continuous logo animations ────────────────────────────────────────
-    if (!reduceMotion) {
-      // Outer ring — one full rotation per 20 s
-      Animated.loop(
-        Animated.timing(ringAnim, {
-          toValue: 1,
-          duration: 20_000,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
-      ).start();
+    // Outer ring — one full rotation per 20 s
+    Animated.loop(
+      Animated.timing(ringAnim, {
+        toValue: 1,
+        duration: 20_000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
 
-      // Core dot pulse
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(coreAnim, {
-            toValue: 1,
-            duration: 1_200,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(coreAnim, {
-            toValue: 0,
-            duration: 1_200,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    }
-  }, [reduceMotion]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Core dot pulse
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(coreAnim, {
+          toValue: 1,
+          duration: 1_200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(coreAnim, {
+          toValue: 0,
+          duration: 1_200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // ── 3-second auto-advance ─────────────────────────────────────────────
+    const timer = setTimeout(handleFinish, 3_000);
+    return () => clearTimeout(timer);
+  }, [reduceMotion, handleFinish]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Helper: entrance animation style
   const enterStyle = (anim: Animated.Value, offsetY = 20) => ({
@@ -287,8 +295,9 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onFinish }) => {
   });
 
   return (
+    <Animated.View style={[styles.screenWrap, { opacity: screenOpacity }]}>
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <StatusBar style="dark" backgroundColor={Colors.dominant} />
+      <StatusBar style="dark" />
 
       {/* Ambient background glows — rendered as coloured blobs */}
       <View style={[styles.glow, styles.glowTopLeft]}  pointerEvents="none" />
@@ -320,6 +329,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onFinish }) => {
         </Animated.View>
       </View>
     </SafeAreaView>
+    </Animated.View>
   );
 };
 
@@ -330,6 +340,9 @@ const LOGO_SIZE = 120;
 const DOT_SIZE  = 10;
 
 const styles = StyleSheet.create({
+  screenWrap: {
+    flex: 1,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: Colors.dominant,

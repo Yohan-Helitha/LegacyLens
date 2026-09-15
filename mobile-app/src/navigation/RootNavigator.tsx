@@ -13,11 +13,13 @@ import { ForgotPinScreen } from '../screens/auth/forgot_pin';
 import { OnBoarding1 } from '../screens/onboarding/weolcome/OnBoarding1';
 import { OnBoarding2 } from '../screens/onboarding/weolcome/OnBoarding2';
 import { OnBoarding3 } from '../screens/onboarding/weolcome/OnBoarding3';
-import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { PrivacyDataScreen } from '../screens/profile/PrivacyDataScreen';
 import { ChangePhoneScreen } from '../screens/profile/ChangePhoneScreen';
 import { ChangeNicScreen } from '../screens/profile/ChangeNicScreen';
 import LearningNavigator from './LearningNavigator';
+import { CreatorNavigator, CreatorScreen } from './CreatorNavigator';
+import { UserNavigator } from './UserNavigator';
+import { AdminNavigator } from './AdminNavigator';
 import { authApi } from '../services/api/authApi';
 import { profileApi } from '../services/api/profileApi';
 import { useAuthStore } from '../store/authStore';
@@ -40,7 +42,8 @@ export type RootStackParamList = {
   OnBoarding1: undefined;
   OnBoarding2: undefined;
   OnBoarding3: undefined;
-  Profile: undefined;
+  User: undefined;
+  Admin: undefined;
   PrivacyData: undefined;
   ChangePhone: undefined;
   ChangePhoneVerify: { newPhoneNumber: string };
@@ -49,6 +52,7 @@ export type RootStackParamList = {
   ChangePin: undefined;
   ChangePinVerify: { pin: string };
   Learning: undefined;
+  Creator: { initialScreen?: CreatorScreen } | undefined;
 };
 
 /** True only when the device has fingerprint/biometric hardware with at least one enrolled credential. */
@@ -86,7 +90,18 @@ export const RootNavigator: React.FC = () => {
       <Stack.Screen name="Login">
         {({ navigation }) => (
           <LoginScreen
-            onLoginSuccess={() => navigation.replace('Profile')}
+            onLoginSuccess={() => {
+              // Already-verified content creators skip the general elder
+              // "Become a Freelancer" profile screen (a stopgap from when the
+              // elder home experience wasn't built yet) and land directly in
+              // their own creator profile instead.
+              const roles = useAuthStore.getState().user?.roles ?? [];
+              if (roles.includes('YOUTH_CREATOR')) {
+                navigation.replace('Creator', { initialScreen: 'profile' });
+              } else {
+                navigation.replace(roles.includes('ADMIN') ? 'Admin' : 'User');
+              }
+            }}
             onSignUp={() => navigation.navigate('SignUp')}
             onForgotPin={() => navigation.navigate('ForgotPin')}
             onNeedsVerification={(phone) => navigation.navigate('VerifyOtp', { phone })}
@@ -237,23 +252,17 @@ export const RootNavigator: React.FC = () => {
         )}
       </Stack.Screen>
 
-      {/* ── Profile & account security ────────────────────────────────────── */}
-      <Stack.Screen name="Profile">
-        {({ navigation }) => (
-          <ProfileScreen
-            onOpenPrivacyData={() => navigation.navigate('PrivacyData')}
-            onLogout={() => {
-              useAuthStore.getState().clearSession();
-              navigation.replace('Login');
-            }}
-            onTabPress={(tab) => {
-              // Home/Market have no screens yet — only Learn and Profile are real.
-              if (tab === 'learn') navigation.navigate('Learning');
-            }}
-          />
-        )}
+      {/* ── General-user flow (home feed, map, profile) ─────────────────────── */}
+      <Stack.Screen name="User">
+        {({ navigation }) => <UserNavigator navigation={navigation} />}
       </Stack.Screen>
 
+      {/* ── Admin flow — only reached when the logged-in user has the ADMIN role ── */}
+      <Stack.Screen name="Admin">
+        {({ navigation }) => <AdminNavigator navigation={navigation} />}
+      </Stack.Screen>
+
+      {/* ── Profile & account security ────────────────────────────────────── */}
       <Stack.Screen name="PrivacyData">
         {({ navigation }) => (
           <PrivacyDataScreen
@@ -365,6 +374,11 @@ export const RootNavigator: React.FC = () => {
 
       {/* ── Learning Engine ────────────────────────────────────────────────── */}
       <Stack.Screen name="Learning" component={LearningNavigator} />
+
+      {/* ── Creator marketplace ────────────────────────────────────────────── */}
+      <Stack.Screen name="Creator">
+        {({ route }) => <CreatorNavigator initialScreen={route.params?.initialScreen} />}
+      </Stack.Screen>
     </Stack.Navigator>
   );
 };

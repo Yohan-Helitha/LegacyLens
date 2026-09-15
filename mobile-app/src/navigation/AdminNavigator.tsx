@@ -1,0 +1,151 @@
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, Modal } from 'react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { AdminHomeScreen } from '../screens/admin/home';
+import { ModerationQueueScreen } from '../screens/admin/moderation';
+import { CreateOpportunityScreen } from '../screens/admin/opportunity-create';
+import { OpportunityIntakeScreen, OpportunityReviewScreen } from '../screens/admin/opportunity-intake';
+import { OpportunityDraftsScreen } from '../screens/admin/opportunity-drafts';
+import { AdminNotificationsScreen } from '../screens/admin/notifications';
+import { VideoDetailScreen, BlogDetailScreen } from '../screens/content-details';
+import { AdminHeader, AdminFooter } from '../components/common';
+import type { AdminTabKey } from '../components/common';
+import { Colors } from '../theme';
+import type { RootStackParamList } from './RootNavigator';
+import { useOpportunity } from '../context/OpportunityContext';
+
+export type AdminScreen = AdminTabKey | 'add_opp' | 'opp_review' | 'drafts' | 'video' | 'blog' | 'notifications';
+
+interface AdminNavigatorProps {
+  /** Root stack navigation — used only to leave this flow ("Return to User View"). */
+  navigation: NativeStackNavigationProp<RootStackParamList>;
+}
+
+export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) => {
+  const [screen, setScreen] = useState<AdminScreen>('admin_home');
+  const [selectedPost, setSelectedPost] = useState<any>(null);
+  const { audioSubmissions } = useOpportunity();
+  
+  // Real intake badge based on unlistened audio submissions
+  const unlistenedCount = audioSubmissions.filter(a => a.status !== 'FULLY_LISTENED').length;
+  const [intakeBadge, setIntakeBadge] = useState<string | null>(null);
+  
+  const [reviewBadge, setReviewBadge] = useState<string | null>(null);
+
+  // Sync intake badge with real unlistened count
+  useEffect(() => {
+    setIntakeBadge(unlistenedCount > 0 ? String(unlistenedCount) : null);
+  }, [unlistenedCount]);
+
+  // Fetch pending moderation count
+  useEffect(() => {
+    import('../services/api/moderationApi').then(({ moderationApi }) => {
+      moderationApi.getQueueItems('PENDING')
+        .then(items => {
+          setReviewBadge(items.length > 0 ? String(items.length) : null);
+        })
+        .catch(err => console.log('Failed to fetch pending moderation', err));
+    });
+  }, [screen]);
+
+  const handleNavigate = (tab: string, item?: any) => {
+    if (item) {
+      setSelectedPost(item);
+    }
+    if (tab === 'home') {
+      navigation.replace('User');
+      return;
+    }
+    setScreen(tab as AdminScreen);
+  };
+
+  const footerActiveTab: AdminTabKey =
+    screen === 'intake' || screen === 'opp_review'
+      ? 'intake'
+      : screen === 'review'
+        ? 'review'
+        : screen === 'admin_profile'
+          ? 'admin_profile'
+          : 'admin_home';
+
+  const showHeader = screen !== 'video' && screen !== 'blog' && screen !== 'notifications';
+  const showFooter = screen !== 'video' && screen !== 'blog' && screen !== 'notifications';
+
+  return (
+    <View style={{ flex: 1 }}>
+      {showHeader && <AdminHeader onNavigate={handleNavigate} />}
+      
+      {screen === 'notifications' && <AdminNotificationsScreen onBack={() => setScreen('admin_home')} />}
+
+      {screen === 'admin_home' && (
+        <AdminHomeScreen
+          onNavigate={handleNavigate}
+          intakeBadge={intakeBadge}
+          reviewBadge={reviewBadge}
+        />
+      )}
+      {screen === 'intake' && (
+        <OpportunityIntakeScreen onOpenReview={() => {
+          setIntakeBadge(null);
+          setScreen('opp_review');
+        }} />
+      )}
+      {screen === 'add_opp' && <CreateOpportunityScreen onNavigate={handleNavigate} />}
+      {screen === 'opp_review' && (
+        <OpportunityReviewScreen
+          onBack={() => {
+            setIntakeBadge(null);
+            setScreen('intake');
+          }}
+          onApprove={() => setScreen('add_opp')}
+        />
+      )}
+      {screen === 'drafts' && <OpportunityDraftsScreen onNavigate={handleNavigate} />}
+      {screen === 'review' && <ModerationQueueScreen />}
+
+      <Modal
+        visible={screen === 'video'}
+        animationType="slide"
+        onRequestClose={() => setScreen('admin_home')}
+      >
+        <VideoDetailScreen
+          post={selectedPost}
+          onBack={() => setScreen('admin_home')}
+          onSelectRelatedPost={(p) => setSelectedPost(p)}
+        />
+      </Modal>
+      <Modal
+        visible={screen === 'blog'}
+        animationType="slide"
+        onRequestClose={() => setScreen('admin_home')}
+      >
+        <BlogDetailScreen
+          post={selectedPost}
+          onBack={() => setScreen('admin_home')}
+        />
+      </Modal>
+
+      {screen === 'admin_profile' && (
+        <View style={s.placeholder}>
+          <Text style={s.placeholderText}>Admin Profile (Coming Soon)</Text>
+        </View>
+      )}
+
+      {showFooter && (
+        <AdminFooter 
+          activeTab={footerActiveTab} 
+          onTabSelect={handleNavigate} 
+          intakeBadge={intakeBadge}
+          reviewBadge={reviewBadge}
+        />
+      )}
+    </View>
+  );
+};
+
+const s = StyleSheet.create({
+  placeholder: { flex: 1, backgroundColor: '#f8faf9', justifyContent: 'center', alignItems: 'center' },
+  placeholderText: { color: Colors.text },
+});
+
+export default AdminNavigator;

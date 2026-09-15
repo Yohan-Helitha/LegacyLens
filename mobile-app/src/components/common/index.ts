@@ -13,3 +13,7 @@ export { SettingsListRow } from './SettingsListRow';
 export { BottomNavBar } from './BottomNavBar';
 export type { NavTab } from './BottomNavBar';
 export { Avatar } from './Avatar';
+export { Header } from './Header';
+export * from './UserFooter';
+export * from './AdminFooter';
+export { AdminHeader } from './AdminHeader';

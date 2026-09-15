@@ -1,0 +1,49 @@
+import React from 'react';
+import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { styles } from './BlogCard.styles';
+import { FeedCardActions } from './FeedCardActions';
+import { homeApi } from '../../services/api/homeApi';
+
+export const BlogCard = ({ b, item, setActivePostId, setCommentModalVisible, onNavigate }: any) => {
+  return (
+    <TouchableOpacity activeOpacity={0.9} onPress={() => onNavigate?.('blog', item || b)} style={styles.premiumCard}>
+      <View style={styles.premiumHeroBox}>
+        <Image source={{ uri: b.thumbnail }} style={styles.premiumHeroImg} resizeMode="cover" />
+        <View style={styles.premiumBadge}>
+          <MaterialIcons name="menu-book" size={14} color="#fff" />
+          <Text style={styles.premiumBadgeText}>READ STORY</Text>
+        </View>
+      </View>
+
+      <View style={styles.premiumContent}>
+        <Text style={styles.premiumTitle} numberOfLines={2}>{b.title}</Text>
+        {b.excerpt ? <Text style={styles.premiumDesc} numberOfLines={2}>{b.excerpt}</Text> : null}
+        <View style={styles.premiumDivider} />
+
+        <View style={styles.premiumFooter}>
+          <View style={styles.premiumAuthorBox}>
+            <Image source={{ uri: b.avatar || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200' }} style={styles.premiumAvatar} />
+            <View>
+              <Text style={styles.premiumAuthorName}>{b.author}</Text>
+              <Text style={styles.premiumAuthorSub}>{'Blog · ' + (b.readTime || '')}</Text>
+            </View>
+          </View>
+        </View>
+
+        <FeedCardActions
+          theme="dark"
+          initialLikes={b.likesCount || 0}
+          initialComments={b.commentsCount || 0}
+          onLikePress={() => {
+            if (b.id) homeApi.likePost(b.id).catch(console.error);
+          }}
+          onCommentPress={() => {
+            setActivePostId(item.id);
+            setCommentModalVisible(true);
+          }}
+        />
+      </View>
+    </TouchableOpacity>
+  );
+};
