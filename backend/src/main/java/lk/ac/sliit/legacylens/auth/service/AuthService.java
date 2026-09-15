@@ -13,6 +13,8 @@ public interface AuthService {
 
     RegisterResponse register(RegisterRequest request);
 
+    AuthResponse registerAdmin(RegisterRequest request);
+
     AuthResponse verifyOtpAndActivate(VerifyOtpRequest request);
 
     void resendOtp(ResendOtpRequest request);
@@ -20,9 +22,17 @@ public interface AuthService {
     AuthResponse login(LoginRequest request);
 
     /** Confirms the phone number and NIC belong to the same account, then issues a PIN-reset OTP. */
+    /**
+     * Confirms the phone number and NIC belong to the same account, then issues a
+     * PIN-reset OTP.
+     */
     void forgotPin(ForgotPinRequest request);
 
     /** Checks a PIN-reset OTP without consuming it, so the code can still be used by resetPin(). */
+    /**
+     * Checks a PIN-reset OTP without consuming it, so the code can still be used by
+     * resetPin().
+     */
     void verifyResetOtp(VerifyOtpRequest request);
 
     /** Verifies the reset OTP, sets the new PIN, and logs the user straight in. */

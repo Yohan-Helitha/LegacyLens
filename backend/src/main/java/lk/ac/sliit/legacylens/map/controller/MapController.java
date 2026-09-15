@@ -7,10 +7,12 @@ import lk.ac.sliit.legacylens.map.dto.QuestionResponse;
 import lk.ac.sliit.legacylens.map.service.MapService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/map")
@@ -18,6 +20,14 @@ import java.util.List;
 public class MapController {
 
     private final MapService mapService;
+
+    @Value("${app.mapbox.token:${EXPO_PUBLIC_MAPBOX_TOKEN:}}")
+    private String mapboxToken;
+
+    @GetMapping("/token")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getMapboxToken() {
+        return ResponseEntity.ok(ApiResponse.ok("Mapbox token retrieved", Map.of("mapboxToken", mapboxToken != null ? mapboxToken : "")));
+    }
 
     @GetMapping("/landmarks")
     public ResponseEntity<ApiResponse<List<MapLandmarkResponse>>> getAllLandmarks() {

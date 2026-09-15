@@ -36,13 +36,19 @@ public class ModerationQueueController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<ModerationQueueItemResponse>> updateItemStatus(
             @PathVariable UUID id,
-            @Valid @RequestBody UpdateModerationStatusRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(moderationQueueService.updateItemStatus(id, request)));
+            @Valid @RequestBody UpdateModerationStatusRequest request,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                moderationQueueService.updateItemStatus(id, request, adminId, adminName)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteItem(@PathVariable UUID id) {
-        moderationQueueService.deleteItem(id);
+    public ResponseEntity<ApiResponse<Void>> deleteItem(
+            @PathVariable UUID id,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
+        moderationQueueService.deleteItem(id, adminId, adminName);
         return ResponseEntity.ok(ApiResponse.ok("Content permanently deleted", null));
     }
 }

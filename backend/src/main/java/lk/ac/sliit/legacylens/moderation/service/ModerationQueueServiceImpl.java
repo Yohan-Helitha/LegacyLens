@@ -1,6 +1,8 @@
 package lk.ac.sliit.legacylens.moderation.service;
 
 import jakarta.annotation.PostConstruct;
+import lk.ac.sliit.legacylens.admin.entity.AuditActionType;
+import lk.ac.sliit.legacylens.admin.service.AdminAuditService;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.moderation.dto.ModerationQueueItemResponse;
 import lk.ac.sliit.legacylens.moderation.dto.UpdateModerationStatusRequest;
@@ -26,12 +28,15 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
 
     private final ModerationQueueRepository moderationQueueRepository;
     private final lk.ac.sliit.legacylens.moderation.repository.StoryRegionRepository storyRegionRepository;
+    private final AdminAuditService auditService;
 
     public ModerationQueueServiceImpl(
             ModerationQueueRepository moderationQueueRepository,
-            lk.ac.sliit.legacylens.moderation.repository.StoryRegionRepository storyRegionRepository) {
+            lk.ac.sliit.legacylens.moderation.repository.StoryRegionRepository storyRegionRepository,
+            AdminAuditService auditService) {
         this.moderationQueueRepository = moderationQueueRepository;
         this.storyRegionRepository = storyRegionRepository;
+        this.auditService = auditService;
     }
 
     @Override
@@ -62,7 +67,8 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
 
     @Override
     @Transactional
-    public ModerationQueueItemResponse updateItemStatus(UUID id, UpdateModerationStatusRequest request) {
+    public ModerationQueueItemResponse updateItemStatus(UUID id, UpdateModerationStatusRequest request,
+            String performedById, String performedByName) {
         ModerationQueueItem item = moderationQueueRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Moderation item not found"));
 
@@ -115,22 +121,38 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
             }
         }
 
+        // Map status to audit action type
+        AuditActionType auditAction = switch (newStatus) {
+            case PUBLISHED -> AuditActionType.PUBLISHED;
+            case REJECTED -> AuditActionType.REJECTED;
+            case ARCHIVED -> AuditActionType.ARCHIVED;
+            default -> AuditActionType.UPDATED;
+        };
+        String notes = request.getEffectiveRejectionReason() != null
+                ? request.getEffectiveRejectionReason()
+                : "Story status changed to " + newStatus.name();
+        auditService.logAction(auditAction, "Story / Content",
+                id.toString(), item.getTitle(), performedById, performedByName, notes);
+
         log.info("Updated moderation item {} status to {}", id, newStatus);
         return mapToResponse(saved);
     }
 
     @Override
     @Transactional
-    public void deleteItem(UUID id) {
-        if (!moderationQueueRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Moderation item not found");
-        }
+    public void deleteItem(UUID id, String performedById, String performedByName) {
+        ModerationQueueItem item = moderationQueueRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Moderation item not found"));
+        String title = item.getTitle();
+
         try {
             storyRegionRepository.deleteByStoryId(id);
         } catch (Exception e) {
             log.warn("Failed to delete StoryRegion for story {}: {}", id, e.getMessage());
         }
         moderationQueueRepository.deleteById(id);
+        auditService.logAction(AuditActionType.DELETED, "Story / Content",
+                id.toString(), title, performedById, performedByName, "Story permanently deleted");
         log.info("Deleted moderation item {}", id);
     }
 

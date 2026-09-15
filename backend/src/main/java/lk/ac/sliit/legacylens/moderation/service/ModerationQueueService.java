@@ -11,7 +11,8 @@ public interface ModerationQueueService {
 
     ModerationQueueItemResponse getItem(UUID id);
 
-    ModerationQueueItemResponse updateItemStatus(UUID id, UpdateModerationStatusRequest request);
+    ModerationQueueItemResponse updateItemStatus(UUID id, UpdateModerationStatusRequest request,
+            String performedById, String performedByName);
 
-    void deleteItem(UUID id);
+    void deleteItem(UUID id, String performedById, String performedByName);
 }
