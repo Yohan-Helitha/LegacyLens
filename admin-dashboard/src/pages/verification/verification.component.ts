@@ -312,13 +312,19 @@ export type VerificationTab = 'verification' | 'directory';
             </div>
           </div>
 
-          <!-- Loading Spinner -->
-          <div *ngIf="isLoading()" class="flex flex-col items-center justify-center py-20 space-y-3">
-            <div class="w-10 h-10 border-4 border-[#004343]/20 border-t-[#004343] rounded-full animate-spin"></div>
-            <p class="text-xs text-[#6f7978] font-medium">Loading user profiles from database...</p>
-          </div>
+           <!-- Loading Spinner -->
+           <div *ngIf="isLoading()" class="flex flex-col items-center justify-center py-20 space-y-3">
+             <div class="w-10 h-10 border-4 border-[#004343]/20 border-t-[#004343] rounded-full animate-spin"></div>
+             <p class="text-xs text-[#6f7978] font-medium">Loading user profiles from database...</p>
+           </div>
 
-          <!-- 2-Column Split Workspace -->
+           <!-- Error Banner -->
+           <div *ngIf="hasError() && !isLoading()" class="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+             <span class="material-symbols-outlined text-xl">warning</span>
+             <span>Backend unreachable — please try again later.</span>
+           </div>
+
+           <!-- 2-Column Split Workspace -->
           <div *ngIf="!isLoading()" class="flex-1 overflow-hidden p-6 grid grid-cols-12 gap-6">
             
             <!-- LEFT COLUMN: User Queue (4 cols) -->
@@ -966,6 +972,7 @@ export class VerificationComponent implements OnInit {
 
   // Loading state
   isLoading = signal<boolean>(false);
+  hasError = signal<boolean>(false);
   isActionLoading = signal<boolean>(false);
 
   // Toast message
@@ -1048,6 +1055,7 @@ export class VerificationComponent implements OnInit {
         }
       },
       error: (err) => {
+        this.hasError.set(true);
         this.isLoading.set(false);
         console.error('Failed to load user verifications from backend:', err);
         this.toastMessage.set('Could not fetch user verifications from server.');

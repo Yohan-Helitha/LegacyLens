@@ -304,6 +304,19 @@ export interface OpportunityItem {
 
             <!-- Scrollable Intake Playable Cards Grid -->
             <div class="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
+              @if (isLoading()) {
+                <div class="flex items-center justify-center py-16">
+                  <div class="flex flex-col items-center gap-3 text-[#6f7978]">
+                    <span class="material-symbols-outlined text-4xl animate-spin text-[#004343]">cached</span>
+                    <span class="text-sm font-medium">Loading intake submissions...</span>
+                  </div>
+                </div>
+              } @else if (hasError()) {
+                <div class="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+                  <span class="material-symbols-outlined text-xl">warning</span>
+                  <span>Backend unreachable — please try again later.</span>
+                </div>
+              } @else {
               <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
                 @for (item of filteredAudioSubmissions(); track item.id) {
                   <div class="bg-white border border-[#dde3eb] rounded-2xl p-4 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
@@ -434,6 +447,7 @@ export interface OpportunityItem {
                   </div>
                 }
               </div>
+            }
             </div>
 
           </div>
@@ -900,6 +914,19 @@ export interface OpportunityItem {
             <!-- Hub Body Content -->
             <div class="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
               
+              @if (isLoading()) {
+                <div class="flex items-center justify-center py-16">
+                  <div class="flex flex-col items-center gap-3 text-[#6f7978]">
+                    <span class="material-symbols-outlined text-4xl animate-spin text-[#004343]">cached</span>
+                    <span class="text-sm font-medium">Loading opportunities...</span>
+                  </div>
+                </div>
+              } @else if (hasError()) {
+                <div class="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+                  <span class="material-symbols-outlined text-xl">warning</span>
+                  <span>Backend unreachable — please try again later.</span>
+                </div>
+              } @else {
               <!-- SUB-TAB 1: DRAFTS -->
               @if (activeHubTab() === 'drafts') {
                 <div class="max-w-5xl mx-auto space-y-6">
@@ -997,11 +1024,10 @@ export interface OpportunityItem {
                                 <span class="material-symbols-outlined text-sm">arrow_forward</span>
                               </button>
                             </div>
-
-                          </div>
-                        </div>
-                      </div>
-                    }
+              </div>
+            </div>
+          </div>
+        }
 
                     <!-- Older / Other Drafts List -->
                     @if (otherDrafts().length > 0) {
@@ -1162,11 +1188,11 @@ export interface OpportunityItem {
                         <span class="material-symbols-outlined text-4xl text-[#6f7978] mb-1">inventory_2</span>
                         <p class="text-xs font-semibold text-[#6f7978]">No archived opportunities found in vault</p>
                       </div>
-                    }
-                  </div>
-                </div>
+                     }
+                   </div>
+                 </div>
+               }
               }
-
             </div>
 
           </div>
@@ -2098,6 +2124,8 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   private opportunityService = inject(OpportunityService);
   isSyncingOpportunities = signal<boolean>(false);
   isSyncingAudios = signal<boolean>(false);
+  isLoading = signal<boolean>(false);
+  hasError = signal<boolean>(false);
 
   audioSubmissions = signal<AudioIntakeItem[]>([]);
   opportunitiesList = signal<OpportunityItem[]>([]);
@@ -2385,10 +2413,13 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   }
 
   loadOpportunitiesFromBackend(silent: boolean = false): void {
+    this.isLoading.set(true);
+    this.hasError.set(false);
     this.isSyncingOpportunities.set(true);
     this.opportunityService.getAllOpportunities('ALL').subscribe({
       next: (data: AdminOpportunityResponse[]) => {
         this.isSyncingOpportunities.set(false);
+        this.isLoading.set(false);
         const list = data || [];
         const mapped = list.map(item => this.mapBackendOpportunityToItem(item));
         this.opportunitiesList.set(mapped);
@@ -2422,6 +2453,8 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.isSyncingOpportunities.set(false);
+        this.isLoading.set(false);
+        this.hasError.set(true);
         console.warn('Could not load opportunities from backend:', err);
         if (!silent) {
           this.showToastNotification('Could not reach opportunity service.', 'warning');

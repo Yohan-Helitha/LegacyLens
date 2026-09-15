@@ -69,73 +69,44 @@ interface AuditLogEntry {
         
         <!-- Common Top Navbar Header -->
         <app-header 
-          pageTitle="Admin Profile & Credentials" 
+          pageTitle="Admin Profile" 
           section="Administration"
           [showSearch]="false">
-          <div class="flex items-center gap-2">
-            <button (click)="openRotateKeyModal()"
-                    class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#c2c8c7] rounded-lg text-xs font-semibold text-[#3e4948] hover:bg-[#f2f4f7] transition-colors shadow-sm">
-              <span class="material-symbols-outlined text-base text-[#9b4600]">vpn_key</span>
-              <span>Rotate Security Keys</span>
-            </button>
-
-            <button (click)="exportCuratorialId()"
-                    class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#c2c8c7] rounded-lg text-xs font-semibold text-[#3e4948] hover:bg-[#f2f4f7] transition-colors shadow-sm">
-              <span class="material-symbols-outlined text-base text-[#004343]">badge</span>
-              <span>Export Curatorial ID</span>
-            </button>
-
-            <button (click)="saveProfileChanges()"
-                    class="flex items-center gap-1.5 px-4 py-1.5 bg-[#004343] text-white rounded-lg text-xs font-semibold hover:bg-[#003131] transition-all shadow-sm shadow-[#004343]/20">
-              <span class="material-symbols-outlined text-base">save</span>
-              <span>Save Changes</span>
-            </button>
-          </div>
         </app-header>
 
         <!-- Main Body Scroll Container -->
         <div class="flex-1 overflow-y-auto p-6 space-y-6">
           
-          <!-- Page Header Banner -->
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-[#dde3eb] shadow-sm">
-            <div>
-              <div class="flex items-center gap-2 mb-1">
-                <h1 class="text-2xl font-serif font-bold text-[#191c1c]">Admin Profile & Security</h1>
-                <span class="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-full border border-emerald-300">
-                  Active • Level 4 Super Overseer
-                </span>
+          <!-- Top Executive Bar -->
+          <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <h1 class="font-['Source_Serif_4',serif] text-2xl font-bold text-[#004343] tracking-tight">
+                  Admin Profile & Security
+                </h1>
+                
               </div>
-              <p class="text-xs text-[#6e7978]">
+              <p class="text-xs text-[#3f4948] max-w-3xl leading-relaxed">
                 Personal administrative credentials, cryptographic key pairs, institutional clearance, and session security parameters.
               </p>
             </div>
             
-            <div class="flex items-center gap-4 bg-[#f8faf9] px-4 py-2.5 rounded-xl border border-[#dde3eb]">
-              <div class="text-right">
-                <div class="text-[10px] uppercase font-bold text-[#6e7978] tracking-wider">Sovereign Signatory Status</div>
-                <div class="text-xs font-bold text-[#004343]">Authenticated via YubiKey 5C NFC</div>
-              </div>
-              <div class="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-                <span class="material-symbols-outlined text-lg">verified</span>
-              </div>
-            </div>
+            
           </div>
 
-          <!-- Main Dual Column Layout (7 Cols Left / 5 Cols Right) -->
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Top Row: Administrator Details (7) + Recent Audit Actions (5) at matched height -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
 
-            <!-- LEFT COLUMN (7 Cols): Personal Info, Clearance & MFA -->
-            <div class="lg:col-span-7 space-y-6">
-
-              <!-- 1. Administrator Dossier Card -->
-              <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-sm">
+            <!-- LEFT: Administrator Details -->
+            <div class="lg:col-span-7">
+              <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-sm h-full flex flex-col">
                 <div class="flex items-center justify-between mb-6 pb-4 border-b border-[#dde3eb]">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-lg bg-[#004343]/10 text-[#004343] flex items-center justify-center">
                       <span class="material-symbols-outlined text-lg">person_pin</span>
                     </div>
                     <div>
-                      <h2 class="text-base font-serif font-bold text-[#191c1c]">Administrator Dossier</h2>
+                      <h2 class="text-base font-serif font-bold text-[#191c1c]">Administrator Details</h2>
                       <p class="text-[11px] text-[#6e7978]">Department of National Archives & Cultural Sovereign Cloud</p>
                     </div>
                   </div>
@@ -148,7 +119,7 @@ interface AuditLogEntry {
                 <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5 mb-6 p-4 rounded-xl bg-[#f8faf9] border border-[#dde3eb]">
                   <div class="relative">
                     <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#004343] to-[#006666] text-white font-serif font-bold text-2xl flex items-center justify-center shadow-lg ring-4 ring-[#004343]/20">
-                      SS
+                      {{ getInitials() }}
                     </div>
                     <div class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-white" title="Active Clearance">
                       <span class="material-symbols-outlined text-xs">check</span>
@@ -157,17 +128,14 @@ interface AuditLogEntry {
 
                   <div class="flex-1 space-y-1">
                     <div class="flex items-center gap-2">
-                      <h3 class="text-lg font-bold text-[#191c1c]">{{ profileName() }}</h3>
-                      <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#9b4600]/10 text-[#9b4600]">
-                        Curatorial Council Chair
-                      </span>
+                      <h3 class="text-lg font-bold text-[#191c1c]">{{ authService.currentUser()?.fullName }}</h3>
                     </div>
                     <p class="text-xs text-[#3e4948]">
                       Senior Curatorial Lead • Ministry of Buddhasasana, Religious & Cultural Affairs
                     </p>
                     <div class="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-[#6e7978]">
                       <span class="flex items-center gap-1 font-mono">
-                        <span class="material-symbols-outlined text-xs">badge</span> NIC: 197884200192V
+                        <span class="material-symbols-outlined text-xs">badge</span> NIC: {{ authService.currentUser()?.nicNumber || 'N/A' }}
                       </span>
                       <span>•</span>
                       <span class="flex items-center gap-1">
@@ -177,291 +145,65 @@ interface AuditLogEntry {
                   </div>
                 </div>
 
-                <!-- Form Fields Grid -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-[11px] font-bold uppercase tracking-wider text-[#6e7978] mb-1.5">Official Name</label>
-                    <input type="text" 
-                           [ngModel]="profileName()" 
-                           (ngModelChange)="profileName.set($event)"
-                           class="w-full text-xs font-semibold px-3.5 py-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl focus:bg-white focus:outline-none focus:border-[#004343] transition-colors" />
-                  </div>
-
-                  <div>
-                    <label class="block text-[11px] font-bold uppercase tracking-wider text-[#6e7978] mb-1.5">Institutional Email</label>
-                    <input type="email" 
-                           [ngModel]="profileEmail()" 
-                           (ngModelChange)="profileEmail.set($event)"
-                           class="w-full text-xs font-semibold px-3.5 py-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl focus:bg-white focus:outline-none focus:border-[#004343] transition-colors font-mono" />
-                  </div>
-
-                  <div>
-                    <label class="block text-[11px] font-bold uppercase tracking-wider text-[#6e7978] mb-1.5">Attestation Phone (Gov Secure)</label>
-                    <input type="text" 
-                           [ngModel]="profilePhone()" 
-                           (ngModelChange)="profilePhone.set($event)"
-                           class="w-full text-xs font-semibold px-3.5 py-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl focus:bg-white focus:outline-none focus:border-[#004343] transition-colors font-mono" />
-                  </div>
-
-                  <div>
-                    <label class="block text-[11px] font-bold uppercase tracking-wider text-[#6e7978] mb-1.5">Jurisdictional Hub</label>
-                    <select [ngModel]="profileHub()" 
-                            (ngModelChange)="profileHub.set($event)"
-                            class="w-full text-xs font-semibold px-3.5 py-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl focus:bg-white focus:outline-none focus:border-[#004343] transition-colors">
-                      <option value="Western & Central Province Oversight">Western & Central Province Oversight</option>
-                      <option value="Northern & Eastern Maritime Zone">Northern & Eastern Maritime Zone</option>
-                      <option value="Southern & Sabaragamuwa Council">Southern & Sabaragamuwa Council</option>
-                      <option value="North Central & Uva Heritage Grid">North Central & Uva Heritage Grid</option>
-                    </select>
-                  </div>
+                <!-- Admin Details Table -->
+                <div class="overflow-hidden rounded-xl border border-[#dde3eb] flex-1">
+                  <table class="w-full text-left text-xs">
+                    <tbody class="divide-y divide-[#dde3eb] bg-white">
+                      <tr class="hover:bg-[#f8faf9] transition-colors">
+                        <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider w-1/3 bg-[#f8faf9]">Admin ID</th>
+                        <td class="px-4 py-3 text-[#191c1c] font-mono">{{ authService.currentUser()?.id || 'a88885d4-3ede-4c34-b2cc-d54a16affea5' }}</td>
+                      </tr>
+                      <tr class="hover:bg-[#f8faf9] transition-colors">
+                        <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">Full Name</th>
+                        <td class="px-4 py-3 text-[#191c1c] font-semibold">{{ authService.currentUser()?.fullName || 'Lakni Ranepura' }}</td>
+                      </tr>
+                      <tr class="hover:bg-[#f8faf9] transition-colors">
+                        <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">Phone Number</th>
+                        <td class="px-4 py-3 text-[#191c1c] font-mono">{{ authService.currentUser()?.phoneNumber || '0766939924' }} <span class="ml-2 text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Verified</span></td>
+                      </tr>
+                      <tr class="hover:bg-[#f8faf9] transition-colors">
+                        <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">NIC Number</th>
+                        <td class="px-4 py-3 text-[#191c1c] font-mono">{{ authService.currentUser()?.nicNumber || '20016124201' }}</td>
+                      </tr>
+                      <tr class="hover:bg-[#f8faf9] transition-colors">
+                        <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">City</th>
+                        <td class="px-4 py-3 text-[#191c1c]">Gampaha <span class="text-[10px] text-[#6e7978] ml-1">(Western)</span></td>
+                      </tr>
+                      <tr class="hover:bg-[#f8faf9] transition-colors">
+                        <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">Date of Birth</th>
+                        <td class="px-4 py-3 text-[#191c1c]">2001-04-23</td>
+                      </tr>
+                      <tr class="hover:bg-[#f8faf9] transition-colors">
+                        <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">Admin Role Status</th>
+                        <td class="px-4 py-3 text-[#191c1c] font-bold">ACTIVE</td>
+                      </tr>
+                      <tr class="hover:bg-[#f8faf9] transition-colors">
+                        <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">2FA Status</th>
+                        <td class="px-4 py-3 text-[#191c1c]">Disabled <span class="text-[10px] text-[#6e7978] ml-2">Failed PINs: 0</span></td>
+                      </tr>
+                      <tr class="hover:bg-[#f8faf9] transition-colors">
+                        <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">Account Timestamps</th>
+                        <td class="px-4 py-3 text-[#6e7978] text-[10px] font-mono space-y-1">
+                          <div>Created: Aug 22, 2026, 1:13:56 PM</div>
+                          <div>Updated: Aug 22, 2026, 1:14:12 PM</div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
-
-              <!-- 2. Institutional Clearance Matrix -->
-              <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-sm">
-                <div class="flex items-center justify-between mb-4 pb-4 border-b border-[#dde3eb]">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-[#9b4600]/10 text-[#9b4600] flex items-center justify-center">
-                      <span class="material-symbols-outlined text-lg">shield</span>
-                    </div>
-                    <div>
-                      <h2 class="text-base font-serif font-bold text-[#191c1c]">Institutional Clearance Matrix</h2>
-                      <p class="text-[11px] text-[#6e7978]">Executive Delegations & Statutory Authority</p>
-                    </div>
-                  </div>
-                  <span class="text-[11px] font-bold px-3 py-1 bg-amber-100 text-amber-900 rounded-full border border-amber-300 flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-xs">group</span>
-                    2-of-3 Quorum Signoff
-                  </span>
-                </div>
-
-                <div class="space-y-3">
-                  @for (item of clearanceDelegations(); track item.title) {
-                    <div class="flex items-center justify-between p-3.5 rounded-xl border border-[#dde3eb] bg-[#f8faf9] hover:bg-white hover:border-[#004343]/30 transition-all">
-                      <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-lg bg-white border border-[#dde3eb] flex items-center justify-center text-[#004343]">
-                          <span class="material-symbols-outlined text-lg">{{ item.icon }}</span>
-                        </div>
-                        <div>
-                          <div class="text-xs font-bold text-[#191c1c]">{{ item.title }}</div>
-                          <div class="text-[10px] text-[#6e7978]">{{ item.scope }}</div>
-                        </div>
-                      </div>
-                      <span [ngClass]="item.badgeClass" class="text-[10px] font-bold px-2.5 py-1 rounded-full border">
-                        {{ item.status }}
-                      </span>
-                    </div>
-                  }
-                </div>
-
-                <div class="mt-4 pt-4 border-t border-[#dde3eb] flex items-center justify-between text-xs text-[#6e7978]">
-                  <span>Mandate ratified under National Heritage Protection Act No. 24 of 1980</span>
-                  <button (click)="viewMandatePdf()" class="text-[#004343] font-bold hover:underline flex items-center gap-1">
-                    <span class="material-symbols-outlined text-sm">open_in_new</span>
-                    View Mandate PDF
-                  </button>
-                </div>
-              </div>
-
-              <!-- 3. Hardware Multi-Factor Authentication -->
-              <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-sm">
-                <div class="flex items-center justify-between mb-4 pb-4 border-b border-[#dde3eb]">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-700 flex items-center justify-center">
-                      <span class="material-symbols-outlined text-lg">token</span>
-                    </div>
-                    <div>
-                      <h2 class="text-base font-serif font-bold text-[#191c1c]">Hardware Multi-Factor Authentication</h2>
-                      <p class="text-[11px] text-[#6e7978]">FIDO2 / WebAuthn Sovereign Hardware Cryptographic Keys</p>
-                    </div>
-                  </div>
-                  <button (click)="openRegisterKeyModal()"
-                          class="flex items-center gap-1 px-3 py-1 bg-[#004343]/10 text-[#004343] rounded-lg text-xs font-bold hover:bg-[#004343] hover:text-white transition-all">
-                    <span class="material-symbols-outlined text-sm">add</span>
-                    Register Key
-                  </button>
-                </div>
-
-                <div class="space-y-3">
-                  @for (key of hardwareKeys(); track key.id) {
-                    <div class="flex items-center justify-between p-4 rounded-xl border border-[#dde3eb] bg-[#f8faf9]">
-                      <div class="flex items-center gap-3.5">
-                        <div class="w-10 h-10 rounded-xl bg-white border border-[#dde3eb] flex items-center justify-center text-[#004343]">
-                          <span class="material-symbols-outlined text-xl">{{ key.icon }}</span>
-                        </div>
-                        <div>
-                          <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold text-[#191c1c]">{{ key.name }}</span>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800">
-                              {{ key.status }}
-                            </span>
-                          </div>
-                          <div class="text-[11px] text-[#6e7978] font-mono mt-0.5">
-                            Serial: {{ key.serial }} • Enrolled {{ key.enrolledDate }}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div class="flex items-center gap-2">
-                        @if (key.type === 'FIDO2') {
-                          <button (click)="testKey(key)"
-                                  class="px-3 py-1.5 bg-white border border-[#c2c8c7] rounded-lg text-xs font-semibold text-[#3e4948] hover:bg-[#eceef0] transition-colors">
-                            Test Key
-                          </button>
-                        } @else {
-                          <button (click)="revokeKey(key)"
-                                  class="px-3 py-1.5 bg-white border border-[#ba1a1a]/30 text-[#ba1a1a] rounded-lg text-xs font-semibold hover:bg-[#ba1a1a]/10 transition-colors">
-                            Revoke
-                          </button>
-                        }
-                      </div>
-                    </div>
-                  }
-                </div>
-
-                <!-- Emergency Recovery Token Reserve -->
-                <div class="mt-5 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
-                  <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-2">
-                      <span class="material-symbols-outlined text-amber-600 text-base">emergency</span>
-                      <span class="text-xs font-bold text-[#191c1c]">Emergency Offline Recovery Codes</span>
-                    </div>
-                    <span class="text-xs font-bold text-amber-800">{{ remainingEmergencyCodes() }} of 10 Remaining</span>
-                  </div>
-                  <div class="w-full bg-[#dde3eb] h-2 rounded-full overflow-hidden">
-                    <div class="bg-amber-500 h-full rounded-full transition-all" [style.width.%]="(remainingEmergencyCodes() / 10) * 100"></div>
-                  </div>
-                  <div class="flex items-center justify-between mt-3 text-[11px] text-[#6e7978]">
-                    <span>Stored in encrypted physical cold-safe deposit at Central Bank vault.</span>
-                    <button (click)="regenerateEmergencyCodes()" class="text-[#9b4600] font-bold hover:underline">
-                      Regenerate Codes
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-
             </div>
 
-            <!-- RIGHT COLUMN (5 Cols): Active Sessions, Certificate & Personal Actions -->
-            <div class="lg:col-span-5 space-y-6">
-
-              <!-- 4. Active Administrative Sessions -->
-              <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-sm">
-                <div class="flex items-center justify-between mb-4 pb-4 border-b border-[#dde3eb]">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-[#004343]/10 text-[#004343] flex items-center justify-center">
-                      <span class="material-symbols-outlined text-lg">devices</span>
-                    </div>
-                    <div>
-                      <h2 class="text-base font-serif font-bold text-[#191c1c]">Active Sessions</h2>
-                      <p class="text-[11px] text-[#6e7978]">Live Hardware & Network Endpoints</p>
-                    </div>
-                  </div>
-                  <button (click)="terminateAllOtherSessions()"
-                          class="text-[11px] font-bold text-[#ba1a1a] hover:underline flex items-center gap-1">
-                    <span class="material-symbols-outlined text-xs">power_settings_new</span>
-                    Terminate Other
-                  </button>
-                </div>
-
-                <div class="space-y-3">
-                  @for (session of activeSessions(); track session.id) {
-                    <div class="p-4 rounded-xl border border-[#dde3eb] bg-[#f8faf9] space-y-2">
-                      <div class="flex items-start justify-between">
-                        <div>
-                          <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold text-[#191c1c]">{{ session.terminal }}</span>
-                            @if (session.isCurrent) {
-                              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                                This Device
-                              </span>
-                            }
-                          </div>
-                          <div class="text-[11px] text-[#6e7978] mt-0.5">
-                            {{ session.location }} • IP: {{ session.ip }}
-                          </div>
-                        </div>
-                        <span [ngClass]="session.statusClass" class="text-[10px] font-bold px-2 py-0.5 rounded-full border">
-                          {{ session.statusText }}
-                        </span>
-                      </div>
-
-                      <div class="flex items-center justify-between text-[10px] text-[#6e7978] pt-1 border-t border-[#dde3eb]/60 font-mono">
-                        <span>{{ session.tlsInfo }}</span>
-                        @if (!session.isCurrent) {
-                          <button (click)="terminateSession(session)" class="text-[#ba1a1a] font-bold hover:underline font-sans">
-                            Revoke
-                          </button>
-                        } @else {
-                          <span class="text-emerald-700 font-sans font-semibold">Active Now</span>
-                        }
-                      </div>
-                    </div>
-                  }
-                </div>
-              </div>
-
-              <!-- 5. Curatorial Signing Certificate -->
-              <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-sm">
-                <div class="flex items-center justify-between mb-4 pb-4 border-b border-[#dde3eb]">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-[#9b4600]/10 text-[#9b4600] flex items-center justify-center">
-                      <span class="material-symbols-outlined text-lg">workspace_premium</span>
-                    </div>
-                    <div>
-                      <h2 class="text-base font-serif font-bold text-[#191c1c]">Curatorial Certificate</h2>
-                      <p class="text-[11px] text-[#6e7978]">X.509 Curatorial Seal (4096-bit RSA)</p>
-                    </div>
-                  </div>
-                  <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    Valid • 84 Days
-                  </span>
-                </div>
-
-                <!-- Certificate Fingerprint Box -->
-                <div class="space-y-3">
-                  <div>
-                    <div class="flex items-center justify-between mb-1">
-                      <span class="text-[10px] uppercase font-bold text-[#6e7978] tracking-wider">SHA-256 Public Fingerprint</span>
-                      <button (click)="copyFingerprint()" class="text-[10px] font-bold text-[#004343] hover:underline flex items-center gap-0.5">
-                        <span class="material-symbols-outlined text-xs">content_copy</span>
-                        Copy
-                      </button>
-                    </div>
-                    <div class="p-3 bg-[#191c1c] text-emerald-400 font-mono text-[10px] rounded-xl break-all leading-relaxed border border-gray-800 shadow-inner select-all">
-                      {{ certFingerprint }}
-                    </div>
-                  </div>
-
-                  <div class="flex items-center justify-between p-3 rounded-xl bg-[#f8faf9] border border-[#dde3eb]">
-                    <div>
-                      <div class="text-xs font-bold text-[#191c1c]">Auto-Renew via GovPKI</div>
-                      <div class="text-[10px] text-[#6e7978]">Automatically re-attest 14 days before expiration</div>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" [checked]="autoRenewCert()" (change)="toggleAutoRenew()" class="sr-only peer">
-                      <div class="w-10 h-5 bg-[#c2c8c7] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#c2c8c7] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#004343]"></div>
-                    </label>
-                  </div>
-
-                  <button (click)="downloadCertificate()"
-                          class="w-full flex items-center justify-center gap-2 py-2.5 bg-white border border-[#c2c8c7] rounded-xl text-xs font-bold text-[#3e4948] hover:bg-[#f2f4f7] transition-colors shadow-sm">
-                    <span class="material-symbols-outlined text-base text-[#004343]">file_download</span>
-                    <span>Download Public Certificate (.pem)</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- 6. Recent Personal Actions Snapshot -->
-              <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-sm">
+            <!-- RIGHT: Recent Audit Actions (matches height) -->
+            <div class="lg:col-span-5">
+              <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-sm h-full flex flex-col">
                 <div class="flex items-center justify-between mb-4 pb-4 border-b border-[#dde3eb]">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-700 flex items-center justify-center">
                       <span class="material-symbols-outlined text-lg">history_edu</span>
                     </div>
                     <div>
-                      <h2 class="text-base font-serif font-bold text-[#191c1c]">Recent Council Signoffs</h2>
+                      <h2 class="text-base font-serif font-bold text-[#191c1c]">Recent Audit Actions</h2>
                       <p class="text-[11px] text-[#6e7978]">Immutable Personal Audit Trail</p>
                     </div>
                   </div>
@@ -470,7 +212,7 @@ interface AuditLogEntry {
                   </button>
                 </div>
 
-                <div class="space-y-3.5 relative before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-[#dde3eb]">
+                <div class="space-y-3.5 relative before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-[#dde3eb] flex-1 overflow-y-auto">
                   @for (action of recentActions(); track action.id) {
                     <div class="relative flex items-start gap-3.5 pl-1">
                       <div class="w-6 h-6 rounded-full bg-white border-2 border-[#004343] flex items-center justify-center text-[#004343] shrink-0 z-10">
@@ -488,134 +230,55 @@ interface AuditLogEntry {
                   }
                 </div>
               </div>
-
             </div>
 
+          </div>
+
+          <!-- Full-Width: Admin Roles & Permissions -->
+          <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4 pb-4 border-b border-[#dde3eb]">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-[#9b4600]/10 text-[#9b4600] flex items-center justify-center">
+                  <span class="material-symbols-outlined text-lg">shield</span>
+                </div>
+                <div>
+                  <h2 class="text-base font-serif font-bold text-[#191c1c]">Admin Roles & Permissions</h2>
+                  <p class="text-[11px] text-[#6e7978]">System Authorities & Capabilities</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-3">
+              @for (item of clearanceDelegations(); track item.title) {
+                <div class="flex items-center justify-between p-3.5 rounded-xl border border-[#dde3eb] bg-[#f8faf9] hover:bg-white hover:border-[#004343]/30 transition-all">
+                  <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-white border border-[#dde3eb] flex items-center justify-center text-[#004343] shrink-0">
+                      <span class="material-symbols-outlined text-lg">{{ item.icon }}</span>
+                    </div>
+                    <div>
+                      <div class="text-xs font-bold text-[#191c1c]">{{ item.title }}</div>
+                      <div class="text-[10px] text-[#6e7978]">{{ item.scope }}</div>
+                    </div>
+                  </div>
+                  <span [ngClass]="item.badgeClass" class="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 ml-2">
+                    {{ item.status }}
+                  </span>
+                </div>
+              }
+            </div>
           </div>
 
         </div>
 
       </main>
 
-      <!-- Key Rotation Modal -->
-      @if (showRotateModal()) {
-        <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-[#dde3eb] overflow-hidden animate-in fade-in zoom-in duration-150">
-            <div class="p-6 border-b border-[#dde3eb] flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-[#9b4600]/10 text-[#9b4600] flex items-center justify-center">
-                  <span class="material-symbols-outlined text-2xl">vpn_key</span>
-                </div>
-                <div>
-                  <h3 class="text-base font-serif font-bold text-[#191c1c]">Rotate Cryptographic Keys</h3>
-                  <p class="text-xs text-[#6e7978]">Generate a new RSA-4096 Curatorial Key Pair</p>
-                </div>
-              </div>
-              <button (click)="showRotateModal.set(false)" class="text-[#6e7978] hover:text-[#191c1c]">✕</button>
-            </div>
 
-            <div class="p-6 space-y-4">
-              <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 leading-relaxed">
-                <strong>Important Notice:</strong> Rotating your security key will invalidate existing active session tokens on other devices and prompt for immediate hardware attestation via your enrolled YubiKey.
-              </div>
-
-              <div>
-                <label class="block text-xs font-bold text-[#191c1c] mb-1">Hardware Key Confirmation</label>
-                <div class="p-3 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl flex items-center justify-between text-xs">
-                  <span>YubiKey 5C NFC (Serial: LK-KEY-8812)</span>
-                  <span class="text-emerald-700 font-bold">Ready</span>
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-xs font-bold text-[#191c1c] mb-1">Passphrase Attestation</label>
-                <input type="password" placeholder="Enter Council Overseer Passphrase"
-                       class="w-full text-xs px-3.5 py-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl focus:bg-white focus:outline-none focus:border-[#004343]" />
-              </div>
-            </div>
-
-            <div class="p-6 bg-[#f8faf9] border-t border-[#dde3eb] flex items-center justify-end gap-3">
-              <button (click)="showRotateModal.set(false)"
-                      class="px-4 py-2 border border-[#c2c8c7] rounded-xl text-xs font-semibold text-[#3e4948] hover:bg-white transition-colors">
-                Cancel
-              </button>
-              <button (click)="confirmKeyRotation()"
-                      class="px-5 py-2 bg-[#9b4600] text-white rounded-xl text-xs font-bold hover:bg-[#7e3800] transition-all shadow-md shadow-[#9b4600]/20">
-                Confirm & Rotate Keys
-              </button>
-            </div>
-          </div>
-        </div>
-      }
-
-      <!-- Register Hardware Key Modal -->
-      @if (showRegisterModal()) {
-        <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-[#dde3eb] overflow-hidden">
-            <div class="p-6 border-b border-[#dde3eb] flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-700 flex items-center justify-center">
-                  <span class="material-symbols-outlined text-2xl">token</span>
-                </div>
-                <div>
-                  <h3 class="text-base font-serif font-bold text-[#191c1c]">Register Security Hardware Token</h3>
-                  <p class="text-xs text-[#6e7978]">FIDO2 / WebAuthn Device Enrolment</p>
-                </div>
-              </div>
-              <button (click)="showRegisterModal.set(false)" class="text-[#6e7978] hover:text-[#191c1c]">✕</button>
-            </div>
-
-            <div class="p-6 space-y-4">
-              <div>
-                <label class="block text-xs font-bold text-[#191c1c] mb-1">Device Nickname</label>
-                <input type="text" [(ngModel)]="newKeyName" placeholder="e.g. Backup YubiKey 5Ci or Workstation Passkey"
-                       class="w-full text-xs px-3.5 py-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl focus:bg-white focus:outline-none focus:border-[#004343]" />
-              </div>
-
-              <div>
-                <label class="block text-xs font-bold text-[#191c1c] mb-1">Key Type</label>
-                <select [(ngModel)]="newKeyType"
-                        class="w-full text-xs px-3.5 py-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl focus:bg-white focus:outline-none focus:border-[#004343]">
-                  <option value="FIDO2">YubiKey / FIDO2 Hardware NFC</option>
-                  <option value="PASSKEY">macOS / Windows TouchID Passkey</option>
-                  <option value="PKI">National Smart ID Card (GovPKI)</option>
-                </select>
-              </div>
-
-              <div class="p-4 rounded-xl bg-[#f8faf9] border border-[#dde3eb] text-center space-y-2">
-                <div class="w-12 h-12 rounded-full bg-[#004343]/10 text-[#004343] mx-auto flex items-center justify-center">
-                  <span class="material-symbols-outlined text-2xl animate-pulse">contactless</span>
-                </div>
-                <div class="text-xs font-bold text-[#191c1c]">Insert your hardware token and touch the gold sensor</div>
-                <div class="text-[10px] text-[#6e7978]">Follow the WebAuthn security prompt in your browser.</div>
-              </div>
-            </div>
-
-            <div class="p-6 bg-[#f8faf9] border-t border-[#dde3eb] flex items-center justify-end gap-3">
-              <button (click)="showRegisterModal.set(false)"
-                      class="px-4 py-2 border border-[#c2c8c7] rounded-xl text-xs font-semibold text-[#3e4948] hover:bg-white transition-colors">
-                Cancel
-              </button>
-              <button (click)="confirmRegisterKey()"
-                      class="px-5 py-2 bg-[#004343] text-white rounded-xl text-xs font-bold hover:bg-[#003131] transition-all shadow-md">
-                Complete Enrollment
-              </button>
-            </div>
-          </div>
-        </div>
-      }
 
     </div>
   `
 })
 export class AdminProfileComponent {
   toastMessage = signal<string | null>(null);
-
-  // Profile Signals
-  profileName = signal<string>('Dr. Samantha Senanayake');
-  profileEmail = signal<string>('s.senanayake@legacylens.gov.lk');
-  profilePhone = signal<string>('+94 11 269 4111');
-  profileHub = signal<string>('Western & Central Province Oversight');
 
   // Certificate State
   certFingerprint = '9e:4b:21:fa:70:c8:33:1e:d4:bb:88:21:0a:3f:66:91:c0:9a:12:ef:43:dc:67:98:bb:33:a1:09:44:81:bc:ef';
@@ -686,25 +349,14 @@ export class AdminProfileComponent {
   activeSessions = signal<AdminSession[]>([
     {
       id: 'sess-1',
-      terminal: 'Colombo Core Terminal #04 (Chrome / macOS)',
-      location: 'Colombo 07, Western Province',
-      ip: '192.248.42.10 (SLT Fibre Gov-Gateway)',
+      terminal: 'Current Session (Chrome / Windows)',
+      location: 'Gampaha, Western Province',
+      ip: '192.168.1.1',
       isCurrent: true,
       statusText: 'Active Now',
       statusClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-      lastActive: 'Just now',
-      tlsInfo: 'TLS 1.3 • Hardware Attested Handshake'
-    },
-    {
-      id: 'sess-2',
-      terminal: 'Kandy Heritage Node Terminal 02 (Firefox / Linux)',
-      location: 'Kandy, Central Province',
-      ip: '192.248.88.5 (Central Gov Network)',
-      isCurrent: false,
-      statusText: 'Idle • 42m',
-      statusClass: 'bg-amber-100 text-amber-800 border-amber-300',
-      lastActive: '42 minutes ago',
-      tlsInfo: 'TLS 1.3 • Warning: Auto-locks in 18m'
+      lastActive: 'Aug 22, 2026, 1:13:52 PM',
+      tlsInfo: 'TLS 1.3 • Secured Connection'
     }
   ]);
 
@@ -712,31 +364,36 @@ export class AdminProfileComponent {
   recentActions = signal<AuditLogEntry[]>([
     {
       id: 'ACT-9942',
-      title: 'Endorsed Elder Credential: Ven. Medankara',
-      details: 'Signed attestation batch for 42 oral history recordings with YubiKey 5C.',
+      title: 'Edited Administrator Profile: John Doe',
+      details: 'Updated contact information and region assignment via Admin Management.',
       timestamp: '2 hours ago',
-      icon: 'verified',
+      icon: 'admin_panel_settings',
       type: 'endorsement'
     },
     {
       id: 'ACT-9910',
-      title: 'Unsealed Ola Leaf Manuscript Batch #411',
-      details: 'Initiated 2-of-3 quorum signoff for British Museum restitution asset scans.',
+      title: 'Reviewed and Published Oral History #102',
+      details: 'Approved elder submission and generated AI Quiz in Moderation Queue.',
       timestamp: 'Yesterday, 16:40',
-      icon: 'auto_stories',
+      icon: 'fact_check',
       type: 'cold_vault'
     },
     {
       id: 'ACT-9855',
-      title: 'Anchored Sacred Geometry Boundary Seal',
-      details: 'Published cryptographically verified GIS boundary for Sigiriya Foothills sanctuary.',
+      title: 'Suspended User Account: User404',
+      details: 'Enforced account suspension due to suspicious activity in User Management.',
       timestamp: '3 days ago',
-      icon: 'explore',
+      icon: 'block',
       type: 'boundary'
     }
   ]);
 
-  constructor(private router: Router, private authService: AuthService) {}
+  constructor(private router: Router, public authService: AuthService) {}
+
+  getInitials(): string {
+    const name = this.authService.currentUser()?.fullName || 'User';
+    return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+  }
 
   saveProfileChanges(): void {
     this.toastMessage.set('Admin profile parameters successfully updated.');

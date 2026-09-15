@@ -187,7 +187,25 @@ export interface ModerationItem {
         <!-- Main Body Scrollable View -->
         <main class="flex-1 overflow-y-auto p-6 space-y-6">
           
-          <!-- Top Executive Bar (Title & Subtitle on Left, Sync and Action triggers on Right) -->
+          <!-- Loading State -->
+          @if (isLoading()) {
+            <div class="flex items-center justify-center py-16">
+              <div class="flex flex-col items-center gap-3 text-[#6f7978]">
+                <span class="material-symbols-outlined text-4xl animate-spin text-[#004343]">cached</span>
+                <span class="text-sm font-medium">Loading moderation queue...</span>
+              </div>
+            </div>
+          }
+
+          <!-- Error State -->
+          @if (hasError() && !isLoading()) {
+            <div class="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+              <span class="material-symbols-outlined text-xl">warning</span>
+              <span>Backend unreachable — please try again later.</span>
+            </div>
+          }
+
+          @if (!isLoading()) {
           <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
             <div class="space-y-1">
               
@@ -981,7 +999,7 @@ export interface ModerationItem {
             </div>
 
           </div>
-
+          } <!-- end @if (!isLoading()) -->
         </main>
 
       </div>
@@ -1096,6 +1114,10 @@ export class ModerationComponent implements OnInit {
 
   // Sync state
   isSyncing = signal<boolean>(false);
+
+  // Loading & Error state
+  isLoading = signal<boolean>(false);
+  hasError = signal<boolean>(false);
 
   // Search & Navigation
   searchQuery = signal<string>('');
@@ -1377,6 +1399,8 @@ export class ModerationComponent implements OnInit {
   }
 
   loadQueueFromBackend(silent: boolean = false): void {
+    this.isLoading.set(true);
+    this.hasError.set(false);
     this.isSyncing.set(true);
     if (!silent) {
       this.showToast('Synchronizing Moderation Queue with Central Cultural Vault...');
@@ -1385,6 +1409,7 @@ export class ModerationComponent implements OnInit {
     this.moderationService.getQueueItems('ALL').subscribe({
       next: (backendData: ModerationQueueItemResponse[]) => {
         this.isSyncing.set(false);
+        this.isLoading.set(false);
         const data = backendData || [];
         const mappedItems = data.map(res => this.mapBackendToItem(res));
         this.items.set(mappedItems);
@@ -1408,6 +1433,8 @@ export class ModerationComponent implements OnInit {
       },
       error: (err) => {
         this.isSyncing.set(false);
+        this.isLoading.set(false);
+        this.hasError.set(true);
         console.warn('Backend moderation queue unreachable:', err);
         if (!silent) {
           this.showToast(`Unable to synchronize with Moderation Queue backend.`);

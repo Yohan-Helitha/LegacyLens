@@ -110,10 +110,7 @@ interface AuditLogEntry {
             </div>
             
             <div class="flex items-center gap-4 bg-[#f8faf9] px-4 py-2.5 rounded-xl border border-[#dde3eb]">
-              <div class="text-right">
-                <div class="text-[10px] uppercase font-bold text-[#6e7978] tracking-wider">Sovereign Signatory Status</div>
-                <div class="text-xs font-bold text-[#004343]">Authenticated via YubiKey 5C NFC</div>
-              </div>
+              
               <div class="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
                 <span class="material-symbols-outlined text-lg">verified</span>
               </div>

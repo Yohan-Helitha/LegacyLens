@@ -1,403 +1,574 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
-import { AuthService } from '../../app/core/services/auth.service';
+import { RouterModule } from '@angular/router';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { SidebarComponent } from '../../components/common/sidebar/sidebar.component';
 import { HeaderComponent } from '../../components/common/header/header.component';
 
 export interface WordEntry {
-  id: string;
-  language: 'Sinhala' | 'Tamil' | 'English';
-  wordNative: string;
+  id?: number;
+  language: string;
+  word: string;
   transliteration: string;
-  meaning: string;
+  definition: string;
   partOfSpeech: string;
-  exampleSentenceNative: string;
-  exampleSentenceEnglish: string;
-  culturalContext: string;
-  publishDate: string;
-  audioFilename?: string;
-  status: 'Published' | 'Scheduled' | 'Draft';
+  audioFilename: string;
+  activeDate: string;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+const API_BASE = 'http://localhost:8081/api/admin/word-of-the-day';
 
 @Component({
   selector: 'app-word-of-the-day',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, SidebarComponent, HeaderComponent],
   template: `
-    <div class="flex h-screen w-full bg-[#f8faf9] text-[#191c1c] font-sans overflow-hidden selection:bg-[#fe893e]/20 selection:text-[#9b4600]">
-      
-      <!-- Toast Alert Notification -->
+    <div class="flex h-screen w-full bg-[#f8faf9] text-[#191c1c] font-['Work_Sans',sans-serif] overflow-hidden selection:bg-[#fe893e]/20 selection:text-[#9b4600]">
+
+      <!-- Toast -->
       @if (toastMessage()) {
-        <div class="fixed top-5 right-6 z-50 flex items-center gap-3 bg-[#004343] text-white px-5 py-3.5 rounded-xl shadow-2xl border border-emerald-400/30 animate-bounce">
-          <span class="material-symbols-outlined text-emerald-300 text-xl">auto_stories</span>
-          <div class="text-xs font-semibold">{{ toastMessage() }}</div>
-          <button (click)="toastMessage.set(null)" class="text-white/70 hover:text-white ml-2 text-xs">✕</button>
+        <div
+          [class]="isErrorToast() ? 'bg-[#ba1a1a]' : 'bg-[#004343]'"
+          class="fixed top-5 right-6 z-50 flex items-center gap-3 text-white px-5 py-3.5 rounded-xl shadow-2xl border border-white/20 animate-bounce transition-all duration-300">
+          <span class="material-symbols-outlined text-xl">{{ isErrorToast() ? 'error' : 'auto_stories' }}</span>
+          <div class="text-xs font-semibold max-w-xs">{{ toastMessage() }}</div>
+          <button (click)="toastMessage.set(null)" class="text-white/70 hover:text-white ml-2 text-xs cursor-pointer">✕</button>
         </div>
       }
 
-      <!-- Left Sidebar Navigation -->
       <app-sidebar></app-sidebar>
 
-      <!-- Main Content Area -->
-      <main class="flex-1 flex flex-col h-full overflow-hidden">
-        
-        <!-- Common Top Navigation Header -->
-        <app-header 
-          pageTitle="Word of the Day" 
-          section="Console"
-          searchPlaceholder="Search dictionary or lexicon..."
-          [showSearch]="false">
-          <button (click)="openHelp()" class="p-2 rounded-xl text-[#3e4948] hover:bg-[#f2f4f7] transition-colors" title="Curator Guidelines">
-            <span class="material-symbols-outlined text-[20px]">help_outline</span>
-          </button>
-        </app-header>
+      <main class="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
 
-        <!-- Main Body Scroll Container -->
-        <div class="flex-1 overflow-y-auto px-6 lg:px-12 py-8 max-w-5xl mx-auto w-full space-y-6">
-          
-          <!-- Form Header -->
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 class="text-2xl lg:text-3xl font-serif font-bold text-[#004343] tracking-tight">Add Word of the Day</h1>
-              <p class="text-[#6e7978] text-xs sm:text-sm mt-0.5">Publish a featured heritage word to daily student and researcher feeds.</p>
+        <app-header pageTitle="Word of the Day Studio" section="Console" [showSearch]="false"></app-header>
+
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+
+          <!-- Page Title & Actions -->
+          <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+            <div class="space-y-1">
+              <h1 class="font-['Source_Serif_4',serif] text-2xl font-bold text-[#004343] tracking-tight">Word of the Day Studio</h1>
+              <p class="text-xs text-[#3f4948] max-w-2xl leading-relaxed">
+                Curate and schedule daily heritage vocabulary — Sinhala, Tamil, or English — for the LegacyLens mobile learning feed.
+              </p>
             </div>
-
-            <div class="flex items-center gap-2.5 self-start sm:self-auto">
-              <button (click)="saveDraft()"
-                      class="px-4 py-2 rounded-xl border border-[#c2c8c7] text-[#3e4948] hover:bg-[#f2f4f7] font-semibold text-xs transition-colors shadow-sm">
-                Save Draft
+            <div class="flex items-center gap-3 flex-wrap self-start xl:self-auto">
+              <button (click)="resetForm()" [disabled]="isSaving()"
+                class="px-4 py-2.5 rounded-xl bg-white border border-[#dde3eb] hover:bg-[#f2f4f3] text-[#191c1c] text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50">
+                <span class="material-symbols-outlined text-base">restart_alt</span>
+                <span>Reset</span>
               </button>
-              <button (click)="publishWord()"
-                      class="px-5 py-2 rounded-xl bg-[#004343] hover:bg-[#003131] text-white font-semibold text-xs shadow-md shadow-[#004343]/20 transition-all flex items-center gap-1.5">
+              <button (click)="saveWord('Draft')" [disabled]="isSaving()"
+                class="px-4 py-2.5 rounded-xl bg-white border border-[#dde3eb] hover:bg-[#f2f4f3] text-[#191c1c] text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50">
+                <span class="material-symbols-outlined text-base text-[#6e7978]">draft</span>
+                <span>Save as Draft</span>
+              </button>
+              <button (click)="saveWord('Scheduled')" [disabled]="isSaving()"
+                class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50">
+                <span class="material-symbols-outlined text-base">schedule</span>
+                <span>Schedule</span>
+              </button>
+              <button (click)="saveWord('Published')" [disabled]="isSaving()"
+                class="px-4 py-2.5 rounded-xl bg-[#004343] hover:bg-[#003333] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50">
                 <span class="material-symbols-outlined text-base">publish</span>
-                <span>Publish Word</span>
+                <span>{{ isSaving() ? 'Saving...' : (isEditMode() ? 'Update & Publish' : 'Publish') }}</span>
               </button>
             </div>
           </div>
 
-          <!-- Focused Single-Card Form -->
-          <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 sm:p-8 shadow-sm space-y-6">
-            
-            <!-- Language Selection Tabs -->
-            <div class="pb-5 border-b border-[#dde3eb]">
-              <label class="block text-[11px] font-bold text-[#6e7978] uppercase tracking-wider mb-2.5">Select Language</label>
-              <div class="inline-flex p-1 bg-[#f2f4f7] rounded-xl gap-1 border border-[#dde3eb]">
-                <button (click)="setLanguage('Sinhala')"
-                        [ngClass]="currentLanguage() === 'Sinhala' ? 'bg-white text-[#004343] font-bold shadow-sm' : 'text-[#6e7978] hover:text-[#191c1c]'"
-                        class="px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all">
-                  <span class="w-1.5 h-1.5 rounded-full bg-[#fe893e]"></span>
-                  <span>Sinhala (සිංහල)</span>
-                </button>
-
-                <button (click)="setLanguage('Tamil')"
-                        [ngClass]="currentLanguage() === 'Tamil' ? 'bg-white text-[#004343] font-bold shadow-sm' : 'text-[#6e7978] hover:text-[#191c1c]'"
-                        class="px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all">
-                  <span>Tamil (தமிழ்)</span>
-                </button>
-
-                <button (click)="setLanguage('English')"
-                        [ngClass]="currentLanguage() === 'English' ? 'bg-white text-[#004343] font-bold shadow-sm' : 'text-[#6e7978] hover:text-[#191c1c]'"
-                        class="px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all">
-                  <span>English</span>
-                </button>
+          <!-- Edit Mode Banner -->
+          @if (isEditMode()) {
+            <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2 text-amber-800 text-xs font-semibold">
+                <span class="material-symbols-outlined text-base">edit_note</span>
+                <span>Editing — <strong>{{ form.word || 'untitled' }}</strong> (ID #{{ editingId() }})</span>
               </div>
-            </div>
-
-            <!-- Form Fields Grid -->
-            <div class="space-y-5">
-              
-              <!-- Row 1: Word Script & Transliteration -->
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-xs font-bold text-[#191c1c] flex items-center justify-between">
-                    <span>Word (Native Script)</span>
-                    <span class="text-[11px] text-[#004343] font-normal font-serif">e.g. සාමූහිකත්වය</span>
-                  </label>
-                  <input type="text"
-                         [(ngModel)]="wordNative"
-                         placeholder="Enter word in native script"
-                         class="w-full bg-[#f8faf9] border border-[#c2c8c7] rounded-xl px-3.5 py-2.5 text-[#191c1c] font-serif text-lg focus:bg-white focus:border-[#004343] focus:outline-none transition-all" />
-                </div>
-
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-xs font-bold text-[#191c1c] flex items-center justify-between">
-                    <span>Transliteration</span>
-                    <span class="text-[11px] text-[#6e7978] font-normal">Phonetic guide</span>
-                  </label>
-                  <input type="text"
-                         [(ngModel)]="transliteration"
-                         placeholder="e.g. Saamuhikathvaya"
-                         class="w-full bg-[#f8faf9] border border-[#c2c8c7] rounded-xl px-3.5 py-2.5 text-[#191c1c] text-xs font-semibold focus:bg-white focus:border-[#004343] focus:outline-none transition-all font-mono" />
-                </div>
-              </div>
-
-              <!-- Row 2: Meaning in English & Part of Speech -->
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                <div class="sm:col-span-2 flex flex-col gap-1.5">
-                  <label class="text-xs font-bold text-[#191c1c]">Meaning in English</label>
-                  <input type="text"
-                         [(ngModel)]="meaningEnglish"
-                         placeholder="e.g. Communal solidarity; collective action for mutual stewardship"
-                         class="w-full bg-[#f8faf9] border border-[#c2c8c7] rounded-xl px-3.5 py-2.5 text-[#191c1c] text-xs font-semibold focus:bg-white focus:border-[#004343] focus:outline-none transition-all" />
-                </div>
-
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-xs font-bold text-[#191c1c]">Part of Speech</label>
-                  <select [(ngModel)]="partOfSpeech"
-                          class="w-full bg-[#f8faf9] border border-[#c2c8c7] rounded-xl px-3.5 py-2.5 text-[#191c1c] text-xs font-semibold focus:bg-white focus:border-[#004343] focus:outline-none transition-all cursor-pointer">
-                    <option value="Noun">Noun</option>
-                    <option value="Verb">Verb</option>
-                    <option value="Adjective">Adjective</option>
-                    <option value="Adverb">Adverb</option>
-                    <option value="Idiom / Phrase">Idiom / Phrase</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Row 3: Example Sentence & Translation -->
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-bold text-[#191c1c]">Example Sentence</label>
-                <div class="bg-[#f8faf9] border border-[#c2c8c7] rounded-xl p-3.5 space-y-2.5 focus-within:bg-white focus-within:border-[#004343] transition-all">
-                  <input type="text"
-                         [(ngModel)]="exampleSentenceNative"
-                         placeholder="Sentence in native script"
-                         class="w-full bg-transparent border-0 p-0 text-[#191c1c] text-sm font-serif focus:outline-none" />
-                  <div class="border-t border-[#dde3eb] pt-2">
-                    <input type="text"
-                           [(ngModel)]="exampleSentenceEnglish"
-                           placeholder="English translation of the sentence"
-                           class="w-full bg-transparent border-0 p-0 text-[#6e7978] text-xs italic focus:outline-none" />
-                  </div>
-                </div>
-              </div>
-
-              <!-- Row 4: Cultural Context / Note -->
-              <div class="flex flex-col gap-1.5">
-                <label class="text-xs font-bold text-[#191c1c] flex items-center justify-between">
-                  <span>Cultural Context & Historical Significance</span>
-                  <span class="text-[11px] text-[#6e7978] font-normal">Origin or folklore usage</span>
-                </label>
-                <textarea rows="3"
-                          [(ngModel)]="culturalContext"
-                          placeholder="A short paragraph explaining the cultural background or traditional significance..."
-                          class="w-full bg-[#f8faf9] border border-[#c2c8c7] rounded-xl p-3.5 text-[#191c1c] text-xs leading-relaxed focus:bg-white focus:border-[#004343] focus:outline-none transition-all resize-y"></textarea>
-              </div>
-
-              <!-- Row 5: Audio Pronunciation & Publish Date -->
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-1">
-                <!-- Audio Upload Box -->
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-xs font-bold text-[#191c1c]">Audio Pronunciation</label>
-                  <div (click)="simulateAudioUpload()"
-                       class="border-2 border-dashed border-[#c2c8c7] rounded-xl p-4 bg-[#f8faf9] hover:bg-white hover:border-[#004343] transition-colors text-center cursor-pointer flex flex-col items-center justify-center gap-1.5">
-                    <span class="material-symbols-outlined text-[#004343] text-2xl">cloud_upload</span>
-                    <span class="text-xs font-bold text-[#191c1c]">
-                      {{ audioFilename() || 'Click to upload elder pronunciation' }}
-                    </span>
-                    <span class="text-[10px] text-[#6e7978]">Supports .mp3, .wav (up to 10MB)</span>
-                  </div>
-                </div>
-
-                <!-- Publish Date Picker -->
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-xs font-bold text-[#191c1c]">Publish Date</label>
-                  <div class="relative flex items-center">
-                    <span class="material-symbols-outlined absolute left-3.5 text-[#6e7978] text-[18px] pointer-events-none">calendar_today</span>
-                    <input type="date"
-                           [(ngModel)]="publishDate"
-                           class="w-full bg-[#f8faf9] border border-[#c2c8c7] rounded-xl pl-10 pr-3.5 py-3 text-[#191c1c] text-xs font-semibold focus:bg-white focus:border-[#004343] focus:outline-none transition-all" />
-                  </div>
-                  <span class="text-[10px] text-[#6e7978] mt-0.5">Word will go live to student feeds at 06:30 AM local time.</span>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-          <!-- Bottom Footer Status -->
-          <div class="flex items-center justify-between text-xs text-[#6e7978] px-2">
-            <span class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>Draft auto-saved • Ready for publication</span>
-            </span>
-            <button (click)="toggleScheduleModal()" class="text-[#004343] font-bold hover:underline flex items-center gap-1">
-              <span>View scheduled calendar ({{ scheduledWords().length }})</span>
-              <span class="material-symbols-outlined text-sm">arrow_forward</span>
-            </button>
-          </div>
-
-          <!-- Scheduled Words Calendar Modal / Drawer -->
-          @if (showScheduleModal()) {
-            <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-              <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-[#dde3eb] overflow-hidden animate-in fade-in zoom-in duration-150">
-                <div class="p-6 border-b border-[#dde3eb] flex items-center justify-between">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-[#004343]/10 text-[#004343] flex items-center justify-center">
-                      <span class="material-symbols-outlined text-2xl">event</span>
-                    </div>
-                    <div>
-                      <h3 class="text-base font-serif font-bold text-[#191c1c]">Scheduled Word Queue</h3>
-                      <p class="text-xs text-[#6e7978]">Upcoming entries broadcast across the mobile learning feed</p>
-                    </div>
-                  </div>
-                  <button (click)="showScheduleModal.set(false)" class="text-[#6e7978] hover:text-[#191c1c]">✕</button>
-                </div>
-
-                <div class="p-6 divide-y divide-[#dde3eb] max-h-96 overflow-y-auto">
-                  @for (item of scheduledWords(); track item.id) {
-                    <div class="py-3.5 flex items-center justify-between gap-4">
-                      <div>
-                        <div class="flex items-center gap-2">
-                          <span class="text-base font-serif font-bold text-[#004343]">{{ item.wordNative }}</span>
-                          <span class="text-xs text-[#6e7978] font-mono">({{ item.transliteration }})</span>
-                          <span class="px-2 py-0.5 rounded text-[10px] font-bold"
-                                [ngClass]="item.status === 'Published' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'">
-                            {{ item.status }}
-                          </span>
-                        </div>
-                        <p class="text-xs text-[#3e4948] mt-0.5">{{ item.meaning }}</p>
-                      </div>
-                      <div class="text-right text-xs font-mono text-[#6e7978] shrink-0">
-                        {{ item.publishDate }}
-                      </div>
-                    </div>
-                  }
-                </div>
-
-                <div class="p-4 bg-[#f8faf9] border-t border-[#dde3eb] flex justify-end">
-                  <button (click)="showScheduleModal.set(false)"
-                          class="px-4 py-2 bg-[#004343] text-white rounded-xl text-xs font-bold hover:bg-[#003131] transition-colors">
-                    Close Queue
-                  </button>
-                </div>
-              </div>
+              <button (click)="resetForm()" class="text-xs text-amber-700 hover:text-amber-900 font-bold underline cursor-pointer">Cancel Edit</button>
             </div>
           }
 
+          <!-- ── MAIN BODY: Form (left) + Preview (right) ── -->
+          <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+
+            <!-- ── LEFT: 2-card form (7 cols) ── -->
+            <div class="xl:col-span-7 space-y-5">
+
+              <!-- Card 1: Language & Schedule -->
+              <div class="bg-white rounded-2xl border border-[#dde3eb] p-5 shadow-xs space-y-4">
+                <div class="flex items-center gap-2 pb-2 border-b border-[#dde3eb]">
+                  <span class="w-6 h-6 rounded-full bg-[#004343] text-white flex items-center justify-center text-xs font-bold">1</span>
+                  <h3 class="font-bold text-sm text-[#191c1c]">Language & Schedule</h3>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <!-- Language tabs -->
+                  <div>
+                    <label class="block text-xs font-bold text-[#191c1c] mb-1.5">
+                      Language <span class="text-red-500">*</span>
+                    </label>
+                    <div class="flex items-center gap-1 bg-[#f2f4f7] p-1 rounded-xl border border-[#dde3eb]">
+                      @for (lang of languages; track lang.value) {
+                        <button (click)="form.language = lang.value"
+                          [class]="form.language === lang.value
+                            ? 'bg-white text-[#004343] font-bold shadow-xs'
+                            : 'text-[#6e7978] hover:text-[#191c1c] font-medium'"
+                          class="flex-1 px-2 py-1.5 rounded-lg text-xs transition-all cursor-pointer">
+                          {{ lang.label }}
+                        </button>
+                      }
+                    </div>
+                    <p class="text-[10px] text-[#6e7978] mt-1">Determines script direction and card badge colour.</p>
+                  </div>
+
+                  <!-- Active Date -->
+                  <div>
+                    <label class="block text-xs font-bold text-[#191c1c] mb-1.5">
+                      Active Date <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                      <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6e7978] text-base pointer-events-none">calendar_today</span>
+                      <input type="date" [(ngModel)]="form.activeDate"
+                        class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl pl-9 pr-3 py-2.5 text-xs font-semibold text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all">
+                    </div>
+                    <p class="text-[10px] text-[#6e7978] mt-1">One word per calendar day. Goes live at 06:30 AM.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 2: Word, Phonetics & Definition -->
+              <div class="bg-white rounded-2xl border border-[#dde3eb] p-5 shadow-xs space-y-4">
+                <div class="flex items-center gap-2 pb-2 border-b border-[#dde3eb]">
+                  <span class="w-6 h-6 rounded-full bg-[#004343] text-white flex items-center justify-center text-xs font-bold">2</span>
+                  <h3 class="font-bold text-sm text-[#191c1c]">Word, Phonetics & Definition</h3>
+                </div>
+
+                <!-- Row: native word + transliteration -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold text-[#191c1c] mb-1.5">
+                      Word (Native Script) <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" [(ngModel)]="form.word"
+                      [placeholder]="form.language === 'Tamil' ? 'e.g. ஒற்றுமை' : form.language === 'English' ? 'e.g. Stewardship' : 'e.g. සාමූහිකත්වය'"
+                      class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2.5 font-['Source_Serif_4',serif] text-xl text-[#004343] focus:outline-none focus:border-[#004343] focus:bg-white transition-all">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-[#191c1c] mb-1.5">
+                      Transliteration <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" [(ngModel)]="form.transliteration"
+                      placeholder="e.g. Sā-mū-hi-kat-wa-ya"
+                      class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2.5 font-mono text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all">
+                    <p class="text-[10px] text-[#6e7978] mt-1">Phonetic romanized pronunciation guide.</p>
+                  </div>
+                </div>
+
+                <!-- Row: definition + part of speech -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div class="sm:col-span-2">
+                    <label class="block text-xs font-bold text-[#191c1c] mb-1.5">
+                      Definition (English) <span class="text-red-500">*</span>
+                    </label>
+                    <textarea rows="2" [(ngModel)]="form.definition"
+                      placeholder="Short English meaning shown on the mobile card..."
+                      class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2.5 text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all resize-none"></textarea>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-[#191c1c] mb-1.5">Part of Speech</label>
+                    <select [(ngModel)]="form.partOfSpeech"
+                      class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2.5 text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all cursor-pointer">
+                      @for (pos of partsOfSpeech; track pos) {
+                        <option [value]="pos">{{ pos }}</option>
+                      }
+                    </select>
+                    <div class="mt-3">
+                      <label class="block text-xs font-bold text-[#191c1c] mb-1.5">Audio File</label>
+                      <input type="text" [(ngModel)]="form.audioFilename"
+                        placeholder="elder_word.wav"
+                        class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3 py-2.5 text-xs font-mono text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Field completeness bar -->
+                <div class="pt-2 border-t border-[#f2f4f3]">
+                  <div class="flex items-center gap-3 text-[10px] text-[#6e7978] flex-wrap">
+                    @for (field of fieldStatus(); track field.label) {
+                      <span [class]="field.ok ? 'text-emerald-700' : 'text-red-400'" class="flex items-center gap-0.5 font-semibold">
+                        <span class="material-symbols-outlined text-[12px]">{{ field.ok ? 'check_circle' : 'cancel' }}</span>
+                        {{ field.label }}
+                      </span>
+                    }
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- ── RIGHT: Live Mobile Preview (5 cols) ── -->
+            <div class="xl:col-span-5 sticky top-0 space-y-4">
+
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[#004343] text-base">smartphone</span>
+                <span class="text-xs font-bold text-[#3f4948] uppercase tracking-wider">Live Mobile Preview</span>
+                <span class="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Real-time
+                </span>
+              </div>
+
+              <!-- Phone frame -->
+              <div class="bg-[#1a1a2e] rounded-3xl p-4 shadow-2xl max-w-[320px] mx-auto">
+                <div class="bg-[#f8faf9] rounded-2xl overflow-hidden">
+
+                  <!-- Status bar -->
+                  <div class="bg-white px-4 py-2 flex items-center justify-between border-b border-[#f0f0f0]">
+                    <span class="text-[10px] font-bold text-[#191c1c]">9:41</span>
+                    <div class="flex items-center gap-1">
+                      <span class="material-symbols-outlined text-[12px] text-[#191c1c]">signal_cellular_4_bar</span>
+                      <span class="material-symbols-outlined text-[12px] text-[#191c1c]">battery_5_bar</span>
+                    </div>
+                  </div>
+
+                  <!-- Feed label -->
+                  <div class="px-4 py-2">
+                    <span class="text-[10px] font-bold text-[#6e7978] uppercase tracking-wider">Home Feed</span>
+                  </div>
+
+                  <!-- WORD OF THE DAY CARD — mirrors WordOfTheDay.tsx -->
+                  <div class="mx-3 mb-3 bg-white rounded-2xl border border-[#dde3eb] shadow-sm overflow-hidden">
+
+                    <!-- Card header -->
+                    <div class="px-4 pt-4 pb-1 flex items-center justify-between">
+                      <span class="text-[10px] font-bold text-[#6e7978] uppercase tracking-[1.5px]">WORD OF THE DAY</span>
+                      <span class="material-symbols-outlined text-[#b0b8b7] text-xl">share</span>
+                    </div>
+
+                    <!-- Language + POS badges -->
+                    <div class="px-4 pb-2 flex items-center gap-1.5">
+                      <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border"
+                        [ngClass]="{
+                          'bg-amber-50 text-amber-700 border-amber-200': form.language === 'Sinhala',
+                          'bg-blue-50 text-blue-700 border-blue-200': form.language === 'Tamil',
+                          'bg-emerald-50 text-emerald-700 border-emerald-200': form.language === 'English'
+                        }">
+                        {{ form.language }}
+                      </span>
+                      @if (form.partOfSpeech) {
+                        <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#f2f4f3] text-[#6e7978] border border-[#dde3eb]">
+                          {{ form.partOfSpeech }}
+                        </span>
+                      }
+                    </div>
+
+                    <!-- Word body -->
+                    <div class="px-4 pb-3 space-y-2">
+                      <div>
+                        <p class="text-2xl font-bold text-[#004343] font-['Source_Serif_4',serif] leading-tight">
+                          {{ form.word || 'Native Word' }}
+                        </p>
+                        <p class="text-[11px] text-[#6e7978] font-mono mt-0.5">
+                          {{ form.transliteration || 'transliteration' }}
+                        </p>
+                      </div>
+
+                      <!-- Definition box (matches definitionBox style) -->
+                      <div class="bg-[#f2f4f3] rounded-xl p-3 border border-[#e1e3e2]">
+                        <p class="text-xs text-[#191c1c] leading-relaxed">
+                          {{ form.definition || 'English definition will appear here...' }}
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- Card footer -->
+                    <div class="px-4 py-3 border-t border-[#f2f4f3] flex items-center justify-between">
+                      <div class="flex items-center gap-4">
+                        <span class="material-symbols-outlined text-[#b0b8b7] text-2xl">favorite_border</span>
+                        <div class="flex items-center gap-1">
+                          <span class="material-symbols-outlined text-[#b0b8b7] text-2xl">volume_up</span>
+                          @if (form.audioFilename) {
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Audio attached"></span>
+                          }
+                        </div>
+                      </div>
+                      <span class="material-symbols-outlined text-[#b0b8b7] text-2xl">bookmark_border</span>
+                    </div>
+                  </div>
+
+                  <!-- Active date chip -->
+                  <div class="px-4 pb-3 text-center">
+                    <span class="text-[10px] text-[#6e7978] font-mono">
+                      {{ form.activeDate ? ('Active: ' + form.activeDate) : 'No date set' }}
+                    </span>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ── STATUS TABS + WORD LIST TABLE ── -->
+          <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-xs overflow-hidden">
+
+            <!-- Tab bar -->
+            <div class="border-b border-[#dde3eb] px-5 pt-4 flex items-center gap-1">
+              @for (tab of statusTabs; track tab.key) {
+                <button (click)="activeListTab.set(tab.key)"
+                  [class]="activeListTab() === tab.key
+                    ? 'border-b-2 border-[#004343] text-[#004343] font-bold bg-transparent'
+                    : 'border-b-2 border-transparent text-[#6e7978] hover:text-[#191c1c] font-medium'"
+                  class="px-4 py-2.5 text-xs transition-all cursor-pointer flex items-center gap-1.5 -mb-px">
+                  <span class="material-symbols-outlined text-sm">{{ tab.icon }}</span>
+                  {{ tab.label }}
+                  <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                    [class]="activeListTab() === tab.key ? tab.activeBadge : 'bg-[#f2f4f3] text-[#6e7978]'">
+                    {{ countByStatus(tab.key) }}
+                  </span>
+                </button>
+              }
+
+              <div class="ml-auto pb-1">
+                <button (click)="loadWords()" class="text-xs text-[#004343] font-bold flex items-center gap-1 hover:underline cursor-pointer px-2 py-1 rounded-lg hover:bg-[#f2f4f3]">
+                  <span class="material-symbols-outlined text-sm">refresh</span> Refresh
+                </button>
+              </div>
+            </div>
+
+            <!-- Table -->
+            @if (filteredWords().length === 0) {
+              <div class="p-10 text-center text-xs text-[#6e7978]">
+                <span class="material-symbols-outlined text-3xl text-gray-300 block mb-2">auto_stories</span>
+                <p>No <strong>{{ activeListTab() }}</strong> words found.</p>
+                @if (activeListTab() === 'Draft') {
+                  <p class="mt-1">Use <em>"Save as Draft"</em> above to create one.</p>
+                } @else if (activeListTab() === 'Scheduled') {
+                  <p class="mt-1">Use <em>"Schedule"</em> above to queue a word.</p>
+                } @else {
+                  <p class="mt-1">Use <em>"Publish"</em> above to push a word to the feed.</p>
+                }
+              </div>
+            } @else {
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                  <thead>
+                    <tr class="bg-[#f8faf9] text-[#6e7978] uppercase tracking-wider text-[10px]">
+                      <th class="px-5 py-3 text-left font-bold w-5">Lang</th>
+                      <th class="px-5 py-3 text-left font-bold">Word</th>
+                      <th class="px-5 py-3 text-left font-bold">Definition</th>
+                      <th class="px-5 py-3 text-left font-bold">Part of Speech</th>
+                      <th class="px-5 py-3 text-left font-bold">Active Date</th>
+                      <th class="px-5 py-3 text-left font-bold">Status</th>
+                      <th class="px-5 py-3 text-right font-bold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-[#f2f4f3]">
+                    @for (item of filteredWords(); track item.id) {
+                      <tr class="hover:bg-[#f8faf9] transition-colors group">
+                        <td class="px-5 py-3.5">
+                          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+                            [ngClass]="{
+                              'bg-amber-50 text-amber-700 border-amber-200': item.language === 'Sinhala',
+                              'bg-blue-50 text-blue-700 border-blue-200': item.language === 'Tamil',
+                              'bg-emerald-50 text-emerald-700 border-emerald-200': item.language === 'English'
+                            }">
+                            {{ item.language.slice(0,2) }}
+                          </span>
+                        </td>
+                        <td class="px-5 py-3.5">
+                          <div class="font-['Source_Serif_4',serif] font-bold text-[#004343] text-base leading-tight">{{ item.word }}</div>
+                          <div class="text-[10px] text-[#6e7978] font-mono mt-0.5">{{ item.transliteration }}</div>
+                        </td>
+                        <td class="px-5 py-3.5 max-w-[200px]">
+                          <p class="text-[#3f4948] line-clamp-2 leading-relaxed">{{ item.definition }}</p>
+                        </td>
+                        <td class="px-5 py-3.5">
+                          <span class="text-[10px] px-2 py-0.5 rounded-full bg-[#f2f4f3] text-[#6e7978] border border-[#dde3eb] font-semibold">
+                            {{ item.partOfSpeech || '—' }}
+                          </span>
+                        </td>
+                        <td class="px-5 py-3.5 font-mono text-[#6e7978] whitespace-nowrap">{{ item.activeDate }}</td>
+                        <td class="px-5 py-3.5">
+                          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                            [ngClass]="statusBadge(item.status)">
+                            {{ item.status }}
+                          </span>
+                        </td>
+                        <td class="px-5 py-3.5 text-right">
+                          <div class="flex items-center justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                            <button (click)="editWord(item)" title="Edit"
+                              class="p-1.5 rounded-lg hover:bg-[#f2f4f3] text-[#004343] transition-colors cursor-pointer">
+                              <span class="material-symbols-outlined text-base">edit</span>
+                            </button>
+                            <button (click)="deleteWord(item.id!)" title="Delete"
+                              class="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors cursor-pointer">
+                              <span class="material-symbols-outlined text-base">delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+
         </div>
-
       </main>
-
     </div>
   `
 })
-export class WordOfTheDayComponent {
+export class WordOfTheDayComponent implements OnInit {
+  private http = inject(HttpClient);
+
   toastMessage = signal<string | null>(null);
+  isErrorToast = signal<boolean>(false);
+  isSaving = signal<boolean>(false);
+  isEditMode = signal<boolean>(false);
+  editingId = signal<number | null>(null);
+  wordList = signal<WordEntry[]>([]);
+  activeListTab = signal<string>('Published');
 
-  currentLanguage = signal<'Sinhala' | 'Tamil' | 'English'>('Sinhala');
-  wordNative = 'සාමූහිකත්වය';
-  transliteration = 'Sā-mū-hi-kat-wa-ya';
-  meaningEnglish = 'Communal solidarity; collective action for mutual stewardship';
-  partOfSpeech = 'Noun';
-  exampleSentenceNative = 'සාමූහිකත්වයෙන් ගමේ වැව ප්රතිසංස්කරණය කර අස්වනු සුරක්ෂිත කළහ.';
-  exampleSentenceEnglish = 'Through communal solidarity, they restored the village reservoir, safeguarding the harvest.';
-  culturalContext = "Rooted in ancient Sri Lankan village customs like 'Kayya' (uncompensated mutual labor). Communities gathered voluntarily to desilt irrigation tanks and cultivate terraced paddy fields before monsoonal floods.";
-  publishDate = '2024-10-24';
-  audioFilename = signal<string | null>('elder_bandara_saamuhikathvaya.wav');
+  languages = [
+    { label: 'සිංහල', value: 'Sinhala' },
+    { label: 'தமிழ்', value: 'Tamil' },
+    { label: 'English', value: 'English' }
+  ];
 
-  showScheduleModal = signal<boolean>(false);
+  partsOfSpeech = ['Noun', 'Verb', 'Adjective', 'Adverb', 'Idiom / Phrase'];
 
-  scheduledWords = signal<WordEntry[]>([
-    {
-      id: 'WOD-01',
-      language: 'Sinhala',
-      wordNative: 'සාමූහිකත්වය',
-      transliteration: 'Sā-mū-hi-kat-wa-ya',
-      meaning: 'Communal solidarity; collective action for mutual stewardship',
-      partOfSpeech: 'Noun',
-      exampleSentenceNative: 'සාමූහිකත්වයෙන් ගමේ වැව ප්රතිසංස්කරණය කර අස්වනු සුරක්ෂිත කළහ.',
-      exampleSentenceEnglish: 'Through communal solidarity, they restored the village reservoir.',
-      culturalContext: 'Ancient Kayya mutual labor tradition.',
-      publishDate: '2024-10-24',
-      status: 'Scheduled'
-    },
-    {
-      id: 'WOD-02',
-      language: 'Sinhala',
-      wordNative: 'කැවුම් කෝඩුව',
-      transliteration: 'Kevum Kōḍuwa',
-      meaning: 'Traditional decorative brass mold for festive oil cakes',
-      partOfSpeech: 'Noun',
-      exampleSentenceNative: 'අලුත් අවුරුදු සමයේ කැවුම් කෝඩුව භාවිතයෙන් රස කැවිලි සෑදූහ.',
-      exampleSentenceEnglish: 'During New Year, sweetmeats were made using traditional brass molds.',
-      culturalContext: 'Culinary heirloom crafting practice.',
-      publishDate: '2024-10-23',
-      status: 'Published'
-    },
-    {
-      id: 'WOD-03',
-      language: 'Tamil',
-      wordNative: 'ஒற்றுமை',
-      transliteration: 'Oṟṟumai',
-      meaning: 'Harmony, unity, and communal togetherness',
-      partOfSpeech: 'Noun',
-      exampleSentenceNative: 'கிராமத்து மக்கள் ஒற்றுமையுடன் அறுவடைத் திருநாளைக் கொண்டாடினர்.',
-      exampleSentenceEnglish: 'The village residents celebrated the harvest festival with unity.',
-      culturalContext: 'Thai Pongal agricultural festival collective celebration.',
-      publishDate: '2024-10-25',
-      status: 'Scheduled'
-    }
+  statusTabs = [
+    { key: 'Published', label: 'Published', icon: 'check_circle', activeBadge: 'bg-emerald-100 text-emerald-800' },
+    { key: 'Scheduled', label: 'Scheduled', icon: 'schedule',     activeBadge: 'bg-amber-100 text-amber-800' },
+    { key: 'Draft',     label: 'Drafts',    icon: 'draft',        activeBadge: 'bg-[#e1e3e2] text-[#3f4948]' },
+  ];
+
+  form: WordEntry = this.emptyForm();
+
+  fieldStatus = computed(() => [
+    { label: 'Language',        ok: !!this.form.language },
+    { label: 'Word',            ok: !!this.form.word?.trim() },
+    { label: 'Transliteration', ok: !!this.form.transliteration?.trim() },
+    { label: 'Definition',      ok: !!this.form.definition?.trim() },
+    { label: 'Date',            ok: !!this.form.activeDate },
   ]);
 
-  constructor(private router: Router, private authService: AuthService) {}
+  filteredWords = computed(() =>
+    this.wordList().filter(w => {
+      const s = w.status ?? '';
+      const tab = this.activeListTab();
+      if (tab === 'Published') return s === 'Published' || s === 'Today';
+      return s === tab;
+    })
+  );
 
-  setLanguage(lang: 'Sinhala' | 'Tamil' | 'English'): void {
-    this.currentLanguage.set(lang);
-    if (lang === 'Sinhala') {
-      this.wordNative = 'සාමූහිකත්වය';
-      this.transliteration = 'Sā-mū-hi-kat-wa-ya';
-    } else if (lang === 'Tamil') {
-      this.wordNative = 'ஒற்றுமை';
-      this.transliteration = 'Oṟṟumai';
-    } else {
-      this.wordNative = 'Solitary Stewardship';
-      this.transliteration = 'Sol-i-tar-y Stew-ard-ship';
+  countByStatus(tab: string): number {
+    return this.wordList().filter(w => {
+      const s = w.status ?? '';
+      if (tab === 'Published') return s === 'Published' || s === 'Today';
+      return s === tab;
+    }).length;
+  }
+
+  statusBadge(status: string): string {
+    switch (status) {
+      case 'Published':
+      case 'Today':    return 'bg-emerald-100 text-emerald-800';
+      case 'Scheduled': return 'bg-amber-100 text-amber-800';
+      case 'Draft':    return 'bg-[#e1e3e2] text-[#3f4948]';
+      case 'Past':     return 'bg-gray-100 text-gray-500';
+      default:         return 'bg-[#f2f4f3] text-[#6e7978]';
     }
-    this.showToast(`Language switched to ${lang}.`);
   }
 
-  saveDraft(): void {
-    this.showToast(`Draft for "${this.wordNative}" saved to council cloud storage.`);
+  ngOnInit(): void {
+    this.loadWords();
   }
 
-  publishWord(): void {
-    const newEntry: WordEntry = {
-      id: 'WOD-' + Date.now(),
-      language: this.currentLanguage(),
-      wordNative: this.wordNative,
-      transliteration: this.transliteration,
-      meaning: this.meaningEnglish,
-      partOfSpeech: this.partOfSpeech,
-      exampleSentenceNative: this.exampleSentenceNative,
-      exampleSentenceEnglish: this.exampleSentenceEnglish,
-      culturalContext: this.culturalContext,
-      publishDate: this.publishDate,
-      status: 'Published'
+  loadWords(): void {
+    this.http.get<any>(API_BASE).subscribe({
+      next: (res) => {
+        const data = res?.data ?? res;
+        this.wordList.set(Array.isArray(data) ? data : []);
+      },
+      error: () => this.showToast('Failed to load words from backend.', true)
+    });
+  }
+
+  saveWord(status: string): void {
+    if (!this.form.word?.trim() || !this.form.transliteration?.trim() || !this.form.definition?.trim() || !this.form.activeDate) {
+      this.showToast('Please fill in Word, Transliteration, Definition, and Active Date.', true);
+      return;
+    }
+    this.isSaving.set(true);
+    const payload = { ...this.form, status };
+    const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
+    const req$ = this.isEditMode()
+      ? this.http.put<any>(`${API_BASE}/${this.editingId()}`, payload, { headers })
+      : this.http.post<any>(API_BASE, payload, { headers });
+
+    req$.subscribe({
+      next: () => {
+        this.isSaving.set(false);
+        this.showToast(`"${this.form.word}" ${this.isEditMode() ? 'updated' : 'created'} as ${status}!`);
+        this.activeListTab.set(status === 'Published' || status === 'Today' ? 'Published' : status);
+        this.resetForm();
+        this.loadWords();
+      },
+      error: (err) => {
+        this.isSaving.set(false);
+        const msg = err?.error?.message ?? 'Failed to save word.';
+        this.showToast(msg, true);
+      }
+    });
+  }
+
+  editWord(item: WordEntry): void {
+    this.form = { ...item };
+    this.isEditMode.set(true);
+    this.editingId.set(item.id ?? null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  deleteWord(id: number): void {
+    if (!confirm('Delete this word entry? This cannot be undone.')) return;
+    this.http.delete<any>(`${API_BASE}/${id}`).subscribe({
+      next: () => {
+        this.showToast('Word deleted.');
+        if (this.editingId() === id) this.resetForm();
+        this.loadWords();
+      },
+      error: () => this.showToast('Failed to delete word.', true)
+    });
+  }
+
+  resetForm(): void {
+    this.form = this.emptyForm();
+    this.isEditMode.set(false);
+    this.editingId.set(null);
+  }
+
+  private emptyForm(): WordEntry {
+    return {
+      language: 'Sinhala',
+      word: '',
+      transliteration: '',
+      definition: '',
+      partOfSpeech: 'Noun',
+      audioFilename: '',
+      activeDate: new Date().toISOString().split('T')[0],
+      status: 'Draft'
     };
-    this.scheduledWords.update(words => [newEntry, ...words]);
-    this.showToast(`Word of the Day "${this.wordNative}" published to student feeds!`);
   }
 
-  simulateAudioUpload(): void {
-    this.audioFilename.set('elder_pronunciation_' + Date.now() + '.wav');
-    this.showToast('Elder audio pronunciation uploaded and verified.');
-  }
-
-  toggleScheduleModal(): void {
-    this.showScheduleModal.update(v => !v);
-  }
-
-  openHelp(): void {
-    this.showToast('Curatorial Editorial Standard: Select archaic idioms and dialect words with verifiable oral history citations.');
-  }
-
-  private showToast(msg: string): void {
+  private showToast(msg: string, isError = false): void {
+    this.isErrorToast.set(isError);
     this.toastMessage.set(msg);
-    setTimeout(() => {
-      this.toastMessage.set(null);
-    }, 4000);
+    setTimeout(() => this.toastMessage.set(null), 4500);
   }
 }

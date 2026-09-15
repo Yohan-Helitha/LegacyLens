@@ -180,6 +180,10 @@ export function pastDateValidator(control: AbstractControl): ValidationErrors | 
                   <option value="moderator">Archival Moderator</option>
                   <option value="specialist">Oral History Specialist</option>
                   <option value="director">National Heritage Director</option>
+                  <option value="ADMIN">Senior Field Curator</option>
+                  <option value="ADMIN">Archival Moderator</option>
+                  <option value="ADMIN">Oral History Specialist</option>
+                  <option value="ADMIN">National Heritage Director</option>
                 </select>
                 <span class="material-symbols-outlined absolute right-3 text-outline pointer-events-none text-base">expand_more</span>
               </div>

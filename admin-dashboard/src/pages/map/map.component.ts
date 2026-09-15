@@ -271,7 +271,25 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
         <!-- Main Body Scrollable View -->
         <main class="flex-1 overflow-y-auto p-6 space-y-6">
           
-          <!-- Top Executive Bar (Title & Subtitle on Left, Sync and Action triggers on Right) -->
+          <!-- Loading State -->
+          @if (isLoading()) {
+            <div class="flex items-center justify-center py-16">
+              <div class="flex flex-col items-center gap-3 text-[#6f7978]">
+                <span class="material-symbols-outlined text-4xl animate-spin text-[#004343]">cached</span>
+                <span class="text-sm font-medium">Loading map data...</span>
+              </div>
+            </div>
+          }
+
+          <!-- Error State -->
+          @if (hasError() && !isLoading()) {
+            <div class="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+              <span class="material-symbols-outlined text-xl">warning</span>
+              <span>Backend unreachable — please try again later.</span>
+            </div>
+          }
+
+          @if (!isLoading()) {
           <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
             <div class="space-y-1">
               <h1 class="font-['Source_Serif_4',serif] text-2xl font-bold text-[#004343] tracking-tight">
@@ -1412,10 +1430,9 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
                   <p class="text-xs text-[#6e7978] mt-1">Please select a landmark from the dropdown to build its badge and quests.</p>
                 </div>
               }
-
             </div>
           }
-
+          }
         </main>
 
       </div>
@@ -1456,6 +1473,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Status & Loading
   isLoading = signal<boolean>(false);
+  hasError = signal<boolean>(false);
   isSaving = signal<boolean>(false);
   isSavingBadge = signal<boolean>(false);
   isSavingQuest = signal<boolean>(false);
@@ -1700,7 +1718,10 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
           this.regions.set(normalized);
         }
       },
-      error: (err: any) => console.warn('Could not load regions:', err)
+            error: (err: any) => {
+        console.warn('Could not load regions:', err);
+        this.hasError.set(true);
+      }
     });
 
     // 2. Fetch Landmarks Catalog from GET /api/admin/cultural-map/landmarks
@@ -1722,6 +1743,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (err: any) => {
         console.warn('Could not load landmarks from backend, keeping defaults:', err);
+        this.hasError.set(true);
         this.isLoading.set(false);
         this.renderLandmarkMarkersOnMap();
       }

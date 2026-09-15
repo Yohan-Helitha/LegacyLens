@@ -1,8 +1,9 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../app/core/services/auth.service';
+import { AuditService } from '../../app/core/services/audit.service';
 import { SidebarComponent } from '../../components/common/sidebar/sidebar.component';
 import { HeaderComponent } from '../../components/common/header/header.component';
 
@@ -73,31 +74,44 @@ export interface AuditActivity {
         <!-- Main Body Scroll Container -->
         <div class="flex-1 overflow-y-auto p-6 space-y-6">
           
-          <!-- Hero Header Banner -->
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-[#dde3eb] shadow-sm">
-            <div>
-              <div class="flex items-center gap-2 mb-1">
-                <span class="text-[11px] font-bold uppercase tracking-wider text-[#004343]">Console / Audit Log</span>
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold border border-emerald-300">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                  Live Activity Stream
-                </span>
+          <!-- Loading State -->
+          @if (isLoading()) {
+            <div class="flex items-center justify-center py-16">
+              <div class="flex flex-col items-center gap-3 text-[#6f7978]">
+                <span class="material-symbols-outlined text-4xl animate-spin text-[#004343]">cached</span>
+                <span class="text-sm font-medium">Loading audit log...</span>
               </div>
-              <h1 class="text-2xl font-serif font-bold text-[#191c1c]">Admin Activity & Audit Log</h1>
-              <p class="text-xs text-[#6e7978] mt-0.5">
+            </div>
+          }
+
+          <!-- Error State -->
+          @if (hasError() && !isLoading()) {
+            <div class="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+              <span class="material-symbols-outlined text-xl">warning</span>
+              <span>Backend unreachable — please try again later.</span>
+            </div>
+          }
+
+          @if (!isLoading()) {
+          <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4">
+            <div class="space-y-1">
+              <h1 class="font-['Source_Serif_4',serif] text-2xl font-bold text-[#004343] tracking-tight">
+                Audit Log
+              </h1>
+              <p class="text-xs text-[#3f4948] max-w-3xl leading-relaxed">
                 A clear chronological history of actions taken by administrators, curators, and moderators across the platform.
               </p>
             </div>
-            
-            <div class="flex items-center gap-2">
-              <button (click)="refreshFeed()" class="flex items-center gap-1.5 px-3 py-2 bg-[#f8faf9] border border-[#dde3eb] rounded-xl text-xs font-semibold text-[#3e4948] hover:bg-white transition-colors">
+
+            <div class="flex items-center gap-2 self-start xl:self-auto flex-wrap">
+              <button (click)="refreshFeed()" class="flex items-center gap-1.5 px-3 py-2 bg-white border border-[#dde3eb] rounded-xl text-xs font-bold text-[#191c1c] hover:bg-[#f2f4f3] transition-colors shadow-xs">
                 <span class="material-symbols-outlined text-sm text-[#004343]">refresh</span>
                 <span>Refresh Feed</span>
               </button>
             </div>
           </div>
 
-          <!-- 4 Practical KPI Summary Cards -->
+          <!-- 4 KPI Summary Cards (live-computed) -->
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Card 1: Activities Today -->
             <div class="bg-white rounded-2xl p-5 border border-[#dde3eb] shadow-sm flex flex-col justify-between hover:border-[#004343]/30 transition-all">
@@ -108,65 +122,58 @@ export interface AuditActivity {
                 </div>
               </div>
               <div>
-                <div class="text-2xl font-serif font-bold text-[#191c1c]">148 Actions</div>
-                <div class="flex items-center gap-1 text-[11px] text-emerald-700 font-semibold mt-1">
-                  <span class="material-symbols-outlined text-sm">trending_up</span>
-                  <span>+12% compared to yesterday</span>
-                </div>
+                <div class="text-2xl font-serif font-bold text-[#191c1c]">{{ kpi().total }} Actions</div>
+                <div class="text-[11px] text-[#6e7978] mt-1">Total entries in log</div>
               </div>
             </div>
 
             <!-- Card 2: Content Approvals -->
             <div class="bg-white rounded-2xl p-5 border border-[#dde3eb] shadow-sm flex flex-col justify-between hover:border-[#004343]/30 transition-all">
               <div class="flex items-center justify-between mb-2">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-[#6e7978]">Content Approvals</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-[#6e7978]">Approvals</span>
                 <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
                   <span class="material-symbols-outlined text-base">verified</span>
                 </div>
               </div>
               <div>
-                <div class="text-2xl font-serif font-bold text-[#191c1c]">94 Items</div>
-                <div class="text-[11px] text-[#6e7978] mt-1">
-                  Stories, audio & sacred markers
-                </div>
+                <div class="text-2xl font-serif font-bold text-[#191c1c]">{{ kpi().approvals }} Items</div>
+                <div class="text-[11px] text-[#6e7978] mt-1">Approved &amp; published</div>
               </div>
             </div>
 
             <!-- Card 3: Moderation & Flags -->
             <div class="bg-white rounded-2xl p-5 border border-[#dde3eb] shadow-sm flex flex-col justify-between hover:border-[#004343]/30 transition-all">
               <div class="flex items-center justify-between mb-2">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-[#9b4600]">Moderation & Flags</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-[#9b4600]">Deletions &amp; Rejects</span>
                 <div class="w-8 h-8 rounded-lg bg-[#9b4600]/10 text-[#9b4600] flex items-center justify-center">
                   <span class="material-symbols-outlined text-base">flag</span>
                 </div>
               </div>
               <div>
-                <div class="text-2xl font-serif font-bold text-[#9b4600]">12 Actions</div>
-                <div class="text-[11px] text-[#6e7978] mt-1">
-                  Resolved disputes & reviews
-                </div>
+                <div class="text-2xl font-serif font-bold text-[#9b4600]">{{ kpi().deletions }} Actions</div>
+                <div class="text-[11px] text-[#6e7978] mt-1">Deleted, rejected &amp; archived</div>
               </div>
             </div>
 
-            <!-- Card 4: Active Admins -->
+            <!-- Card 4: Unique Admins -->
             <div class="bg-white rounded-2xl p-5 border border-[#dde3eb] shadow-sm flex flex-col justify-between hover:border-[#004343]/30 transition-all">
               <div class="flex items-center justify-between mb-2">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-[#6e7978]">Staff Online</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-[#6e7978]">Active Admins</span>
                 <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center">
                   <span class="material-symbols-outlined text-base">group</span>
                 </div>
               </div>
               <div>
-                <div class="text-2xl font-serif font-bold text-[#004343]">6 Online</div>
+                <div class="text-2xl font-serif font-bold text-[#004343]">{{ kpi().admins }} Admins</div>
                 <div class="flex items-center gap-1.5 text-[11px] text-[#6e7978] mt-1">
                   <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span>Active council seats</span>
+                  <span>Unique actors in log</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Clean Filter Bar -->
+          <!-- Filter Bar -->
           <div class="bg-white rounded-2xl p-4 border border-[#dde3eb] shadow-sm">
             <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
               <!-- Search Field -->
@@ -179,17 +186,15 @@ export interface AuditActivity {
                        class="w-full bg-[#f8faf9] text-xs font-semibold pl-10 pr-4 py-2.5 rounded-xl border border-[#c2c8c7] focus:bg-white focus:outline-none focus:border-[#004343] transition-colors" />
               </div>
 
-              <!-- Admin Filter -->
+              <!-- Admin Filter (dynamic from data) -->
               <div class="md:col-span-2">
                 <select [ngModel]="selectedAdmin()"
                         (ngModelChange)="selectedAdmin.set($event)"
                         class="w-full bg-[#f8faf9] text-xs font-semibold px-3 py-2.5 rounded-xl border border-[#c2c8c7] focus:bg-white focus:outline-none focus:border-[#004343] cursor-pointer">
                   <option value="ALL">All Admins</option>
-                  <option value="Dr. Samantha S.">Dr. Samantha S.</option>
-                  <option value="E. Vance">E. Vance</option>
-                  <option value="Master Karunaratne">Master Karunaratne</option>
-                  <option value="Niluka Bandara">Niluka Bandara</option>
-                  <option value="Tharushi J.">Tharushi J.</option>
+                  @for (name of uniqueAdmins(); track name) {
+                    <option [value]="name">{{ name }}</option>
+                  }
                 </select>
               </div>
 
@@ -199,23 +204,23 @@ export interface AuditActivity {
                         (ngModelChange)="selectedActionType.set($event)"
                         class="w-full bg-[#f8faf9] text-xs font-semibold px-3 py-2.5 rounded-xl border border-[#c2c8c7] focus:bg-white focus:outline-none focus:border-[#004343] cursor-pointer">
                   <option value="ALL">All Action Types</option>
-                  <option value="Approved">Content Approvals</option>
-                  <option value="Archived">Archival & Deletions</option>
-                  <option value="Updated">Edits & Updates</option>
-                  <option value="Resolved">Moderation & Flags</option>
-                  <option value="Granted">Role & Badge Grants</option>
+                  <option value="Approved">Approvals &amp; Publishes</option>
+                  <option value="Archived">Archival &amp; Deletions</option>
+                  <option value="Updated">Edits &amp; Updates</option>
+                  <option value="Resolved">Rejections &amp; Flags</option>
+                  <option value="Granted">Reactivations</option>
                 </select>
               </div>
 
-              <!-- Date Range Filter -->
+              <!-- Entity Type Filter -->
               <div class="md:col-span-2">
-                <select [ngModel]="selectedDateRange()"
-                        (ngModelChange)="selectedDateRange.set($event)"
+                <select [ngModel]="selectedEntityType()"
+                        (ngModelChange)="selectedEntityType.set($event)"
                         class="w-full bg-[#f8faf9] text-xs font-semibold px-3 py-2.5 rounded-xl border border-[#c2c8c7] focus:bg-white focus:outline-none focus:border-[#004343] cursor-pointer">
-                  <option value="TODAY">Today</option>
-                  <option value="WEEK">Last 7 Days</option>
-                  <option value="MONTH">Last 30 Days</option>
-                  <option value="ALL">All Time</option>
+                  <option value="ALL">All Areas</option>
+                  @for (et of uniqueEntityTypes(); track et) {
+                    <option [value]="et">{{ et }}</option>
+                  }
                 </select>
               </div>
             </div>
@@ -235,18 +240,25 @@ export interface AuditActivity {
                     Showing {{ filteredActivities().length }} Activities
                   </span>
                 </div>
-                <div class="flex items-center gap-1.5 text-[11px] text-[#6e7978]">
-                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span>Auto-refresh enabled</span>
-                </div>
+                @if (isLoading()) {
+                  <div class="flex items-center gap-1.5 text-[11px] text-[#004343]">
+                    <span class="w-2 h-2 rounded-full bg-[#004343] animate-pulse"></span>
+                    <span>Loading from server...</span>
+                  </div>
+                } @else {
+                  <div class="flex items-center gap-1.5 text-[11px] text-[#6e7978]">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>Live data</span>
+                  </div>
+                }
               </div>
 
-              <!-- Plain English Activity Table -->
+              <!-- Activity Table -->
               <div class="overflow-x-auto w-full">
                 <table class="w-full text-left border-collapse">
                   <thead>
                     <tr class="bg-[#f2f4f7] text-[#6e7978] text-[10px] font-bold uppercase tracking-wider border-b border-[#dde3eb]">
-                      <th class="py-3 px-4">Date & Time</th>
+                      <th class="py-3 px-4">Date &amp; Time</th>
                       <th class="py-3 px-4">Administrator</th>
                       <th class="py-3 px-4">Action Taken</th>
                       <th class="py-3 px-4">Target / Item</th>
@@ -298,9 +310,21 @@ export interface AuditActivity {
                       </tr>
                     } @empty {
                       <tr>
-                        <td colspan="6" class="py-8 text-center text-[#6e7978]">
-                          <span class="material-symbols-outlined text-3xl mb-1 text-[#6e7978]">find_in_page</span>
-                          <p class="text-xs">No activity entries match your current search filters.</p>
+                        <td colspan="6" class="py-12 text-center text-[#6e7978]">
+                          @if (isLoading()) {
+                            <div class="flex flex-col items-center gap-2">
+                              <span class="material-symbols-outlined text-3xl text-[#004343] animate-spin">refresh</span>
+                              <p class="text-xs">Fetching audit log from server...</p>
+                            </div>
+                          } @else {
+                            <div class="flex flex-col items-center gap-2">
+                              <span class="material-symbols-outlined text-3xl mb-1 text-[#6e7978]">find_in_page</span>
+                              <p class="text-xs">No activity entries match your current filters.</p>
+                              @if (activities().length === 0) {
+                                <p class="text-[11px] text-[#6e7978]">Audit entries will appear here automatically when admins take actions.</p>
+                              }
+                            </div>
+                          }
                         </td>
                       </tr>
                     }
@@ -311,18 +335,7 @@ export interface AuditActivity {
               <!-- Pagination Footer -->
               <div class="p-4 bg-[#f8faf9] border-t border-[#dde3eb] flex items-center justify-between flex-wrap gap-2">
                 <div class="text-[#6e7978] text-xs">
-                  <span>Showing {{ filteredActivities().length }} of 148 activities today</span>
-                </div>
-                <div class="flex items-center gap-1">
-                  <button class="w-8 h-8 rounded-lg bg-white border border-[#c2c8c7] text-[#3e4948] flex items-center justify-center hover:bg-[#f2f4f7] text-xs shadow-sm">
-                    <span class="material-symbols-outlined text-sm">chevron_left</span>
-                  </button>
-                  <span class="w-8 h-8 bg-[#004343] text-white text-xs font-bold rounded-lg flex items-center justify-center">1</span>
-                  <button class="w-8 h-8 rounded-lg bg-white border border-[#c2c8c7] text-[#3e4948] flex items-center justify-center hover:bg-[#f2f4f7] text-xs shadow-sm">2</button>
-                  <button class="w-8 h-8 rounded-lg bg-white border border-[#c2c8c7] text-[#3e4948] flex items-center justify-center hover:bg-[#f2f4f7] text-xs shadow-sm">3</button>
-                  <button class="w-8 h-8 rounded-lg bg-white border border-[#c2c8c7] text-[#3e4948] flex items-center justify-center hover:bg-[#f2f4f7] text-xs shadow-sm">
-                    <span class="material-symbols-outlined text-sm">chevron_right</span>
-                  </button>
+                  <span>Showing {{ filteredActivities().length }} of {{ activities().length }} total activities</span>
                 </div>
               </div>
 
@@ -351,7 +364,6 @@ export interface AuditActivity {
                   <div class="flex flex-col min-w-0">
                     <span class="text-xs font-bold text-[#191c1c] truncate">{{ act.adminName }}</span>
                     <span class="text-[11px] text-[#6e7978] truncate">{{ act.adminRole }}</span>
-                    <span class="text-[10px] font-mono text-[#004343] truncate">{{ act.adminEmail }}</span>
                   </div>
                 </div>
 
@@ -374,15 +386,15 @@ export interface AuditActivity {
                   </div>
 
                   <div class="pb-2 border-b border-[#dde3eb]">
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-[#6e7978]">Curatorial Notes & Justification</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-[#6e7978]">Notes &amp; Justification</span>
                     <div class="mt-1 p-3 bg-[#f8faf9] border border-[#dde3eb] rounded-xl text-[#3e4948] text-[11px] leading-relaxed">
-                      {{ act.notes }}
+                      {{ act.notes || 'No additional notes recorded.' }}
                     </div>
                   </div>
 
                   <div class="flex items-center justify-between text-[11px] pt-1 text-[#6e7978]">
-                    <span>Session & Location:</span>
-                    <span class="font-semibold text-[#191c1c]">{{ act.location }}</span>
+                    <span>Ref Code:</span>
+                    <span class="font-semibold text-[#191c1c] font-mono">{{ act.refCode }}</span>
                   </div>
                 </div>
 
@@ -400,12 +412,17 @@ export interface AuditActivity {
                     <span>Download Audit Receipt</span>
                   </button>
                 </div>
+              } @else {
+                <div class="flex flex-col items-center justify-center py-8 text-center text-[#6e7978]">
+                  <span class="material-symbols-outlined text-3xl mb-2">touch_app</span>
+                  <p class="text-xs">Click any activity row to view its full details here.</p>
+                </div>
               }
 
             </div>
 
           </div>
-
+          }
         </div>
 
       </main>
@@ -413,145 +430,57 @@ export interface AuditActivity {
     </div>
   `
 })
-export class AuditComponent {
+export class AuditComponent implements OnInit {
   toastMessage = signal<string | null>(null);
+  isLoading = signal<boolean>(true);
+  hasError = signal<boolean>(false);
 
   searchQuery = signal<string>('');
   selectedAdmin = signal<string>('ALL');
   selectedActionType = signal<string>('ALL');
-  selectedDateRange = signal<string>('TODAY');
+  selectedEntityType = signal<string>('ALL');
 
-  activities = signal<AuditActivity[]>([
-    {
-      id: 'ACT-101',
-      refCode: 'ID #ACT-101',
-      date: 'Today',
-      time: '11:42 AM',
-      adminName: 'Dr. Samantha S.',
-      adminRole: 'Senior Curator',
-      adminEmail: 'samantha.s@legacylens.gov.lk',
-      adminAvatar: 'SS',
-      adminAvatarBg: 'bg-[#004343]',
-      actionTaken: 'Approved Elder Submission',
-      actionType: 'Approved',
-      targetTitle: 'Master K. G. Tikiri Banda',
-      targetCategory: 'Oral History Audio #014',
-      statusBadge: 'Approved',
-      statusBadgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-      notes: 'Verified via Divisional Secretariat documentation, heritage lineage records, and national crafts registry interview.',
-      location: 'Colombo Office • Chrome on macOS'
-    },
-    {
-      id: 'ACT-102',
-      refCode: 'ID #ACT-102',
-      date: 'Today',
-      time: '10:18 AM',
-      adminName: 'E. Vance',
-      adminRole: 'Content Director',
-      adminEmail: 'e.vance@legacylens.gov.lk',
-      adminAvatar: 'EV',
-      adminAvatarBg: 'bg-[#9b4600]',
-      actionTaken: 'Archived Outdated Post',
-      actionType: 'Archived',
-      targetTitle: 'Traditional Pottery in Kelaniya',
-      targetCategory: 'Article #ART-2018',
-      statusBadge: 'Archived',
-      statusBadgeClass: 'bg-gray-100 text-gray-700 border-gray-300',
-      notes: 'Replaced with updated high-definition photographic essay #ART-2025. Redundant article moved to deep storage.',
-      location: 'Kandy Outpost • Firefox on Linux'
-    },
-    {
-      id: 'ACT-103',
-      refCode: 'ID #ACT-103',
-      date: 'Today',
-      time: '09:05 AM',
-      adminName: 'Master Karunaratne',
-      adminRole: 'Geographic Lead',
-      adminEmail: 'a.karuna@legacylens.gov.lk',
-      adminAvatar: 'MK',
-      adminAvatarBg: 'bg-[#363c42]',
-      actionTaken: 'Updated Cultural Map Pin',
-      actionType: 'Updated',
-      targetTitle: 'Ambalangoda Mask Museum',
-      targetCategory: 'Cultural Map GIS Pin',
-      statusBadge: 'Updated',
-      statusBadgeClass: 'bg-sky-100 text-sky-800 border-sky-300',
-      notes: 'Adjusted GPS coordinates to exact entrance gate and updated traditional craftsman opening hours.',
-      location: 'Galle Regional Station • Safari on iPad'
-    },
-    {
-      id: 'ACT-104',
-      refCode: 'ID #ACT-104',
-      date: 'Yesterday',
-      time: '06:20 PM',
-      adminName: 'Niluka Bandara',
-      adminRole: 'Moderator',
-      adminEmail: 'niluka.b@legacylens.gov.lk',
-      adminAvatar: 'NB',
-      adminAvatarBg: 'bg-[#fe893e]',
-      actionTaken: 'Resolved Community Flag',
-      actionType: 'Resolved',
-      targetTitle: 'Gem Miners Folk Song transcription',
-      targetCategory: 'Ethics & Dispute Queue',
-      statusBadge: 'Resolved',
-      statusBadgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
-      notes: 'Community user reported typographical discrepancy in verse 3; verified with original sound recording and updated line.',
-      location: 'Ratnapura Substation • Edge on Windows'
-    },
-    {
-      id: 'ACT-105',
-      refCode: 'ID #ACT-105',
-      date: 'Yesterday',
-      time: '03:45 PM',
-      adminName: 'Tharushi J.',
-      adminRole: 'Community Manager',
-      adminEmail: 'tharushi@legacylens.gov.lk',
-      adminAvatar: 'TJ',
-      adminAvatarBg: 'bg-[#004343]',
-      actionTaken: 'Granted Creator Badge',
-      actionType: 'Granted',
-      targetTitle: 'Sanduni Jayawardena',
-      targetCategory: 'Apprentice Storyteller Role',
-      statusBadge: 'Granted',
-      statusBadgeClass: 'bg-teal-100 text-teal-800 border-teal-300',
-      notes: 'Passed initial curation review after uploading 3 verified cultural folklore stories.',
-      location: 'Colombo Office • Chrome on macOS'
-    },
-    {
-      id: 'ACT-106',
-      refCode: 'ID #ACT-106',
-      date: '13 Oct 2025',
-      time: '02:15 PM',
-      adminName: 'Dr. Samantha S.',
-      adminRole: 'Senior Curator',
-      adminEmail: 'samantha.s@legacylens.gov.lk',
-      adminAvatar: 'SS',
-      adminAvatarBg: 'bg-[#004343]',
-      actionTaken: 'Updated Security Policy',
-      actionType: 'Updated',
-      targetTitle: 'Two-Factor Authentication Requirement',
-      targetCategory: 'Admin Access Settings',
-      statusBadge: 'Updated',
-      statusBadgeClass: 'bg-sky-100 text-sky-800 border-sky-300',
-      notes: 'Mandated multi-factor authentication for all staff members with content publish permissions.',
-      location: 'Colombo Office • Chrome on macOS'
-    }
-  ]);
+  activities = signal<AuditActivity[]>([]);
+  selectedActivity = signal<AuditActivity | null>(null);
 
-  selectedActivity = signal<AuditActivity | null>(this.activities()[0]);
+  /** Unique admin names for the filter dropdown */
+  uniqueAdmins = computed(() =>
+    [...new Set(this.activities().map(a => a.adminName))].sort()
+  );
+
+  /** Unique entity types for the area filter dropdown */
+  uniqueEntityTypes = computed(() =>
+    [...new Set(this.activities().map(a => a.targetCategory))].sort()
+  );
+
+  /** Live KPI stats computed from the full activities list */
+  kpi = computed(() => {
+    const all = this.activities();
+    return {
+      total:     all.length,
+      approvals: all.filter(a => a.actionType === 'Approved').length,
+      deletions: all.filter(a => a.actionType === 'Archived' || a.actionType === 'Resolved').length,
+      admins:    new Set(all.map(a => a.adminName)).size,
+    };
+  });
 
   filteredActivities = computed(() => {
     let list = this.activities();
     const query = this.searchQuery().toLowerCase().trim();
     const admin = this.selectedAdmin();
     const action = this.selectedActionType();
+    const entity = this.selectedEntityType();
 
     if (admin !== 'ALL') {
-      list = list.filter(a => a.adminName.toLowerCase().includes(admin.toLowerCase()));
+      list = list.filter(a => a.adminName === admin);
     }
 
     if (action !== 'ALL') {
       list = list.filter(a => a.actionType === action);
+    }
+
+    if (entity !== 'ALL') {
+      list = list.filter(a => a.targetCategory === entity);
     }
 
     if (query) {
@@ -567,7 +496,32 @@ export class AuditComponent {
     return list;
   });
 
-  constructor(private router: Router, private authService: AuthService) {}
+  constructor(
+    private router: Router,
+    private authService: AuthService,
+    private auditService: AuditService
+  ) {}
+
+  ngOnInit(): void {
+    this.loadAuditLogs();
+  }
+
+  private loadAuditLogs(): void {
+    this.isLoading.set(true);
+    this.auditService.getAuditLogs().subscribe({
+      next: (logs) => {
+        this.activities.set(logs);
+        if (logs.length > 0) {
+          this.selectedActivity.set(logs[0]);
+        }
+        this.isLoading.set(false);
+      },
+      error: () => {
+        this.hasError.set(true);
+        this.isLoading.set(false);
+      }
+    });
+  }
 
   selectActivity(act: AuditActivity): void {
     this.selectedActivity.set(act);
@@ -578,27 +532,48 @@ export class AuditComponent {
   }
 
   exportLogCsv(): void {
-    this.showToast('Exporting admin activity and audit trail as encrypted CSV...');
+    const headers = ['Date', 'Time', 'Admin', 'Action', 'Target', 'Category', 'Status', 'Notes'];
+    const rows = this.filteredActivities().map(a => [
+      a.date, a.time, a.adminName, a.actionTaken,
+      a.targetTitle, a.targetCategory, a.statusBadge, `"${a.notes.replace(/"/g, '""')}"`
+    ]);
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    this.showToast('Audit log exported as CSV.');
   }
 
   refreshFeed(): void {
-    this.showToast('Audit stream synchronized with distributed nodes.');
+    this.loadAuditLogs();
+    this.showToast('Audit stream refreshed from server.');
   }
 
   viewAffectedItem(act: AuditActivity): void {
-    if (act.actionType === 'Approved') {
-      this.router.navigate(['/verification']);
-    } else if (act.targetCategory.includes('Map')) {
+    const cat = act.targetCategory.toLowerCase();
+    if (cat.includes('landmark') || cat.includes('badge') || cat.includes('quest')) {
       this.router.navigate(['/map']);
-    } else if (act.actionType === 'Resolved') {
-      this.router.navigate(['/disputes']);
-    } else {
+    } else if (cat.includes('story') || cat.includes('content')) {
       this.router.navigate(['/moderation']);
+    } else if (cat.includes('opportunity')) {
+      this.router.navigate(['/opportunity-intake']);
+    } else if (cat.includes('user') || cat.includes('verification')) {
+      this.router.navigate(['/verification']);
+    } else if (cat.includes('word')) {
+      this.router.navigate(['/word-of-the-day']);
+    } else if (cat.includes('admin')) {
+      this.router.navigate(['/admin-management']);
+    } else {
+      this.router.navigate(['/dashboard']);
     }
   }
 
   downloadReceipt(act: AuditActivity): void {
-    this.showToast(`Downloaded cryptographic audit receipt for ${act.refCode}.`);
+    this.showToast(`Downloaded audit receipt for ${act.refCode}.`);
   }
 
   logout(): void {
