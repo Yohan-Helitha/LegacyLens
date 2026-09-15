@@ -17,11 +17,16 @@ export class VerificationService {
 
   private getHeaders(): HttpHeaders {
     const token = this.authService.getToken();
+    const user = this.authService.currentUser();
     let headers = new HttpHeaders({
       'Content-Type': 'application/json'
     });
     if (token) {
       headers = headers.set('Authorization', `Bearer ${token}`);
+    }
+    if (user) {
+      headers = headers.set('X-Admin-Id', user.id);
+      headers = headers.set('X-Admin-Name', user.fullName);
     }
     return headers;
   }
