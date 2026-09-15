@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
@@ -141,6 +141,7 @@ export const ContinueMyWorkPage: React.FC<{
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [pendingChecklistItemId, setPendingChecklistItemId] = useState<string | null>(null);
+  const [savedModalVisible, setSavedModalVisible] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -272,13 +273,18 @@ export const ContinueMyWorkPage: React.FC<{
       await workProgressApi.updateNote(id, introductionText, storyText);
       const finalState = await workProgressApi.markDraft(id);
       setProgress(finalState);
-      Alert.alert('Saved', 'Your progress has been saved as a draft.', [{ text: 'OK', onPress: onSaveDraft }]);
+      setSavedModalVisible(true); // onSaveDraft fires once the creator dismisses the modal below.
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Could not save your progress.';
       Alert.alert('Save failed', message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCloseSavedModal = () => {
+    setSavedModalVisible(false);
+    onSaveDraft();
   };
 
   if (loadError) {
@@ -460,6 +466,26 @@ export const ContinueMyWorkPage: React.FC<{
         <View style={{ height: 8 }} />
       </ScrollView>
 
+      <Modal visible={savedModalVisible} transparent animationType="fade" onRequestClose={handleCloseSavedModal}>
+        <View style={s.savedModalOverlay}>
+          <View style={s.savedModalCard}>
+            <View style={s.savedModalIconBadge}>
+              <CheckIcon size={22} />
+            </View>
+            <Text style={s.savedModalTitle}>Saved</Text>
+            <Text style={s.savedModalText}>Your progress has been saved as a draft.</Text>
+            <Pressable
+              onPress={handleCloseSavedModal}
+              style={({ pressed }) => [s.savedModalBtn, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="OK"
+            >
+              <Text style={s.savedModalBtnText}>OK</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <BottomNavBar activeTab="home" onNavigate={onNavigate} />
     </SafeAreaView>
   );
@@ -632,6 +658,32 @@ const s = StyleSheet.create({
   },
   saveBtnPressed: { opacity: 0.9 },
   saveBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff', letterSpacing: 0.3 },
+
+  // ── Saved confirmation modal ─────────────────────────────────────────────
+  savedModalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center', justifyContent: 'center', padding: Spacing.lg,
+  },
+  savedModalCard: {
+    width: '100%', maxWidth: 340,
+    backgroundColor: D.surfaceContainerLowest, borderRadius: Radii.xl,
+    paddingVertical: Spacing.lg, paddingHorizontal: Spacing.lg,
+    alignItems: 'center', gap: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 8,
+  },
+  savedModalIconBadge: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: D.primary, alignItems: 'center', justifyContent: 'center',
+    marginBottom: 4,
+  },
+  savedModalTitle: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, color: D.onSurface },
+  savedModalText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, textAlign: 'center' },
+  savedModalBtn: {
+    marginTop: Spacing.sm, alignSelf: 'stretch',
+    backgroundColor: D.primary, borderRadius: Radii.full,
+    paddingVertical: 12, alignItems: 'center', justifyContent: 'center',
+  },
+  savedModalBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff', letterSpacing: 0.3 },
 
   // ── Press feedback ───────────────────────────────────────────────────────
   pressed: { opacity: 0.75 },
