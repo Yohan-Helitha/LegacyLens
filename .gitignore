@@ -49,3 +49,8 @@ coverage/
 mobile-app/src/screens/auth/code.html
 mobile-app/src/screens/onboarding/loading/loading.html
 
+backend/src/main/resources/application.properties
+backend/src/main/resources/application.properties
+backend/src/main/resources/application.properties
+backend/src/main/resources/application.properties
+backend/src/main/resources/application.properties
