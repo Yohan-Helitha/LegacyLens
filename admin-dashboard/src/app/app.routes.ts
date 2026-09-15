@@ -123,7 +123,7 @@ export const routes: Routes = [
   },
   {
     path: 'analytics',
-    component: DashboardComponent,
+    component: AnalyticsComponent,
     canActivate: [authGuard]
   },
   {
