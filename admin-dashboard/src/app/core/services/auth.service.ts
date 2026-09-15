@@ -68,10 +68,10 @@ export class AuthService {
     return this.http.post<ApiResponse<AuthResponse>>(`${environment.apiUrl}/auth/login`, payload).pipe(
       map(res => res.data),
       map(res => {
-        if (!res.data.roles?.includes('ADMIN')) {
+        if (!res.roles?.includes('ADMIN')) {
           throw new Error('Access denied. Administrator privileges required.');
         }
-        return res.data;
+        return res;
       }),
       tap(authData => {
         this.storeSession(authData, phoneNumber, rememberDevice);
@@ -102,7 +102,6 @@ export class AuthService {
   }
 
   registerAdmin(data: RegisterRequest): Observable<AuthResponse> {
-    return this.http.post<ApiResponse<AuthResponse>>(`${environment.apiUrl}/auth/register`, data).pipe(
     return this.http.post<ApiResponse<AuthResponse>>(`${environment.apiUrl}/auth/register-admin`, data).pipe(
       map(res => res.data),
       tap(authData => {
