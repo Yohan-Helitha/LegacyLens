@@ -29,22 +29,31 @@ public class AdminCulturalMapController {
 
     @PostMapping("/landmarks")
     public ResponseEntity<ApiResponse<MapLandmarkResponse>> createLandmark(
-            @Valid @RequestBody AdminLandmarkRequest request) {
+            @Valid @RequestBody AdminLandmarkRequest request,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
         return ResponseEntity
-                .ok(ApiResponse.ok("Landmark created successfully", culturalMapService.createLandmark(request)));
+                .ok(ApiResponse.ok("Landmark created successfully",
+                        culturalMapService.createLandmark(request, adminId, adminName)));
     }
 
     @PutMapping("/landmarks/{id}")
     public ResponseEntity<ApiResponse<MapLandmarkResponse>> updateLandmark(
             @PathVariable Long id,
-            @Valid @RequestBody AdminLandmarkRequest request) {
+            @Valid @RequestBody AdminLandmarkRequest request,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
         return ResponseEntity
-                .ok(ApiResponse.ok("Landmark updated successfully", culturalMapService.updateLandmark(id, request)));
+                .ok(ApiResponse.ok("Landmark updated successfully",
+                        culturalMapService.updateLandmark(id, request, adminId, adminName)));
     }
 
     @DeleteMapping("/landmarks/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteLandmark(@PathVariable Long id) {
-        culturalMapService.deleteLandmark(id);
+    public ResponseEntity<ApiResponse<Void>> deleteLandmark(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
+        culturalMapService.deleteLandmark(id, adminId, adminName);
         return ResponseEntity.ok(ApiResponse.ok("Landmark deleted successfully", null));
     }
 
@@ -62,19 +71,28 @@ public class AdminCulturalMapController {
 
     @PostMapping("/badges")
     public ResponseEntity<ApiResponse<BadgeResponse>> saveBadge(
-            @Valid @RequestBody AdminBadgeRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Badge saved successfully", culturalMapService.saveBadge(request)));
+            @Valid @RequestBody AdminBadgeRequest request,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
+        return ResponseEntity.ok(ApiResponse.ok("Badge saved successfully",
+                culturalMapService.saveBadge(request, adminId, adminName)));
     }
 
     @PostMapping("/quests")
     public ResponseEntity<ApiResponse<QuestResponse>> saveQuest(
-            @Valid @RequestBody AdminQuestRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Quest saved successfully", culturalMapService.saveQuest(request)));
+            @Valid @RequestBody AdminQuestRequest request,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
+        return ResponseEntity.ok(ApiResponse.ok("Quest saved successfully",
+                culturalMapService.saveQuest(request, adminId, adminName)));
     }
 
     @DeleteMapping("/quests/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteQuest(@PathVariable Long id) {
-        culturalMapService.deleteQuest(id);
+    public ResponseEntity<ApiResponse<Void>> deleteQuest(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
+        culturalMapService.deleteQuest(id, adminId, adminName);
         return ResponseEntity.ok(ApiResponse.ok("Quest deleted successfully", null));
     }
 

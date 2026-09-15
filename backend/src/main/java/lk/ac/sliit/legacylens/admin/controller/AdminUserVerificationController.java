@@ -61,8 +61,10 @@ public class AdminUserVerificationController {
     @PostMapping("/{userId}/approve")
     public ResponseEntity<ApiResponse<AdminUserVerificationResponse>> approveUser(
             @PathVariable UUID userId,
-            @RequestParam(required = false) String note) {
-        AdminUserVerificationResponse response = adminUserVerificationService.approveUser(userId, note);
+            @RequestParam(required = false) String note,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
+        AdminUserVerificationResponse response = adminUserVerificationService.approveUser(userId, note, adminId, adminName);
         return ResponseEntity.ok(ApiResponse.ok("User profile verified and role activated successfully", response));
     }
 
@@ -72,8 +74,10 @@ public class AdminUserVerificationController {
     @PostMapping("/{userId}/reject")
     public ResponseEntity<ApiResponse<AdminUserVerificationResponse>> rejectUser(
             @PathVariable UUID userId,
-            @RequestParam(required = false) String reason) {
-        AdminUserVerificationResponse response = adminUserVerificationService.rejectUser(userId, reason);
+            @RequestParam(required = false) String reason,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
+        AdminUserVerificationResponse response = adminUserVerificationService.rejectUser(userId, reason, adminId, adminName);
         return ResponseEntity.ok(ApiResponse.ok("User verification rejected", response));
     }
 
@@ -83,8 +87,10 @@ public class AdminUserVerificationController {
     @PostMapping("/{userId}/suspend")
     public ResponseEntity<ApiResponse<AdminUserVerificationResponse>> suspendUser(
             @PathVariable UUID userId,
-            @RequestParam(required = false) String reason) {
-        AdminUserVerificationResponse response = adminUserVerificationService.suspendUser(userId, reason);
+            @RequestParam(required = false) String reason,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
+        AdminUserVerificationResponse response = adminUserVerificationService.suspendUser(userId, reason, adminId, adminName);
         return ResponseEntity.ok(ApiResponse.ok("User account suspended successfully", response));
     }
 
@@ -93,8 +99,10 @@ public class AdminUserVerificationController {
      */
     @PostMapping("/{userId}/reactivate")
     public ResponseEntity<ApiResponse<AdminUserVerificationResponse>> reactivateUser(
-            @PathVariable UUID userId) {
-        AdminUserVerificationResponse response = adminUserVerificationService.reactivateUser(userId);
+            @PathVariable UUID userId,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
+        AdminUserVerificationResponse response = adminUserVerificationService.reactivateUser(userId, adminId, adminName);
         return ResponseEntity.ok(ApiResponse.ok("User account reactivated successfully", response));
     }
 
@@ -103,8 +111,10 @@ public class AdminUserVerificationController {
      */
     @DeleteMapping("/{userId}")
     public ResponseEntity<ApiResponse<Void>> deleteUser(
-            @PathVariable UUID userId) {
-        adminUserVerificationService.deleteUser(userId);
+            @PathVariable UUID userId,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
+        adminUserVerificationService.deleteUser(userId, adminId, adminName);
         return ResponseEntity.ok(ApiResponse.ok("User deleted successfully", null));
     }
 }

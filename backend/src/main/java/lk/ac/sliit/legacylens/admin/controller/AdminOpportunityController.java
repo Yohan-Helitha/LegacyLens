@@ -40,17 +40,21 @@ public class AdminOpportunityController {
     @PostMapping
     public ResponseEntity<ApiResponse<AdminOpportunityResponse>> createOpportunity(
             @AuthenticationPrincipal CustomUserDetails principal,
-            @Valid @RequestBody CreateOpportunityRequest request) {
+            @Valid @RequestBody CreateOpportunityRequest request,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
         return ResponseEntity.ok(ApiResponse.ok(
-                adminOpportunityService.createOpportunity(request)));
+                adminOpportunityService.createOpportunity(request, adminId, adminName)));
     }
 
     @PostMapping("/audios/{audioId}/publish")
     public ResponseEntity<ApiResponse<AdminOpportunityResponse>> publishFromAudio(
             @PathVariable String audioId,
-            @Valid @RequestBody CreateOpportunityRequest request) {
+            @Valid @RequestBody CreateOpportunityRequest request,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
         return ResponseEntity.ok(ApiResponse.ok(
-                adminOpportunityService.publishFromAudio(audioId, request)));
+                adminOpportunityService.publishFromAudio(audioId, request, adminId, adminName)));
     }
 
     @GetMapping
@@ -69,8 +73,10 @@ public class AdminOpportunityController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<AdminOpportunityResponse>> updateOpportunityStatus(
             @PathVariable String id,
-            @Valid @RequestBody UpdateOpportunityStatusRequest request) {
+            @Valid @RequestBody UpdateOpportunityStatusRequest request,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
         return ResponseEntity.ok(ApiResponse.ok(
-                adminOpportunityService.updateOpportunityStatus(id, request)));
+                adminOpportunityService.updateOpportunityStatus(id, request, adminId, adminName)));
     }
 }
