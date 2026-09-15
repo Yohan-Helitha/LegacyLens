@@ -1,8 +1,9 @@
-import { Component, Input, Output, EventEmitter, computed, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../../../app/core/services/auth.service';
+import { NotificationService } from '../../../app/core/services/notification.service';
 
 @Component({
   selector: 'app-header',
@@ -13,10 +14,6 @@ import { AuthService } from '../../../app/core/services/auth.service';
       
       <!-- Left Breadcrumb Section -->
       <div class="flex items-center gap-2 sm:gap-3 text-xs text-[#6f7978] overflow-hidden whitespace-nowrap">
-        <a routerLink="/dashboard" class="flex items-center hover:text-[#004343] transition-colors" title="Home">
-          <span class="material-symbols-outlined text-base">home</span>
-        </a>
-        <span class="text-[#c2c8c7]">/</span>
         <span class="font-semibold text-[#191c1c] hidden sm:inline">{{ section }}</span>
         <span class="text-[#c2c8c7] hidden sm:inline">/</span>
         <span class="font-bold text-[#004343] truncate">{{ pageTitle }}</span>
@@ -28,7 +25,7 @@ import { AuthService } from '../../../app/core/services/auth.service';
         <!-- Search Bar (Optional) -->
         @if (showSearch) {
           <div class="relative w-36 sm:w-60 md:w-80 block">
-            <span class="material-symbols-outlined absolute left-3 top-2 text-[#6f7978] text-lg">search</span>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7978] text-lg">search</span>
             <input 
               type="text" 
               [placeholder]="searchPlaceholder" 
@@ -49,8 +46,10 @@ import { AuthService } from '../../../app/core/services/auth.service';
              title="Notifications" 
              class="relative p-2 rounded-xl text-[#3f4948] hover:bg-[#f2f4f3] hover:text-[#004343] transition-colors">
             <span class="material-symbols-outlined text-xl">notifications</span>
-            @if (hasUnreadNotifications) {
-              <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#fe893e] ring-2 ring-white"></span>
+            @if (unreadNotificationsCount() > 0) {
+              <span class="absolute top-0 right-0 flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[10px] font-bold text-white bg-[#fe893e] rounded-full ring-2 ring-white">
+                {{ unreadNotificationsCount() }}
+              </span>
             }
           </a>
         }
@@ -78,8 +77,9 @@ import { AuthService } from '../../../app/core/services/auth.service';
   `,
   styles: []
 })
-export class HeaderComponent {
+export class HeaderComponent implements OnInit {
   private authService = inject(AuthService);
+  private notificationService = inject(NotificationService);
 
   @Input() pageTitle: string = 'Dashboard Overview';
   @Input() section: string = 'Console';
@@ -88,10 +88,22 @@ export class HeaderComponent {
   @Input() showSearch: boolean = true;
   @Input() showNotifications: boolean = true;
   @Input() showUserProfile: boolean = true;
-  @Input() hasUnreadNotifications: boolean = true;
+  
+  unreadNotificationsCount = signal<number>(0);
 
   @Output() searchQueryChange = new EventEmitter<string>();
   @Output() search = new EventEmitter<string>();
+
+  ngOnInit() {
+    this.fetchUnreadCount();
+  }
+
+  fetchUnreadCount() {
+    this.notificationService.getNotifications().subscribe(notifications => {
+      const count = notifications.filter(n => !n.read).length;
+      this.unreadNotificationsCount.set(count);
+    });
+  }
 
   userName = computed(() => {
     const raw = this.authService.currentUser()?.fullName || 'E. Vance';
