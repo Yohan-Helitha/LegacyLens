@@ -13,19 +13,23 @@ public interface AdminCulturalMapService {
 
     List<RegionResponse> getAllRegions();
 
-    MapLandmarkResponse createLandmark(AdminLandmarkRequest request);
+    MapLandmarkResponse createLandmark(AdminLandmarkRequest request,
+            String performedById, String performedByName);
 
-    MapLandmarkResponse updateLandmark(Long id, AdminLandmarkRequest request);
+    MapLandmarkResponse updateLandmark(Long id, AdminLandmarkRequest request,
+            String performedById, String performedByName);
 
-    void deleteLandmark(Long id);
+    void deleteLandmark(Long id, String performedById, String performedByName);
 
     String uploadBadgeImage(MultipartFile file);
 
-    BadgeResponse saveBadge(AdminBadgeRequest request);
+    BadgeResponse saveBadge(AdminBadgeRequest request,
+            String performedById, String performedByName);
 
-    QuestResponse saveQuest(AdminQuestRequest request);
+    QuestResponse saveQuest(AdminQuestRequest request,
+            String performedById, String performedByName);
 
-    void deleteQuest(Long id);
+    void deleteQuest(Long id, String performedById, String performedByName);
 
     List<QuestionResponse> getQuestionsForQuest(Long questId);
 }

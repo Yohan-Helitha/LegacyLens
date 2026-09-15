@@ -5,6 +5,7 @@ import lk.ac.sliit.legacylens.admin.dto.CreateOpportunityRequest;
 import lk.ac.sliit.legacylens.admin.dto.OpportunityAudioResponse;
 import lk.ac.sliit.legacylens.admin.dto.UpdateOpportunityStatusRequest;
 import lk.ac.sliit.legacylens.admin.entity.AudioReviewStatus;
+import lk.ac.sliit.legacylens.admin.entity.AuditActionType;
 import lk.ac.sliit.legacylens.admin.entity.OpportunityAudio;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
@@ -33,14 +34,17 @@ public class AdminOpportunityServiceImpl implements AdminOpportunityService {
     private final OpportunityAudioRepository opportunityAudioRepository;
     private final OpportunityRepository opportunityRepository;
     private final UserRepository userRepository;
+    private final AdminAuditService auditService;
 
     public AdminOpportunityServiceImpl(
             OpportunityAudioRepository opportunityAudioRepository,
             OpportunityRepository opportunityRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            AdminAuditService auditService) {
         this.opportunityAudioRepository = opportunityAudioRepository;
         this.opportunityRepository = opportunityRepository;
         this.userRepository = userRepository;
+        this.auditService = auditService;
     }
 
     @Override
@@ -71,7 +75,7 @@ public class AdminOpportunityServiceImpl implements AdminOpportunityService {
 
     @Override
     @Transactional
-    public AdminOpportunityResponse createOpportunity(CreateOpportunityRequest request) {
+    public AdminOpportunityResponse createOpportunity(CreateOpportunityRequest request, String performedById, String performedByName) {
         Opportunity opportunity = mapToEntity(request);
         String statusStr = request.getStatus();
         if (statusStr == null || statusStr.isBlank()) {
@@ -84,18 +88,20 @@ public class AdminOpportunityServiceImpl implements AdminOpportunityService {
             }
         }
         Opportunity saved = opportunityRepository.save(opportunity);
+        auditService.logAction(AuditActionType.CREATED, "Opportunity", saved.getId() != null ? saved.getId().toString() : null, request.getTitle(), performedById, performedByName, "New opportunity created");
         return mapToAdminResponse(saved);
     }
 
     @Override
     @Transactional
-    public AdminOpportunityResponse publishFromAudio(String audioId, CreateOpportunityRequest request) {
+    public AdminOpportunityResponse publishFromAudio(String audioId, CreateOpportunityRequest request, String performedById, String performedByName) {
         OpportunityAudio audio = opportunityAudioRepository.findById(UUID.fromString(audioId))
                 .orElseThrow(() -> new ResourceNotFoundException("Audio submission not found"));
 
         Opportunity opportunity = mapToEntity(request);
         opportunity.setStatus(OpportunityStatus.PUBLISHED);
         Opportunity saved = opportunityRepository.save(opportunity);
+        auditService.logAction(AuditActionType.PUBLISHED, "Opportunity", saved.getId() != null ? saved.getId().toString() : null, request.getTitle(), performedById, performedByName, "Opportunity published from audio submission: " + audioId);
 
         audio.setStatus(AudioReviewStatus.FULLY_LISTENED);
         opportunityAudioRepository.save(audio);
@@ -131,11 +137,12 @@ public class AdminOpportunityServiceImpl implements AdminOpportunityService {
 
     @Override
     @Transactional
-    public AdminOpportunityResponse updateOpportunityStatus(String id, UpdateOpportunityStatusRequest request) {
+    public AdminOpportunityResponse updateOpportunityStatus(String id, UpdateOpportunityStatusRequest request, String performedById, String performedByName) {
         Opportunity opportunity = opportunityRepository.findById(UUID.fromString(id))
                 .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
         opportunity.setStatus(OpportunityStatus.valueOf(request.getStatus().toUpperCase()));
         Opportunity saved = opportunityRepository.save(opportunity);
+        auditService.logAction(AuditActionType.UPDATED, "Opportunity", id, saved.getTitle(), performedById, performedByName, "Status changed to: " + request.getStatus());
         return mapToAdminResponse(saved);
     }
 

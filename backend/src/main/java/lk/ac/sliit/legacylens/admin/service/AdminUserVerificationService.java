@@ -38,42 +38,52 @@ public interface AdminUserVerificationService {
     /**
      * Shortcut to approve verification and activate user roles.
      *
-     * @param userId The UUID of the user
-     * @param note   Optional audit note
+     * @param userId          The UUID of the user
+     * @param note            Optional audit note
+     * @param performedById   ID of the admin performing the action
+     * @param performedByName Name of the admin performing the action
      * @return Updated user verification response
      */
-    AdminUserVerificationResponse approveUser(UUID userId, String note);
+    AdminUserVerificationResponse approveUser(UUID userId, String note, String performedById, String performedByName);
 
     /**
      * Shortcut to reject verification.
      *
-     * @param userId The UUID of the user
-     * @param reason Rejection reason or notes
+     * @param userId          The UUID of the user
+     * @param reason          Rejection reason or notes
+     * @param performedById   ID of the admin performing the action
+     * @param performedByName Name of the admin performing the action
      * @return Updated user verification response
      */
-    AdminUserVerificationResponse rejectUser(UUID userId, String reason);
+    AdminUserVerificationResponse rejectUser(UUID userId, String reason, String performedById, String performedByName);
 
     /**
      * Suspend user account and deactivate active roles.
      *
-     * @param userId The UUID of the user
-     * @param reason Suspension reason
+     * @param userId          The UUID of the user
+     * @param reason          Suspension reason
+     * @param performedById   ID of the admin performing the action
+     * @param performedByName Name of the admin performing the action
      * @return Updated user verification response
      */
-    AdminUserVerificationResponse suspendUser(UUID userId, String reason);
+    AdminUserVerificationResponse suspendUser(UUID userId, String reason, String performedById, String performedByName);
 
     /**
      * Reactivate a suspended user account.
      *
-     * @param userId The UUID of the user
+     * @param userId          The UUID of the user
+     * @param performedById   ID of the admin performing the action
+     * @param performedByName Name of the admin performing the action
      * @return Updated user verification response
      */
-    AdminUserVerificationResponse reactivateUser(UUID userId);
+    AdminUserVerificationResponse reactivateUser(UUID userId, String performedById, String performedByName);
 
     /**
      * Delete user and all associated role entries.
      *
-     * @param userId The UUID of the user
+     * @param userId          The UUID of the user
+     * @param performedById   ID of the admin performing the action
+     * @param performedByName Name of the admin performing the action
      */
-    void deleteUser(UUID userId);
+    void deleteUser(UUID userId, String performedById, String performedByName);
 }

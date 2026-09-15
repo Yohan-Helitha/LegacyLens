@@ -11,6 +11,7 @@ import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.entity.UserRole;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
 import lk.ac.sliit.legacylens.users.repository.UserRoleRepository;
+import lk.ac.sliit.legacylens.admin.entity.AuditActionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -29,12 +30,15 @@ public class AdminUserVerificationServiceImpl implements AdminUserVerificationSe
 
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
+    private final AdminAuditService auditService;
 
     public AdminUserVerificationServiceImpl(
             UserRepository userRepository,
-            UserRoleRepository userRoleRepository) {
+            UserRoleRepository userRoleRepository,
+            AdminAuditService auditService) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
+        this.auditService = auditService;
     }
 
     @Override
@@ -131,52 +135,62 @@ public class AdminUserVerificationServiceImpl implements AdminUserVerificationSe
 
     @Override
     @Transactional
-    public AdminUserVerificationResponse approveUser(UUID userId, String note) {
+    public AdminUserVerificationResponse approveUser(UUID userId, String note, String performedById, String performedByName) {
         UpdateUserVerificationRequest request = UpdateUserVerificationRequest.builder()
                 .status("VERIFIED")
                 .notes(note)
                 .build();
-        return updateVerificationStatus(userId, request);
+        AdminUserVerificationResponse response = updateVerificationStatus(userId, request);
+        auditService.logAction(AuditActionType.APPROVED, "User Verification", userId.toString(), response.getFullName(), performedById, performedByName, note);
+        return response;
     }
 
     @Override
     @Transactional
-    public AdminUserVerificationResponse rejectUser(UUID userId, String reason) {
+    public AdminUserVerificationResponse rejectUser(UUID userId, String reason, String performedById, String performedByName) {
         UpdateUserVerificationRequest request = UpdateUserVerificationRequest.builder()
                 .status("REJECTED")
                 .notes(reason)
                 .build();
-        return updateVerificationStatus(userId, request);
+        AdminUserVerificationResponse response = updateVerificationStatus(userId, request);
+        auditService.logAction(AuditActionType.REJECTED, "User Verification", userId.toString(), response.getFullName(), performedById, performedByName, reason);
+        return response;
     }
 
     @Override
     @Transactional
-    public AdminUserVerificationResponse suspendUser(UUID userId, String reason) {
+    public AdminUserVerificationResponse suspendUser(UUID userId, String reason, String performedById, String performedByName) {
         log.info("Suspending user account with ID: {}, reason: {}", userId, reason);
         UpdateUserVerificationRequest request = UpdateUserVerificationRequest.builder()
                 .status("SUSPENDED")
                 .notes(reason)
                 .build();
-        return updateVerificationStatus(userId, request);
+        AdminUserVerificationResponse response = updateVerificationStatus(userId, request);
+        auditService.logAction(AuditActionType.SUSPENDED, "User Verification", userId.toString(), response.getFullName(), performedById, performedByName, reason);
+        return response;
     }
 
     @Override
     @Transactional
-    public AdminUserVerificationResponse reactivateUser(UUID userId) {
+    public AdminUserVerificationResponse reactivateUser(UUID userId, String performedById, String performedByName) {
         log.info("Reactivating user account with ID: {}", userId);
         UpdateUserVerificationRequest request = UpdateUserVerificationRequest.builder()
                 .status("ACTIVE")
                 .notes("Reactivated by administrator")
                 .build();
-        return updateVerificationStatus(userId, request);
+        AdminUserVerificationResponse response = updateVerificationStatus(userId, request);
+        auditService.logAction(AuditActionType.REACTIVATED, "User Verification", userId.toString(), response.getFullName(), performedById, performedByName, "Account reactivated by administrator");
+        return response;
     }
 
     @Override
     @Transactional
-    public void deleteUser(UUID userId) {
+    public void deleteUser(UUID userId, String performedById, String performedByName) {
         log.warn("Permanently deleting user with ID: {}", userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        String userName = user.getFullName();
 
         List<UserRole> roles = userRoleRepository.findByUserId(userId);
         if (roles != null && !roles.isEmpty()) {
@@ -184,6 +198,7 @@ public class AdminUserVerificationServiceImpl implements AdminUserVerificationSe
         }
 
         userRepository.delete(user);
+        auditService.logAction(AuditActionType.DELETED, "User Verification", userId.toString(), userName, performedById, performedByName, "User permanently deleted");
     }
 
     private AdminUserVerificationResponse mapToVerificationResponse(User user, List<UserRole> roles) {

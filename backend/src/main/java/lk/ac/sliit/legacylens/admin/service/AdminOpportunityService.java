@@ -12,9 +12,9 @@ import java.util.UUID;
 public interface AdminOpportunityService {
     List<OpportunityAudioResponse> getAudioSubmissions(String statusFilter);
     OpportunityAudioResponse getAudioSubmission(String id);
-    AdminOpportunityResponse createOpportunity(CreateOpportunityRequest request);
-    AdminOpportunityResponse publishFromAudio(String audioId, CreateOpportunityRequest request);
+    AdminOpportunityResponse createOpportunity(CreateOpportunityRequest request, String performedById, String performedByName);
+    AdminOpportunityResponse publishFromAudio(String audioId, CreateOpportunityRequest request, String performedById, String performedByName);
     List<AdminOpportunityResponse> getAllOpportunities(String statusFilter);
     AdminOpportunityResponse getOpportunity(String id);
-    AdminOpportunityResponse updateOpportunityStatus(String id, UpdateOpportunityStatusRequest request);
+    AdminOpportunityResponse updateOpportunityStatus(String id, UpdateOpportunityStatusRequest request, String performedById, String performedByName);
 }
