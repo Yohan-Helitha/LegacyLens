@@ -1,9 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Share, Animated } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
-import * as Haptics from 'expo-haptics';
 import { styles } from './KnowledgeKeeper.styles';
+import { playActionSound } from '../../utils/soundEffects';
 
 export interface KnowledgeKeeperProps {
   name: string;
@@ -30,37 +29,11 @@ export const KnowledgeKeeper: React.FC<KnowledgeKeeperProps> = ({
   const shareScale = useRef(new Animated.Value(1)).current;
   const saveTranslateY = useRef(new Animated.Value(0)).current;
 
-  const playSound = async (type: 'like' | 'save' | 'share') => {
-    try {
-      let source: any;
-      if (type === 'like') {
-        source = require('../../../assets/sounds/heart.mp3');
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      } else if (type === 'save') {
-        source = { uri: 'https://www.soundjay.com/buttons/sounds/button-30.mp3' };
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      } else if (type === 'share') {
-        source = { uri: 'https://www.soundjay.com/buttons/sounds/button-10.mp3' };
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync(source, { shouldPlay: true });
-      sound.setOnPlaybackStatusUpdate((status: any) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync();
-        }
-      });
-    } catch (e) {
-      console.log('Error playing sound:', e);
-    }
-  };
-
   const handleLike = () => {
     const newLiked = !liked;
     setLiked(newLiked);
     if (newLiked) {
-      playSound('like');
+      playActionSound('like');
       setLikesCount(likesCount + 1);
       Animated.sequence([
         Animated.timing(heartScale, { toValue: 1.4, duration: 100, useNativeDriver: true }),
@@ -74,12 +47,12 @@ export const KnowledgeKeeper: React.FC<KnowledgeKeeperProps> = ({
   const handleSave = () => {
     const newSaved = !saved;
     setSaved(newSaved);
-    if (newSaved) playSound('save');
+    if (newSaved) playActionSound('save');
   };
 
   const handleShare = async () => {
     try {
-      playSound('share');
+      playActionSound('share');
       await Share.share({
         message: `Meet the Knowledge Keeper: ${name}, ${title}.\n"${quote}"\n\nShared via LegacyLens`,
       });

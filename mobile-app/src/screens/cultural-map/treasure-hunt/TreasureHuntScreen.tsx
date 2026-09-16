@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 import { useTreasureHunt } from '../../../context/TreasureHuntContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -269,25 +269,33 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
   const introAnimY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const puzzleAnimY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const journeyAnimY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const soundRef = useRef<AudioPlayer | null>(null);
   const webviewRef = useRef<WebView>(null);
 
   useEffect(() => {
+    let isMounted = true;
     const playMusic = async () => {
       try {
-        const { sound } = await Audio.Sound.createAsync(
-          require('../../../../assets/sounds/inside-map/treasure-hunt-music.mp3'),
-          { shouldPlay: true, isLooping: true, volume: 0.45 }
+        await setAudioModeAsync({ playsInSilentMode: true });
+        if (!isMounted) return;
+        const player = createAudioPlayer(
+          require('../../../../assets/sounds/inside-map/treasure-hunt-music.mp3')
         );
-        soundRef.current = sound;
+        player.loop = true;
+        player.volume = 0.45;
+        player.play();
+        soundRef.current = player;
       } catch (err) {
         console.log('Failed to play treasure hunt music', err);
       }
     };
     playMusic();
     return () => {
+      isMounted = false;
       if (soundRef.current) {
-        soundRef.current.unloadAsync();
+        soundRef.current.pause();
+        soundRef.current.remove();
+        soundRef.current = null;
       }
     };
   }, []);
@@ -300,13 +308,16 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
     if (showBadgeUnlock) {
       const playUnlockSound = async () => {
         try {
-          const { sound } = await Audio.Sound.createAsync(
-            require('../../../../assets/sounds/inside-map/badge-unlocked.mp3'),
-            { shouldPlay: true, volume: 1.0 }
+          await setAudioModeAsync({ playsInSilentMode: true });
+          const player = createAudioPlayer(
+            require('../../../../assets/sounds/inside-map/badge-unlocked.mp3')
           );
-          sound.setOnPlaybackStatusUpdate((status: any) => {
+          player.volume = 1.0;
+          player.play();
+          const sub = player.addListener('playbackStatusUpdate', (status) => {
             if (status.didJustFinish) {
-              sound.unloadAsync();
+              sub?.remove?.();
+              player.remove();
             }
           });
         } catch (err) {
@@ -372,7 +383,7 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
         <WebView
           ref={webviewRef}
           source={{ html: buildTreasureMapHTML(MAPBOX_TOKEN, adventureStages.map(s => ({ ...s, imageUri: Image.resolveAssetSource(s.badgeImage).uri })), currentStageIndex) }}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           onMessage={(event) => { try { const data = JSON.parse(event.nativeEvent.data); if (data.type === 'MARKER_PRESS') setShowObjective(true); } catch (e) {} }}
         />
       ) : null}
@@ -743,11 +754,11 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   heroGradientOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
   heroContent: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     padding: Spacing.xl,
     justifyContent: 'center',
   },
@@ -851,7 +862,7 @@ const styles = StyleSheet.create({
 
   // ── New Modals ─────────────────────────────────────────────────────────────
   fullscreenOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15, 92, 92, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -859,7 +870,7 @@ const styles = StyleSheet.create({
     zIndex: 2000,
   },
   fullscreenOverlayDark: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(10, 61, 61, 0.98)',
     justifyContent: 'center',
     alignItems: 'center',

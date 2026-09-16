@@ -37,7 +37,7 @@ export const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
 
-  console.log('API REQUEST:', config.url);
+  console.log('API REQUEST:', `${config.baseURL || ''}${config.url || ''}`);
   console.log('JWT TOKEN EXISTS:', !!token);
 
   if (token) {
@@ -47,10 +47,22 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+function isHtmlPayload(data: unknown): boolean {
+  return typeof data === 'string' && /<!DOCTYPE html>/i.test(data);
+}
+
+const WRONG_SERVER_MESSAGE =
+  'The app reached Expo instead of the API. Start Spring Boot on port 8081, then run Expo on port 8082 (`npx expo start --port 8082`).';
+
 // Normalize every failure into an ApiError so calling code never has to
 // know about axios/HTTP specifics.
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (isHtmlPayload(response.data)) {
+      return Promise.reject(new ApiError(WRONG_SERVER_MESSAGE));
+    }
+    return response;
+  },
   (error: AxiosError<ApiEnvelope<unknown>>) => {
     if (error.response) {
       const envelope = error.response.data;
@@ -71,6 +83,7 @@ apiClient.interceptors.response.use(
     }
 
     if (error.request) {
+      console.warn('API NETWORK FAILURE to:', `${error.config?.baseURL || ''}${error.config?.url || ''}`, error.message);
       return Promise.reject(
         new ApiError('Could not reach the server. Check your connection and try again.'),
       );
@@ -92,26 +105,37 @@ export async function apiPost<TResponse, TRequest = unknown>(
   return response.data;
 }
 
-/** PATCH helper that unwraps the ApiResponse envelope's `data` field. */
+/** Helper to extract payload from ApiResponse envelope if present, or return raw data. */
+function extractData<T>(responseData: any): T {
+  if (
+    responseData !== null &&
+    typeof responseData === 'object' &&
+    !Array.isArray(responseData) &&
+    'data' in responseData &&
+    ('success' in responseData || responseData.data !== undefined)
+  ) {
+    return responseData.data as T;
+  }
+  return responseData as T;
+}
+
+/** PATCH helper that unwraps the ApiResponse envelope's `data` field if present. */
 export async function apiPatch<TResponse, TRequest = unknown>(
   url: string,
   body: TRequest,
 ): Promise<TResponse> {
-  const response = await apiClient.patch<ApiEnvelope<TResponse>>(url, body);
-  return response.data.data as TResponse;
+  const response = await apiClient.patch<any>(url, body);
+  return extractData<TResponse>(response.data);
 }
 
-/** GET helper that unwraps the ApiResponse envelope's `data` field. */
+/** GET helper that unwraps the ApiResponse envelope's `data` field if present. */
 export async function apiGet<TResponse>(url: string): Promise<TResponse> {
-  const response = await apiClient.get<TResponse>(url);
-  return response.data;
-}
-  const response = await apiClient.get<ApiEnvelope<TResponse>>(url);
-  return response.data.data as TResponse;
+  const response = await apiClient.get<any>(url);
+  return extractData<TResponse>(response.data);
 }
 
-/** DELETE helper that unwraps the ApiResponse envelope's `data` field. */
+/** DELETE helper that unwraps the ApiResponse envelope's `data` field if present. */
 export async function apiDelete<TResponse = void>(url: string): Promise<TResponse> {
-  const response = await apiClient.delete<ApiEnvelope<TResponse>>(url);
-  return response.data.data as TResponse;
+  const response = await apiClient.delete<any>(url);
+  return extractData<TResponse>(response.data);
 }

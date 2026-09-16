@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 import { Header } from '../../../components/common/Header';
 
@@ -115,17 +115,21 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
 
   const [selectedBadge, setSelectedBadge] = useState<BadgeItem | null>(null);
   const modalSlideAnim = useRef(new Animated.Value(300)).current;
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const soundRef = useRef<AudioPlayer | null>(null);
 
   React.useEffect(() => {
+    let isMounted = true;
     const playMusic = async () => {
       try {
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-        const { sound } = await Audio.Sound.createAsync(
-          require('../../../../assets/sounds/inside-map/badges-music.mp3'),
-          { shouldPlay: true, isLooping: true, volume: 1.0 }
+        await setAudioModeAsync({ playsInSilentMode: true });
+        if (!isMounted) return;
+        const player = createAudioPlayer(
+          require('../../../../assets/sounds/inside-map/badges-music.mp3')
         );
-        soundRef.current = sound;
+        player.loop = true;
+        player.volume = 1.0;
+        player.play();
+        soundRef.current = player;
       } catch (error) {
         console.warn('Error playing badges music', error);
       }
@@ -134,9 +138,11 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
     playMusic();
 
     return () => {
+      isMounted = false;
       if (soundRef.current) {
-        soundRef.current.stopAsync();
-        soundRef.current.unloadAsync();
+        soundRef.current.pause();
+        soundRef.current.remove();
+        soundRef.current = null;
       }
     };
   }, []);

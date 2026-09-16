@@ -55,8 +55,10 @@ export default function BadgesStreaksScreen() {
           apiGet<Badge[]>('/learning/badges/me'),
           apiGet<StreakData>('/learning/progress/me/streak'),
         ]);
-        setBadges(badgeData);
-        setStreak(streakData);
+        setBadges(Array.isArray(badgeData) ? badgeData : []);
+        if (streakData) {
+          setStreak(streakData);
+        }
       } catch (error: any) {
         console.log('BADGES/STREAK ERROR:', error?.message);
       } finally {

@@ -20,7 +20,6 @@ StyleSheet,} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode, Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { VoiceSearchModal } from '../../components/common/VoiceSearchModal';
 import { CommentModal } from '../../components/common/CommentModal';

@@ -14,7 +14,7 @@ export const styles = StyleSheet.create({
     height: '100%',
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: Colors.dominant,
     alignItems: 'center',
     justifyContent: 'center',

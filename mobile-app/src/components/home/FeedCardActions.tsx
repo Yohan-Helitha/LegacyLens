@@ -1,10 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, Share } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
 import { Colors } from '../../theme';
 import { styles } from './VideoCard.styles';
+import { playActionSound } from '../../utils/soundEffects';
 
 interface FeedCardActionsProps {
   initialLikes: number;
@@ -23,37 +22,11 @@ export const FeedCardActions = ({ initialLikes, initialComments, onLikePress, on
   const saveTranslateY = useRef(new Animated.Value(0)).current;
   const shareScale = useRef(new Animated.Value(1)).current;
 
-  const playSound = async (type: 'like' | 'save' | 'share') => {
-    try {
-      let source: any;
-      if (type === 'like') {
-        source = require('../../../assets/sounds/heart.mp3');
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      } else if (type === 'save') {
-        source = { uri: 'https://www.soundjay.com/buttons/sounds/button-30.mp3' };
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      } else if (type === 'share') {
-        source = { uri: 'https://www.soundjay.com/buttons/sounds/button-10.mp3' };
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync(source, { shouldPlay: true });
-      sound.setOnPlaybackStatusUpdate((status: any) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync();
-        }
-      });
-    } catch (e) {
-      console.log('Error playing sound:', e);
-    }
-  };
-
   const handleLike = () => {
     const newLiked = !liked;
     setLiked(newLiked);
     if (newLiked) {
-      playSound('like');
+      playActionSound('like');
       setLikesCount(likesCount + 1);
       if (onLikePress) onLikePress();
       Animated.sequence([
@@ -70,7 +43,7 @@ export const FeedCardActions = ({ initialLikes, initialComments, onLikePress, on
     const newSaved = !saved;
     setSaved(newSaved);
     if (newSaved) {
-      playSound('save');
+      playActionSound('save');
       saveTranslateY.setValue(-8);
       Animated.spring(saveTranslateY, { toValue: 0, friction: 4, tension: 40, useNativeDriver: true }).start();
     }
@@ -78,7 +51,7 @@ export const FeedCardActions = ({ initialLikes, initialComments, onLikePress, on
 
   const handleShare = async () => {
     try {
-      playSound('share');
+      playActionSound('share');
       Animated.sequence([
         Animated.timing(shareScale, { toValue: 1.15, duration: 100, useNativeDriver: true }),
         Animated.timing(shareScale, { toValue: 1, duration: 100, useNativeDriver: true })

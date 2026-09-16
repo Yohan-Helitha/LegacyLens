@@ -439,10 +439,10 @@ export const styles = StyleSheet.create({
     zIndex: 10,
   },
   videoThumbnail: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   videoOverlayGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(10, 61, 61, 0.45)',
   },
   videoBadgesRow: {
@@ -906,7 +906,7 @@ export const styles = StyleSheet.create({
     height: '100%',
   },
   spotlightOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.35)',
   },
   spotlightItemContent: {
@@ -1063,7 +1063,7 @@ export const styles = StyleSheet.create({
     color: '#fe893e',
   },
   loaderContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#0a1010',
     alignItems: 'center',
     justifyContent: 'center',

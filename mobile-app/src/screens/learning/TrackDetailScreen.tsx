@@ -42,7 +42,7 @@ export default function TrackDetailScreen() {
         ]);
 
         setTrack(trackData);
-        setLessons(lessonsData);
+        setLessons(Array.isArray(lessonsData) ? lessonsData : []);
       } catch (error: any) {
         console.log('Failed to load track:', error?.message ?? error);
       } finally {

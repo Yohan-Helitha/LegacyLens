@@ -32,53 +32,32 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints — no token required. Cities must be public
-                // too: the signup form needs the list before the user has an
-                // account or a token.
+                // Public endpoints — no token required.
                 .requestMatchers(
-    "/api/auth/**",
-    "/api/cities/**",
-    "/api/learning/tracks/**"
-).permitAll()
+                    "/api/auth/**",
+                    "/api/cities/**",
+                    "/api/learning/**",
+                    "/api/home/**",
+                    "/api/admin/**",
+                    "/api/v1/**",
+                    "/api/opportunities/**",
+                    "/api/creator-dashboard/**",
+                    "/api/creator-applications/**",
+                    "/api/users/**",
+                    "/api/map/**",
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**",
+                    "/swagger-resources/**",
+                    "/swagger-ui.html",
+                    "/webjars/**"
+                ).permitAll()
                 // Everything else requires authentication
                 .anyRequest().authenticated()
             )
-            // Without this, JwtAuthenticationFilter is never invoked and every
-            // Bearer-token request falls through as anonymous — see the class's
-            // own javadoc; it exists specifically to populate SecurityContext.
+            // Populate SecurityContext via JwtAuthenticationFilter
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        // Public endpoints — no token required. Cities must be public
-                        // too: the signup form needs the list before the user has an
-                        // account or a token.
-                        .requestMatchers(
-                                "/api/auth/**",
-                                "/api/cities/**",
-                                "/api/home/**",
-                                "/api/admin/**",
-                                "/api/v1/**",
-                                "/api/opportunities/**",
-                                "/api/creator-dashboard/**",
-                                "/api/creator-applications/**",
-                                "/api/users/**",
-                                "/api/map/**",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/swagger-resources/**",
-                                "/swagger-ui.html",
-                                "/webjars/**")
-                        .permitAll()
-                        // Everything else requires authentication
-                        .anyRequest().authenticated())
-                // Without this, JwtAuthenticationFilter is never invoked and every
-                // Bearer-token request falls through as anonymous — see the class's
-                // own javadoc; it exists specifically to populate SecurityContext.
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -26,7 +26,6 @@ public class MapService {
     private final LandmarkRepository landmarkRepository;
     private final QuestRepository questRepository;
     private final QuestionRepository questionRepository;
-    private final QuestionChoiceRepository questionChoiceRepository;
     private final UserBadgeRepository userBadgeRepository;
     private final BadgeRepository badgeRepository;
     private final RegionRepository regionRepository;

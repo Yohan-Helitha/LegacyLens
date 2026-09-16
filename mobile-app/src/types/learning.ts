@@ -9,7 +9,7 @@ export type LessonStatus = 'locked' | 'in_progress' | 'completed';
 
 /** A learning track, e.g. "Southern Fishing Dialect" */
 export interface Track {
-  id: number;
+  id: string;
   title: string;
   description: string;
   region: string;
@@ -21,8 +21,8 @@ export interface Track {
 
 /** A single lesson inside a track (flashcard set, quiz, or audio lesson) */
 export interface Lesson {
-  id: number;
-  trackId?: number;
+  id: string;
+  trackId?: string;
   lessonOrder: number;
   title: string;
   description?: string;

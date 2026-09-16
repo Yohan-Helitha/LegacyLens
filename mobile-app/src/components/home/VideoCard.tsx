@@ -1,16 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Video, ResizeMode } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { styles } from './VideoCard.styles';
 import { FeedCardActions } from './FeedCardActions';
 import { VideoLoader } from './VideoLoader';
 import { homeApi } from '../../services/api/homeApi';
+import { resolveMediaUrl } from '../../constants/api';
 
 export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModalVisible, onNavigate, loadedVideoIds }: any) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isReady, setIsReady] = useState(() => loadedVideoIds?.has?.(v.id) ?? false);
   const [showLoader, setShowLoader] = useState(false);
+
+  const videoUri = resolveMediaUrl(v.videoUrl);
+  const player = useVideoPlayer(videoUri, (p) => {
+    p.loop = true;
+    p.muted = isMuted;
+    if (isPlaying) {
+      p.play();
+    }
+  });
+
+  useEffect(() => {
+    if (!player) return;
+    player.muted = isMuted;
+  }, [isMuted, player]);
+
+  useEffect(() => {
+    if (!player) return;
+    if (isPlaying) {
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [isPlaying, player]);
+
+  useEffect(() => {
+    if (!player) return;
+    if (player.status === 'readyToPlay') {
+      setIsReady(true);
+      loadedVideoIds?.add?.(v.id);
+    }
+    const sub = player.addListener('statusChange', (payload) => {
+      if (payload.status === 'readyToPlay') {
+        setIsReady(true);
+        loadedVideoIds?.add?.(v.id);
+      }
+    });
+    return () => {
+      sub?.remove?.();
+    };
+  }, [player, v.id, loadedVideoIds]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -26,21 +67,11 @@ export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModal
     <TouchableOpacity activeOpacity={0.9} onPress={() => onNavigate?.('video', item || v)} style={styles.premiumCard}>
       <View style={styles.premiumHeroBox}>
         {(showLoader && !isReady) ? <VideoLoader /> : null}
-        <Video
-          source={{ uri: v.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4' }}
+        <VideoView
+          player={player}
           style={[styles.premiumHeroImg, !isReady && { opacity: 0 }]}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay={isPlaying}
-          isLooping
-          isMuted={isMuted}
-          useNativeControls={false}
-          onReadyForDisplay={() => {
-            setIsReady(true);
-            loadedVideoIds?.add?.(v.id);
-          }}
-          onLoadStart={() => {
-            if (!loadedVideoIds?.has?.(v.id)) setIsReady(false);
-          }}
+          contentFit="cover"
+          nativeControls={false}
         />
         <View style={styles.premiumBadge}>
           <MaterialIcons name="play-circle-outline" size={14} color="#fff" />

@@ -45,7 +45,7 @@ export default function FlashcardScreen() {
         const data = await apiGet<any[]>(
           `/learning/lessons/${route.params.lessonId}/flashcards`
         );
-        setCards(data);
+        setCards(Array.isArray(data) ? data : []);
       } catch (error: any) {
         console.log('FLASHCARD ERROR:', error?.message ?? error);
       } finally {

@@ -43,7 +43,7 @@ useEffect(() => {
 
       console.log('QUIZ QUESTIONS:', data);
 
-      setQuestions(data);
+      setQuestions(Array.isArray(data) ? data : []);
     } catch (err) {
       console.log('QUIZ QUESTIONS ERROR:', err);
       setError('Could not load quiz questions.');

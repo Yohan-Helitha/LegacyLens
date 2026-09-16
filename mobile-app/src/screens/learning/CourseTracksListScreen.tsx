@@ -1,6 +1,14 @@
 // src/screens/learning/CourseTracksListScreen.tsx
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { Track } from '../../types/learning';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
@@ -35,21 +43,31 @@ function GradientProgressFill({ percent }: { percent: number }) {
 export default function CourseTracksListScreen() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadTracks = useCallback(async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+      const data = await apiGet<Track[]>('/learning/tracks');
+      setTracks(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.log('Failed to load learning tracks:', err?.message ?? err);
+      setError(err?.message ?? 'Failed to load tracks. Please try again.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const loadTracks = async () => {
-      try {
-        const data = await apiGet<Track[]>('/learning/tracks');
-        setTracks(data);
-      } catch (error: any) {
-        console.log('Failed to load learning tracks:', error?.message ?? error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadTracks();
-  }, []);
+  }, [loadTracks]);
 
   const navigation = useNavigation<NavigationProp>();
 
@@ -64,7 +82,7 @@ export default function CourseTracksListScreen() {
     return (
       <Pressable
         style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-        onPress={() => navigation.navigate('TrackDetail', { trackId: item.id })}
+        onPress={() => navigation.navigate('TrackDetail', { trackId: String(item.id) })}
       >
         <View style={[styles.accentStripe, { backgroundColor: stripeColor }]} />
 
@@ -108,14 +126,39 @@ export default function CourseTracksListScreen() {
           <Text style={styles.progressButtonText}>📊 Progress</Text>
         </Pressable>
       </View>
+
       {loading ? (
-        <Text style={styles.loadingText}>Loading tracks...</Text>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={Colors.secondary} />
+          <Text style={styles.loadingText}>Loading tracks...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable style={styles.retryButton} onPress={() => loadTracks()}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </Pressable>
+        </View>
       ) : (
         <FlatList
           data={tracks}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderTrack}
           contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadTracks(true)}
+              tintColor={Colors.secondary}
+              colors={[Colors.secondary]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyTitle}>No Tracks Found</Text>
+              <Text style={styles.emptySubtitle}>There are currently no learning tracks available.</Text>
+            </View>
+          }
         />
       )}
     </View>
@@ -201,5 +244,47 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizeXS,
     color: Colors.textMuted,
     marginTop: Spacing.xs + 2,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: Spacing.xl * 2,
+  },
+  errorText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    color: '#D32F2F',
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  retryButton: {
+    backgroundColor: Colors.secondary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radii.md,
+  },
+  retryButtonText: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeSM,
+    color: Colors.white,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl * 2,
+  },
+  emptyTitle: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeLG,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  emptySubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.lg,
   },
 });

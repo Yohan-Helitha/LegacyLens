@@ -105,7 +105,7 @@ export const styles = StyleSheet.create({
 
   // ── Video Loader ──────────────────────────────────────────────────────────
   loaderContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#0a1010',
     alignItems: 'center',
     justifyContent: 'center',

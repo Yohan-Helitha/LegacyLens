@@ -22,14 +22,14 @@ export const authApi = {
     apiPost<void, ResendOtpRequest>('/auth/resend-otp', body),
 
   login: async (body: LoginRequest): Promise<AuthResponse> => {
-  const response = await apiPost<{
-    success: boolean;
-    message?: string;
-    data: AuthResponse;
-  }, LoginRequest>('/auth/login', body);
+    const response = await apiPost<{
+      success: boolean;
+      message?: string;
+      data: AuthResponse;
+    }, LoginRequest>('/auth/login', body);
 
-  return response.data;
-},
+    return response.data;
+  },
 
   forgotPin: (body: ForgotPinRequest) =>
     apiPost<void, ForgotPinRequest>('/auth/forgot-pin', body),

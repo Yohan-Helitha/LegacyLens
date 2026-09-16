@@ -13,4 +13,20 @@ public class ForgotPinRequest {
     @NotBlank(message = "NIC number is required")
     @Size(max = 20, message = "NIC number must not exceed 20 characters")
     private String nicNumber;
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public String getNicNumber() {
+        return nicNumber;
+    }
+
+    public void setNicNumber(String nicNumber) {
+        this.nicNumber = nicNumber;
+    }
 }

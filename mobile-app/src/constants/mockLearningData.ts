@@ -28,9 +28,9 @@ export const mockTracks: Track[] = [
 ];
 
 export const mockLessons: Lesson[] = [
-  { id: 'lesson-1', trackId: 'track-1', order: 1, title: 'Lesson 1: Boat Parts Vocabulary', type: 'flashcards', status: 'completed' },
-  { id: 'lesson-2', trackId: 'track-1', order: 2, title: 'Lesson 2: Boat Parts Quiz', type: 'quiz', status: 'completed' },
-  { id: 'lesson-3', trackId: 'track-1', order: 3, title: 'Lesson 3: Fishing Tools', type: 'flashcards', status: 'in_progress' },
+  { id: 'lesson-1', trackId: 'track-1', lessonOrder: 1, title: 'Lesson 1: Boat Parts Vocabulary', type: 'flashcards', status: 'completed' },
+  { id: 'lesson-2', trackId: 'track-1', lessonOrder: 2, title: 'Lesson 2: Boat Parts Quiz', type: 'quiz', status: 'completed' },
+  { id: 'lesson-3', trackId: 'track-1', lessonOrder: 3, title: 'Lesson 3: Fishing Tools', type: 'flashcards', status: 'in_progress' },
 ];
 
 export const mockFlashcards: Flashcard[] = [

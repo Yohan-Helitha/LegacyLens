@@ -44,50 +44,57 @@ export default function ProgressTrackingScreen() {
   }, []);
 
   const loadTrackProgress = async () => {
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const data = await apiGet<TrackProgress[]>(
-      '/learning/progress/tracks/me'
-    );
+      const data = await apiGet<TrackProgress[]>(
+        '/learning/progress/tracks/me'
+      );
 
-    console.log('TRACK PROGRESS:', data);
+      console.log('TRACK PROGRESS:', data);
+      setTrackProgress(Array.isArray(data) ? data : []);
 
-    setTrackProgress(data);
+      const streakData = await apiGet<StreakResponse>(
+        '/learning/progress/me/streak'
+      );
 
-    const streakData = await apiGet<StreakResponse>(
-      '/learning/progress/me/streak'
-    );
+      console.log('STREAK DATA:', streakData);
+      if (streakData) {
+        setStreak({
+          currentStreakDays: streakData.currentStreakDays ?? 0,
+          last7Days: Array.isArray(streakData.last7Days)
+            ? streakData.last7Days
+            : [false, false, false, false, false, false, false],
+        });
+      }
+    } catch (error) {
+      console.log('PROGRESS / STREAK ERROR:', error);
+      setTrackProgress([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    console.log('STREAK DATA:', streakData);
-
-    setStreak(streakData);
-
-  } catch (error) {
-    console.log('PROGRESS / STREAK ERROR:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  const safeTrackProgress = Array.isArray(trackProgress) ? trackProgress : [];
 
   // Total number of tracks the user has started
-  const tracksStarted = trackProgress.length;
+  const tracksStarted = safeTrackProgress.length;
 
   // Total completed lessons across all tracks
-  const lessonsCompleted = trackProgress.reduce(
-    (total, track) => total + track.completedLessons,
+  const lessonsCompleted = safeTrackProgress.reduce(
+    (total, track) => total + (track?.completedLessons || 0),
     0
   );
 
   // Total lessons across all started tracks
-  const totalLessons = trackProgress.reduce(
-    (total, track) => total + track.totalLessons,
+  const totalLessons = safeTrackProgress.reduce(
+    (total, track) => total + (track?.totalLessons || 0),
     0
   );
 
   // Total XP across all tracks
-  const totalXp = trackProgress.reduce(
-    (total, track) => total + track.xpEarned,
+  const totalXp = safeTrackProgress.reduce(
+    (total, track) => total + (track?.xpEarned || 0),
     0
   );
 
@@ -197,7 +204,7 @@ export default function ProgressTrackingScreen() {
 <View style={styles.streakCard}>
 
   <Text style={styles.streakHeadline}>
-    🔥 {streak.currentStreakDays} Day Streak
+    🔥 {streak?.currentStreakDays ?? 0} Day Streak
   </Text>
 
   <View style={styles.weekRow}>
@@ -207,7 +214,7 @@ export default function ProgressTrackingScreen() {
         <View
           style={[
             styles.dayDot,
-            streak.last7Days[index] && styles.progressBarFill,
+            Boolean(streak?.last7Days?.[index]) && styles.progressBarFill,
           ]}
         />
 
@@ -222,8 +229,8 @@ export default function ProgressTrackingScreen() {
 </View>
 
     <FlatList
-      data={trackProgress}
-      keyExtractor={(item) => item.trackId.toString()}
+      data={safeTrackProgress}
+      keyExtractor={(item) => (item?.trackId ?? Math.random()).toString()}
       showsVerticalScrollIndicator={false}
       renderItem={({ item }) => (
         <View style={styles.trackRow}>
@@ -255,11 +262,11 @@ export default function ProgressTrackingScreen() {
 
           <View style={styles.trackInfoRow}>
 
-            <Text style={styles.trackInfo}>
+            <Text style={styles.trackSubtext}>
               {item.completedLessons} of {item.totalLessons} lessons
             </Text>
 
-            <Text style={styles.trackInfo}>
+            <Text style={styles.trackXp}>
               +{item.xpEarned} XP
             </Text>
 
@@ -387,6 +394,14 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: Colors.accent,
     borderRadius: Radii.sm,
+  },
+
+  progressPercentage: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeSM,
+    color: Colors.accent,
+    marginTop: Spacing.xs,
+    textAlign: 'center' as const,
   },
 
   streakCard: {

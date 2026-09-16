@@ -1,6 +1,5 @@
 package lk.ac.sliit.legacylens.learning.controller;
 
-import jakarta.validation.Valid;
 import lk.ac.sliit.legacylens.learning.dto.LessonProgressResponse;
 import lk.ac.sliit.legacylens.learning.dto.TrackProgressResponse;
 import lk.ac.sliit.legacylens.learning.entity.LessonProgress;
