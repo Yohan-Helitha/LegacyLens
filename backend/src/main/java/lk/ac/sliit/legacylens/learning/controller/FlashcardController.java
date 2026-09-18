@@ -43,4 +43,14 @@ public class FlashcardController {
                 flashcardService.createFlashcard(flashcard)
         );
     }
+
+    @PostMapping("/flashcards/{id}/evaluate-pronunciation")
+    public ResponseEntity<lk.ac.sliit.legacylens.learning.dto.PronunciationResult> evaluatePronunciation(
+            @PathVariable Long id,
+            @RequestParam("audio") org.springframework.web.multipart.MultipartFile audio) {
+        
+        return ResponseEntity.ok(
+                flashcardService.evaluatePronunciation(id, audio)
+        );
+    }
 }

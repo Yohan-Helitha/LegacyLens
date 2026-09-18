@@ -97,3 +97,13 @@ export async function apiGet<TResponse>(url: string): Promise<TResponse> {
   const response = await apiClient.get<TResponse>(url);
   return response.data;
 }
+
+/** POST helper for multipart/form-data requests. */
+export async function apiPostMultiPart<TResponse>(url: string, formData: FormData): Promise<TResponse> {
+  const response = await apiClient.post<TResponse>(url, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+}

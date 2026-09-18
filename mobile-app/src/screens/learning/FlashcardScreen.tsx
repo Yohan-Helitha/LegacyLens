@@ -6,8 +6,8 @@ import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { apiGet } from '../../services/api/client';
-import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { apiGet, apiPostMultiPart } from '../../services/api/client';
+import { useAudioPlayer, setAudioModeAsync, useAudioRecorder, AudioModule, RecordingPresets } from 'expo-audio';
 
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'Flashcard'>;
 
@@ -30,6 +30,16 @@ function PlayButton({ onPress }: { onPress: () => void }) {
   );
 }
 
+function RecordButton({ isRecording, onPress, disabled }: { isRecording: boolean; onPress: () => void; disabled?: boolean }) {
+  return (
+    <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [styles.recordButton, isRecording && styles.recordButtonActive, pressed && styles.recordButtonPressed, disabled && styles.recordButtonDisabled]}>
+      <Text style={[styles.recordButtonText, isRecording && styles.recordButtonTextActive]}>
+        {isRecording ? '⏹ Stop Recording' : '🎙 Record Pronunciation'}
+      </Text>
+    </Pressable>
+  );
+}
+
 export default function FlashcardScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProp<LearningStackParamList, 'Flashcard'>>();
@@ -38,6 +48,10 @@ export default function FlashcardScreen() {
   const [loading, setLoading] = useState(true);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const [evaluating, setEvaluating] = useState(false);
+  const [result, setResult] = useState<{ passed: boolean; score: number; feedback: string } | null>(null);
+
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   useEffect(() => {
     const loadFlashcards = async () => {
@@ -73,7 +87,7 @@ export default function FlashcardScreen() {
   };
 
   useEffect(() => {
-    setAudioModeAsync({ playsInSilentMode: true }).catch((err) =>
+    setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true }).catch((err) =>
       console.log('AUDIO MODE ERROR:', err?.message ?? err)
     );
   }, []);
@@ -103,13 +117,64 @@ export default function FlashcardScreen() {
     }
   };
 
+  const toggleRecording = async () => {
+    try {
+      if (audioRecorder.isRecording) {
+        await audioRecorder.stop();
+        
+        const uri = audioRecorder.uri;
+        if (uri) {
+          submitRecording(uri);
+        }
+      } else {
+        const permission = await AudioModule.requestRecordingPermissionsAsync();
+        if (permission.status === 'granted') {
+          await audioRecorder.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY);
+          audioRecorder.record();
+        } else {
+          console.log('Recording permission not granted');
+        }
+      }
+    } catch (error) {
+      console.log('RECORDING ERROR:', error);
+    }
+  };
+
+  const submitRecording = async (uri: string) => {
+    if (!card?.id) return;
+    setEvaluating(true);
+    setResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('audio', {
+        uri,
+        name: 'pronunciation.m4a',
+        type: 'audio/m4a',
+      } as any);
+
+      const res = await apiPostMultiPart<{ passed: boolean; score: number; feedback: string }>(
+        `/learning/flashcards/${card.id}/evaluate-pronunciation`,
+        formData
+      );
+      setResult(res);
+    } catch (error) {
+      console.log('EVALUATE ERROR:', error);
+      setResult({ passed: false, score: 0, feedback: 'Failed to evaluate audio.' });
+    } finally {
+      setEvaluating(false);
+    }
+  };
+
   const goNext = () => {
     setFlipped(false);
+    setResult(null);
     setIndex((prev) => Math.min(prev + 1, cards.length - 1));
   };
 
   const goPrev = () => {
     setFlipped(false);
+    setResult(null);
     setIndex((prev) => Math.max(prev - 1, 0));
   };
 
@@ -165,6 +230,24 @@ export default function FlashcardScreen() {
             ) : (
               <Text style={styles.hint}>No audio for this word</Text>
             )}
+            
+            <RecordButton 
+              isRecording={audioRecorder.isRecording} 
+              onPress={toggleRecording}
+              disabled={evaluating}
+            />
+            
+            {evaluating && (
+              <Text style={styles.evaluatingText}>Evaluating pronunciation...</Text>
+            )}
+            
+            {result && !evaluating && (
+              <View style={[styles.resultCard, result.passed ? styles.resultPass : styles.resultFail]}>
+                <Text style={styles.resultScore}>{result.score}/100 - {result.passed ? 'Pass' : 'Try Again'}</Text>
+                <Text style={styles.resultFeedback}>{result.feedback}</Text>
+              </View>
+            )}
+
             <Text style={styles.tapHint}>Tap card to flip</Text>
           </>
         ) : (
@@ -265,6 +348,34 @@ const styles = StyleSheet.create({
   },
   playButtonPressed: { opacity: 0.8, transform: [{ scale: 0.98 }] },
   playButtonText: { color: Colors.secondary, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM },
+  
+  recordButton: {
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: Radii.full,
+    marginBottom: Spacing.lg - 4,
+  },
+  recordButtonActive: { backgroundColor: '#FF3B30' },
+  recordButtonPressed: { opacity: 0.8 },
+  recordButtonDisabled: { opacity: 0.5 },
+  recordButtonText: { color: Colors.text, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM },
+  recordButtonTextActive: { color: Colors.white },
+  
+  evaluatingText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.accent, marginBottom: Spacing.sm },
+  
+  resultCard: {
+    padding: Spacing.sm,
+    borderRadius: Radii.md,
+    marginBottom: Spacing.sm,
+    alignItems: 'center',
+    width: '100%',
+  },
+  resultPass: { backgroundColor: 'rgba(52, 199, 89, 0.15)' },
+  resultFail: { backgroundColor: 'rgba(255, 59, 48, 0.15)' },
+  resultScore: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: Colors.text },
+  resultFeedback: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.textMuted, textAlign: 'center', marginTop: 2 },
+
   hint: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.textMuted, marginBottom: Spacing.lg - 4 },
   tapHint: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.textMuted },
   meaning: {
