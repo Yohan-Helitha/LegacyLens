@@ -1,0 +1,40 @@
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Lessons for: <span class="text-primary">{{ track?.title || 'Loading...' }}</span></h2>
+    <div>
+      <a routerLink="/learning" class="btn btn-outline-secondary me-2">Back to Tracks</a>
+      <a [routerLink]="['new']" [queryParams]="{ type: 'FLASHCARDS' }" class="btn btn-info text-white me-2">+ Flashcards Lesson</a>
+      <a [routerLink]="['new']" [queryParams]="{ type: 'QUIZ' }" class="btn btn-success">+ Quiz Lesson</a>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover table-bordered">
+      <thead class="table-light">
+        <tr>
+          <th>Order</th>
+          <th>Title</th>
+          <th>Type</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let lesson of lessons">
+          <td>{{ lesson.lessonOrder }}</td>
+          <td>{{ lesson.title }}</td>
+          <td>
+            <span class="badge" [ngClass]="lesson.type === 'FLASHCARDS' ? 'bg-info' : 'bg-success'">
+              {{ lesson.type }}
+            </span>
+          </td>
+          <td>
+            <a [routerLink]="[lesson.id, 'edit']" [queryParams]="{ type: lesson.type }" class="btn btn-sm btn-outline-primary">Manage Content</a>
+          </td>
+        </tr>
+        <tr *ngIf="lessons.length === 0">
+          <td colspan="4" class="text-center py-4 text-muted">No lessons found. Add flashcards or a quiz to get started.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

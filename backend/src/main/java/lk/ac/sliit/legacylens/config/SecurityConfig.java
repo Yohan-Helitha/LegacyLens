@@ -41,7 +41,7 @@ public class SecurityConfig {
                 .requestMatchers(
     "/api/auth/**",
     "/api/cities/**",
-    "/api/learning/tracks/**"
+    "/api/learning/**"
 ).permitAll()
                 // Everything else requires authentication
                 .anyRequest().authenticated()

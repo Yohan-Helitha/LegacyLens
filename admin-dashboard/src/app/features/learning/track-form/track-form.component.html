@@ -1,0 +1,53 @@
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>{{ isEditMode ? 'Edit' : 'Create' }} Learning Track</h2>
+    <a routerLink="/learning" class="btn btn-outline-secondary">Back to List</a>
+  </div>
+
+  <div class="card shadow-sm mx-auto" style="max-width: 700px;">
+    <div class="card-body">
+      <form [formGroup]="trackForm" (ngSubmit)="onSubmit()">
+        <div class="mb-3">
+          <label class="form-label fw-bold">Title *</label>
+          <input type="text" class="form-control" formControlName="title" placeholder="e.g. Fishing Village Dialect">
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label fw-bold">Description *</label>
+          <textarea class="form-control" formControlName="description" rows="3" placeholder="Describe what the learner will learn in this track..."></textarea>
+        </div>
+
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Region</label>
+            <input type="text" class="form-control" formControlName="region" placeholder="e.g. Southern Province">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold">Occupation Context</label>
+            <input type="text" class="form-control" formControlName="occupation" placeholder="e.g. Fisherman">
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Difficulty Level *</label>
+          <select class="form-select" formControlName="difficultyLevel">
+            <option value="BEGINNER">Beginner</option>
+            <option value="INTERMEDIATE">Intermediate</option>
+            <option value="ADVANCED">Advanced</option>
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-bold">Thumbnail URL</label>
+          <input type="text" class="form-control" formControlName="thumbnailUrl" placeholder="https://example.com/image.jpg">
+        </div>
+
+        <div class="d-grid">
+          <button type="submit" class="btn btn-primary" [disabled]="trackForm.invalid || isSubmitting">
+            {{ isSubmitting ? 'Saving...' : 'Save Track' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

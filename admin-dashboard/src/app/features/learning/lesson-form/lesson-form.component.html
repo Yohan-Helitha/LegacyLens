@@ -1,0 +1,141 @@
+<div class="container mt-4 mb-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>{{ isLessonSaved ? 'Manage' : 'Create' }} {{ lessonType === 'FLASHCARDS' ? 'Flashcards' : 'Quiz' }} Lesson</h2>
+    <a [routerLink]="['/learning/track', trackId, 'lessons']" class="btn btn-outline-secondary">Back to Lessons</a>
+  </div>
+
+  <div class="row">
+    <!-- Lesson Metadata (Left) -->
+    <div class="col-md-4">
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+          <h5 class="mb-0">Lesson Details</h5>
+        </div>
+        <div class="card-body">
+          <form [formGroup]="lessonForm" (ngSubmit)="saveLesson()">
+            <div class="mb-3">
+              <label class="form-label fw-bold">Title *</label>
+              <input type="text" class="form-control" formControlName="title" [readonly]="isLessonSaved">
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Order Index *</label>
+              <input type="number" class="form-control" formControlName="lessonOrder" [readonly]="isLessonSaved">
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Description</label>
+              <textarea class="form-control" formControlName="description" rows="2" [readonly]="isLessonSaved"></textarea>
+            </div>
+            <div class="d-grid" *ngIf="!isLessonSaved">
+              <button type="submit" class="btn btn-primary" [disabled]="lessonForm.invalid">Save & Continue</button>
+            </div>
+            <div class="alert alert-success mt-3 mb-0" *ngIf="isLessonSaved">
+              Lesson created! You can now add content.
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lesson Content (Right) -->
+    <div class="col-md-8" *ngIf="isLessonSaved">
+      
+      <!-- ADD CONTENT FORM -->
+      <div class="card shadow-sm mb-4 border-primary">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">Add New {{ lessonType === 'FLASHCARDS' ? 'Flashcard' : 'Question' }}</h5>
+        </div>
+        <div class="card-body">
+          <form [formGroup]="contentForm" (ngSubmit)="addContent()">
+            
+            <!-- FLASHCARD INPUTS -->
+            <ng-container *ngIf="lessonType === 'FLASHCARDS'">
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label fw-bold">Term / Word *</label>
+                  <input type="text" class="form-control" formControlName="term">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label fw-bold">Translation *</label>
+                  <input type="text" class="form-control" formControlName="translation">
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-bold">Audio URL (Optional)</label>
+                <input type="text" class="form-control" formControlName="audioUrl" placeholder="https://...">
+              </div>
+            </ng-container>
+
+            <!-- QUIZ INPUTS -->
+            <ng-container *ngIf="lessonType === 'QUIZ'">
+              <div class="mb-3">
+                <label class="form-label fw-bold">Question *</label>
+                <input type="text" class="form-control" formControlName="questionText">
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label fw-bold">Option A *</label>
+                  <input type="text" class="form-control" formControlName="optionA">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label fw-bold">Option B *</label>
+                  <input type="text" class="form-control" formControlName="optionB">
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label fw-bold">Option C *</label>
+                  <input type="text" class="form-control" formControlName="optionC">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label fw-bold">Option D *</label>
+                  <input type="text" class="form-control" formControlName="optionD">
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label fw-bold text-success">Correct Option *</label>
+                <select class="form-select border-success" formControlName="correctOption">
+                  <option value="A">Option A</option>
+                  <option value="B">Option B</option>
+                  <option value="C">Option C</option>
+                  <option value="D">Option D</option>
+                </select>
+              </div>
+            </ng-container>
+
+            <button type="submit" class="btn btn-success" [disabled]="contentForm.invalid">Add to Lesson</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- EXISTING CONTENT LIST -->
+      <h4 class="mb-3">Existing Content</h4>
+      
+      <!-- Flashcards Table -->
+      <table class="table table-bordered table-striped" *ngIf="lessonType === 'FLASHCARDS'">
+        <thead class="table-light">
+          <tr><th>Term</th><th>Translation</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let fc of flashcards">
+            <td>{{fc.term}}</td><td>{{fc.translation}}</td>
+          </tr>
+          <tr *ngIf="flashcards.length === 0"><td colspan="2" class="text-center text-muted">No flashcards added yet.</td></tr>
+        </tbody>
+      </table>
+
+      <!-- Quiz Questions Table -->
+      <table class="table table-bordered table-striped" *ngIf="lessonType === 'QUIZ'">
+        <thead class="table-light">
+          <tr><th>Question</th><th>Answer</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let q of quizQuestions">
+            <td>{{q.questionText}}</td><td><span class="badge bg-success">Option {{q.correctOption}}</span></td>
+          </tr>
+          <tr *ngIf="quizQuestions.length === 0"><td colspan="2" class="text-center text-muted">No questions added yet.</td></tr>
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+</div>
