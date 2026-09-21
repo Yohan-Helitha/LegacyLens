@@ -74,6 +74,10 @@ export const UserNavigator: React.FC<UserNavigatorProps> = ({ navigation }) => {
         <ProfileScreen
           onOpenPrivacyData={() => navigation.navigate('PrivacyData')}
           onBecomeFreelancer={() => navigation.navigate('Creator', { initialScreen: 'apply' })}
+          onBecomeStoryteller={() => {
+            const roles = useAuthStore.getState().user?.roles ?? [];
+            navigation.navigate(roles.includes('ELDER') ? 'ContentCapture' : 'StorytellerOnboarding');
+          }}
           onLogout={() => {
             useAuthStore.getState().clearSession();
             navigation.replace('Login');
