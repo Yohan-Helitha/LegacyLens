@@ -327,6 +327,10 @@ class StoryServiceImplTest {
         assertThrows(ResourceNotFoundException.class, () -> storyService.delete(OTHER_USER_ID, STORY_ID));
 
         verify(fileStorageService, never()).delete(anyString());
-        verify(storyRepository, never()).delete(any());
+        // Explicit type witness: StoryRepository now also extends
+        // JpaSpecificationExecutor (see StoryQueryService), which adds an
+        // overloaded delete(Specification<Story>) that makes bare any()
+        // ambiguous against delete(Story).
+        verify(storyRepository, never()).delete(any(Story.class));
     }
 }

@@ -74,6 +74,7 @@ public class UserProfileServiceImpl implements UserProfileService {
                 .nicNumber(user.getNicNumber())
                 .profilePhotoUrl(user.getProfilePhotoUrl())
                 .fingerprintEnabled(user.isFingerprintEnabled())
+                .tutorialCompleted(user.isTutorialCompleted())
                 .accountStatus(user.getAccountStatus().name())
                 .city(mapCity(user.getCity()))
                 .roles(roleNames)
@@ -82,6 +83,16 @@ public class UserProfileServiceImpl implements UserProfileService {
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void markTutorialComplete(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        user.setTutorialCompleted(true);
+        userRepository.save(user);
     }
 
     private CityDto mapCity(City city) {

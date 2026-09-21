@@ -10,12 +10,13 @@ import { StoryDetails } from '../screens/content-capture/story_details';
 import type { StoryDraft } from '../screens/content-capture/story_details';
 import { StoryReview } from '../screens/content-capture/story_review';
 import { YourStories } from '../screens/content-capture/your_stories';
+import { TrustScoreDetail } from '../screens/content-capture/trust_score_detail';
 import { storiesApi } from '../services/api/storiesApi';
 import { useAuthStore } from '../store/authStore';
 import type { StoryResponse } from '../types/story';
 import type { RootStackParamList } from './RootNavigator';
 
-type Step = 'dashboard' | 'method' | 'prompt' | 'capture' | 'details' | 'stories' | 'review';
+type Step = 'dashboard' | 'method' | 'prompt' | 'capture' | 'details' | 'stories' | 'review' | 'trustScore';
 type ClipSource = 'recorded' | 'uploaded';
 /** Which step "back"/"deleted" from the review screen should return to */
 type ReviewOrigin = 'dashboard' | 'stories';
@@ -43,6 +44,12 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
     setReviewStory(story);
     setReviewOrigin(origin);
     setStep('review');
+  };
+
+  /** My Stories (Screen 6) only has story ids from the search endpoint's summary rows — fetch the full record before opening it. */
+  const openReviewById = async (storyId: string, origin: ReviewOrigin) => {
+    const story = await storiesApi.getById(storyId);
+    openReview(story, origin);
   };
 
   const handleTabPress = (tab: 'home' | 'learn' | 'market' | 'map' | 'profile') => {
@@ -100,8 +107,10 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
           onRecordStory={() => setStep('method')}
           onViewAllStories={() => setStep('stories')}
           onReviewStory={(story) => openReview(story, 'dashboard')}
+          onOpenTrustScore={() => setStep('trustScore')}
           onDrawerNavigate={(item) => {
             if (item === 'stories') setStep('stories');
+            if (item === 'trust') setStep('trustScore');
           }}
           onTabPress={handleTabPress}
           onLogout={handleLogout}
@@ -110,9 +119,22 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
 
       {step === 'stories' && (
         <YourStories
-          onReviewStory={(story) => openReview(story, 'stories')}
+          onOpenStory={(storyId) => openReviewById(storyId, 'stories')}
+          onNewStory={() => setStep('method')}
           onDrawerNavigate={(item) => {
             if (item === 'home') setStep('dashboard');
+            if (item === 'trust') setStep('trustScore');
+          }}
+          onTabPress={handleTabPress}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {step === 'trustScore' && (
+        <TrustScoreDetail
+          onDrawerNavigate={(item) => {
+            if (item === 'home') setStep('dashboard');
+            if (item === 'stories') setStep('stories');
           }}
           onTabPress={handleTabPress}
           onLogout={handleLogout}
