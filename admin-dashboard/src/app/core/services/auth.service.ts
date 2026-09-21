@@ -23,16 +23,7 @@ export class AuthService {
       if (stored) {
         return JSON.parse(stored);
       }
-      // Provide default curator session for seamless development & direct route access
-      const defaultUser: AdminUser = {
-        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-        fullName: 'E. Vance (Lead Overseer)',
-        phoneNumber: '0771234567',
-        roles: ['ADMIN']
-      };
-      localStorage.setItem(this.USER_KEY, JSON.stringify(defaultUser));
-      localStorage.setItem(this.TOKEN_KEY, 'mock-jwt-token-admin');
-      return defaultUser;
+      return null;
     } catch {
       return null;
     }
