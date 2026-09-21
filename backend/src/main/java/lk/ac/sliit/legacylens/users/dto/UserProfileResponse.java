@@ -27,6 +27,7 @@ public class UserProfileResponse {
     private String nicNumber;
     private String profilePhotoUrl;
     private boolean fingerprintEnabled;
+    private boolean tutorialCompleted;
     private String accountStatus;
     private CityDto city;
     private List<String> roles;

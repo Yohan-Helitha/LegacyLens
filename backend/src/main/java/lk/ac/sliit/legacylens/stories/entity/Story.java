@@ -80,4 +80,8 @@ public class Story {
 
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
+
+    /** Debounced view count — see StoryViewTrackingService. Never written to directly. */
+    @Column(name = "view_count", nullable = false)
+    private long viewCount = 0;
 }

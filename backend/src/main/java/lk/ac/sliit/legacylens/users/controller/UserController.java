@@ -7,6 +7,7 @@ import lk.ac.sliit.legacylens.users.service.UserProfileService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,5 +33,15 @@ public class UserController {
         UserProfileResponse profile = userProfileService.getMyProfile(principal.getUser().getId());
 
         return ResponseEntity.ok(ApiResponse.ok(profile));
+    }
+
+    /** The "replay tutorial" action itself needs no backend call — it's a pure frontend replay. */
+    @PatchMapping("/me/tutorial-complete")
+    public ResponseEntity<ApiResponse<Void>> markTutorialComplete(
+            @AuthenticationPrincipal CustomUserDetails principal) {
+
+        userProfileService.markTutorialComplete(principal.getUser().getId());
+
+        return ResponseEntity.ok(ApiResponse.ok("Tutorial marked complete", null));
     }
 }
