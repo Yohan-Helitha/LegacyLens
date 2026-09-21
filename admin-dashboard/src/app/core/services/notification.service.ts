@@ -1,6 +1,6 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, catchError, map, throwError } from 'rxjs';
+import { Observable, catchError, map, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
 
@@ -20,6 +20,9 @@ export interface AdminNotificationResponse {
 export class NotificationService {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
+  
+  // Global unread count signal
+  public unreadCount = signal<number>(0);
 
   private getHeaders(): HttpHeaders {
     const token = this.authService.getToken();
@@ -44,12 +47,16 @@ export class NotificationService {
     ).pipe(
       map(res => {
         if (res && res.data && Array.isArray(res.data)) {
-          return res.data;
+          return res.data as AdminNotificationResponse[];
         }
         if (Array.isArray(res)) {
-          return res;
+          return res as AdminNotificationResponse[];
         }
-        return [];
+        return [] as AdminNotificationResponse[];
+      }),
+      tap((notifications) => {
+        const unread = notifications.filter(n => !n.read).length;
+        this.unreadCount.set(unread);
       }),
       catchError(err => {
         console.warn('[NotificationService] Could not fetch notifications:', err);
@@ -65,6 +72,9 @@ export class NotificationService {
       { headers: this.getHeaders() }
     ).pipe(
       map(() => void 0),
+      tap(() => {
+        this.unreadCount.update(count => Math.max(0, count - 1));
+      }),
       catchError(err => {
         console.warn(`[NotificationService] Failed to mark ${type} ${id} as read:`, err);
         return throwError(() => err);
@@ -79,6 +89,9 @@ export class NotificationService {
       { headers: this.getHeaders() }
     ).pipe(
       map(() => void 0),
+      tap(() => {
+        this.unreadCount.set(0);
+      }),
       catchError(err => {
         console.warn('[NotificationService] Failed to mark all as read:', err);
         return throwError(() => err);

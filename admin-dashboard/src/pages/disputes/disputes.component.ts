@@ -91,20 +91,7 @@ export interface Feedback {
         </button>
       </div>
 
-      <!-- Section Context Info / Breadcrumb -->
-      <div class="flex items-center gap-2">
-        @if (activeTab() === 'complaints') {
-          <span class="text-xs px-2.5 py-1 rounded-lg bg-[#f2f4f7] text-[#3e4948] border border-[#dde3eb] font-semibold flex items-center gap-1">
-            <span class="material-symbols-outlined text-sm">gavel</span>
-            <span>Complaints Management</span>
-          </span>
-        } @else {
-          <span class="text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold flex items-center gap-1">
-            <span class="material-symbols-outlined text-sm">rate_review</span>
-            <span>Feedback Review</span>
-          </span>
-        }
-      </div>
+      
     </div>
 
     <!-- Main Body Scrollable View -->

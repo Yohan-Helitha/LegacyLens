@@ -5,6 +5,7 @@ import { RouterModule } from '@angular/router';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { SidebarComponent } from '../../components/common/sidebar/sidebar.component';
 import { HeaderComponent } from '../../components/common/header/header.component';
+import { AuthService } from '../../app/core/services/auth.service';
 
 export interface WordEntry {
   id?: number;
@@ -425,6 +426,7 @@ const API_BASE = 'http://localhost:8081/api/admin/word-of-the-day';
 })
 export class WordOfTheDayComponent implements OnInit {
   private http = inject(HttpClient);
+  private authService = inject(AuthService);
 
   toastMessage = signal<string | null>(null);
   isErrorToast = signal<boolean>(false);
@@ -486,12 +488,24 @@ export class WordOfTheDayComponent implements OnInit {
     }
   }
 
+  private getHeaders(): HttpHeaders {
+    const token = this.authService.getToken();
+    const user = this.authService.currentUser();
+    let headers = new HttpHeaders({ 'Content-Type': 'application/json' });
+    if (token) headers = headers.set('Authorization', `Bearer ${token}`);
+    if (user) {
+      headers = headers.set('X-Admin-Id', user.id);
+      headers = headers.set('X-Admin-Name', user.fullName);
+    }
+    return headers;
+  }
+
   ngOnInit(): void {
     this.loadWords();
   }
 
   loadWords(): void {
-    this.http.get<any>(API_BASE).subscribe({
+    this.http.get<any>(API_BASE, { headers: this.getHeaders() }).subscribe({
       next: (res) => {
         const data = res?.data ?? res;
         this.wordList.set(Array.isArray(data) ? data : []);
@@ -507,7 +521,7 @@ export class WordOfTheDayComponent implements OnInit {
     }
     this.isSaving.set(true);
     const payload = { ...this.form, status };
-    const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
+    const headers = this.getHeaders();
     const req$ = this.isEditMode()
       ? this.http.put<any>(`${API_BASE}/${this.editingId()}`, payload, { headers })
       : this.http.post<any>(API_BASE, payload, { headers });
@@ -537,7 +551,7 @@ export class WordOfTheDayComponent implements OnInit {
 
   deleteWord(id: number): void {
     if (!confirm('Delete this word entry? This cannot be undone.')) return;
-    this.http.delete<any>(`${API_BASE}/${id}`).subscribe({
+    this.http.delete<any>(`${API_BASE}/${id}`, { headers: this.getHeaders() }).subscribe({
       next: () => {
         this.showToast('Word deleted.');
         if (this.editingId() === id) this.resetForm();

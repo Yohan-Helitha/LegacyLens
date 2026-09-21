@@ -1,4 +1,5 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, inject, OnInit } from '@angular/core';
+import { AuditService } from '../../app/core/services/audit.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -116,32 +117,23 @@ interface AuditLogEntry {
                 </div>
 
                 <!-- Avatar & Identity Summary -->
-                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5 mb-6 p-4 rounded-xl bg-[#f8faf9] border border-[#dde3eb]">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6 p-3 rounded-xl bg-[#f8faf9] border border-[#dde3eb]">
                   <div class="relative">
-                    <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-[#004343] to-[#006666] text-white font-serif font-bold text-2xl flex items-center justify-center shadow-lg ring-4 ring-[#004343]/20">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#004343] to-[#006666] text-white font-serif font-bold text-xl flex items-center justify-center shadow-md ring-2 ring-[#004343]/20">
                       {{ getInitials() }}
                     </div>
-                    <div class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-white" title="Active Clearance">
-                      <span class="material-symbols-outlined text-xs">check</span>
+                    <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-white" title="Active Clearance">
+                      <span class="material-symbols-outlined text-[10px]">check</span>
                     </div>
                   </div>
 
-                  <div class="flex-1 space-y-1">
+                  <div class="flex-1 space-y-0.5">
                     <div class="flex items-center gap-2">
-                      <h3 class="text-lg font-bold text-[#191c1c]">{{ authService.currentUser()?.fullName }}</h3>
+                      <h3 class="text-base font-bold text-[#191c1c]">{{ authService.currentUser()?.fullName }}</h3>
                     </div>
                     <p class="text-xs text-[#3e4948]">
-                      Senior Curatorial Lead • Ministry of Buddhasasana, Religious & Cultural Affairs
+                      Admin
                     </p>
-                    <div class="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-[#6e7978]">
-                      <span class="flex items-center gap-1 font-mono">
-                        <span class="material-symbols-outlined text-xs">badge</span> NIC: {{ authService.currentUser()?.nicNumber || 'N/A' }}
-                      </span>
-                      <span>•</span>
-                      <span class="flex items-center gap-1">
-                        <span class="material-symbols-outlined text-xs">location_on</span> Western & Central Provincial Hub
-                      </span>
-                    </div>
                   </div>
                 </div>
 
@@ -151,19 +143,19 @@ interface AuditLogEntry {
                     <tbody class="divide-y divide-[#dde3eb] bg-white">
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider w-1/3 bg-[#f8faf9]">Admin ID</th>
-                        <td class="px-4 py-3 text-[#191c1c] font-mono">{{ authService.currentUser()?.id || 'a88885d4-3ede-4c34-b2cc-d54a16affea5' }}</td>
+                        <td class="px-4 py-3 text-[#191c1c] font-mono">{{ authService.currentUser()?.id  }}</td>
                       </tr>
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">Full Name</th>
-                        <td class="px-4 py-3 text-[#191c1c] font-semibold">{{ authService.currentUser()?.fullName || 'Lakni Ranepura' }}</td>
+                        <td class="px-4 py-3 text-[#191c1c] font-semibold">{{ authService.currentUser()?.fullName  }}</td>
                       </tr>
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">Phone Number</th>
-                        <td class="px-4 py-3 text-[#191c1c] font-mono">{{ authService.currentUser()?.phoneNumber || '0766939924' }} <span class="ml-2 text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Verified</span></td>
+                        <td class="px-4 py-3 text-[#191c1c] font-mono">{{ authService.currentUser()?.phoneNumber  }} <span class="ml-2 text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Verified</span></td>
                       </tr>
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">NIC Number</th>
-                        <td class="px-4 py-3 text-[#191c1c] font-mono">{{ authService.currentUser()?.nicNumber || '20016124201' }}</td>
+                        <td class="px-4 py-3 text-[#191c1c] font-mono">{{ authService.currentUser()?.nicNumber  }}</td>
                       </tr>
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">City</th>
@@ -234,39 +226,7 @@ interface AuditLogEntry {
 
           </div>
 
-          <!-- Full-Width: Admin Roles & Permissions -->
-          <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-sm">
-            <div class="flex items-center justify-between mb-4 pb-4 border-b border-[#dde3eb]">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-[#9b4600]/10 text-[#9b4600] flex items-center justify-center">
-                  <span class="material-symbols-outlined text-lg">shield</span>
-                </div>
-                <div>
-                  <h2 class="text-base font-serif font-bold text-[#191c1c]">Admin Roles & Permissions</h2>
-                  <p class="text-[11px] text-[#6e7978]">System Authorities & Capabilities</p>
-                </div>
-              </div>
-            </div>
 
-            <div class="space-y-3">
-              @for (item of clearanceDelegations(); track item.title) {
-                <div class="flex items-center justify-between p-3.5 rounded-xl border border-[#dde3eb] bg-[#f8faf9] hover:bg-white hover:border-[#004343]/30 transition-all">
-                  <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-lg bg-white border border-[#dde3eb] flex items-center justify-center text-[#004343] shrink-0">
-                      <span class="material-symbols-outlined text-lg">{{ item.icon }}</span>
-                    </div>
-                    <div>
-                      <div class="text-xs font-bold text-[#191c1c]">{{ item.title }}</div>
-                      <div class="text-[10px] text-[#6e7978]">{{ item.scope }}</div>
-                    </div>
-                  </div>
-                  <span [ngClass]="item.badgeClass" class="text-[10px] font-bold px-2.5 py-1 rounded-full border shrink-0 ml-2">
-                    {{ item.status }}
-                  </span>
-                </div>
-              }
-            </div>
-          </div>
 
         </div>
 
@@ -277,7 +237,27 @@ interface AuditLogEntry {
     </div>
   `
 })
-export class AdminProfileComponent {
+export class AdminProfileComponent implements OnInit {
+  auditService = inject(AuditService);
+  
+  ngOnInit() {
+    this.auditService.getAuditLogs().subscribe(logs => {
+      // Filter for actions performed by the current user
+      const currentUserId = this.authService.currentUser()?.id;
+      const myLogs = logs.filter(l => l.adminName === this.authService.currentUser()?.fullName || l.adminName === 'Admin');
+      
+      const mapped = myLogs.slice(0, 5).map(l => ({
+        id: l.refCode || l.id,
+        title: l.actionTaken,
+        details: l.notes || `Target: ${l.targetTitle}`,
+        timestamp: `${l.date} ${l.time}`,
+        icon: 'history',
+        type: 'audit'
+      }));
+      this.recentActions.set(mapped);
+    });
+  }
+
   toastMessage = signal<string | null>(null);
 
   // Certificate State
@@ -292,36 +272,7 @@ export class AdminProfileComponent {
   newKeyType = 'FIDO2';
 
   // Clearance Delegations
-  clearanceDelegations = signal<ClearanceDelegation[]>([
-    {
-      title: 'Archive Cold Vault & Cryptographic Purge',
-      scope: 'Sole Overseer Level 4 Signatory Authority',
-      status: 'Active • Sole Authority',
-      icon: 'lock_open',
-      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300'
-    },
-    {
-      title: 'Elder Oral History Canon Ingestion',
-      scope: 'Verifying Grama Niladhari & Temple Lineage Witnesses',
-      status: 'Active • Unrestricted',
-      icon: 'record_voice_over',
-      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300'
-    },
-    {
-      title: 'Cultural Map Sacred Boundary Anchoring',
-      scope: 'Inter-Provincial GIS Boundary Adjustments',
-      status: 'Active • Multi-Province',
-      icon: 'share_location',
-      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300'
-    },
-    {
-      title: 'Grama Niladhari & Lineage Attestation',
-      scope: 'Issuing digital attestation seals for heritage custodians',
-      status: 'Active • State Signatory',
-      icon: 'history_edu',
-      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300'
-    }
-  ]);
+
 
   // Hardware Keys
   hardwareKeys = signal<HardwareKey[]>([
@@ -361,32 +312,7 @@ export class AdminProfileComponent {
   ]);
 
   // Recent Actions Audit Trail
-  recentActions = signal<AuditLogEntry[]>([
-    {
-      id: 'ACT-9942',
-      title: 'Edited Administrator Profile: John Doe',
-      details: 'Updated contact information and region assignment via Admin Management.',
-      timestamp: '2 hours ago',
-      icon: 'admin_panel_settings',
-      type: 'endorsement'
-    },
-    {
-      id: 'ACT-9910',
-      title: 'Reviewed and Published Oral History #102',
-      details: 'Approved elder submission and generated AI Quiz in Moderation Queue.',
-      timestamp: 'Yesterday, 16:40',
-      icon: 'fact_check',
-      type: 'cold_vault'
-    },
-    {
-      id: 'ACT-9855',
-      title: 'Suspended User Account: User404',
-      details: 'Enforced account suspension due to suspicious activity in User Management.',
-      timestamp: '3 days ago',
-      icon: 'block',
-      type: 'boundary'
-    }
-  ]);
+  recentActions = signal<AuditLogEntry[]>([]);
 
   constructor(private router: Router, public authService: AuthService) {}
 

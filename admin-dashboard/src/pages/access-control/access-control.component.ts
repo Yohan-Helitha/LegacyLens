@@ -135,9 +135,7 @@ interface AuditLogEntry {
                       <p class="text-[11px] text-[#6e7978]">Department of National Archives & Cultural Sovereign Cloud</p>
                     </div>
                   </div>
-                  <span class="text-[10px] font-mono font-semibold px-2 py-1 bg-[#f2f4f7] rounded text-[#3e4948]">
-                    LK-GOV-9042-AUTH-SHA256
-                  </span>
+                  
                 </div>
 
                 <!-- Avatar & Identity Summary -->
@@ -156,18 +154,6 @@ interface AuditLogEntry {
                       <h3 class="text-lg font-bold text-[#191c1c]">{{ profileName() }}</h3>
                       <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#9b4600]/10 text-[#9b4600]">
                         Curatorial Council Chair
-                      </span>
-                    </div>
-                    <p class="text-xs text-[#3e4948]">
-                      Senior Curatorial Lead • Ministry of Buddhasasana, Religious & Cultural Affairs
-                    </p>
-                    <div class="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-[#6e7978]">
-                      <span class="flex items-center gap-1 font-mono">
-                        <span class="material-symbols-outlined text-xs">badge</span> NIC: 197884200192V
-                      </span>
-                      <span>•</span>
-                      <span class="flex items-center gap-1">
-                        <span class="material-symbols-outlined text-xs">location_on</span> Western & Central Provincial Hub
                       </span>
                     </div>
                   </div>

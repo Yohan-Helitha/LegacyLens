@@ -45,13 +45,13 @@ interface AuditLog {
         
         <!-- Top Navigation Header -->
         <app-header 
-          [pageTitle]="activeTab() === 'overview' ? 'Overview + Analytics' : 'Platform Analytics'" 
+          [pageTitle]="activeTab() === 'overview' ? 'Overview & Analytics' : 'Platform Analytics'" 
           section="Console">
         </app-header>
 
         <!-- Sub-Header Tabs Navigation (Overview | Analytics) -->
-        <div class="bg-white border-b border-[#dde3eb] px-6 flex items-center justify-between shrink-0 select-none shadow-xs z-20">
-          <div class="flex items-center gap-1 sm:gap-2">
+        <div class="bg-white border-b border-[#dde3eb] px-4 sm:px-6 flex items-center justify-between shrink-0 select-none shadow-xs z-20 overflow-x-auto custom-scrollbar">
+          <div class="flex items-center gap-1 sm:gap-2 min-w-max">
             <!-- Tab 1: Overview Console -->
             <a 
               routerLink="/dashboard"
@@ -70,15 +70,7 @@ interface AuditLog {
             </a>
           </div>
 
-          <!-- Quick Right Indicators -->
-          <div class="hidden md:flex items-center gap-3 text-xs text-[#6f7978]">
-            <span class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span class="font-medium text-[#191c1c]">Provincial Sync Active</span>
-            </span>
-            <span class="text-[#c2c8c7]">•</span>
-            <span class="font-mono text-[11px]">Block #4,192,801</span>
-          </div>
+          
         </div>
 
         <!-- ====================================================================== -->

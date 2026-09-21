@@ -2,9 +2,10 @@ import { Component, signal, computed, inject, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { SidebarComponent } from '../../components/common/sidebar/sidebar.component';
 import { HeaderComponent } from '../../components/common/header/header.component';
+import { AuthService } from '../../app/core/services/auth.service';
 
 export interface AdminRecord {
   id: string;
@@ -337,6 +338,19 @@ const VERIFICATIONS_API = 'http://localhost:8081/api/admin/verifications';
 })
 export class AdminManagementComponent implements OnInit {
   private http = inject(HttpClient);
+  private authService = inject(AuthService);
+
+  private getHeaders(): HttpHeaders {
+    const token = this.authService.getToken();
+    const user = this.authService.currentUser();
+    let headers = new HttpHeaders({ 'Content-Type': 'application/json' });
+    if (token) headers = headers.set('Authorization', `Bearer ${token}`);
+    if (user) {
+      headers = headers.set('X-Admin-Id', user.id);
+      headers = headers.set('X-Admin-Name', user.fullName);
+    }
+    return headers;
+  }
 
   toastMessage = signal<string | null>(null);
   isErrorToast = signal<boolean>(false);
@@ -373,7 +387,7 @@ export class AdminManagementComponent implements OnInit {
 
   loadAdmins(): void {
     this.isLoading.set(true);
-    this.http.get<any>(API_BASE).subscribe({
+    this.http.get<any>(API_BASE, { headers: this.getHeaders() }).subscribe({
       next: (res) => {
         const data = res?.data ?? res;
         const list = Array.isArray(data) ? data : [];
@@ -436,7 +450,7 @@ export class AdminManagementComponent implements OnInit {
       cityName: this.editForm.cityName,
       cityRegion: this.editForm.cityRegion
     };
-    this.http.patch<any>(`${API_BASE}/${this.editForm.id}`, payload).subscribe({
+    this.http.patch<any>(`${API_BASE}/${this.editForm.id}`, payload, { headers: this.getHeaders() }).subscribe({
       next: () => {
         this.showToast('Administrator updated successfully.');
         this.closeEditModal();
@@ -454,7 +468,7 @@ export class AdminManagementComponent implements OnInit {
     const isSuspended = admin.accountStatus === 'SUSPENDED' || admin.accountStatus === 'DEACTIVATED';
     const endpoint = isSuspended ? `${VERIFICATIONS_API}/${admin.id}/reactivate` : `${VERIFICATIONS_API}/${admin.id}/suspend`;
     const body = isSuspended ? {} : { reason: 'Suspended by admin management' };
-    this.http.post<any>(endpoint, body).subscribe({
+    this.http.post<any>(endpoint, body, { headers: this.getHeaders() }).subscribe({
       next: () => {
         this.showToast(isSuspended ? 'Administrator reactivated.' : 'Administrator suspended.');
         this.loadAdmins();
