@@ -50,6 +50,17 @@ import { LayoutService } from '../../../app/core/services/layout.service';
         <!-- Custom Injected Actions (Buttons, status tags, etc.) -->
         <ng-content></ng-content>
 
+        <!-- ── App Switcher: Gamified Learning Hub ── -->
+        <a href="/learning-hub" 
+           target="_blank"
+           rel="noopener noreferrer"
+           title="Open Gamified Learning Hub"
+           class="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#fe893e] hover:bg-[#e87a35] text-white text-[11px] font-bold shadow-sm transition-all group cursor-pointer shrink-0">
+          <span class="material-symbols-outlined text-[17px]">school</span>
+          <span class="hidden lg:block whitespace-nowrap">Learning Hub</span>
+          <span class="material-symbols-outlined text-[13px] opacity-70 group-hover:opacity-100 transition-opacity hidden lg:block">open_in_new</span>
+        </a>
+
         <!-- Notification Bell Icon -->
         @if (showNotifications) {
           <a routerLink="/notifications" 
