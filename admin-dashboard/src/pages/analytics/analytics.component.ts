@@ -40,8 +40,8 @@ import {
         </app-header>
 
         <!-- Sub-Header Tabs Navigation (Overview | Analytics) -->
-        <div class="bg-white border-b border-[#dde3eb] px-6 flex items-center justify-between shrink-0 select-none shadow-xs z-20">
-          <div class="flex items-center gap-1 sm:gap-2">
+        <div class="bg-white border-b border-[#dde3eb] px-4 sm:px-6 flex items-center justify-between shrink-0 select-none shadow-xs z-20 overflow-x-auto custom-scrollbar">
+          <div class="flex items-center gap-1 sm:gap-2 min-w-max">
             <!-- Tab 1: Overview Console -->
             <a 
               routerLink="/dashboard"

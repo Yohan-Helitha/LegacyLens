@@ -25,6 +25,7 @@ export interface AuthResponse {
   userId: string;
   fullName: string;
   phoneNumber?: string;
+  nicNumber?: string;
   roles?: string[];
 }
 
@@ -35,10 +36,35 @@ export interface ApiResponse<T> {
   timestamp?: string;
 }
 
+/** Full profile as returned by GET /api/users/me */
+export interface UserProfile {
+  userId: string;
+  fullName: string;
+  phoneNumber: string;
+  phoneVerified: boolean;
+  dateOfBirth: string;
+  nicNumber: string;
+  profilePhotoUrl: string | null;
+  fingerprintEnabled: boolean;
+  accountStatus: string;
+  city: City | null;
+  roles: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminUser {
   id: string;
   fullName: string;
   phoneNumber: string;
   nicNumber?: string;
   roles: string[];
+  // Rich profile fields — populated after calling /api/users/me
+  dateOfBirth?: string;
+  city?: City | null;
+  phoneVerified?: boolean;
+  fingerprintEnabled?: boolean;
+  accountStatus?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

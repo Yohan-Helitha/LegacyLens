@@ -1,8 +1,8 @@
-import { Injectable, signal, computed } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable, signal, computed, inject } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, catchError, map, of, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ApiResponse, AuthResponse, AdminUser, RegisterRequest, City } from '../models/auth.model';
+import { ApiResponse, AuthResponse, AdminUser, RegisterRequest, City, UserProfile } from '../models/auth.model';
 
 @Injectable({
   providedIn: 'root'
@@ -23,16 +23,7 @@ export class AuthService {
       if (stored) {
         return JSON.parse(stored);
       }
-      // Provide default curator session for seamless development & direct route access
-      const defaultUser: AdminUser = {
-        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-        fullName: 'E. Vance (Lead Overseer)',
-        phoneNumber: '0771234567',
-        roles: ['ADMIN']
-      };
-      localStorage.setItem(this.USER_KEY, JSON.stringify(defaultUser));
-      localStorage.setItem(this.TOKEN_KEY, 'mock-jwt-token-admin');
-      return defaultUser;
+      return null;
     } catch {
       return null;
     }
@@ -127,6 +118,7 @@ export class AuthService {
       id: authData.userId,
       fullName: authData.fullName || 'Heritage Admin',
       phoneNumber: authData.phoneNumber || phoneNumber,
+      nicNumber: authData.nicNumber,
       roles: authData.roles || ['ADMIN']
     };
 
@@ -136,9 +128,55 @@ export class AuthService {
     this.currentUserSignal.set(user);
   }
 
+  /** Fetch the full profile from GET /api/users/me and merge into the stored session. */
+  fetchMyProfile(): Observable<UserProfile> {
+    const token = this.getToken();
+    const user = this.currentUserSignal();
+    let headers = new HttpHeaders({ 'Content-Type': 'application/json' });
+    if (token) headers = headers.set('Authorization', `Bearer ${token}`);
+    if (user) {
+      headers = headers.set('X-Admin-Id', user.id);
+      headers = headers.set('X-Admin-Name', user.fullName);
+    }
+
+    return this.http.get<ApiResponse<UserProfile>>(
+      `${environment.apiUrl}/users/me`,
+      { headers }
+    ).pipe(
+      map(res => res.data),
+      tap(profile => {
+        const existing = this.currentUserSignal();
+        if (!existing) return;
+
+        const enriched: AdminUser = {
+          ...existing,
+          nicNumber:         profile.nicNumber,
+          dateOfBirth:       profile.dateOfBirth,
+          city:              profile.city,
+          phoneVerified:     profile.phoneVerified,
+          fingerprintEnabled: profile.fingerprintEnabled,
+          accountStatus:     profile.accountStatus,
+          createdAt:         profile.createdAt,
+          updatedAt:         profile.updatedAt,
+        };
+
+        // Re-persist enriched user so it survives refresh
+        const storage = localStorage.getItem(this.TOKEN_KEY)
+          ? localStorage : sessionStorage;
+        storage.setItem(this.USER_KEY, JSON.stringify(enriched));
+        this.currentUserSignal.set(enriched);
+      }),
+      catchError(err => {
+        console.warn('[AuthService] Could not fetch /users/me profile:', err);
+        return throwError(() => err);
+      })
+    );
+  }
+
   logout(): void {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+    localStorage.removeItem('ll_read_notifs'); // Clear notification read state
     sessionStorage.removeItem(this.TOKEN_KEY);
     sessionStorage.removeItem(this.USER_KEY);
     this.currentUserSignal.set(null);
