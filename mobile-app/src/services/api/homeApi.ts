@@ -30,6 +30,9 @@ export interface FeedItemResponse {
   videoUrl?: string;
   duration?: string;
   excerpt?: string;
+  description?: string;
+  content?: string;
+  category?: string;
   readTime?: string;
   topic?: string;
   avatar?: string;
@@ -56,5 +59,6 @@ export const homeApi = {
   getComments: (feedItemId: string) => apiGet<any[]>(`/home/feed/${feedItemId}/comments`),
   addComment: (feedItemId: string, text: string) => apiPost<any>(`/home/feed/${feedItemId}/comments`, { text }),
   likePost: (feedItemId: string) => apiPost<void>(`/home/feed/${feedItemId}/like`, {}),
+  getStoryQuiz: (storyId: string) => apiGet<any>(`/home/feed/${storyId}/quiz`),
 };
 

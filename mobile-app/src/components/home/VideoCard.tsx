@@ -23,7 +23,7 @@ export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModal
   }, [isReady]);
 
   return (
-    <TouchableOpacity activeOpacity={0.9} onPress={() => onNavigate?.('video')} style={styles.premiumCard}>
+    <TouchableOpacity activeOpacity={0.9} onPress={() => onNavigate?.('video', item || v)} style={styles.premiumCard}>
       <View style={styles.premiumHeroBox}>
         {(showLoader && !isReady) ? <VideoLoader /> : null}
         <Video
@@ -60,7 +60,7 @@ export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModal
         <View style={styles.premiumDivider} />
         <View style={styles.premiumFooter}>
           <View style={styles.premiumAuthorBox}>
-            <Image source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200' }} style={styles.premiumAvatar} />
+            <Image source={{ uri: v.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200' }} style={styles.premiumAvatar} />
             <View>
               <Text style={styles.premiumAuthorName}>{v.author}</Text>
               <Text style={styles.premiumAuthorSub}>{'Video · ' + (v.duration || '')}</Text>

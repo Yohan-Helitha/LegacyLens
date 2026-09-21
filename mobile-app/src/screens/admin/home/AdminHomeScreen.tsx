@@ -231,11 +231,37 @@ interface AdminHomeScreenProps {
 
 export const AdminHomeScreen: React.FC<AdminHomeScreenProps> = ({ onNavigate, intakeBadge, reviewBadge }) => {
   const [activeSection, setActiveSection] = useState<'overview' | 'analytics'>('overview');
-  const { drafts, setActiveDraftId, setOriginTab } = useOpportunity();
+  const { drafts, audioSubmissions, setActiveDraftId, setOriginTab, draftOpportunities, publishedOpportunities, closedOpportunities } = useOpportunity();
   const user = useAuthStore(state => state.user);
 
   const [greetingPrefix, setGreetingPrefix] = useState('Good morning');
-  const displayName = user?.fullName ? user.fullName.split(' ')[0] : 'Lakni';
+  const displayName = user?.fullName ? user.fullName.split(' ')[0] : 'Admin';
+
+  const [moderationItems, setModerationItems] = useState<any[]>([]);
+  const [allModeration, setAllModeration] = useState<any[]>([]);
+  const [moderationPendingCount, setModerationPendingCount] = useState(0);
+
+  useEffect(() => {
+    import('../../../services/api/moderationApi').then(({ moderationApi }) => {
+      moderationApi.getQueueItems('ALL').then(items => {
+        setAllModeration(items);
+        const pendingItems = items.filter(i => i.status === 'PENDING');
+        setModerationPendingCount(pendingItems.length);
+        
+        const mapped = pendingItems.map(item => ({
+          id: item.id,
+          title: item.title,
+          type: item.type?.toLowerCase() === 'article' ? 'blog' : (item.type?.toLowerCase() || 'blog'),
+          author: item.authorName,
+          time: new Date(item.createdAt).toLocaleDateString(),
+          image: item.imageUrl,
+          isNew: false,
+          screen: item.type?.toLowerCase() === 'article' ? 'blog' : (item.type?.toLowerCase() || 'blog'),
+        }));
+        setModerationItems(mapped);
+      }).catch(err => console.log(err));
+    });
+  }, []);
 
   useEffect(() => {
     const hours = new Date().getHours();
@@ -248,26 +274,100 @@ export const AdminHomeScreen: React.FC<AdminHomeScreenProps> = ({ onNavigate, in
     }
   }, []);
 
-  // Dynamic counts based on badge simulation
-  const displayIntakeCount = intakeBadge ? parseInt(intakeBadge) : 18;
-  const displayReviewCount = reviewBadge ? parseInt(reviewBadge) : 5;
+  // Filter and display logic
+  const intakeCount = audioSubmissions.filter(a => a.status !== 'FULLY_LISTENED').length;
+  const reviewCount = moderationPendingCount;
 
-  // Filter records dynamically based on simulated content arrival
-  const filteredRecordings = RECORDINGS_LIST.filter(rec => !rec.isNew || intakeBadge === '19');
-  // If the user hasn't triggered new items, show Mrs. Kamala, Mr. Saman, Mr. Sunil.
-  // When '19' is active, Mrs. Sunethra is prepended to the top making it 4 items.
-  // We slice to display exactly 3 recordings for the baseline, or 4 if newly added.
-  const displayedRecordings = intakeBadge === '19' ? filteredRecordings.slice(0, 4) : filteredRecordings.slice(0, 3);
+  // Use real audio submissions
+  const unlistenedSubmissions = audioSubmissions
+    .filter(a => a.status !== 'FULLY_LISTENED')
+    .map(a => ({
+      id: a.id,
+      name: a.elderName || 'Anonymous',
+      location: a.location || 'Unknown',
+      duration: a.duration ? `${a.duration} mins` : 'Unknown',
+      avatar: a.elderAvatarUrl || 'https://i.pravatar.cc/150?img=11',
+      bars: [3, 2, 6, 4, 5, 3, 2, 4, 6], // Simulated waveform
+      isNew: true
+    }));
+  
+  const displayedRecordings = unlistenedSubmissions.slice(0, 4);
+  const displayedModeration = moderationItems.slice(0, 6);
 
-  const filteredModeration = MODERATION_LIST.filter(mod => !mod.isNew || reviewBadge === '6');
-  const displayedModeration = reviewBadge === '6' ? filteredModeration.slice(0, 6) : filteredModeration.slice(0, 5);
+  // Dynamic stats
+  const activeOppsCount = publishedOpportunities.length;
+  
+  const analytics = React.useMemo(() => {
+    // Engaged Creators (unique authors from moderation + audio)
+    const uniqueCreators = new Set([
+      ...allModeration.map(m => m.authorUserId),
+      ...audioSubmissions.map(a => a.elderName)
+    ]).size;
 
-  // Dynamic stats that update when new data is received
-  const activeOppsCount = intakeBadge === '19' ? 43 : 42;
-  const resolutionRate = reviewBadge === '6' ? '93.8%' : '94.2%';
-  const engagedCreators = intakeBadge === '19' ? 90 : 89;
-  const augSubmissionsVal = (intakeBadge === '19' || reviewBadge === '6') ? 73 : 72;
-  const augSubmissionsHeight = (intakeBadge === '19' || reviewBadge === '6') ? 100 : 96;
+    // Categories Distribution
+    const categories: Record<string, number> = {};
+    let totalCategorized = 0;
+    publishedOpportunities.forEach(opp => {
+      if (opp.category) {
+        categories[opp.category] = (categories[opp.category] || 0) + 1;
+        totalCategorized++;
+      }
+    });
+
+    const categoryStats = Object.entries(categories)
+      .map(([name, count]) => ({
+        name,
+        percent: totalCategorized > 0 ? Math.round((count / totalCategorized) * 100) : 0,
+      }))
+      .sort((a, b) => b.percent - a.percent)
+      .slice(0, 4);
+      
+    // Moderation Decisions
+    const processedModeration = allModeration.filter(m => m.status !== 'PENDING');
+    const totalProcessed = processedModeration.length;
+    
+    const approvedCount = processedModeration.filter(m => m.status === 'PUBLISHED').length;
+    const archivedCount = processedModeration.filter(m => m.status === 'ARCHIVED').length;
+    const rejectedCount = processedModeration.filter(m => m.status === 'REJECTED').length;
+
+    const approvedPct = totalProcessed > 0 ? (approvedCount / totalProcessed) * 100 : 0;
+    const archivedPct = totalProcessed > 0 ? (archivedCount / totalProcessed) * 100 : 0;
+    const rejectedPct = totalProcessed > 0 ? (rejectedCount / totalProcessed) * 100 : 0;
+
+    const monthlyPublished = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - (5 - i));
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const count = allModeration.filter(m => {
+        if (m.status !== 'PUBLISHED' || !m.createdAt) return false;
+        const monthKey = m.createdAt.split(' ')[0].slice(0, 7);
+        return monthKey === key;
+      }).length;
+      return { month: d.toLocaleString('default', { month: 'short' }), count };
+    });
+    const maxMonthly = Math.max(...monthlyPublished.map(m => m.count), 1);
+
+    return {
+      engagedCreators: uniqueCreators || 0,
+      categoryStats,
+      moderation: {
+        totalProcessed,
+        approvedPct,
+        archivedPct,
+        rejectedPct
+      },
+      monthlyPublished
+    };
+  }, [allModeration, audioSubmissions, publishedOpportunities]);
+
+  const resolutionRate = analytics.moderation.totalProcessed > 0
+    ? `${Math.round(analytics.moderation.approvedPct)}%`
+    : '0%';
+  const engagedCreators = analytics.engagedCreators;
+  const monthlyBars = analytics.monthlyPublished.map(item => ({
+    ...item,
+    heightPercent: analytics.monthlyPublished.length ? (item.count / Math.max(...analytics.monthlyPublished.map(m => m.count), 1)) * 100 : 0
+  }));
 
   return (
     <View style={styles.safeArea}>
@@ -313,7 +413,7 @@ export const AdminHomeScreen: React.FC<AdminHomeScreenProps> = ({ onNavigate, in
                 >
                   <AnimatedBlob color="rgba(255,255,255,0.12)" />
                   <View style={[styles.attentionCircleTeal, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-                    <Text style={styles.attentionCount}>{displayIntakeCount}</Text>
+                    <Text style={styles.attentionCount}>{intakeCount}</Text>
                   </View>
                   <Text style={[styles.attentionLabel, { color: Colors.white }]}>Recordings</Text>
                   <Text style={[styles.attentionSub, { color: 'rgba(255,255,255,0.7)' }]}>Ready for review</Text>
@@ -327,7 +427,7 @@ export const AdminHomeScreen: React.FC<AdminHomeScreenProps> = ({ onNavigate, in
                 >
                   <AnimatedBlob color="rgba(255,255,255,0.15)" />
                   <View style={[styles.attentionCircleTeal, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                    <Text style={styles.attentionCount}>{displayReviewCount}</Text>
+                    <Text style={styles.attentionCount}>{reviewCount}</Text>
                   </View>
                   <Text style={[styles.attentionLabel, { color: Colors.white }]}>Moderation</Text>
                   <Text style={[styles.attentionSub, { color: 'rgba(255,255,255,0.8)' }]}>Reported items</Text>
@@ -348,7 +448,7 @@ export const AdminHomeScreen: React.FC<AdminHomeScreenProps> = ({ onNavigate, in
                     <MaterialIcons name="edit" size={20} color="#e8792e" />
                   </View>
                   <View>
-                    <Text style={styles.attentionLabel}>{drafts.length} Drafts</Text>
+                    <Text style={styles.attentionLabel}>{draftOpportunities.length + drafts.length} Drafts</Text>
                     <Text style={styles.attentionSub}>Complete and publish drafts</Text>
                   </View>
                 </View>
@@ -367,25 +467,6 @@ export const AdminHomeScreen: React.FC<AdminHomeScreenProps> = ({ onNavigate, in
               {displayedRecordings.map((v) => (
                 <VoiceCard key={v.id} item={v} onNavigate={onNavigate} />
               ))}
-            </View>
-
-            {/* Opportunities Creation Banner */}
-            <View style={styles.oppsBanner}>
-              <View style={styles.oppsBannerHeader}>
-                <View style={styles.oppsIconBox}>
-                  <MaterialIcons name="campaign" size={22} color="#672c00" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.oppsBannerTitle}>Opportunities Ready</Text>
-                  <Text style={styles.oppsBannerBody}>
-                    You have approved recordings that need to be turned into learning opportunities.
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity style={styles.createOppsBtn} activeOpacity={0.85} onPress={() => { setActiveDraftId(null); setOriginTab('admin_home'); onNavigate?.('add_opp'); }}>
-                <MaterialIcons name="add-circle" size={18} color={Colors.white} />
-                <Text style={styles.createOppsBtnText}>Create Opportunity</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Moderation Queue Section */}
@@ -454,7 +535,7 @@ export const AdminHomeScreen: React.FC<AdminHomeScreenProps> = ({ onNavigate, in
                 <View style={[styles.statIconWrapper, { backgroundColor: 'rgba(232,121,46,0.1)' }]}>
                   <MaterialIcons name="gavel" size={20} color="#e8792e" />
                 </View>
-                <Text style={styles.statVal}>{displayReviewCount}</Text>
+                <Text style={styles.statVal}>{reviewCount}</Text>
                 <Text style={styles.statTitle}>Pending Reviews</Text>
                 <Text style={[styles.statTrend, { color: '#ba1a1a' }]}>3 reported today</Text>
               </View>
@@ -481,32 +562,25 @@ export const AdminHomeScreen: React.FC<AdminHomeScreenProps> = ({ onNavigate, in
             {/* Category Distribution Stacked Bar Chart */}
             <View style={styles.chartCard}>
               <Text style={styles.chartTitle}>Opportunity Categories</Text>
-              <Text style={styles.chartSubtitle}>Distribution of learning topics across regions</Text>
+              <Text style={styles.chartSubtitle}>Distribution of learning topics</Text>
               
               <View style={styles.stackedBarContainer}>
-                <View style={[styles.stackedBarSegment, { width: '40%', backgroundColor: Colors.secondary }]} />
-                <View style={[styles.stackedBarSegment, { width: '30%', backgroundColor: Colors.accent }]} />
-                <View style={[styles.stackedBarSegment, { width: '20%', backgroundColor: '#eab308' }]} />
-                <View style={[styles.stackedBarSegment, { width: '10%', backgroundColor: '#0284c9' }]} />
+                {analytics.categoryStats.map((stat, i) => {
+                   const colors = [Colors.secondary, Colors.accent, '#eab308', '#0284c9'];
+                   return <View key={stat.name} style={[styles.stackedBarSegment, { width: `${stat.percent}%`, backgroundColor: colors[i % colors.length] }]} />
+                })}
               </View>
 
               <View style={styles.legendGrid}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: Colors.secondary }]} />
-                  <Text style={styles.legendText}>Crafts <Text style={styles.legendPercentage}>40%</Text></Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: Colors.accent }]} />
-                  <Text style={styles.legendText}>Food <Text style={styles.legendPercentage}>30%</Text></Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#eab308' }]} />
-                  <Text style={styles.legendText}>Tradition <Text style={styles.legendPercentage}>20%</Text></Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#0284c9' }]} />
-                  <Text style={styles.legendText}>Music <Text style={styles.legendPercentage}>10%</Text></Text>
-                </View>
+                {analytics.categoryStats.map((stat, i) => {
+                   const colors = [Colors.secondary, Colors.accent, '#eab308', '#0284c9'];
+                   return (
+                     <View key={stat.name} style={styles.legendItem}>
+                       <View style={[styles.legendDot, { backgroundColor: colors[i % colors.length] }]} />
+                       <Text style={styles.legendText}>{stat.name} <Text style={styles.legendPercentage}>{stat.percent}%</Text></Text>
+                     </View>
+                   )
+                })}
               </View>
             </View>
 
@@ -516,18 +590,11 @@ export const AdminHomeScreen: React.FC<AdminHomeScreenProps> = ({ onNavigate, in
               <Text style={styles.chartSubtitle}>Trend of incoming content waiting for reviews</Text>
               
               <View style={styles.barChartContainer}>
-                {[
-                  { month: 'Mar', val: 28, height: 40 },
-                  { month: 'Apr', val: 35, height: 50 },
-                  { month: 'May', val: 48, height: 68 },
-                  { month: 'Jun', val: 52, height: 75 },
-                  { month: 'Jul', val: 60, height: 85 },
-                  { month: 'Aug', val: augSubmissionsVal, height: augSubmissionsHeight }
-                ].map((item, idx) => (
+                {monthlyBars.map((item, idx) => (
                   <View key={idx} style={styles.barCol}>
-                    <Text style={styles.barVal}>{item.val}</Text>
+                    <Text style={styles.barVal}>{item.count}</Text>
                     <View style={styles.barWrapper}>
-                      <View style={[styles.barFill, { height: `${item.height}%` }]} />
+                      <View style={[styles.barFill, { height: `${item.heightPercent}%` }]} />
                     </View>
                     <Text style={styles.barLabel}>{item.month}</Text>
                   </View>
@@ -543,7 +610,7 @@ export const AdminHomeScreen: React.FC<AdminHomeScreenProps> = ({ onNavigate, in
               <View style={styles.gaugeWrapper}>
                 <View style={styles.gaugeCircle}>
                   <View>
-                    <Text style={styles.gaugeCenterText}>92.4%</Text>
+                    <Text style={styles.gaugeCenterText}>{Math.round(analytics.moderation.approvedPct)}%</Text>
                     <Text style={styles.gaugeCenterSub}>Approved</Text>
                   </View>
                 </View>
@@ -551,15 +618,15 @@ export const AdminHomeScreen: React.FC<AdminHomeScreenProps> = ({ onNavigate, in
                 <View style={styles.gaugeStats}>
                   <View style={styles.gaugeStatItem}>
                     <View style={[styles.legendDot, { backgroundColor: Colors.secondary }]} />
-                    <Text style={styles.legendText}>Approved & Live (85%)</Text>
+                    <Text style={styles.legendText}>Approved & Live ({Math.round(analytics.moderation.approvedPct)}%)</Text>
                   </View>
                   <View style={styles.gaugeStatItem}>
                     <View style={[styles.legendDot, { backgroundColor: Colors.accent }]} />
-                    <Text style={styles.legendText}>Archived / Fixed (7.4%)</Text>
+                    <Text style={styles.legendText}>Archived / Fixed ({Math.round(analytics.moderation.archivedPct)}%)</Text>
                   </View>
                   <View style={styles.gaugeStatItem}>
                     <View style={[styles.legendDot, { backgroundColor: '#ba1a1a' }]} />
-                    <Text style={styles.legendText}>Rejected / Flagged (7.6%)</Text>
+                    <Text style={styles.legendText}>Rejected / Flagged ({Math.round(analytics.moderation.rejectedPct)}%)</Text>
                   </View>
                 </View>
               </View>

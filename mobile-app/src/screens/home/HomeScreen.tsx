@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { Easing } from 'react-native';
 import {
   Text,
@@ -18,6 +18,7 @@ import {
   Share,
 StyleSheet,} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { Video, ResizeMode, Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
@@ -151,7 +152,7 @@ export interface AItem {
 // Component Definition
 // ─────────────────────────────────────────────────────────────────────────────
 export const HomeScreen: React.FC<{ 
-  onNavigate?: (tab: string) => void, 
+  onNavigate?: (tab: string, item?: any) => void, 
   isOverlayActive?: boolean,
   initialSearchQuery?: string 
 }> = ({ onNavigate, isOverlayActive, initialSearchQuery }) => {
@@ -163,52 +164,58 @@ export const HomeScreen: React.FC<{
   const [allFeedItems, setAllFeedItems] = useState<(VItem | BItem | AItem)[]>([]);
   const [featuredKeeper, setFeaturedKeeper] = useState<any>(null);
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await homeApi.getCategories();
-        if (response && response.length > 0) {
-          const dbCategories = response.map((cat: CategoryResponse) => ({
-            id: String(cat.id),
-            label: cat.name,
-            tags: [cat.name.toLowerCase()]
-          }));
-          setCategories(dbCategories);
-        } else {
-          setCategories(DEFAULT_CATEGORIES.map(c => ({ id: c.id, label: c.label, tags: c.tags })));
-        }
-      } catch (error) {
-        console.log('Error fetching categories from DB, fallback to default:', error);
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await homeApi.getCategories();
+      if (response && response.length > 0) {
+        const dbCategories = response.map((cat: CategoryResponse) => ({
+          id: String(cat.id),
+          label: cat.name,
+          tags: [cat.name.toLowerCase()]
+        }));
+        setCategories(dbCategories);
+      } else {
         setCategories(DEFAULT_CATEGORIES.map(c => ({ id: c.id, label: c.label, tags: c.tags })));
       }
-    };
+    } catch (error) {
+      console.log('Error fetching categories from DB, fallback to default:', error);
+      setCategories(DEFAULT_CATEGORIES.map(c => ({ id: c.id, label: c.label, tags: c.tags })));
+    }
+  }, []);
 
-    const fetchFeedItems = async () => {
-      try {
-        const response = await homeApi.getFeedItems();
-        if (response && response.length > 0) {
-          setAllFeedItems(response as any);
-        }
-      } catch (error) {
-        console.log('Error fetching feed items from DB:', error);
+  const fetchFeedItems = useCallback(async () => {
+    try {
+      const response = await homeApi.getFeedItems();
+      if (response && response.length > 0) {
+        setAllFeedItems(response as any);
       }
-    };
+    } catch (error) {
+      console.log('Error fetching feed items from DB:', error);
+    }
+  }, []);
 
-    const fetchFeaturedKeeper = async () => {
-      try {
-        const response = await homeApi.getFeaturedKeeper();
-        if (response) {
-          setFeaturedKeeper(response);
-        }
-      } catch (error) {
-        console.log('Error fetching featured keeper:', error);
+  const fetchFeaturedKeeper = useCallback(async () => {
+    try {
+      const response = await homeApi.getFeaturedKeeper();
+      if (response) {
+        setFeaturedKeeper(response);
       }
-    };
+    } catch (error) {
+      console.log('Error fetching featured keeper:', error);
+    }
+  }, []);
 
+  useEffect(() => {
     fetchCategories();
     fetchFeedItems();
     fetchFeaturedKeeper();
-  }, []);
+  }, [fetchCategories, fetchFeedItems, fetchFeaturedKeeper]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchFeedItems();
+    }, [fetchFeedItems])
+  );
 
   useEffect(() => {
     if (initialSearchQuery !== undefined) {
@@ -244,10 +251,20 @@ export const HomeScreen: React.FC<{
     setSearchQuery(text);
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
+    setTimeout(async () => {
+      try {
+        await Promise.all([
+          fetchCategories(),
+          fetchFeedItems(),
+          fetchFeaturedKeeper()
+        ]);
+      } catch (error) {
+        console.log('Error refreshing data:', error);
+      } finally {
+        setRefreshing(false);
+      }
     }, 1200);
   };
 
@@ -580,6 +597,7 @@ export const HomeScreen: React.FC<{
                     item={item}
                     setActivePostId={setActivePostId}
                     setCommentModalVisible={setCommentModalVisible}
+                    onNavigate={onNavigate}
                   />
                 );
         }}

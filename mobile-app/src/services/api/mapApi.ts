@@ -40,8 +40,22 @@ export interface MapLandmarkResponse {
   quests: QuestResponse[];
 }
 
+export interface RegionResponse {
+  id: number;
+  code: string;
+  label: string;
+  regionName: string;
+  description: string;
+  districts: string[];
+  districtsString: string;
+  longitude: number;
+  latitude: number;
+  zoom: number;
+}
+
 export const mapApi = {
   getLandmarks: () => apiGet<MapLandmarkResponse[]>('/map/landmarks'),
+  getRegions: () => apiGet<RegionResponse[]>('/map/regions'),
   getQuestQuestions: (questId: number) => apiGet<QuestionResponse[]>(`/map/quests/${questId}/questions`),
   getMyBadges: () => apiGet<string[]>('/map/my-badges'),
   earnBadge: (badgeCode: string) => apiPost<string>(`/map/my-badges/${badgeCode}`, {}),

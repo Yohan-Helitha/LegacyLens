@@ -1,105 +1,59 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
-
-export interface OpportunityDraft {
-  id: string;
-  lastEditedAt: string;
-  
-  opportunityTitle: string;
-  coverImage: string | null;
-  selectedCategory: string | null;
-  
-  selectedKnowledgeHolder: string | null;
-  
-  mapRegion: any;
-  locationText: string;
-  scheduleDate: string | null;
-  scheduleStartTime: string | null;
-  scheduleEndTime: string | null;
-  scheduleDuration: string;
-  isFlexibleSchedule: boolean;
-  
-  selectedSkills: string[];
-  tasks: string[];
-  selectedDeliverables: string[];
-  preservationDescription: string;
-}
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { adminOpportunityApi } from '../services/api/opportunityApi';
+import { AdminOpportunityResponse, OpportunityAudioResponse, OpportunityDraft, CreateOpportunityRequest } from '../types/opportunity';
 
 interface OpportunityContextType {
   drafts: OpportunityDraft[];
+  draftOpportunities: AdminOpportunityResponse[];
+  publishedOpportunities: AdminOpportunityResponse[];
+  closedOpportunities: AdminOpportunityResponse[];
+  audioSubmissions: OpportunityAudioResponse[];
   activeDraftId: string | null;
   setActiveDraftId: (id: string | null) => void;
-  saveDraft: (draft: Partial<OpportunityDraft>) => void;
+  saveDraft: (draft: Partial<OpportunityDraft>) => Promise<void>;
+  publishDraft: (draftId: string, body: CreateOpportunityRequest) => Promise<void>;
   getActiveDraft: () => OpportunityDraft | null;
   originTab: string;
   setOriginTab: (tab: string) => void;
+  loading: boolean;
+  refreshAll: () => Promise<void>;
 }
 
 const OpportunityContext = createContext<OpportunityContextType>({} as OpportunityContextType);
 
 export const OpportunityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [drafts, setDrafts] = useState<OpportunityDraft[]>([
-    {
-      id: 'draft-1',
-      lastEditedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-      opportunityTitle: 'Traditional Clay Pottery',
-      coverImage: 'https://images.unsplash.com/photo-1610992015732-280780447387?q=80&w=2000&auto=format&fit=crop',
-      selectedCategory: 'Craft',
-      selectedKnowledgeHolder: 'kh-1',
-      mapRegion: { latitude: 5.9549, longitude: 80.5550, latitudeDelta: 0.05, longitudeDelta: 0.05 },
-      locationText: 'Matara, Sri Lanka',
-      scheduleDate: new Date().toISOString(),
-      scheduleStartTime: null,
-      scheduleEndTime: null,
-      scheduleDuration: '3 hrs',
-      isFlexibleSchedule: false,
-      selectedSkills: [],
-      tasks: [''],
-      selectedDeliverables: [],
-      preservationDescription: '',
-    },
-    {
-      id: 'draft-2',
-      lastEditedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45).toISOString(),
-      opportunityTitle: 'Traditional Reed Weaving',
-      coverImage: 'https://images.unsplash.com/photo-1544621985-cd27cc6c6f39?q=80&w=2000&auto=format&fit=crop',
-      selectedCategory: 'Craft',
-      selectedKnowledgeHolder: 'kh-2',
-      mapRegion: { latitude: 6.9271, longitude: 79.8612, latitudeDelta: 0.05, longitudeDelta: 0.05 },
-      locationText: 'Colombo, Sri Lanka',
-      scheduleDate: null,
-      scheduleStartTime: null,
-      scheduleEndTime: null,
-      scheduleDuration: '',
-      isFlexibleSchedule: true,
-      selectedSkills: [],
-      tasks: [''],
-      selectedDeliverables: [],
-      preservationDescription: '',
-    },
-    {
-      id: 'draft-3',
-      lastEditedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString(),
-      opportunityTitle: 'Documenting Grandma\'s Kiribath',
-      coverImage: null,
-      selectedCategory: 'Food',
-      selectedKnowledgeHolder: null,
-      mapRegion: { latitude: 7.0840, longitude: 80.0098, latitudeDelta: 0.05, longitudeDelta: 0.05 },
-      locationText: 'Gampaha, Sri Lanka',
-      scheduleDate: null,
-      scheduleStartTime: null,
-      scheduleEndTime: null,
-      scheduleDuration: '',
-      isFlexibleSchedule: true,
-      selectedSkills: [],
-      tasks: [''],
-      selectedDeliverables: [],
-      preservationDescription: '',
-    }
-  ]);
+  const [drafts, setDrafts] = useState<OpportunityDraft[]>([]);
+  const [allOpportunities, setAllOpportunities] = useState<AdminOpportunityResponse[]>([]);
+  const [audioSubmissions, setAudioSubmissions] = useState<OpportunityAudioResponse[]>([]);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [originTab, setOriginTab] = useState<string>('intake');
+  const [loading, setLoading] = useState(false);
 
-  const saveDraft = (draftData: Partial<OpportunityDraft>) => {
+  const publishedOpportunities = allOpportunities.filter(o => o.status === 'PUBLISHED');
+  const closedOpportunities = allOpportunities.filter(o => o.status === 'CLOSED');
+  const draftOpportunities = allOpportunities.filter(o => o.status === 'DRAFT');
+
+  const refreshAll = async () => {
+    setLoading(true);
+    try {
+      const [opps, audios] = await Promise.all([
+        adminOpportunityApi.getAllOpportunities('ALL'),
+        adminOpportunityApi.getAudioSubmissions('ALL'),
+      ]);
+      setAllOpportunities(opps || []);
+      setAudioSubmissions(audios || []);
+    } catch (e) {
+      console.warn('Failed to refresh opportunity data', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshAll();
+  }, []);
+
+  const saveDraft = async (draftData: Partial<OpportunityDraft>) => {
     setDrafts(prev => {
       const now = new Date().toISOString();
       if (draftData.id) {
@@ -111,13 +65,39 @@ export const OpportunityProvider: React.FC<{ children: ReactNode }> = ({ childre
     });
   };
 
+  const publishDraft = async (draftId: string, body: CreateOpportunityRequest) => {
+    try {
+      await adminOpportunityApi.createOpportunity(body);
+      setDrafts(prev => prev.filter(d => d.id !== draftId));
+      await refreshAll();
+    } catch (e) {
+      console.error('Failed to publish opportunity', e);
+      throw e;
+    }
+  };
+
   const getActiveDraft = () => {
     if (!activeDraftId) return null;
     return drafts.find(d => d.id === activeDraftId) || null;
   };
 
   return (
-    <OpportunityContext.Provider value={{ drafts, activeDraftId, setActiveDraftId, saveDraft, getActiveDraft, originTab, setOriginTab }}>
+    <OpportunityContext.Provider value={{
+      drafts,
+      draftOpportunities,
+      publishedOpportunities,
+      closedOpportunities,
+      audioSubmissions,
+      activeDraftId,
+      setActiveDraftId,
+      saveDraft,
+      publishDraft,
+      getActiveDraft,
+      originTab,
+      setOriginTab,
+      loading,
+      refreshAll
+    }}>
       {children}
     </OpportunityContext.Provider>
   );

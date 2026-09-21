@@ -13,11 +13,13 @@ export const AudioCard = ({
   item,
   setActivePostId,
   setCommentModalVisible,
+  onNavigate,
 }: {
   a: any;
   item: any;
   setActivePostId: (id: string) => void;
   setCommentModalVisible: (v: boolean) => void;
+  onNavigate?: (tab: string, item?: any) => void;
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0 … TOTAL_BARS
@@ -50,7 +52,11 @@ export const AudioCard = ({
 
   return (
     <View style={styles.card}>
-      <View style={styles.cardHeader}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => onNavigate?.('video', item || a)}
+        style={styles.cardHeader}
+      >
         <View style={styles.authorRow}>
           <Image source={{ uri: a.avatar }} style={styles.avatar} />
           <View>
@@ -62,9 +68,13 @@ export const AudioCard = ({
           <MaterialIcons name="mic" size={13} color={Colors.secondary} />
           <Text style={styles.audioBadgeText}>Audio</Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
-      {a.topic ? <Text style={styles.audioTopic}>{a.topic}</Text> : null}
+      {a.topic ? (
+        <TouchableOpacity activeOpacity={0.8} onPress={() => onNavigate?.('video', item || a)}>
+          <Text style={styles.audioTopic}>{a.topic}</Text>
+        </TouchableOpacity>
+      ) : null}
 
       {/* ── Audio strip inside green box — full width, flex bars ── */}
       <View style={styles.audioStrip}>

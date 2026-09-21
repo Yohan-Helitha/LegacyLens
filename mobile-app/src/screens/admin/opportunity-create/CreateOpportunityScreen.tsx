@@ -19,25 +19,9 @@ import MapView from 'react-native-maps';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 import { styles } from './CreateOpportunityScreen.styles';
-const KNOWLEDGE_HOLDERS = [
-  {
-    "id": "kh1",
-    "name": "Dr. Sunil Ariyaratne",
-    "role": "Traditional Dance Master",
-    "location": "Kandy",
-    "verified": true,
-    "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuDt8Ue9Wvwc8kK_bKxgX65wT_vD3lO1_qVd_1Y1qC3x7N8wK_x5qN6Vd_1Y1qC3x7N8wK_x5qN6Vd_1Y1qC3x7N8wK_x5q"
-  },
-  {
-    "id": "kh2",
-    "name": "Mrs. Kamala Perera",
-    "role": "Culinary Heritage Expert",
-    "location": "Galle",
-    "verified": true,
-    "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuCP68zF6Gx2bvH0fVStHJXGnBk5k_zSJg9JGpVV_809FYAbsWYy07BPZju5VzHAh0a3DsWveaJuEjyGZZuqsEJK63MJTxJ8oCdRaLzuOqiEPkZjrQZbSry6dS7t3kk18Z23_FVbDtwh1ltzKXc_ucCq8Q6epXt5apHZzXR6wBeAoHsvijSJzyy7b_DOS2II3W_dmHBW_4KryJA7_7PDvzAoPgp4ylZTV3AZjsRq8m_Cc_xV9mRXNloj"
-  }
-];
 import { useOpportunity } from '../../../context/OpportunityContext';
+import { adminOpportunityApi } from '../../../services/api/opportunityApi';
+import { CreateOpportunityRequest } from '../../../types/opportunity';
 
 export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
   const [step, setStep] = useState(1);
@@ -53,7 +37,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
-  const [locationText, setLocationText] = useState('Colombo, Sri Lanka');
+  const [locationText, setLocationText] = useState('');
   const [isLocationSaved, setIsLocationSaved] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<Date | null>(null);
   const [scheduleDuration, setScheduleDuration] = useState('');
@@ -67,8 +51,42 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedDeliverables, setSelectedDeliverables] = useState<string[]>([]);
   const [preservationDescription, setPreservationDescription] = useState('');
+  const [publishing, setPublishing] = useState(false);
 
-  const { saveDraft, getActiveDraft, activeDraftId, setActiveDraftId, originTab } = useOpportunity();
+  const { saveDraft, publishDraft, getActiveDraft, activeDraftId, setActiveDraftId, originTab, refreshAll } = useOpportunity();
+
+  const hasDraftContent = Boolean(
+    opportunityTitle?.trim() ||
+    coverImage ||
+    selectedCategory ||
+    selectedKnowledgeHolder ||
+    locationText?.trim() ||
+    isLocationSaved ||
+    scheduleDate ||
+    scheduleDuration?.trim() ||
+    scheduleStartTime ||
+    scheduleEndTime ||
+    isFlexibleSchedule ||
+    selectedSkills.length > 0 ||
+    tasks.some((task) => task.trim()) ||
+    selectedDeliverables.length > 0 ||
+    preservationDescription?.trim()
+  );
+
+  const canSaveDraft = hasDraftContent;
+
+  const canContinueStep1 = Boolean(opportunityTitle?.trim() && coverImage && selectedCategory);
+  const canContinueStep2 = Boolean(selectedKnowledgeHolder);
+  const canContinueStep3 = Boolean(
+    isLocationSaved &&
+    (isFlexibleSchedule || (scheduleDate && scheduleDuration?.trim() && scheduleStartTime && scheduleEndTime))
+  );
+  const canContinueStep4 = Boolean(
+    preservationDescription?.trim() &&
+    tasks.some(t => t.trim()) &&
+    selectedSkills.length > 0 &&
+    selectedDeliverables.length > 0
+  );
 
   React.useEffect(() => {
     const draft = getActiveDraft();
@@ -107,26 +125,86 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
     }
   }, [activeDraftId]);
 
-  const handleSaveDraft = () => {
-    saveDraft({
-      id: activeDraftId || undefined,
-      opportunityTitle,
-      coverImage,
-      selectedCategory,
-      selectedKnowledgeHolder,
-      mapRegion,
-      locationText,
-      scheduleDate: scheduleDate ? scheduleDate.toISOString() : null,
-      scheduleStartTime: scheduleStartTime ? scheduleStartTime.toISOString() : null,
-      scheduleEndTime: scheduleEndTime ? scheduleEndTime.toISOString() : null,
-      scheduleDuration,
-      isFlexibleSchedule,
-      selectedSkills,
-      tasks,
-      selectedDeliverables,
-      preservationDescription,
-    });
-    onNavigate?.('drafts');
+  const handleSaveDraft = async () => {
+    if (!hasDraftContent) {
+      return;
+    }
+
+    const selectedKH: any = null;
+    const elderName = selectedKH ? selectedKH.name : null;
+    const body = {
+      title: opportunityTitle || 'Untitled Opportunity',
+      description: preservationDescription,
+      heroImageUrl: coverImage ?? undefined,
+      location: locationText,
+      category: selectedCategory,
+      scheduledDate: scheduleDate ? scheduleDate.toISOString().split('T')[0] : undefined,
+      durationText: scheduleDuration,
+      timeWindowText: scheduleStartTime && scheduleEndTime
+        ? `${scheduleStartTime.getHours() % 12 || 12}:${scheduleStartTime.getMinutes().toString().padStart(2, '0')} ${scheduleStartTime.getHours() >= 12 ? 'PM' : 'AM'} - ${scheduleEndTime.getHours() % 12 || 12}:${scheduleEndTime.getMinutes().toString().padStart(2, '0')} ${scheduleEndTime.getHours() >= 12 ? 'PM' : 'AM'}`
+        : undefined,
+      offeredAmount: 3500,
+      preservationGoal: preservationDescription,
+      tasks: tasks.filter(t => t.trim()).join('\n'),
+      status: 'DRAFT',
+      elderName,
+    } as CreateOpportunityRequest;
+
+    try {
+      await adminOpportunityApi.createOpportunity(body);
+      await saveDraft({
+        id: activeDraftId || undefined,
+        opportunityTitle,
+        coverImage,
+        selectedCategory,
+        selectedKnowledgeHolder,
+        mapRegion,
+        locationText,
+        scheduleDate: scheduleDate ? scheduleDate.toISOString() : null,
+        scheduleStartTime: scheduleStartTime ? scheduleStartTime.toISOString() : null,
+        scheduleEndTime: scheduleEndTime ? scheduleEndTime.toISOString() : null,
+        scheduleDuration,
+        isFlexibleSchedule,
+        selectedSkills,
+        tasks,
+        selectedDeliverables,
+        preservationDescription,
+      });
+      onNavigate?.('drafts');
+    } catch (e: any) {
+      Alert.alert('Save Draft Failed', e?.message || 'Could not save draft. Please try again.');
+    }
+  };
+
+  const handlePublish = async () => {
+    setPublishing(true);
+    try {
+      const selectedKH: any = null;
+      const elderName = selectedKH ? selectedKH.name : null;
+      const body = {
+        title: opportunityTitle,
+        description: preservationDescription,
+        heroImageUrl: coverImage ?? undefined,
+        location: locationText,
+        category: selectedCategory,
+        scheduledDate: scheduleDate ? scheduleDate.toISOString().split('T')[0] : undefined,
+        durationText: scheduleDuration,
+        timeWindowText: scheduleStartTime && scheduleEndTime
+          ? `${scheduleStartTime.getHours() % 12 || 12}:${scheduleStartTime.getMinutes().toString().padStart(2, '0')} ${scheduleStartTime.getHours() >= 12 ? 'PM' : 'AM'} - ${scheduleEndTime.getHours() % 12 || 12}:${scheduleEndTime.getMinutes().toString().padStart(2, '0')} ${scheduleEndTime.getHours() >= 12 ? 'PM' : 'AM'}`
+          : undefined,
+        offeredAmount: 3500,
+        preservationGoal: preservationDescription,
+        tasks: tasks.filter(t => t.trim()).join('\n'),
+        status: 'PUBLISHED',
+        elderName,
+      } as CreateOpportunityRequest;
+      await publishDraft(activeDraftId || `draft-${Date.now()}`, body);
+      setStep(6);
+    } catch (e: any) {
+      Alert.alert('Publish Failed', e?.message || 'Could not publish opportunity. Please try again.');
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const mapRef = useRef<MapView>(null);
@@ -264,13 +342,15 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   const renderStep1 = () => (
     <>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconButton} onPress={prevStep}>
+        <TouchableOpacity style={[styles.iconButton, styles.headerLeft]} onPress={prevStep}>
           <MaterialIcons name="arrow-back" size={24} color={Colors.textMuted} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Opportunity</Text>
-        <TouchableOpacity style={styles.saveDraftButton} onPress={handleSaveDraft}>
-          <Text style={styles.saveDraftText}>Save Draft</Text>
-        </TouchableOpacity>
+        {canSaveDraft && (
+          <TouchableOpacity style={[styles.saveDraftButton, styles.headerRight]} onPress={handleSaveDraft}>
+            <Text style={styles.saveDraftText}>Save Draft</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <ProgressBar current={1} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -324,11 +404,11 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
         </View>
       </ScrollView>
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.bottomBtnSecondary} onPress={handleSaveDraft}>
-          <Text style={styles.bottomBtnSecondaryText}>Save Draft</Text>
+        <TouchableOpacity style={styles.bottomBtnSecondary} onPress={() => onNavigate?.('drafts')}>
+          <Text style={styles.bottomBtnSecondaryText}>Cancel</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bottomBtnPrimary} onPress={nextStep}>
-          <Text style={styles.bottomBtnPrimaryText}>Continue</Text>
+        <TouchableOpacity style={[styles.bottomBtnPrimary, !canContinueStep1 && styles.bottomBtnPrimaryDisabled]} onPress={nextStep} disabled={!canContinueStep1}>
+          <Text style={[styles.bottomBtnPrimaryText, !canContinueStep1 && styles.bottomBtnPrimaryTextDisabled]}>Continue</Text>
         </TouchableOpacity>
       </View>
     </>
@@ -344,9 +424,11 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
           <MaterialIcons name="close" size={24} color={Colors.secondary} />
         </TouchableOpacity>
      
-        <TouchableOpacity style={styles.saveDraftButton} onPress={handleSaveDraft}>
-          <Text style={styles.saveDraftText}>Save Draft</Text>
-        </TouchableOpacity>
+        {canSaveDraft && (
+          <TouchableOpacity style={styles.saveDraftButton} onPress={handleSaveDraft}>
+            <Text style={styles.saveDraftText}>Save Draft</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <ProgressBar current={2} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -367,39 +449,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
         </View>
 
         <View style={styles.profilesGrid}>
-          {KNOWLEDGE_HOLDERS
-            .filter(kh => 
-              kh.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-              kh.role.toLowerCase().includes(searchQuery.toLowerCase()) || 
-              kh.location.toLowerCase().includes(searchQuery.toLowerCase())
-            )
-            .map((kh) => (
-              <TouchableOpacity 
-                key={kh.id} 
-                style={[styles.profileCard, selectedKnowledgeHolder === kh.id && { borderColor: '#fe893e', backgroundColor: 'rgba(254, 137, 62, 0.05)' }]} 
-                activeOpacity={0.8}
-                onPress={() => setSelectedKnowledgeHolder(kh.id)}
-              >
-                <View style={[styles.profileAvatarContainer, { overflow: 'hidden' }]}>
-                  {kh.image ? (
-                    <Image source={{ uri: kh.image }} style={{ width: '100%', height: '100%' }} />
-                  ) : (
-                    <MaterialIcons name="person" size={32} color={Colors.textMuted} />
-                  )}
-                </View>
-                <View style={styles.profileInfo}>
-                  <View style={styles.profileNameRow}>
-                    <Text style={styles.profileName}>{kh.name}</Text>
-                    {kh.verified && <MaterialIcons name="verified" size={16} color="#fe893e" />}
-                  </View>
-                  <Text style={styles.profileRole}>{kh.role}</Text>
-                  <View style={styles.profileLocationRow}>
-                    <MaterialIcons name="location-on" size={12} color={Colors.textMuted} />
-                    <Text style={styles.profileLocation}>{kh.location}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+          {[]}
         </View>
 
       </ScrollView>
@@ -407,8 +457,8 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
         <TouchableOpacity style={[styles.bottomBtnSecondary, {flex: 0, paddingHorizontal: Spacing.xl}]} onPress={prevStep}>
           <Text style={styles.bottomBtnSecondaryText}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bottomBtnPrimary} onPress={nextStep}>
-          <Text style={styles.bottomBtnPrimaryText}>Continue</Text>
+        <TouchableOpacity style={[styles.bottomBtnPrimary, !canContinueStep2 && styles.bottomBtnPrimaryDisabled]} onPress={nextStep} disabled={!canContinueStep2}>
+          <Text style={[styles.bottomBtnPrimaryText, !canContinueStep2 && styles.bottomBtnPrimaryTextDisabled]}>Continue</Text>
         </TouchableOpacity>
       </View>
     </>
@@ -424,9 +474,11 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
           <MaterialIcons name="arrow-back" size={24} color={Colors.textMuted} />
         </TouchableOpacity>
     
-        <TouchableOpacity style={styles.saveDraftButton} onPress={handleSaveDraft}>
-          <Text style={styles.saveDraftText}>Save Draft</Text>
-        </TouchableOpacity>
+        {canSaveDraft && (
+          <TouchableOpacity style={styles.saveDraftButton} onPress={handleSaveDraft}>
+            <Text style={styles.saveDraftText}>Save Draft</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <ProgressBar current={3} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -605,8 +657,8 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
         <TouchableOpacity style={[styles.bottomBtnSecondary, {flex: 0, paddingHorizontal: Spacing.xl}]} onPress={prevStep}>
           <Text style={styles.bottomBtnSecondaryText}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bottomBtnPrimary} onPress={nextStep}>
-          <Text style={styles.bottomBtnPrimaryText}>Continue</Text>
+        <TouchableOpacity style={[styles.bottomBtnPrimary, !canContinueStep3 && styles.bottomBtnPrimaryDisabled]} onPress={nextStep} disabled={!canContinueStep3}>
+          <Text style={[styles.bottomBtnPrimaryText, !canContinueStep3 && styles.bottomBtnPrimaryTextDisabled]}>Continue</Text>
         </TouchableOpacity>
       </View>
     </>
@@ -622,9 +674,11 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
           <MaterialIcons name="arrow-back" size={24} color={Colors.textMuted} />
         </TouchableOpacity>
        
-        <TouchableOpacity style={styles.saveDraftButton} onPress={handleSaveDraft}>
-          <Text style={styles.saveDraftText}>Save Draft</Text>
-        </TouchableOpacity>
+        {canSaveDraft && (
+          <TouchableOpacity style={styles.saveDraftButton} onPress={handleSaveDraft}>
+            <Text style={styles.saveDraftText}>Save Draft</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <ProgressBar current={4} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -728,8 +782,8 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
         <TouchableOpacity style={[styles.bottomBtnSecondary, { flex: 0, paddingHorizontal: Spacing.xl }]} onPress={prevStep}>
           <Text style={styles.bottomBtnSecondaryText}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.btnActionPrimary} onPress={nextStep}>
-          <Text style={styles.btnActionPrimaryText}>Review Opportunity</Text>
+        <TouchableOpacity style={[styles.btnActionPrimary, !canContinueStep4 && styles.btnActionPrimaryDisabled]} onPress={nextStep} disabled={!canContinueStep4}>
+          <Text style={[styles.btnActionPrimaryText, !canContinueStep4 && styles.btnActionPrimaryTextDisabled]}>Review Opportunity</Text>
           <MaterialIcons name="arrow-forward" size={20} color={Colors.white} />
         </TouchableOpacity>
       </View>
@@ -740,7 +794,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   // Step 5: Review & Publish
   // ────────────────────────────────────────────────────────────────────────
   const renderStep5 = () => {
-    const selectedKH = KNOWLEDGE_HOLDERS.find(kh => kh.id === selectedKnowledgeHolder);
+    const selectedKH: any = null;
     
     const checklist = [
       { label: 'Clear title', done: opportunityTitle.trim().length > 0 },
@@ -760,9 +814,11 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
           <MaterialIcons name="close" size={24} color={Colors.textMuted} />
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.saveDraftButton} onPress={handleSaveDraft}>
-          <Text style={styles.saveDraftText}>Save Draft</Text>
-        </TouchableOpacity>
+        {canSaveDraft && (
+          <TouchableOpacity style={styles.saveDraftButton} onPress={handleSaveDraft}>
+            <Text style={styles.saveDraftText}>Save Draft</Text>
+          </TouchableOpacity>
+        )}
       </View>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.titleSection}>
@@ -841,8 +897,8 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
           <MaterialIcons name="edit" size={20} color={Colors.secondary} />
           <Text style={styles.btnActionSecondaryText}>Edit details</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.btnActionPrimary} onPress={nextStep}>
-          <Text style={styles.btnActionPrimaryText}>Publish Opportunity</Text>
+        <TouchableOpacity style={[styles.btnActionPrimary, publishing && styles.btnActionPrimaryDisabled]} onPress={handlePublish} disabled={publishing}>
+          <Text style={styles.btnActionPrimaryText}>{publishing ? 'Publishing...' : 'Publish Opportunity'}</Text>
           <MaterialIcons name="check" size={20} color={Colors.white} />
         </TouchableOpacity>
       </View>
@@ -854,7 +910,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   // Step 6: Published Success
   // ────────────────────────────────────────────────────────────────────────
   const renderStep6 = () => {
-    const selectedKH = KNOWLEDGE_HOLDERS.find(kh => kh.id === selectedKnowledgeHolder);
+    const selectedKH: any = null;
     return (
     <View style={styles.successContainer}>
       <View style={styles.successIconBox}>

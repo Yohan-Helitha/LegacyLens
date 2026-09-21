@@ -6,11 +6,13 @@ export const styles = StyleSheet.create({
   header: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    justifyContent: 'space-between', 
+    justifyContent: 'center', 
     paddingHorizontal: Spacing.md, 
     height: 56, 
     backgroundColor: Colors.surface,
+    position: 'relative',
   },
+  backBtn: { position: 'absolute', left: Spacing.md },
   headerTitle: { 
     fontFamily: Typography.fontDisplay, 
     fontSize: Typography.sizeXL, 

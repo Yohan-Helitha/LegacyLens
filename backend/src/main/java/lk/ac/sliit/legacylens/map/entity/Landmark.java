@@ -32,10 +32,12 @@ public class Landmark {
     private Double longitude;
     private Double latitude;
 
-    private String icon;
-    private String image;
-    private String modelUrl;
     private String region;
+
+    @Column(length = 100)
+    private String district;
+
+    private String type;
 
     @OneToOne(mappedBy = "landmark", cascade = CascadeType.ALL)
     private Badge badge;

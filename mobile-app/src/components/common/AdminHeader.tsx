@@ -21,7 +21,7 @@ export const AdminHeader: React.FC<{ onNavigate?: (tab: string) => void }> = ({ 
           </View>
         </View>
         <View style={styles.appBarRight}>
-          <TouchableOpacity style={styles.notifWrapper}>
+          <TouchableOpacity style={styles.notifWrapper} onPress={() => onNavigate?.('notifications')}>
             <MaterialIcons name="notifications" size={24} color={Colors.white} />
             <View style={styles.notifDot} />
           </TouchableOpacity>

@@ -26,19 +26,20 @@ public class FeedItemController {
     }
 
     @GetMapping("/{id}/comments")
-    public ResponseEntity<ApiResponse<List<lk.ac.sliit.legacylens.home.dto.CommentResponse>>> getComments(@org.springframework.web.bind.annotation.PathVariable Long id) {
+    public ResponseEntity<ApiResponse<List<lk.ac.sliit.legacylens.home.dto.CommentResponse>>> getComments(
+            @org.springframework.web.bind.annotation.PathVariable String id) {
         return ResponseEntity.ok(ApiResponse.ok(service.getComments(id)));
     }
 
     @org.springframework.web.bind.annotation.PostMapping("/{id}/comments")
     public ResponseEntity<ApiResponse<lk.ac.sliit.legacylens.home.dto.CommentResponse>> addComment(
-            @org.springframework.web.bind.annotation.PathVariable Long id, 
+            @org.springframework.web.bind.annotation.PathVariable String id,
             @org.springframework.web.bind.annotation.RequestBody lk.ac.sliit.legacylens.home.dto.CommentRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(service.addComment(id, request)));
     }
 
     @org.springframework.web.bind.annotation.PostMapping("/{id}/like")
-    public ResponseEntity<ApiResponse<Void>> likePost(@org.springframework.web.bind.annotation.PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> likePost(@org.springframework.web.bind.annotation.PathVariable String id) {
         service.likePost(id);
         return ResponseEntity.ok(ApiResponse.ok("Post liked successfully", null));
     }
