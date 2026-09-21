@@ -7,18 +7,25 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "backgroundColor": "#EDEFEE",
-    "splash": {
-      "backgroundColor": "#EDEFEE"
-    },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.legacylens.app"
+      "bundleIdentifier": "com.legacylens.app",
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#EDEFEE"
       },
-      "package": "com.legacylens.app"
+      "package": "com.legacylens.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -50,7 +57,20 @@
       "expo-secure-store",
       "expo-speech-recognition",
       "@rnmapbox/maps",
-      "@react-native-community/datetimepicker"
-    ]
+      "@react-native-community/datetimepicker",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#EDEFEE"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8c6e928a-5b8e-4f5b-a1b3-7b37a37e3cf6"
+      }
+    }
   }
 }

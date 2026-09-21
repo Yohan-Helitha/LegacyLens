@@ -33,10 +33,15 @@ import type { StoryResponse } from '../../types/story';
 const DASHBOARD_STORY_PREVIEW_COUNT = 2;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TrustBadgeSection
+// TrustBadgeSection — tapping it opens the full Trust Score Detail screen
 // ─────────────────────────────────────────────────────────────────────────────
-const TrustBadgeSection: React.FC = () => (
-  <View style={s.trustCard}>
+const TrustBadgeSection: React.FC<{ onPress?: () => void }> = ({ onPress }) => (
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => [s.trustCard, pressed && s.pressedLight]}
+    accessibilityRole="button"
+    accessibilityLabel="Open your Knowledge Keeper progress"
+  >
     <View style={s.trustIconWrap}>
       <Award size={32} color={D.onSecondaryContainer} strokeWidth={2} />
     </View>
@@ -44,7 +49,7 @@ const TrustBadgeSection: React.FC = () => (
       <Text style={s.trustTitle}>Knowledge Keeper</Text>
       <Text style={s.trustSubtitle}>Level 4 • 12 Stories shared</Text>
     </View>
-  </View>
+  </Pressable>
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -224,6 +229,7 @@ const YourStoriesSection: React.FC<YourStoriesSectionProps> = ({
 // ─────────────────────────────────────────────────────────────────────────────
 interface ElderDashboardProps {
   onTabPress?: (tab: UserTabKey) => void;
+  onOpenTrustScore?: () => void;
   onRecordStory?: () => void;
   onReplyToRequest?: () => void;
   onViewAllStories?: () => void;
@@ -237,6 +243,7 @@ interface ElderDashboardProps {
 
 export const ElderDashboard: React.FC<ElderDashboardProps> = ({
   onTabPress,
+  onOpenTrustScore,
   onRecordStory,
   onReplyToRequest,
   onViewAllStories,
@@ -267,7 +274,7 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <TrustBadgeSection />
+        <TrustBadgeSection onPress={onOpenTrustScore} />
         <PrimaryActionSection onPress={onRecordStory} />
         <RequestsSection onReplyPress={onReplyToRequest} />
         <YourStoriesSection
