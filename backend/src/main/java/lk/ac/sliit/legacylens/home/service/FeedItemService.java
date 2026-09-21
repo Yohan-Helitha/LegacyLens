@@ -7,7 +7,7 @@ import lk.ac.sliit.legacylens.home.entity.FeedItem;
 import lk.ac.sliit.legacylens.home.entity.VideoItem;
 import lk.ac.sliit.legacylens.home.repository.FeedItemRepository;
 import lk.ac.sliit.legacylens.moderation.entity.ModerationQueueItem;
-import lk.ac.sliit.legacylens.moderation.entity.ModerationStatus;
+import lk.ac.sliit.legacylens.stories.entity.StoryStatus;
 import lk.ac.sliit.legacylens.moderation.repository.ModerationQueueRepository;
 import org.springframework.stereotype.Service;
 
@@ -38,7 +38,7 @@ public class FeedItemService {
 
         try {
             List<ModerationQueueItem> publishedStories = moderationQueueRepository
-                    .findByStatus(ModerationStatus.PUBLISHED);
+                    .findByStatus(StoryStatus.PUBLISHED);
             for (ModerationQueueItem story : publishedStories) {
                 items.add(mapStoryToFeedResponse(story));
             }

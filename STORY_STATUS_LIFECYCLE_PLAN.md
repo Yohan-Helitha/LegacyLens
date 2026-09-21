@@ -47,7 +47,7 @@ Remaining open questions for Lakni:
 
 ---
 
-## Recommended minimal-change design
+## Recommended minimal-change design — **done** (Lakni signed off)
 
 Given question 1 is resolved, the fix isn't "reconcile two different lifecycles" — it's "stop having two enums that happen to describe the same states by convention." Minimal, mechanical, no API/DB contract change:
 
@@ -57,6 +57,10 @@ Given question 1 is resolved, the fix isn't "reconcile two different lifecycles"
 4. **Mechanical call-site updates** (~2 files): `ModerationQueueServiceImpl.java` — `ModerationStatus.valueOf(...)` → `StoryStatus.valueOf(...)` (the `switch (newStatus) { case PUBLISHED -> ... }` block is unchanged, case labels just resolve against the new type); `ModerationQueueRepository.java` — `findByStatus(ModerationStatus status)` → `findByStatus(StoryStatus status)`.
 
 No DB migration (string values are identical either way), no change to the Angular console's API contract (same JSON strings, same endpoints, same buttons). Total footprint: 2 files deleted, 1 field-type edit, a handful of call-site line edits — small enough for Lakni to review as a single easy PR, and it's the actual fix rather than another stopgap.
+
+**Implemented.** Also touched (beyond the 2 originally scoped) since they referenced `ModerationStatus` directly: `admin/service/DashboardServiceImpl.java`, `admin/service/AdminNotificationServiceImpl.java`, `home/service/FeedItemService.java` (all just `ModerationStatus.X` → `StoryStatus.X`, same values, no logic change), and a dead import removed from `ModerationQueueController.java`.
+
+Verified: `mvn compile` clean. Full test suite: 168/169 passing (up from 167/169 before this change) — **fixed one of the two pre-existing dual-entity test failures as a side effect**: `StorySpecificationsIntegrationTest.getMyStories_statusFilter_returnsOnlyMatching`'s bogus CHECK-constraint violation is gone now that there's only one status enum for H2's schema generation to reconcile. The remaining failure, `StoryRepositoryIntegrationTest.authorIsRequired`, is a *different* symptom of the same one-table-two-entities pattern — `ModerationQueueItem.authorId` (`@Column(name = "author_id")`, no `nullable = false`) conflicts with `Story.author`'s `@JoinColumn(nullable = false)` during H2's auto-DDL, so the NOT NULL constraint doesn't get enforced in tests. Left alone — out of scope for what was approved (the status enum, not the author column), and touching `ModerationQueueItem.authorId`'s nullability is a separate decision that affects the admin side's own data model (e.g. moderation items with an unknown/system author), not something to change unilaterally.
 
 ### Optional hardening (not required to fix the current problem — do later if wanted)
 

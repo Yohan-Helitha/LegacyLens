@@ -5,14 +5,15 @@ import jakarta.persistence.Converter;
 import lk.ac.sliit.legacylens.stories.entity.StoryStatus;
 
 /**
- * Same pattern as ModerationStatusConverter (moderation/converter) — the
- * `stories` table is also written by the admin moderation side using its own
- * ModerationStatus vocabulary (PENDING/PUBLISHED/REJECTED/ARCHIVED), which is
- * wider than StoryStatus today. Without this converter, Hibernate's default
- * EnumType.STRING mapping throws on any status value StoryStatus doesn't
- * define, which fails the *entire* query for whichever elder owns that row —
- * not just that one story. Falling back to PENDING is a stopgap, not a real
- * fix: see STORY_STATUS_LIFECYCLE_PLAN.md for reconciling the two enums.
+ * autoApply means this covers every StoryStatus-typed field in the
+ * persistence unit — both Story.status (elder-facing) and
+ * ModerationQueueItem.status (admin-facing moderation package), which both
+ * map the same `stories` table and now share this one enum (see
+ * StoryStatus's own doc comment for that history). Without this converter,
+ * Hibernate's default EnumType.STRING mapping throws on any status value
+ * StoryStatus doesn't define, which fails the *entire* query for whichever
+ * row it hits, not just that one row — falling back to PENDING here is
+ * deliberately defensive, not just a formality.
  */
 @Converter(autoApply = true)
 public class StoryStatusConverter implements AttributeConverter<StoryStatus, String> {
