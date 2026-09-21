@@ -1,191 +1,118 @@
 # Legacy Lens — Story Status Lifecycle Implementation Plan
 
-> Status: **not implemented yet** — blocked on a design discussion with the Admin component owner (approve/reject is an admin-dashboard action, and no admin-side moderation controller exists anywhere in the backend today). This doc captures the intended design so it isn't lost, and gives a ready-to-follow implementation breakdown for once that discussion happens and the admin branch is merged.
+> Status: **draft, revised after merging `dev-v2` into `fix/stories-status`**. The first version of this doc assumed no admin moderation system existed yet — that was wrong; it exists on `dev-v2` and is now merged in. This revision reflects the actual merged code, not assumptions. Still blocked on a design discussion with the Admin component owner (Lakni) before building anything — see "Real conflict to resolve" below, which is sharper now than the original open questions were.
 
 ## Why this doc exists
 
-While debugging why some stories didn't show up in the mobile app, three rows in the `stories` table turned out to have `status = 'REJECTED'` or `status = 'ARCHIVED'` — values the current `StoryStatus` enum (`backend/src/main/java/lk/ac/sliit/legacylens/stories/entity/StoryStatus.java`) doesn't define. Hibernate throws `IllegalArgumentException: No enum constant ...StoryStatus.REJECTED` when it hits one of these rows, which silently fails the *entire* story list for whichever user owns that row — not just the bad row. Those rows aren't corrupt test data, though — they're exactly the two admin outcomes described below, entered by hand ahead of the real workflow existing. That coincidence is what prompted writing this design down properly instead of just patching the data.
+While debugging why some stories didn't show up in the mobile app, rows in the `stories` table turned out to have `status = 'REJECTED'` or `'ARCHIVED'` — values the elder-side `StoryStatus` enum (`backend/.../stories/entity/StoryStatus.java`) doesn't define. Hibernate throws `IllegalArgumentException: No enum constant ...StoryStatus.REJECTED` when it hits one of these rows, which fails the *entire* story list for whichever user owns that row.
 
-**Immediate unblock** (not this plan — a separate, smaller fix): reset those 3 rows to a currently-valid status (`PENDING`) so the app stops erroring, without pre-empting the design below. Do this independently whenever convenient.
+The original theory was that these were manually-inserted test rows. **That was wrong.** After merging `dev-v2` (109 commits, including Lakni's admin dashboard work) into this branch, it's now clear those rows were written by an already-built, already-working admin moderation feature — `ModerationQueueServiceImpl` — being tested against the same shared Supabase database. The bug isn't bad data; it's that the elder-side `Story` entity and the admin-side `ModerationQueueItem` entity disagree about what a valid status is.
 
 ---
 
-## Target lifecycle (as specified)
+## The real conflict (verified by reading the actual merged code)
 
-| State | Entered when | Who triggers it | What can happen next |
-|---|---|---|---|
-| `DRAFT` | Story written and saved, not yet submitted | Elder | Submit → `PENDING` |
-| `PENDING` | Submitted for admin approval | Elder (submits) | Admin decides → `APPROVED` or `REJECTED` |
-| `APPROVED` | Admin approved it | Admin | Elder can publish → `PUBLISHED`, or edit (see open question below) |
-| `REJECTED` | Admin rejected it | Admin | Terminal — **cannot** be published (see open question below) |
-| `PUBLISHED` | Elder published an approved story | Elder | Elder can archive → `ARCHIVED` |
-| `ARCHIVED` | A published story was archived | Elder | Terminal for now — **only reachable from `PUBLISHED`**, never directly from any other state |
+Two separate JPA entities both map onto the **same physical `stories` table**, with two **different, incompatible** status enums:
 
-```mermaid
-stateDiagram-v2
-    [*] --> DRAFT
-    DRAFT --> PENDING: submit for review
-    PENDING --> APPROVED: admin approves
-    PENDING --> REJECTED: admin rejects
-    APPROVED --> PUBLISHED: elder publishes
-    PUBLISHED --> ARCHIVED: elder archives
-    REJECTED --> [*]
-    ARCHIVED --> [*]
+| | Elder side | Admin side |
+|---|---|---|
+| Entity | `Story` (`stories/entity/Story.java`) | `ModerationQueueItem` (`moderation/entity/ModerationQueueItem.java:16-19`, `@Table(name = "stories")`) |
+| Status enum | `StoryStatus`: `DRAFT, PENDING, PUBLISHED` | `ModerationStatus`: `PENDING, PUBLISHED, REJECTED, ARCHIVED` |
+| Enum→column mapping | Plain `@Enumerated(EnumType.STRING)` — **throws on unrecognized values** | `ModerationStatusConverter` (`moderation/converter/ModerationStatusConverter.java`), `@Converter(autoApply = true)` — **falls back to `PENDING` on unrecognized values instead of throwing** |
+| Transition rules enforced | None yet (no submit/approve/reject/publish/archive endpoints exist) | **None at all** — `ModerationQueueServiceImpl.updateItemStatus` (`moderation/service/ModerationQueueServiceImpl.java:70-102`) accepts any of the 4 `ModerationStatus` values from any prior status, with no legality check |
+| Endpoint | `GET/POST/PATCH/DELETE /api/stories/**` (`stories/controller/StoryController.java`) | `PATCH /api/admin/moderation/queue/{id}/status` (`moderation/controller/ModerationQueueController.java:36`) |
+
+Three concrete, already-verified facts that change the plan:
+
+1. **There is no DB-level constraint stopping this.** `ModerationSchemaInitializer` (`moderation/config/ModerationSchemaInitializer.java:52-70`) actively *drops* any CHECK constraint on `stories.status` at startup. The column is a free `VARCHAR(20)` — nothing stops either side from writing a value the other side can't read.
+2. **The admin side's "unrecognized value" fallback is probably dead code.** `ModerationQueueItem.status` carries *both* `@Enumerated(EnumType.STRING)` *and* relies on `ModerationStatusConverter`'s `@Converter(autoApply = true)`. Per the JPA spec, an explicit `@Enumerated` on a field suppresses auto-apply converters for that field — so `ModerationStatusConverter.convertToEntityAttribute`'s graceful `PENDING` fallback almost certainly never runs; `@Enumerated` wins and Hibernate uses its default enum mapping instead. This has stayed invisible so far only because `ModerationStatus` already covers every value currently written. **Worth flagging to Lakni** — it's a latent version of the exact same bug, waiting for a 5th status value to expose it.
+3. **The stopgap below avoids that trap** — `StoryStatusConverter` (elder side) does *not* keep `@Enumerated` on `Story.status`, specifically so the converter actually takes effect instead of silently being ignored the way the admin side's appears to be.
+
+---
+
+## Gap vs. what you described
+
+Your described lifecycle was: `DRAFT → PENDING → (APPROVED | REJECTED)`, then `APPROVED → PUBLISHED`, then `PUBLISHED → ARCHIVED` (only reachable from `PUBLISHED`).
+
+The **actually-built** admin flow (`ModerationQueueServiceImpl.updateItemStatus`) is flatter: `PENDING → (PUBLISHED | REJECTED)` directly, and separately `PUBLISHED → ARCHIVED` — but with **no enforcement** that archive can only happen from `PUBLISHED` (any status can be set to any status right now). There is **no `APPROVED` state anywhere in the merged code** — approving and publishing are the same action today.
+
+**Update — question 1 resolved.** Confirmed against the live admin console (`localhost:4200/moderation`, Moderation Queue screen) and directly by the admin owner: the real action is **"Approve & Publish Live"** — one button, one action. There is no separate `APPROVED` holding state anywhere, by design, not by omission. So the real vocabulary is exactly 5 states: `DRAFT, PENDING, PUBLISHED, REJECTED, ARCHIVED` — `StoryStatus`'s 3 plus `ModerationStatus`'s 4, overlapping on everything except `DRAFT` (elder-only; drafts are never submitted, so admin never sees one).
+
+Remaining open questions for Lakni:
+
+1. ~~Does `APPROVED` get added as a real intermediate state~~ — **resolved, no.** Approve == Publish.
+2. **Should transition legality be enforced at all**, given `updateItemStatus` currently allows any status → any status? Lower priority than originally framed — not required to fix the current bug, worth doing as separate hardening later (see "Optional hardening" below).
+3. **Can a `REJECTED` story be edited and resubmitted?** Still unanswered — nothing in `ModerationQueueServiceImpl` addresses re-submission at all.
+4. **Naming**: the mobile app has its own speculative `NEEDS_CHANGES` status (`mobile-app/src/types/story.ts:12`) never backed by any backend value. Recommend aligning it to `REJECTED` to match what the admin side actually writes.
+
+---
+
+## Recommended minimal-change design
+
+Given question 1 is resolved, the fix isn't "reconcile two different lifecycles" — it's "stop having two enums that happen to describe the same states by convention." Minimal, mechanical, no API/DB contract change:
+
+1. **`StoryStatus`** (stays canonical — lives in `stories`, the more foundational domain; `moderation` is admin tooling layered on top of it, not the other way round) gains `REJECTED`, `ARCHIVED`. 2 lines.
+2. **`ModerationQueueItem.status`** field type changes from `ModerationStatus` → `lk.ac.sliit.legacylens.stories.entity.StoryStatus`; drop its `@Enumerated(EnumType.STRING)` (the same annotation already silently breaking `ModerationStatusConverter`'s own fallback — this fixes that too, incidentally).
+3. **Delete** `moderation/entity/ModerationStatus.java` and `moderation/converter/ModerationStatusConverter.java` — redundant once `ModerationQueueItem.status` is typed `StoryStatus`, since `StoryStatusConverter` is already `@Converter(autoApply = true)` and picks up *any* field of that type automatically, no per-field `@Convert` needed.
+4. **Mechanical call-site updates** (~2 files): `ModerationQueueServiceImpl.java` — `ModerationStatus.valueOf(...)` → `StoryStatus.valueOf(...)` (the `switch (newStatus) { case PUBLISHED -> ... }` block is unchanged, case labels just resolve against the new type); `ModerationQueueRepository.java` — `findByStatus(ModerationStatus status)` → `findByStatus(StoryStatus status)`.
+
+No DB migration (string values are identical either way), no change to the Angular console's API contract (same JSON strings, same endpoints, same buttons). Total footprint: 2 files deleted, 1 field-type edit, a handful of call-site line edits — small enough for Lakni to review as a single easy PR, and it's the actual fix rather than another stopgap.
+
+### Optional hardening (not required to fix the current problem — do later if wanted)
+
+- `StoryStateMachine` (same pattern as `hiring/service/JobRequestStateMachine.java`) to enforce that `ARCHIVED` is only reachable from `PUBLISHED`, etc. — `updateItemStatus` currently allows any transition. Worth doing eventually, not blocking.
+- Elder-facing `submit`/`archive` endpoints so `DRAFT` and elder-triggered `ARCHIVED` actually become reachable (today every story is created straight at `PENDING` — `DRAFT` is unused in practice, confirmed by `StoryServiceImpl`'s create defaulting directly to `PENDING`). Worth confirming with product whether a real "save draft, submit later" flow is even wanted, or whether immediate-submit-on-save (current behavior) is fine as-is.
+
+### Future-proofing note (not building now, per your "future configuration" flags)
+
+`ModerationQueueItem` already has `imageUrl`/`tags` columns ready for the thumbnail-on-approve and AI-auto-tag-on-approve features you flagged. The elder-facing `StoryResponse` DTO (`stories/dto/StoryResponse.java`) doesn't expose either field yet — nothing to do now, just don't forget to add them there when that work starts, or elders won't be able to see what gets set.
+
+---
+
+## Immediate low-risk fix — **done** (doesn't require resolving anything above)
+
+Implemented: `backend/src/main/java/lk/ac/sliit/legacylens/stories/converter/StoryStatusConverter.java`, and removed `@Enumerated(EnumType.STRING)` from `Story.status` (`stories/entity/Story.java`) so the converter actually takes effect (see point 2/3 above — keeping `@Enumerated` would have silently disabled it, the same trap the admin side may already be in).
+
+Verified: `mvn compile` passes; `mvn test` still shows 2 pre-existing failures (`StoryRepositoryIntegrationTest.authorIsRequired`, `StorySpecificationsIntegrationTest.getMyStories_statusFilter_returnsOnlyMatching`) — confirmed via `git stash` to reproduce identically **without** this change too, so they're not a regression from the converter. They're further evidence of the `Story`/`ModerationQueueItem` dual-mapping problem: H2's schema auto-generation gets confused when two different `@Entity` classes both target `@Table(name = "stories")` with different column/constraint metadata (one test shows `author_id`'s `NOT NULL` silently not enforced, the other shows a stray CHECK constraint violation on insert). Worth mentioning to Lakni alongside the enum question — this is a second symptom of the same one-table-two-entities root cause, not a separate bug.
+
+Original rationale, unchanged — the elder-side crash can be fixed today the same way the admin side (nominally) fixed it for itself — add a converter instead of relying on bare `@Enumerated(EnumType.STRING)`:
+
+```java
+// stories/converter/StoryStatusConverter.java — mirrors
+// moderation/converter/ModerationStatusConverter.java exactly
+@Converter(autoApply = true)
+public class StoryStatusConverter implements AttributeConverter<StoryStatus, String> {
+    public String convertToDatabaseColumn(StoryStatus attribute) {
+        return attribute != null ? attribute.name() : StoryStatus.PENDING.name();
+    }
+    public StoryStatus convertToEntityAttribute(String dbData) {
+        if (dbData == null || dbData.isBlank()) return StoryStatus.PENDING;
+        try { return StoryStatus.valueOf(dbData.trim().toUpperCase()); }
+        catch (IllegalArgumentException e) { return StoryStatus.PENDING; }
+    }
+}
 ```
 
-This mirrors a pattern already in the codebase: `backend/src/main/java/lk/ac/sliit/legacylens/hiring/service/JobRequestStateMachine.java` is a small `EnumMap<Status, Set<Status>>` class that only knows which transitions are legal — no side effects. Its own doc comment already anticipates this exact need:
-
-> "...kept as its own class (a separate one from the content module's future `ContentStateMachine`...)"
-
-Build `StoryStateMachine` the same way, in `stories/service/`, so there's one source of truth for legal transitions that both the elder-facing and admin-facing services call into.
-
----
-
-## Open questions for the Admin component owner
-
-These are the reason this plan isn't being built yet — both change the admin API contract, so they need to be settled together, not assumed:
-
-1. **Can a `REJECTED` story ever be edited and resubmitted?** The spec above says rejected content "can not be published" — but doesn't say whether it's a dead end forever, or whether editing a rejected story sends it back to `DRAFT`/`PENDING`. If admins are expected to leave a reason, that likely wants a `rejection_reason` column too (see Feature D below).
-2. **Editing an `APPROVED` story** — the original description says the elder "can edit it — but you can not submit it, cause admin has to review it again." Read literally this is contradictory (edited but can't be resubmitted for the required re-review). Needs to be pinned down as one of:
-   - (a) editing an approved story silently reverts it to `PENDING` (forces re-review automatically), or
-   - (b) editing is disabled once `APPROVED` until a "resubmit" action exists (i.e. this isn't buildable yet), or
-   - (c) editing is allowed freely post-approval and re-review is a later, separate feature.
-3. **Where does the approve/reject action live?** No admin moderation controller exists in this backend yet (`grep -rl "admin" backend/src/main/java` turns up nothing for content/story moderation — only the unrelated `hiring`/`marketplace` packages). This needs to be a joint endpoint contract with whoever owns the admin dashboard branch (`feature/lakni/admin-dashboard-backend`), not something built unilaterally from the elder side.
-4. **Can an `ARCHIVED` story be unarchived / republished?** Not mentioned in the spec — assume no (terminal) unless told otherwise.
-5. **Naming: `REJECTED` vs `NEEDS_CHANGES`.** The mobile app already has a forward-compatible status in its own type union that isn't backed by the backend at all: `mobile-app/src/types/story.ts:12` — `'DRAFT' | 'PENDING' | 'PUBLISHED' | 'NEEDS_CHANGES'`, rendered by `StatusPill.tsx`. That was a guess made before this conversation. Recommend renaming the mobile type/label to `REJECTED` to match the backend enum and the DB data that already exists, rather than shipping two different words for the same concept.
-
----
-
-## Baseline: what exists today
-
-- `Story.status` (`backend/.../stories/entity/Story.java:47-49`) — `StoryStatus` enum, defaults to `PENDING` on creation. Enum currently only has `DRAFT, PENDING, PUBLISHED` (`StoryStatus.java:16-18`).
-- `Story.publishedAt` (`Story.java:81-82`) already exists as a column but nothing ever sets it — forward-compatible groundwork already in place for Feature C below.
-- `StoryController` (`backend/.../stories/controller/StoryController.java`) only has `create`, `listMine` (`GET /api/stories/me`), `getById`, generic field `update` (`PATCH /api/stories/{id}`), and `delete`. **No status-transition endpoints exist at all** — no submit, approve, reject, publish, or archive action.
-- `StoryQueryServiceImpl` / `StorySpecifications` (`backend/.../contentcapture/`) power the paginated `GET /api/stories/mine` search used by My Stories (Screen 6) and already support an optional `status` filter predicate (`StorySpecifications.hasStatus`, `StorySpecifications.java:25-27`) — currently unused by the mobile client, but ready for "Drafts" / "Needs changes" style filtering later.
-- Mobile `StoryReview` screen (`mobile-app/src/screens/content-capture/story_review.tsx`) only has two actions today: edit-and-save, and delete. No submit/publish/archive buttons exist yet.
+Effect: any story sitting at `REJECTED`/`ARCHIVED`/anything-not-yet-defined shows up in the elder's "My Stories" as `PENDING` instead of crashing the whole list. It's a safe stopgap, not a real fix — those stories will *display* as still-under-review even though they've actually been rejected/archived/published-and-archived, so it shouldn't be treated as done, just as "stops erroring while we sort out the real design." Worth doing now since it's ~15 lines, touches nothing else, and directly fixes today's actual symptom.
 
 ---
 
 ## Implementation breakdown
 
-Build in this order — each depends on the previous. **Do not start Feature C or D until the two open questions above are resolved with the admin owner** — everything else (A, B, and the `REJECTED`-terminal / `ARCHIVED`-terminal paths) is safe to build independently since it doesn't touch the admin contract.
+Superseded by "Recommended minimal-change design" above for the enum/entity question — kept here only for the parts still relevant (elder-facing endpoints, mobile UI). Do the minimal-change design first; everything below builds on top of it, once agreed with Lakni.
 
-### Feature A — Extend `StoryStatus` + add `StoryStateMachine`
+### Feature C — Elder-facing endpoints: submit / publish / archive
 
-**Entities/DTOs**:
-- `StoryStatus.java`: add `APPROVED`, `REJECTED`, `ARCHIVED` alongside the existing `DRAFT, PENDING, PUBLISHED`.
-- New `StoryStateMachine` (`stories/service/StoryStateMachine.java`), same shape as `JobRequestStateMachine`:
-  ```java
-  TRANSITIONS.put(DRAFT, Set.of(PENDING));
-  TRANSITIONS.put(PENDING, Set.of(APPROVED, REJECTED));
-  TRANSITIONS.put(APPROVED, Set.of(PUBLISHED)); // + PENDING if open question #2 resolves to (a)
-  TRANSITIONS.put(REJECTED, Set.of()); // or Set.of(DRAFT) if open question #1 allows resubmission
-  TRANSITIONS.put(PUBLISHED, Set.of(ARCHIVED));
-  TRANSITIONS.put(ARCHIVED, Set.of());
-  ```
-- Add a `StoryTransitionException` (409 Conflict) thrown whenever a service method calls `stateMachine.canTransition(from, to)` and it returns `false` — every transition-changing service method must check this before mutating `status`, so an invalid transition (e.g. calling publish on a `DRAFT` story) fails loudly instead of corrupting state.
+- `POST /api/stories/{id}/submit` — `DRAFT → PENDING`.
+- `POST /api/stories/{id}/archive` — `PUBLISHED → ARCHIVED`. (No elder-facing "publish" endpoint — publishing only ever happens via admin approval, confirmed above.)
+- Ownership check (`author.id == callerId`, 404 otherwise), same shape as `StoryController`'s existing methods. `publishedAt` should be set by whatever path sets `status = PUBLISHED` — today that's only `ModerationQueueServiceImpl.updateItemStatus`, which already does this (`ModerationQueueServiceImpl.java:100-102`); `Story.publishedAt` (`Story.java:81-82`) is a separate, still-unused column on the elder-side entity, so once the entities share a status type, decide whether `Story.publishedAt` should also get set (e.g. via a shared trigger/listener) or whether it's redundant now that the admin side already tracks it.
 
-**Test suite**: `StoryStateMachineTest` — one `canTransition` assertion per legal edge in the diagram above, plus a few illegal ones (`PENDING → PUBLISHED` directly, `DRAFT → ARCHIVED` directly, etc.) asserting `false`.
+### Feature D — Mobile: status-aware UI
 
----
+- `mobile-app/src/types/story.ts:12` — align `StoryStatus` union to `'DRAFT' | 'PENDING' | 'PUBLISHED' | 'REJECTED' | 'ARCHIVED'` (drop the speculative `NEEDS_CHANGES`).
+- `StatusPill.tsx` — add an `ARCHIVED` pill variant; rename the `NEEDS_CHANGES` variant to `REJECTED`.
+- `story_review.tsx` — status-conditional actions: `DRAFT` → "Submit for Review"; `PUBLISHED` → "Archive"; show `rejectionReason`/`rejectionNotes` when `REJECTED` (need exposing through `StoryResponse` — see future-proofing note above, same gap applies here).
 
-### Feature B — Submit for review (`DRAFT → PENDING`)
+### Feature E — Verify existing data once the minimal-change design lands
 
-**User story**: As an elder, once I've saved a draft I'm happy with, I want to submit it so an admin can review it.
-
-**Implementation prompt**:
-```
-Add POST /api/stories/{storyId}/submit to StoryController. Delegate to
-StoryService.submit(userId, storyId): verify the caller owns the story (author.id
-== userId, else 404 — never leak existence of other users' stories), check
-StoryStateMachine.canTransition(story.getStatus(), PENDING), throw
-StoryTransitionException if illegal, otherwise set status = PENDING and save.
-Return the updated StoryResponse.
-```
-
-**Test suite**: `submit_draftStory_movesToP ending`, `submit_alreadyPendingStory_throwsTransitionException`, `submit_notOwner_throws404`.
-
----
-
-### Feature C — Admin approve / reject (`PENDING → APPROVED` / `REJECTED`) — **blocked on open questions #1 and #3**
-
-**User story**: As an admin, I want to approve or reject a pending story so elders know whether it can be published.
-
-**Entities/DTOs**: Likely needs `rejection_reason` (nullable TEXT) added to `Story` if question #1 confirms admins leave feedback — surface it in `StoryResponse` so the elder-facing app can show *why* something was rejected, matching the "honoring, not corporate" tone already established for these screens rather than a bare status change.
-
-**Implementation prompt** (sketch — finalize the URL/package once the admin owner's controller location is agreed):
-```
-Add an admin-gated endpoint (exact path/package TBD with the admin dashboard
-owner — likely something like POST /api/admin/stories/{storyId}/approve and
-.../reject under a new admin-facing controller, secured by an admin role
-check, NOT under StoryController which is scoped to "the caller's own
-stories" only). Delegate to StoryModerationService.approve/reject(adminId,
-storyId[, reason]), using the same StoryStateMachine.canTransition guard as
-Feature B.
-```
-
-**Test suite**: `approve_pendingStory_movesToApproved`, `reject_pendingStory_movesToRejectedWithReason`, `approve_alreadyApprovedStory_throwsTransitionException`, `approve_nonAdminCaller_returns403`.
-
----
-
-### Feature D — Publish (`APPROVED → PUBLISHED`)
-
-**User story**: As an elder, once my story is approved, I want to publish it so it becomes visible.
-
-**Implementation prompt**:
-```
-Add POST /api/stories/{storyId}/publish to StoryController. Same ownership +
-StoryStateMachine guard pattern as Feature B. On success, set status =
-PUBLISHED and publishedAt = now() (column already exists on Story, see
-Story.java:81-82 — currently unused).
-```
-
-**Test suite**: `publish_approvedStory_setsPublishedAtAndStatus`, `publish_pendingStory_throwsTransitionException` (can't skip approval), `publish_rejectedStory_throwsTransitionException`.
-
----
-
-### Feature E — Edit semantics for `APPROVED`/`REJECTED` stories — **blocked on open question #2**
-
-Once resolved, extend the existing generic `StoryService.update` (`StoryController.java:63-72`) so it's aware of the current status:
-- If the resolution is (a): editing an `APPROVED` story auto-transitions it to `PENDING` (call the same guarded transition as Feature B internally after applying the field changes).
-- If (b): reject the edit attempt with `StoryTransitionException` while status is `APPROVED`, until a separate "resubmit" endpoint exists.
-- If (c): no change needed beyond what already exists.
-
-Whichever direction, this needs its own test class once decided — don't guess and build both paths speculatively.
-
----
-
-### Feature F — Archive (`PUBLISHED → ARCHIVED`)
-
-**User story**: As an elder, I want to archive a published story I no longer want visible, without deleting it outright.
-
-**Implementation prompt**:
-```
-Add POST /api/stories/{storyId}/archive to StoryController. Same ownership +
-StoryStateMachine guard pattern as Feature B — the state machine itself is
-what enforces "only from PUBLISHED", so this endpoint doesn't need its own
-special-case check beyond calling canTransition.
-```
-
-**Test suite**: `archive_publishedStory_movesToArchived`, `archive_draftStory_throwsTransitionException`, `archive_approvedStory_throwsTransitionException` (the "except from Published, nothing else can go directly to Archived" rule).
-
----
-
-### Feature G — Mobile: status-aware UI
-
-- `mobile-app/src/types/story.ts:12` — change `StoryStatus` union to `'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'PUBLISHED' | 'ARCHIVED'` (see naming note in open question #5 — drop the speculative `NEEDS_CHANGES`).
-- `StatusPill.tsx` (`mobile-app/src/components/module-specific/content-capture/StatusPill.tsx`) — add `APPROVED` and `ARCHIVED` pill variants (reuse the `published`/`draft` visual treatment style — teal-filled for `APPROVED` perhaps, outline-muted for `ARCHIVED`); rename the existing clay-red `NEEDS_CHANGES` variant to `REJECTED`.
-- `story_review.tsx` — add status-conditional action buttons:
-  - `DRAFT` → "Submit for Review" (+ existing edit/delete)
-  - `PENDING` → no actions (read-only, awaiting admin)
-  - `APPROVED` → "Publish" (+ edit, per whatever Feature E decides)
-  - `REJECTED` → show `rejectionReason` if Feature C adds it; no publish action
-  - `PUBLISHED` → "Archive"
-  - `ARCHIVED` → read-only
-- `your_stories.tsx` (My Stories / Screen 6) — no structural change needed; `StorySpecifications.hasStatus` already supports server-side status filtering if a future "filter by status" UI is wanted, but that's out of scope here.
-
----
-
-### Feature H — Verify existing data once the enum lands
-
-The 3 rows that surfaced this whole investigation (`Count Dracula` → `ARCHIVED`, `Ancient tree` → `REJECTED`, `Recording 1` → `ARCHIVED`) will become valid automatically the moment Feature A's enum change ships — no data migration needed for those specific rows. Just sanity-check after deploying that `GET /api/stories/me` returns them correctly for their respective owners.
+No migration needed for the rows already sitting at `REJECTED`/`ARCHIVED` — once `Story`/`ModerationQueueItem` share `StoryStatus`, they'll read correctly on both sides with no data changes.
