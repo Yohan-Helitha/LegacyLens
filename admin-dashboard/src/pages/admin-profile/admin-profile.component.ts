@@ -1,6 +1,6 @@
 import { Component, signal, inject, OnInit } from '@angular/core';
 import { AuditService } from '../../app/core/services/audit.service';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../app/core/services/auth.service';
@@ -49,7 +49,7 @@ interface AuditLogEntry {
 @Component({
   selector: 'app-admin-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, SidebarComponent, HeaderComponent],
+  imports: [CommonModule, DatePipe, FormsModule, RouterModule, SidebarComponent, HeaderComponent],
   template: `
     <div class="flex h-screen w-full bg-[#f8faf9] text-[#191c1c] font-sans overflow-hidden selection:bg-[#fe893e]/20 selection:text-[#9b4600]">
       
@@ -111,9 +111,7 @@ interface AuditLogEntry {
                       <p class="text-[11px] text-[#6e7978]">Department of National Archives & Cultural Sovereign Cloud</p>
                     </div>
                   </div>
-                  <span class="text-[10px] font-mono font-semibold px-2 py-1 bg-[#f2f4f7] rounded text-[#3e4948]">
-                    LK-GOV-9042-AUTH-SHA256
-                  </span>
+                  
                 </div>
 
                 <!-- Avatar & Identity Summary -->
@@ -137,47 +135,62 @@ interface AuditLogEntry {
                   </div>
                 </div>
 
-                <!-- Admin Details Table -->
                 <div class="overflow-hidden rounded-xl border border-[#dde3eb] flex-1">
                   <table class="w-full text-left text-xs">
                     <tbody class="divide-y divide-[#dde3eb] bg-white">
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider w-1/3 bg-[#f8faf9]">Admin ID</th>
-                        <td class="px-4 py-3 text-[#191c1c] font-mono">{{ authService.currentUser()?.id  }}</td>
+                        <td class="px-4 py-3 text-[#191c1c] font-mono">{{ authService.currentUser()?.id }}</td>
                       </tr>
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">Full Name</th>
-                        <td class="px-4 py-3 text-[#191c1c] font-semibold">{{ authService.currentUser()?.fullName  }}</td>
+                        <td class="px-4 py-3 text-[#191c1c] font-semibold">{{ authService.currentUser()?.fullName }}</td>
                       </tr>
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">Phone Number</th>
-                        <td class="px-4 py-3 text-[#191c1c] font-mono">{{ authService.currentUser()?.phoneNumber  }} <span class="ml-2 text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Verified</span></td>
+                        <td class="px-4 py-3 text-[#191c1c] font-mono">
+                          {{ authService.currentUser()?.phoneNumber }}
+                          @if (authService.currentUser()?.phoneVerified) {
+                            <span class="ml-2 text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Verified</span>
+                          } @else {
+                            <span class="ml-2 text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">Unverified</span>
+                          }
+                        </td>
                       </tr>
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">NIC Number</th>
-                        <td class="px-4 py-3 text-[#191c1c] font-mono">{{ authService.currentUser()?.nicNumber  }}</td>
+                        <td class="px-4 py-3 text-[#191c1c] font-mono">
+                          {{ authService.currentUser()?.nicNumber || '—' }}
+                        </td>
                       </tr>
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">City</th>
-                        <td class="px-4 py-3 text-[#191c1c]">Gampaha <span class="text-[10px] text-[#6e7978] ml-1">(Western)</span></td>
+                        <td class="px-4 py-3 text-[#191c1c]">
+                          {{ authService.currentUser()?.city?.name || '—' }}
+                          @if (authService.currentUser()?.city?.region) {
+                            <span class="text-[10px] text-[#6e7978] ml-1">({{ authService.currentUser()?.city?.region }})</span>
+                          }
+                        </td>
                       </tr>
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">Date of Birth</th>
-                        <td class="px-4 py-3 text-[#191c1c]">2001-04-23</td>
+                        <td class="px-4 py-3 text-[#191c1c]">{{ authService.currentUser()?.dateOfBirth || '—' }}</td>
                       </tr>
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">Admin Role Status</th>
-                        <td class="px-4 py-3 text-[#191c1c] font-bold">ACTIVE</td>
+                        <td class="px-4 py-3 text-[#191c1c] font-bold">{{ authService.currentUser()?.accountStatus || 'ACTIVE' }}</td>
                       </tr>
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">2FA Status</th>
-                        <td class="px-4 py-3 text-[#191c1c]">Disabled <span class="text-[10px] text-[#6e7978] ml-2">Failed PINs: 0</span></td>
+                        <td class="px-4 py-3 text-[#191c1c]">
+                          {{ authService.currentUser()?.fingerprintEnabled ? 'Enabled' : 'Disabled' }}
+                        </td>
                       </tr>
                       <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">Account Timestamps</th>
                         <td class="px-4 py-3 text-[#6e7978] text-[10px] font-mono space-y-1">
-                          <div>Created: Aug 22, 2026, 1:13:56 PM</div>
-                          <div>Updated: Aug 22, 2026, 1:14:12 PM</div>
+                          <div>Created: {{ authService.currentUser()?.createdAt ? (authService.currentUser()!.createdAt! | date:'medium') : '—' }}</div>
+                          <div>Updated: {{ authService.currentUser()?.updatedAt ? (authService.currentUser()!.updatedAt! | date:'medium') : '—' }}</div>
                         </td>
                       </tr>
                     </tbody>
@@ -241,11 +254,13 @@ export class AdminProfileComponent implements OnInit {
   auditService = inject(AuditService);
   
   ngOnInit() {
+    // Fetch full profile from /api/users/me to populate NIC, city, DOB, timestamps etc.
+    this.authService.fetchMyProfile().subscribe({
+      error: (err) => console.warn('[AdminProfile] Could not enrich profile from /users/me:', err)
+    });
+
     this.auditService.getAuditLogs().subscribe(logs => {
-      // Filter for actions performed by the current user
-      const currentUserId = this.authService.currentUser()?.id;
       const myLogs = logs.filter(l => l.adminName === this.authService.currentUser()?.fullName || l.adminName === 'Admin');
-      
       const mapped = myLogs.slice(0, 5).map(l => ({
         id: l.refCode || l.id,
         title: l.actionTaken,
