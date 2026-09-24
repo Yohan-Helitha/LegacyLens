@@ -4,12 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
   Avatar,
-  BottomNavBar,
+  ConfirmDialog,
   RoleUpgradeCard,
   SettingsListRow,
   StatCard,
 } from '../../components/common';
-import type { NavTab } from '../../components/common';
 import { profileApi } from '../../services/api/profileApi';
 import { useAuthStore } from '../../store/authStore';
 import { UserProfile } from '../../types/profile';
@@ -33,7 +32,10 @@ interface ProfileScreenProps {
   onOpenPrivacyData?: () => void;
   onOpenSettings?: () => void;
   onLogout?: () => void;
-  onTabPress?: (tab: NavTab) => void;
+  /** "Become a Freelancer" card CTA — opens the creator application form. */
+  onBecomeFreelancer?: () => void;
+  /** "Become a Storyteller" card CTA — called once the user confirms the popup prompt. */
+  onBecomeStoryteller?: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -59,11 +61,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onOpenPrivacyData,
   onOpenSettings,
   onLogout,
-  onTabPress,
+  onBecomeFreelancer,
+  onBecomeStoryteller,
 }) => {
   const cachedUser = useAuthStore((s) => s.user);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [storytellerConfirmVisible, setStorytellerConfirmVisible] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,6 +93,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     : null;
   const memberSince = profile?.createdAt ? formatMemberSince(profile.createdAt) : null;
   const completeness = profile ? profileCompleteness(profile) : 0;
+  const isStoryteller = (profile?.roles ?? cachedUser?.roles ?? []).includes('ELDER');
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -144,15 +149,28 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           <View style={styles.upgradeCards}>
             <RoleUpgradeCard
               icon={Mic}
-              title="Become a Storyteller"
-              description="Share your stories, dialects, and traditions with the community."
-              hint="No experience needed — record however feels comfortable."
+              title={isStoryteller ? 'Your Storyteller Dashboard' : 'Become a Storyteller'}
+              description={
+                isStoryteller
+                  ? "Record new stories and manage the ones you've already shared."
+                  : 'Share your stories, dialects, and traditions with the community.'
+              }
+              hint={
+                isStoryteller
+                  ? 'Tap to open your dashboard.'
+                  : 'No experience needed — record however feels comfortable.'
+              }
+              ctaLabel={isStoryteller ? 'Open Dashboard' : 'Get Started'}
+              onPress={() =>
+                isStoryteller ? onBecomeStoryteller?.() : setStorytellerConfirmVisible(true)
+              }
             />
             <RoleUpgradeCard
               icon={Briefcase}
               title="Become a Freelancer"
               description="Get hired by elders to help record and preserve their stories."
               hint="Earn credits and build your reputation."
+              onPress={onBecomeFreelancer}
             />
           </View>
         </View>
@@ -167,7 +185,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </View>
       </ScrollView>
 
-      <BottomNavBar active="profile" onTabPress={onTabPress} />
+      <ConfirmDialog
+        visible={storytellerConfirmVisible}
+        title="Become a Storyteller?"
+        message="You'll answer a couple of quick questions about the content you'd like to share, then verify your number to unlock story recording."
+        confirmLabel="Continue"
+        cancelLabel="Not now"
+        onCancel={() => setStorytellerConfirmVisible(false)}
+        onConfirm={() => {
+          setStorytellerConfirmVisible(false);
+          onBecomeStoryteller?.();
+        }}
+      />
     </SafeAreaView>
   );
 };

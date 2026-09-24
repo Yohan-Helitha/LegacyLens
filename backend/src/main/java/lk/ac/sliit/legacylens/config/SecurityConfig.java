@@ -31,25 +31,43 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(AbstractHttpConfigurer::disable)
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // Public endpoints — no token required. Cities must be public
-                // too: the signup form needs the list before the user has an
-                // account or a token.
-                .requestMatchers(
-    "/api/auth/**",
-    "/api/cities/**",
-    "/api/learning/**"
-).permitAll()
-                // Everything else requires authentication
-                .anyRequest().authenticated()
-            )
-            // Without this, JwtAuthenticationFilter is never invoked and every
-            // Bearer-token request falls through as anonymous — see the class's
-            // own javadoc; it exists specifically to populate SecurityContext.
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Public endpoints — no token required. Cities must be public
+                        // too: the signup form needs the list before the user has an
+                        // account or a token. /uploads/** is served straight to
+                        // <Video>/<Audio> elements in the app, which can't attach an
+                        // Authorization header, so uploaded media is deliberately
+                        // unauthenticated (obscurity via random filenames only).
+                        // Swagger/OpenAPI docs are public so they're reachable without
+                        // a token while exploring the API.
+                        //
+                        // NOTE: admin, opportunities, creator-dashboard,
+                        // creator-applications, users, map and v1 endpoints are
+                        // deliberately NOT listed here — they stay behind
+                        // anyRequest().authenticated() below. There is no
+                        // @PreAuthorize/role check anywhere in this codebase yet, so
+                        // permitAll-ing any of those would leave them reachable by
+                        // anyone with no login at all. See the merge commit message
+                        // for the related admin-registration gap this also surfaced.
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/api/cities/**",
+                                "/uploads/**",
+                                "/api/home/**",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-resources/**",
+                                "/swagger-ui.html",
+                                "/webjars/**")
+                        .permitAll()
+                        // Everything else requires authentication
+                        .anyRequest().authenticated())
+                // Without this, JwtAuthenticationFilter is never invoked and every
+                // Bearer-token request falls through as anonymous — see the class's
+                // own javadoc; it exists specifically to populate SecurityContext.
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
