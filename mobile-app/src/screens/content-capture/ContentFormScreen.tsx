@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Trash2 } from 'lucide-react-native';
 import { BackButton, ConfirmDialog } from '../../components/common';
 import {
   MediaPreviewCard,
@@ -16,11 +17,17 @@ import { useStoryDraft } from '../../hooks/useStoryDraft';
 import { storiesApi } from '../../services/api/storiesApi';
 import { getMediaUrl } from '../../constants/api';
 import { ApiError } from '../../services/api/client';
-import { Typography, Spacing } from '../../theme';
+import { Typography, Spacing, Radii } from '../../theme';
 import type { StoryMediaType } from '../../types/story';
 
-/** Only these statuses can be edited — everything else opens read-only. */
-const isEditableStatus = (status: string) => status === 'DRAFT' || status === 'REJECTED';
+/**
+ * PENDING is editable too: the backend has no way to hold a story at DRAFT
+ * (see the limitation note below), so every "saved draft" sits at PENDING
+ * until moderated — locking it would make drafts impossible to finish.
+ * PUBLISHED / ARCHIVED open read-only.
+ */
+const isEditableStatus = (status: string) =>
+  status === 'DRAFT' || status === 'PENDING' || status === 'REJECTED';
 
 interface ContentFormScreenProps {
   mode: 'create' | 'edit';
@@ -29,6 +36,8 @@ interface ContentFormScreenProps {
   onBack?: () => void;
   /** Saved (draft or submitted) — navigate back to My Stories. */
   onSaved?: () => void;
+  /** Fired once an existing story has actually been deleted server-side. */
+  onDeleted?: () => void;
   /** "Re-record" tapped on an AUDIO/VIDEO draft — go back to the matching recording screen. */
   onRerecord?: (mediaType: StoryMediaType) => void;
 }
@@ -56,6 +65,7 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
   storyId,
   onBack,
   onSaved,
+  onDeleted,
   onRerecord,
 }) => {
   const { draft, loadExistingDraft, updateFields, setTranscript, setThumbnail, clearDraft } = useStoryDraft();
@@ -68,6 +78,8 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
   const [savingDraft, setSavingDraft] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [deleteVisible, setDeleteVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (mode !== 'edit' || !storyId) return;
@@ -217,6 +229,23 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
     }
   };
 
+  const handleDelete = async () => {
+    if (deleting || !draft.id) return;
+    setDeleting(true);
+    setSaveError(null);
+    try {
+      await storiesApi.remove(draft.id);
+      setDeleteVisible(false);
+      clearDraft();
+      onDeleted?.();
+    } catch (err) {
+      setSaveError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      setDeleteVisible(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <SafeAreaView style={s.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
@@ -283,7 +312,8 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
                 mediaType={draft.mediaType}
                 uri={draft.mediaUri}
                 durationMillis={draft.mediaDurationMillis}
-                onRerecord={editable ? () => onRerecord?.(draft.mediaType!) : undefined}
+                // The update endpoint can't replace an uploaded clip, so only unsaved recordings can be redone.
+                onRerecord={editable && !draft.id ? () => onRerecord?.(draft.mediaType!) : undefined}
               />
               {!!errors.media && <Text style={s.fieldErrorText}>{errors.media}</Text>}
             </>
@@ -307,7 +337,28 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
             onFinishPress={handleSubmitPress}
           />
         )}
+
+        {!!draft.id && (
+          <Pressable
+            onPress={() => !deleting && setDeleteVisible(true)}
+            style={({ pressed }) => [s.deleteBtn, pressed && s.pressed]}
+            accessibilityRole="button"
+          >
+            <Trash2 size={18} color="#ba1a1a" strokeWidth={2} />
+            <Text style={s.deleteBtnText}>Delete Content</Text>
+          </Pressable>
+        )}
       </ScrollView>
+
+      <ConfirmDialog
+        visible={deleteVisible}
+        title="Delete this story?"
+        message="This can't be undone — the recording and details will be permanently removed."
+        confirmLabel={deleting ? 'Deleting…' : 'Delete'}
+        cancelLabel="Cancel"
+        onCancel={() => !deleting && setDeleteVisible(false)}
+        onConfirm={handleDelete}
+      />
 
       <ConfirmDialog
         visible={discardVisible}
@@ -390,6 +441,20 @@ const s = StyleSheet.create({
     color: '#ba1a1a',
     textAlign: 'center',
   },
+
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 52,
+    borderRadius: Radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(186,26,26,0.35)',
+    backgroundColor: 'rgba(186,26,26,0.06)',
+  },
+  deleteBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: '#ba1a1a' },
+  pressed: { opacity: 0.85 },
 });
 
 export default ContentFormScreen;

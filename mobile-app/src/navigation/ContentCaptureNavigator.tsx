@@ -11,16 +11,14 @@ import { PostHireRequestScreen } from '../screens/content-capture/PostHireReques
 import { MyHireRequestsScreen } from '../screens/content-capture/MyHireRequestsScreen';
 import { ApplicantReviewScreen } from '../screens/content-capture/ApplicantReviewScreen';
 import { HireConversationScreen } from '../screens/content-capture/HireConversationScreen';
-import { StoryReview } from '../screens/content-capture/story_review';
 import { YourStories } from '../screens/content-capture/your_stories';
 import { TrustScoreDetail } from '../screens/content-capture/trust_score_detail';
 import { ReviewsRatingsScreen } from '../screens/content-capture/ReviewsRatingsScreen';
-import { storiesApi } from '../services/api/storiesApi';
 import { useStoryDraft } from '../hooks/useStoryDraft';
 import { useAuthStore } from '../store/authStore';
 import type { ElderDrawerItem } from '../components/module-specific/content-capture';
 import type { HireRequestItem } from '../hooks/useHireRequests';
-import type { StoryMediaType, StoryResponse, StoryStatus } from '../types/story';
+import type { StoryMediaType } from '../types/story';
 import type { RootStackParamList } from './RootNavigator';
 
 type Step =
@@ -31,7 +29,6 @@ type Step =
   | 'voiceTyping'
   | 'form'
   | 'stories'
-  | 'review'
   | 'trustScore'
   | 'reviews'
   | 'hirePost'
@@ -39,10 +36,7 @@ type Step =
   | 'hireApplicants'
   | 'hireConversation';
 
-/** Only these statuses can be edited — everything else opens as read-only review. */
-const isEditableStatus = (status: StoryStatus) => status === 'DRAFT' || status === 'REJECTED';
-
-/** Which step "back"/"deleted" from the review screen, or a cancelled create, should return to. */
+/** Which step "back"/"deleted" from the story form, or a cancelled create, should return to. */
 type ReturnOrigin = 'dashboard' | 'stories';
 
 interface ContentCaptureNavigatorProps {
@@ -64,8 +58,6 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
   navigation,
 }) => {
   const [step, setStep] = useState<Step>('dashboard');
-  const [reviewStory, setReviewStory] = useState<StoryResponse | null>(null);
-  const [reviewOrigin, setReviewOrigin] = useState<ReturnOrigin>('dashboard');
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [formStoryId, setFormStoryId] = useState<string | undefined>(undefined);
   const [formOrigin, setFormOrigin] = useState<ReturnOrigin>('dashboard');
@@ -96,28 +88,12 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
     return () => subscription.remove();
   }, [step]);
 
-  const openReview = (story: StoryResponse, origin: ReturnOrigin) => {
-    setReviewStory(story);
-    setReviewOrigin(origin);
-    setStep('review');
-  };
-
-  /** My Stories (Screen 6) only has story ids from the search endpoint's summary rows — fetch the full record before opening it. */
-  const openReviewById = async (storyId: string, origin: ReturnOrigin) => {
-    const story = await storiesApi.getById(storyId);
-    openReview(story, origin);
-  };
-
-  /** Routes to the shared edit form for DRAFT/REJECTED stories, or the read-only review screen for everything else. */
-  const openStory = (storyId: string, status: StoryStatus, origin: ReturnOrigin) => {
-    if (isEditableStatus(status)) {
-      setFormMode('edit');
-      setFormStoryId(storyId);
-      setFormOrigin(origin);
-      setStep('form');
-    } else {
-      openReviewById(storyId, origin);
-    }
+  /** Every existing story opens in the shared form — it locks itself read-only for PUBLISHED/ARCHIVED. */
+  const openStory = (storyId: string, origin: ReturnOrigin) => {
+    setFormMode('edit');
+    setFormStoryId(storyId);
+    setFormOrigin(origin);
+    setStep('form');
   };
 
   const beginNewStory = (origin: ReturnOrigin) => {
@@ -174,7 +150,7 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
         <ElderDashboard
           onRecordStory={() => beginNewStory('dashboard')}
           onViewAllStories={() => setStep('stories')}
-          onReviewStory={(story) => openStory(story.id, story.status, 'dashboard')}
+          onReviewStory={(story) => openStory(story.id, 'dashboard')}
           onOpenTrustScore={() => setStep('trustScore')}
           onDrawerNavigate={handleDrawerNavigate}
           onTabPress={handleTabPress}
@@ -184,7 +160,7 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
 
       {step === 'stories' && (
         <YourStories
-          onOpenStory={(storyId, status) => openStory(storyId, status, 'stories')}
+          onOpenStory={(storyId) => openStory(storyId, 'stories')}
           onNewStory={() => beginNewStory('stories')}
           onDrawerNavigate={handleDrawerNavigate}
           onTabPress={handleTabPress}
@@ -206,15 +182,6 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
           onDrawerNavigate={handleDrawerNavigate}
           onTabPress={handleTabPress}
           onLogout={handleLogout}
-        />
-      )}
-
-      {step === 'review' && reviewStory && (
-        <StoryReview
-          story={reviewStory}
-          onBack={() => setStep(reviewOrigin)}
-          onDeleted={() => setStep(reviewOrigin)}
-          onTabPress={handleTabPress}
         />
       )}
 
@@ -261,6 +228,7 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
           storyId={formStoryId}
           onBack={() => setStep(formOrigin)}
           onSaved={() => setStep('stories')}
+          onDeleted={() => setStep(formOrigin)}
           onRerecord={handleRerecord}
         />
       )}
