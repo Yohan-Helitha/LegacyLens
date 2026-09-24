@@ -4,12 +4,14 @@
  */
 
 /**
- * DRAFT exists on the backend (StoryStatus.java) but nothing produces it
- * yet. NEEDS_CHANGES doesn't exist on the backend at all — it's modeled
- * here so the My Stories status pill is complete/forward-compatible, but
- * the API will never actually return it today.
+ * Mirrors the backend's unified StoryStatus enum (stories/entity/StoryStatus.java) —
+ * the single status vocabulary shared with the admin moderation side
+ * (ModerationQueueItem maps the same column). No separate "approved" state:
+ * the admin's "Approve & Publish Live" action moves PENDING straight to
+ * PUBLISHED. DRAFT is elder-only — a draft is never submitted to admin, so
+ * it never becomes visible on the moderation side.
  */
-export type StoryStatus = 'DRAFT' | 'PENDING' | 'PUBLISHED' | 'NEEDS_CHANGES';
+export type StoryStatus = 'DRAFT' | 'PENDING' | 'PUBLISHED' | 'REJECTED' | 'ARCHIVED';
 export type StoryMethod = 'RECORDED' | 'UPLOADED' | 'WRITTEN';
 export type StoryMediaType = 'AUDIO' | 'VIDEO';
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Award, BookOpen, Check, Lock } from 'lucide-react-native';
+import { Award, BookOpen, Check, ChevronRight, Lock, Star } from 'lucide-react-native';
 import { Header, UserFooter } from '../../components/common';
 import type { UserTabKey } from '../../components/common';
 import {
@@ -29,6 +29,8 @@ const MILESTONES = [
 const STORIES_PER_LEVEL = 3;
 
 interface TrustScoreDetailProps {
+  /** Opens Reviews & Ratings — what people have said, kept separate from this activity-based level. */
+  onOpenReviews?: () => void;
   onTabPress?: (tab: UserTabKey) => void;
   onDrawerNavigate?: (item: ElderDrawerItem) => void;
   onLogout?: () => void;
@@ -41,6 +43,7 @@ interface TrustScoreDetailProps {
  * other storytellers appears anywhere here.
  */
 export const TrustScoreDetail: React.FC<TrustScoreDetailProps> = ({
+  onOpenReviews,
   onTabPress,
   onDrawerNavigate,
   onLogout,
@@ -145,6 +148,24 @@ export const TrustScoreDetail: React.FC<TrustScoreDetailProps> = ({
                 </Text>
               )}
             </View>
+
+            {!!onOpenReviews && (
+              <Pressable
+                onPress={onOpenReviews}
+                style={({ pressed }) => [s.reviewsLink, pressed && s.reviewsLinkPressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Reviews and ratings. See what people have said about you."
+              >
+                <View style={s.reviewsIcon}>
+                  <Star size={20} color={D.secondary} fill={D.secondaryContainer} strokeWidth={2} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.reviewsTitle}>Reviews & Ratings</Text>
+                  <Text style={s.reviewsSubtitle}>See what people have said about you</Text>
+                </View>
+                <ChevronRight size={20} color={D.onSurfaceVariant} strokeWidth={2} />
+              </Pressable>
+            )}
           </>
         )}
       </ScrollView>
@@ -164,6 +185,29 @@ export const TrustScoreDetail: React.FC<TrustScoreDetailProps> = ({
 };
 
 const s = StyleSheet.create({
+  reviewsLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    minHeight: 64,
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.outlineVariant,
+    padding: Spacing.md,
+  },
+  reviewsLinkPressed: { opacity: 0.85 },
+  reviewsIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radii.full,
+    backgroundColor: 'rgba(254,137,62,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewsTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: D.onSurface },
+  reviewsSubtitle: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+
   safeArea: { flex: 1, backgroundColor: D.surface },
 
   scroll: { flex: 1 },

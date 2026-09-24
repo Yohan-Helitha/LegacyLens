@@ -14,12 +14,12 @@ import {
 import type { ElderDrawerItem } from '../../components/module-specific/content-capture';
 import { useStorySearch } from '../../hooks/useStorySearch';
 import { useAuthStore } from '../../store/authStore';
-import type { StorySummary } from '../../types/story';
+import type { StoryStatus, StorySummary } from '../../types/story';
 import { Typography, Spacing, Radii } from '../../theme';
 
 interface YourStoriesProps {
   onTabPress?: (tab: UserTabKey) => void;
-  onOpenStory?: (storyId: string) => void;
+  onOpenStory?: (storyId: string, status: StoryStatus) => void;
   onNewStory?: () => void;
   onDrawerNavigate?: (item: ElderDrawerItem) => void;
   onLogout?: () => void;
@@ -110,13 +110,13 @@ export const YourStories: React.FC<YourStoriesProps> = ({
         )}
 
         {!!hero && (
-          <StoryHeroCard story={hero as StorySummary} onPress={() => onOpenStory?.(hero.id)} />
+          <StoryHeroCard story={hero as StorySummary} onPress={() => onOpenStory?.(hero.id, hero.status)} />
         )}
 
         {rest.length > 0 && (
           <View style={{ gap: Spacing.sm }}>
             {rest.map((story) => (
-              <StoryListCard key={story.id} story={story} onPress={() => onOpenStory?.(story.id)} />
+              <StoryListCard key={story.id} story={story} onPress={() => onOpenStory?.(story.id, story.status)} />
             ))}
           </View>
         )}

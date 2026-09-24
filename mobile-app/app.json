@@ -36,8 +36,7 @@
         "expo-image-picker",
         {
           "photosPermission": "Legacy Lens needs access to your photos so you can set a profile picture.",
-          "cameraPermission": "Legacy Lens needs camera access so you can take a profile photo.",
-          "microphonePermission": false
+          "cameraPermission": "Legacy Lens needs camera access so you can take a profile photo."
         }
       ],
       [
@@ -65,7 +64,9 @@
           "resizeMode": "contain",
           "backgroundColor": "#EDEFEE"
         }
-      ]
+      ],
+      "expo-audio",
+      "expo-asset"
     ],
     "extra": {
       "eas": {

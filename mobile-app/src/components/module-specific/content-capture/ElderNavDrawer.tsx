@@ -17,6 +17,8 @@ import {
   Handshake,
   BadgeCheck,
   UserSearch,
+  ClipboardList,
+  Star,
   Mic,
   Settings,
   LogOut,
@@ -34,7 +36,9 @@ export type ElderDrawerItem =
   | 'stories'
   | 'requests'
   | 'trust'
+  | 'reviews'
   | 'hire'
+  | 'myRequests'
   | 'voiceHelp'
   | 'settings';
 
@@ -61,7 +65,9 @@ const NAV_ITEMS: { key: ElderDrawerItem; label: string; icon: LucideIcon }[] = [
   { key: 'stories', label: 'My Stories', icon: BookOpen },
   { key: 'requests', label: 'Requests', icon: Handshake },
   { key: 'trust', label: 'Trust Score', icon: BadgeCheck },
+  { key: 'reviews', label: 'Reviews & Ratings', icon: Star },
   { key: 'hire', label: 'Hire a Creator', icon: UserSearch },
+  { key: 'myRequests', label: 'My Requests', icon: ClipboardList },
 ];
 
 const HELP_ITEMS: { key: ElderDrawerItem; label: string; icon: LucideIcon }[] = [

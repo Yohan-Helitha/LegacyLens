@@ -1,24 +1,25 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Check } from 'lucide-react-native';
+import { Archive, Check } from 'lucide-react-native';
 import { Typography } from '../../../theme';
 import type { StoryStatus } from '../../../types/story';
 import { ContentCaptureColors as D } from './tokens';
 
-const LABELS: Record<StoryStatus, string> = {
+export const STORY_STATUS_LABELS: Record<StoryStatus, string> = {
   DRAFT: 'Draft',
   PENDING: 'Pending Review',
   PUBLISHED: 'Published',
-  NEEDS_CHANGES: 'Needs changes',
+  REJECTED: 'Needs changes',
+  ARCHIVED: 'Archived',
 };
 
 interface StatusPillProps {
   status: StoryStatus;
 }
 
-/** The four story-status pills used throughout My Stories (Screen 6). */
+/** The five story-status pills used throughout My Stories (Screen 6). */
 export const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
-  const label = LABELS[status];
+  const label = STORY_STATUS_LABELS[status];
 
   if (status === 'DRAFT') {
     return (
@@ -37,10 +38,19 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
     );
   }
 
-  if (status === 'NEEDS_CHANGES') {
+  if (status === 'REJECTED') {
     return (
       <View style={[s.pill, s.needsChanges]}>
         <Text style={[s.text, s.needsChangesText]}>{label}</Text>
+      </View>
+    );
+  }
+
+  if (status === 'ARCHIVED') {
+    return (
+      <View style={[s.pill, s.archived]}>
+        <Archive size={12} color={D.onSurfaceVariant} strokeWidth={2.5} />
+        <Text style={[s.text, s.archivedText]}>{label}</Text>
       </View>
     );
   }
@@ -84,6 +94,13 @@ const s = StyleSheet.create({
 
   needsChanges: { backgroundColor: D.clay },
   needsChangesText: { color: '#ffffff' },
+
+  archived: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: D.outlineVariant,
+  },
+  archivedText: { color: D.onSurfaceVariant },
 });
 
 export default StatusPill;
