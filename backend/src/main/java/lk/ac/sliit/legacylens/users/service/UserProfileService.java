@@ -7,4 +7,7 @@ import java.util.UUID;
 public interface UserProfileService {
 
     UserProfileResponse getMyProfile(UUID userId);
+
+    /** Idempotent — safe to call again once already true. */
+    void markTutorialComplete(UUID userId);
 }

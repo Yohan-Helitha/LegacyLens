@@ -4,7 +4,6 @@ import jakarta.validation.Valid;
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
 import lk.ac.sliit.legacylens.moderation.dto.ModerationQueueItemResponse;
 import lk.ac.sliit.legacylens.moderation.dto.UpdateModerationStatusRequest;
-import lk.ac.sliit.legacylens.moderation.entity.ModerationStatus;
 import lk.ac.sliit.legacylens.moderation.service.ModerationQueueService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

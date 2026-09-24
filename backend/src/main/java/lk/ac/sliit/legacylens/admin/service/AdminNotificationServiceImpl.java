@@ -4,7 +4,7 @@ import lk.ac.sliit.legacylens.admin.dto.AdminNotificationResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.moderation.entity.ModerationQueueItem;
-import lk.ac.sliit.legacylens.moderation.entity.ModerationStatus;
+import lk.ac.sliit.legacylens.stories.entity.StoryStatus;
 import lk.ac.sliit.legacylens.moderation.repository.ModerationQueueRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,7 +41,7 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
         }
 
         // Fetch Moderation Items
-        List<ModerationQueueItem> modItems = moderationQueueRepository.findByStatus(ModerationStatus.PENDING);
+        List<ModerationQueueItem> modItems = moderationQueueRepository.findByStatus(StoryStatus.PENDING);
         for (ModerationQueueItem mod : modItems) {
             notifications.add(AdminNotificationResponse.builder()
                     .id(mod.getId().toString())
@@ -87,7 +87,7 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
             }
         }
 
-        List<ModerationQueueItem> mods = moderationQueueRepository.findByStatus(ModerationStatus.PENDING);
+        List<ModerationQueueItem> mods = moderationQueueRepository.findByStatus(StoryStatus.PENDING);
         for (ModerationQueueItem mod : mods) {
             if (!mod.isRead()) {
                 mod.setRead(true);

@@ -11,6 +11,10 @@ interface HeaderProps {
   showBack?: boolean;
   onBackPress?: () => void;
   onNavigate?: (tab: string) => void;
+  /** Screen-reader labels — English defaults, override on localized screens. */
+  menuLabel?: string;
+  backLabel?: string;
+  notificationLabel?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -19,7 +23,10 @@ export const Header: React.FC<HeaderProps> = ({
   onNotificationPress,
   showBack = false,
   onBackPress,
-  onNavigate
+  onNavigate,
+  menuLabel = 'Open menu',
+  backLabel = 'Go back',
+  notificationLabel = 'Notifications',
 }) => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
@@ -37,22 +44,22 @@ export const Header: React.FC<HeaderProps> = ({
         <View style={styles.container}>
           <View style={styles.leftSection}>
             {showBack ? (
-              <TouchableOpacity onPress={onBackPress} style={styles.iconBtn}>
+              <TouchableOpacity onPress={onBackPress} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={backLabel}>
                 <MaterialIcons name="arrow-back" size={28} color={Colors.white} />
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity onPress={handleMenuPress} style={styles.iconBtn}>
+              <TouchableOpacity onPress={handleMenuPress} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={menuLabel}>
                 <MaterialIcons name="menu" size={28} color={Colors.white} />
               </TouchableOpacity>
             )}
           </View>
 
           <View style={styles.centerSection}>
-            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.title} accessibilityRole="header" numberOfLines={1}>{title}</Text>
           </View>
 
           <View style={styles.rightSection}>
-            <TouchableOpacity onPress={onNotificationPress} style={styles.iconBtn}>
+            <TouchableOpacity onPress={onNotificationPress} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={notificationLabel}>
               <MaterialIcons name="notifications-none" size={28} color={Colors.white} />
             </TouchableOpacity>
           </View>
