@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, Share } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
+import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Colors } from '../../theme';
 import { styles } from './VideoCard.styles';
 
@@ -23,27 +23,26 @@ export const FeedCardActions = ({ initialLikes, initialComments, onLikePress, on
   const saveTranslateY = useRef(new Animated.Value(0)).current;
   const shareScale = useRef(new Animated.Value(1)).current;
 
+  const likePlayer = useAudioPlayer(require('../../../assets/sounds/heart.mp3'));
+  const savePlayer = useAudioPlayer({ uri: 'https://www.soundjay.com/buttons/sounds/button-30.mp3' });
+  const sharePlayer = useAudioPlayer({ uri: 'https://www.soundjay.com/buttons/sounds/button-10.mp3' });
+
   const playSound = async (type: 'like' | 'save' | 'share') => {
     try {
-      let source: any;
+      await setAudioModeAsync({ playsInSilentModeIOS: true });
       if (type === 'like') {
-        source = require('../../../assets/sounds/heart.mp3');
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        likePlayer.seekTo(0);
+        likePlayer.play();
       } else if (type === 'save') {
-        source = { uri: 'https://www.soundjay.com/buttons/sounds/button-30.mp3' };
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        savePlayer.seekTo(0);
+        savePlayer.play();
       } else if (type === 'share') {
-        source = { uri: 'https://www.soundjay.com/buttons/sounds/button-10.mp3' };
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        sharePlayer.seekTo(0);
+        sharePlayer.play();
       }
-
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync(source, { shouldPlay: true });
-      sound.setOnPlaybackStatusUpdate((status: any) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync();
-        }
-      });
     } catch (e) {
       console.log('Error playing sound:', e);
     }

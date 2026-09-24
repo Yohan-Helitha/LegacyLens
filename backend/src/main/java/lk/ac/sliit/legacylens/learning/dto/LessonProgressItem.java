@@ -6,6 +6,7 @@ public class LessonProgressItem {
     private int lessonOrder;
     private String title;
     private String description;
+    private String type;
     private boolean completed;
     private int score;
     private int xpEarned;
@@ -15,6 +16,7 @@ public class LessonProgressItem {
             int lessonOrder,
             String title,
             String description,
+            String type,
             boolean completed,
             int score,
             int xpEarned) {
@@ -23,6 +25,7 @@ public class LessonProgressItem {
         this.lessonOrder = lessonOrder;
         this.title = title;
         this.description = description;
+        this.type = type;
         this.completed = completed;
         this.score = score;
         this.xpEarned = xpEarned;
@@ -42,6 +45,10 @@ public class LessonProgressItem {
 
     public String getDescription() {
         return description;
+    }
+
+    public String getType() {
+        return type;
     }
 
     public boolean isCompleted() {

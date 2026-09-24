@@ -1,0 +1,58 @@
+<!-- Mobile Backdrop -->
+<div *ngIf="isOpen" 
+     class="fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity"
+     (click)="close()"></div>
+
+<!-- Sidebar -->
+<aside class="le-sidebar flex flex-col w-[260px] h-screen shrink-0 fixed lg:relative z-50 top-0 left-0 transition-transform duration-300 ease-in-out lg:translate-x-0"
+       [class.translate-x-0]="isOpen"
+       [class.-translate-x-full]="!isOpen">
+
+  <!-- Logo / Brand -->
+  <div class="le-sidebar__header flex items-center justify-between px-5 h-[72px] shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="le-sidebar__logo w-9 h-9 rounded-xl flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-white text-[20px]">school</span>
+      </div>
+      <div class="min-w-0">
+        <p class="le-sidebar__brand-name text-[15px] font-bold leading-tight tracking-tight">LegacyLens</p>
+        <p class="le-sidebar__brand-sub text-[10px] font-semibold tracking-widest uppercase">Learning Engine</p>
+      </div>
+    </div>
+    <!-- Close button (Mobile only) -->
+    <button (click)="close()" class="lg:hidden p-2 text-[var(--le-sb-text)] hover:bg-[var(--le-sb-hover)] rounded-lg">
+      <span class="material-symbols-outlined text-[20px]">close</span>
+    </button>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex-1 overflow-y-auto px-3 py-5 space-y-1">
+    <p class="le-sidebar__section-label mb-3">Main Menu</p>
+
+    <a routerLink="/learning/dashboard" routerLinkActive="active-link" class="le-sidebar__nav-item" (click)="close()">
+      <span class="material-symbols-outlined le-sidebar__nav-icon">dashboard</span>
+      <span class="le-sidebar__nav-label">Overview</span>
+    </a>
+
+    <a routerLink="/learning/tracks" routerLinkActive="active-link" class="le-sidebar__nav-item" (click)="close()">
+      <span class="material-symbols-outlined le-sidebar__nav-icon">auto_stories</span>
+      <span class="le-sidebar__nav-label">Manage Tracks</span>
+    </a>
+  </nav>
+
+
+
+  <!-- Tip card -->
+  <div class="le-sidebar__tip p-4 m-4 mt-0 rounded-2xl">
+    <div class="flex items-start gap-2.5">
+      <span class="material-symbols-outlined text-emerald-400 text-[18px] shrink-0 mt-0.5">lightbulb</span>
+      <div>
+        <p class="le-sidebar__tip-title text-[11px] font-bold mb-1">Quick Tip</p>
+        <p class="le-sidebar__tip-text text-[10.5px] leading-relaxed">
+          Lessons, quizzes and flashcards live inside each individual track.
+        </p>
+      </div>
+    </div>
+  </div>
+
+</aside>

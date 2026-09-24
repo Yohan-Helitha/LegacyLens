@@ -1,8 +1,11 @@
 package lk.ac.sliit.legacylens.learning.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import jakarta.persistence.*;
+import java.util.List;
+
 
 @Entity
 @Table(name = "lessons")
@@ -29,6 +32,16 @@ public class Lesson {
     @Column(nullable = false)
     private String type;
 
+    @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Flashcard> flashcards;
+
+    @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<QuizQuestion> quizQuestions;
+
+    @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<LessonProgress> lessonProgresses;
+
     public Lesson() {
     }
 
@@ -46,6 +59,11 @@ public class Lesson {
 
     public void setTrack(LearningTrack track) {
         this.track = track;
+    }
+
+    @JsonProperty("learningTrackId")
+    public Long getLearningTrackId() {
+        return track != null ? track.getId() : null;
     }
 
     public Integer getLessonOrder() {
@@ -78,5 +96,29 @@ public class Lesson {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public List<Flashcard> getFlashcards() {
+        return flashcards;
+    }
+
+    public void setFlashcards(List<Flashcard> flashcards) {
+        this.flashcards = flashcards;
+    }
+
+    public List<QuizQuestion> getQuizQuestions() {
+        return quizQuestions;
+    }
+
+    public void setQuizQuestions(List<QuizQuestion> quizQuestions) {
+        this.quizQuestions = quizQuestions;
+    }
+
+    public List<LessonProgress> getLessonProgresses() {
+        return lessonProgresses;
+    }
+
+    public void setLessonProgresses(List<LessonProgress> lessonProgresses) {
+        this.lessonProgresses = lessonProgresses;
     }
 }

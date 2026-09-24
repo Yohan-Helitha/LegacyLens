@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Audio, ResizeMode, Video } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { Mic, Pause, Play, RotateCcw, Trash2, Upload } from 'lucide-react-native';
 import { BackButton, ConfirmDialog } from '../../components/common';
 import { RoundIconButton } from '../../components/common';
@@ -66,40 +67,25 @@ export const StoryDetails: React.FC<StoryDetailsProps> = ({
   const [discardVisible, setDiscardVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const audioPlayer = useAudioPlayer(clip?.kind === 'audio' ? { uri: clip.uri } : null);
+  const videoPlayer = useVideoPlayer(clip?.kind === 'video' ? { uri: clip.uri } : null, player => {
+    player.loop = false;
+  });
 
-  useEffect(() => {
-    return () => {
-      soundRef.current?.unloadAsync().catch(() => {});
-    };
-  }, []);
-
-  const togglePlayback = async () => {
+  const togglePlayback = () => {
     if (!clip || clip.kind === 'video') return;
 
     if (isPlaying) {
-      await soundRef.current?.pauseAsync();
+      audioPlayer.pause();
       setIsPlaying(false);
-      return;
+    } else {
+      audioPlayer.play();
+      setIsPlaying(true);
     }
-
-    if (!soundRef.current) {
-      const { sound } = await Audio.Sound.createAsync({ uri: clip.uri });
-      soundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          setIsPlaying(false);
-          sound.setPositionAsync(0);
-        }
-      });
-    }
-    await soundRef.current.playAsync();
-    setIsPlaying(true);
   };
 
-  const handleRerecord = async () => {
-    await soundRef.current?.unloadAsync().catch(() => {});
-    soundRef.current = null;
+  const handleRerecord = () => {
+    audioPlayer.pause();
     setIsPlaying(false);
     onRerecord?.();
   };
@@ -168,12 +154,11 @@ export const StoryDetails: React.FC<StoryDetailsProps> = ({
           {clip ? (
             clip.kind === 'video' ? (
               <View style={{ gap: Spacing.sm }}>
-                <Video
-                  source={{ uri: clip.uri }}
+                <VideoView
+                  player={videoPlayer}
                   style={s.videoPlayer}
-                  resizeMode={ResizeMode.CONTAIN}
-                  useNativeControls
-                  isLooping={false}
+                  contentFit="contain"
+                  nativeControls={true}
                 />
                 <View style={s.clipMetaRow}>
                   <Text style={s.clipMeta}>{formatDuration(clip.durationMillis)}</Text>

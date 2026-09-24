@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Share, Animated, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
-import { Audio } from 'expo-av';
+import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../theme';
 import { styles } from './WordOfTheDay.styles';
@@ -34,6 +34,10 @@ export const WordOfTheDay = () => {
     };
   }, []);
 
+  const likePlayer = useAudioPlayer(require('../../../assets/sounds/heart.mp3'));
+  const savePlayer = useAudioPlayer({ uri: 'https://www.soundjay.com/buttons/sounds/button-30.mp3' });
+  const sharePlayer = useAudioPlayer({ uri: 'https://www.soundjay.com/buttons/sounds/button-10.mp3' });
+
   if (!wordData) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', minHeight: 200 }]}>
@@ -46,25 +50,20 @@ export const WordOfTheDay = () => {
 
   const playSound = async (type: 'like' | 'save' | 'share') => {
     try {
-      let source: any;
+      await setAudioModeAsync({ playsInSilentModeIOS: true });
       if (type === 'like') {
-        source = require('../../../assets/sounds/heart.mp3');
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        likePlayer.seekTo(0);
+        likePlayer.play();
       } else if (type === 'save') {
-        source = { uri: 'https://www.soundjay.com/buttons/sounds/button-30.mp3' };
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        savePlayer.seekTo(0);
+        savePlayer.play();
       } else if (type === 'share') {
-        source = { uri: 'https://www.soundjay.com/buttons/sounds/button-10.mp3' };
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        sharePlayer.seekTo(0);
+        sharePlayer.play();
       }
-
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync(source, { shouldPlay: true });
-      sound.setOnPlaybackStatusUpdate((status: any) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync();
-        }
-      });
     } catch (e) {
       console.log('Error playing sound:', e);
     }

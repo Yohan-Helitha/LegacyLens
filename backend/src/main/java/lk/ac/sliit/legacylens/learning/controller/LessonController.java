@@ -44,4 +44,17 @@ public class LessonController {
                 lessonService.createLesson(trackId, lesson)
         );
     }
+
+    @PutMapping("/lessons/{id}")
+    public ResponseEntity<Lesson> updateLesson(
+            @PathVariable Long id,
+            @RequestBody Lesson lesson) {
+        return ResponseEntity.ok(lessonService.updateLesson(id, lesson));
+    }
+
+    @DeleteMapping("/lessons/{id}")
+    public ResponseEntity<Void> deleteLesson(@PathVariable Long id) {
+        lessonService.deleteLesson(id);
+        return ResponseEntity.noContent().build();
+    }
 }

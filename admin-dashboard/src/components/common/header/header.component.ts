@@ -51,11 +51,11 @@ import { LayoutService } from '../../../app/core/services/layout.service';
         <ng-content></ng-content>
 
         <!-- ── App Switcher: Gamified Learning Hub ── -->
-        <a href="/learning-hub" target="_blank" rel="noopener noreferrer" title="Open Gamified Learning Hub" class="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#fe893e] hover:bg-[#e87a35] text-white text-[11px] font-bold shadow-sm transition-all group cursor-pointer shrink-0">
+        <button (click)="openLearningHub()" title="Open Learning Engine" class="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#fe893e] hover:bg-[#e87a35] text-white text-[11px] font-bold shadow-sm transition-all group cursor-pointer shrink-0">
           <span class="material-symbols-outlined text-[17px]">school</span>
           <span class="hidden lg:block whitespace-nowrap">Learning Hub</span>
           <span class="material-symbols-outlined text-[13px] opacity-70 group-hover:opacity-100 transition-opacity hidden lg:block">open_in_new</span>
-        </a>
+        </button>
 
         <!-- Notification Bell Icon -->
         @if (showNotifications) {
@@ -112,6 +112,30 @@ export class HeaderComponent implements OnInit {
 
   toggleMobileSidebar() {
     this.layoutService.toggleMobileSidebar();
+  }
+
+  openLearningHub() {
+    // If the token is in sessionStorage (user didn't check "remember me"),
+    // temporarily copy it to localStorage so the new tab can read it,
+    // as some modern browsers do not reliably duplicate sessionStorage.
+    const token = sessionStorage.getItem('legacylens_admin_token');
+    const user = sessionStorage.getItem('legacylens_admin_user');
+
+    if (token && user) {
+      localStorage.setItem('legacylens_admin_token', token);
+      localStorage.setItem('legacylens_admin_user', user);
+
+      // Open the new tab
+      window.open('/learning/dashboard', '_blank');
+
+      // Clean up localStorage after a brief moment to maintain "session only" security
+      setTimeout(() => {
+        localStorage.removeItem('legacylens_admin_token');
+        localStorage.removeItem('legacylens_admin_user');
+      }, 2000);
+    } else {
+      window.open('/learning/dashboard', '_blank');
+    }
   }
 
   ngOnInit() {

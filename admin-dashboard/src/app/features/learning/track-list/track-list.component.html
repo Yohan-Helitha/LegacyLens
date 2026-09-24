@@ -1,35 +1,178 @@
-<div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Learning Tracks</h2>
-    <a routerLink="track/new" class="btn btn-primary">Add New Track</a>
-  </div>
+<div class="flex h-screen w-full overflow-hidden font-sans" style="background: var(--le-bg)">
+  <app-learning-sidebar [isOpen]="isSidebarOpen" (closeSidebar)="isSidebarOpen = false"></app-learning-sidebar>
 
-  <div class="table-responsive">
-    <table class="table table-hover table-bordered">
-      <thead class="table-light">
-        <tr>
-          <th>ID</th>
-          <th>Title</th>
-          <th>Region</th>
-          <th>Difficulty</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let track of tracks">
-          <td>{{ track.id }}</td>
-          <td>{{ track.title }}</td>
-          <td>{{ track.region || 'N/A' }}</td>
-          <td>{{ track.difficultyLevel }}</td>
-          <td>
-            <a [routerLink]="['track', track.id, 'lessons']" class="btn btn-sm btn-info me-2 text-white">Manage Lessons</a>
-            <a [routerLink]="['track', track.id, 'edit']" class="btn btn-sm btn-outline-primary">Edit</a>
-          </td>
-        </tr>
-        <tr *ngIf="tracks.length === 0">
-          <td colspan="5" class="text-center py-4 text-muted">No tracks found. Get started by creating one.</td>
-        </tr>
-      </tbody>
-    </table>
+  <!-- Main Area -->
+  <div class="flex-1 min-w-0 overflow-y-auto relative"
+    style="scrollbar-width: thin; scrollbar-color: var(--le-border) transparent">
+
+    <!-- Ambient background glows (visible in dark mode, subtle in light) -->
+    <div class="fixed top-[-200px] right-[-100px] w-[500px] h-[500px] pointer-events-none"
+      style="background: radial-gradient(circle, rgba(16,185,129,0.05) 0%, transparent 70%); z-index: 0"></div>
+    <div class="fixed bottom-[-100px] left-[150px] w-[400px] h-[400px] pointer-events-none"
+      style="background: radial-gradient(circle, rgba(139,92,246,0.04) 0%, transparent 70%); z-index: 0"></div>
+
+    <!-- Sticky Top Nav -->
+    <div class="le-nav-bar sticky top-0 z-50 flex items-center justify-between px-8 py-4">
+      <div class="flex items-center gap-2 text-[12px] font-semibold" style="color: var(--le-text-secondary)">
+        <button (click)="isSidebarOpen = true" class="lg:hidden p-1.5 -ml-1 rounded-xl hover:bg-[var(--le-surface-hover)] text-[var(--le-text-primary)] transition-colors focus:outline-none flex items-center justify-center" aria-label="Open Menu">
+          <span class="material-symbols-outlined text-[20px]">menu</span>
+        </button>
+        <span class="material-symbols-outlined text-[14px] hidden lg:inline">auto_stories</span>
+        <span class="hidden lg:inline">Learning Engine</span>
+        <span style="color: var(--le-text-muted)" class="hidden lg:inline">/</span>
+        <span style="color: var(--le-text-primary)">Manage Tracks</span>
+      </div>
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] font-bold"
+        style="background: var(--le-accent-soft); border: 1px solid var(--le-accent-border); color: var(--le-accent)">
+        <span class="material-symbols-outlined text-[13px]">schedule</span>
+        {{ currentDate | date:'EEE, MMM d · h:mm a' }}
+      </div>
+    </div>
+
+    <!-- Page Content -->
+    <div class="le-page relative z-10">
+
+      <!-- Page Header -->
+      <div class="flex justify-between items-end mb-8">
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-widest mb-2" style="color: var(--le-accent)">
+            Content Management
+          </p>
+          <h1 class="text-4xl font-black tracking-tight leading-none" style="color: var(--le-text-primary)">
+            Learning Tracks
+          </h1>
+          <p class="text-[13px] mt-2 font-medium" style="color: var(--le-text-secondary)">
+            Manage cultural knowledge courses for learners
+          </p>
+        </div>
+        <a routerLink="/learning/tracks/new" class="btn-add-primary">
+          <span class="material-symbols-outlined">add</span>New Track
+        </a>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="stats-row-item">
+          <div class="stat-icon" style="background: var(--le-accent-soft); color: var(--le-accent)">
+            <span class="material-symbols-outlined">layers</span>
+          </div>
+          <div>
+            <div class="stat-value">{{ tracks.length }}</div>
+            <div class="stat-label">Total Tracks</div>
+          </div>
+        </div>
+        <div class="stats-row-item">
+          <div class="stat-icon" style="background: rgba(34,197,94,0.1); color: #22c55e">
+            <span class="material-symbols-outlined">school</span>
+          </div>
+          <div>
+            <div class="stat-value">{{ getByDifficulty('BEGINNER') }}</div>
+            <div class="stat-label">Beginner</div>
+          </div>
+        </div>
+        <div class="stats-row-item">
+          <div class="stat-icon" style="background: rgba(239,68,68,0.1); color: #f87171">
+            <span class="material-symbols-outlined">local_fire_department</span>
+          </div>
+          <div>
+            <div class="stat-value">{{ getByDifficulty('ADVANCED') }}</div>
+            <div class="stat-label">Advanced</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div class="state-card" *ngIf="loading">
+        <div class="spinner"></div>
+        <p class="text-[13px] font-semibold" style="color: var(--le-text-secondary)">Loading tracks...</p>
+      </div>
+
+      <!-- Search & Filter -->
+      <div class="search-bar-wrapper mb-8" *ngIf="!loading && tracks.length > 0">
+        <div class="search-input-wrapper">
+          <span class="material-symbols-outlined search-icon">search</span>
+          <input type="text" [(ngModel)]="searchQuery" placeholder="Search by title or description…">
+        </div>
+        <div class="filter-select-wrapper">
+          <span class="material-symbols-outlined filter-icon">tune</span>
+          <select [(ngModel)]="selectedDifficulty">
+            <option value="">All Difficulties</option>
+            <option value="BEGINNER">Beginner</option>
+            <option value="INTERMEDIATE">Intermediate</option>
+            <option value="ADVANCED">Advanced</option>
+          </select>
+          <span class="material-symbols-outlined chevron-icon">expand_more</span>
+        </div>
+      </div>
+
+      <!-- Tracks Grid -->
+      <div class="tracks-grid" *ngIf="!loading && filteredTracks.length > 0">
+        <div class="track-card" *ngFor="let track of filteredTracks">
+          <div class="track-banner-wrapper">
+            <div class="track-banner"></div>
+            <span class="material-symbols-outlined track-banner-icon">school</span>
+          </div>
+          <div class="track-card-body">
+            <div class="flex justify-between items-start gap-2">
+              <h3 class="track-title">{{ track.title }}</h3>
+              <span class="difficulty-badge" [class]="(track.difficultyLevel || '').toLowerCase()">
+                {{ track.difficultyLevel }}
+              </span>
+            </div>
+            <p class="track-description">{{ track.description || 'No description provided.' }}</p>
+            <div class="track-meta">
+              <span class="meta-chip" *ngIf="track.region">
+                <span class="material-symbols-outlined text-[13px]">location_on</span>{{ track.region }}
+              </span>
+              <span class="meta-chip" *ngIf="track.occupation">
+                <span class="material-symbols-outlined text-[13px]">work</span>{{ track.occupation }}
+              </span>
+              <span class="meta-chip" *ngIf="!track.region && !track.occupation">
+                <span class="material-symbols-outlined text-[13px]">public</span>General
+              </span>
+              <span class="meta-chip" *ngIf="track.createdAt">
+                <span class="material-symbols-outlined text-[13px]">calendar_today</span>
+                {{ track.createdAt | date:'MMM d, yyyy' }}
+              </span>
+            </div>
+          </div>
+          <div class="track-card-footer">
+            <a [routerLink]="['/learning/tracks', track.id, 'lessons']" class="btn-lessons">
+              <span class="material-symbols-outlined text-[15px]">auto_stories</span>Manage Lessons
+            </a>
+            <a [routerLink]="['/learning/tracks', track.id, 'edit']" class="btn-icon edit" title="Edit">
+              <span class="material-symbols-outlined">edit</span>
+            </a>
+            <button class="btn-icon delete" (click)="deleteTrack(track.id)" title="Delete">
+              <span class="material-symbols-outlined">delete</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div class="state-card" *ngIf="!loading && tracks.length === 0">
+        <span class="material-symbols-outlined text-[48px]" style="color: var(--le-text-muted)">inbox</span>
+        <p class="font-bold text-lg" style="color: var(--le-text-primary)">No tracks yet</p>
+        <p class="text-[13px]" style="color: var(--le-text-secondary)">Create your first learning track to get started.
+        </p>
+        <a routerLink="/learning/tracks/new" class="btn-add-primary mt-2">
+          <span class="material-symbols-outlined">add</span>Create First Track
+        </a>
+      </div>
+
+      <!-- No Results -->
+      <div class="state-card" *ngIf="!loading && tracks.length > 0 && filteredTracks.length === 0">
+        <span class="material-symbols-outlined text-[48px]" style="color: var(--le-text-muted)">search_off</span>
+        <p class="font-bold text-lg" style="color: var(--le-text-primary)">No matches found</p>
+        <p class="text-[13px]" style="color: var(--le-text-secondary)">Try adjusting your search or filter.</p>
+        <button (click)="searchQuery = ''; selectedDifficulty = ''"
+          class="mt-3 px-6 py-2.5 rounded-xl font-bold text-[12px] transition-all hover:-translate-y-0.5"
+          style="background: var(--le-surface); border: 1px solid var(--le-border); color: var(--le-text-primary)">
+          Clear Filters
+        </button>
+      </div>
+
+    </div>
   </div>
 </div>

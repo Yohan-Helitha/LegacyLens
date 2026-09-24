@@ -35,13 +35,27 @@ public class FlashcardController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping("/flashcards")
+    @PostMapping("/lessons/{lessonId}/flashcards")
     public ResponseEntity<Flashcard> createFlashcard(
+            @PathVariable Long lessonId,
             @RequestBody Flashcard flashcard) {
 
         return ResponseEntity.ok(
-                flashcardService.createFlashcard(flashcard)
+                flashcardService.createFlashcard(lessonId, flashcard)
         );
+    }
+
+    @PutMapping("/flashcards/{id}")
+    public ResponseEntity<Flashcard> updateFlashcard(
+            @PathVariable Long id,
+            @RequestBody Flashcard flashcard) {
+        return ResponseEntity.ok(flashcardService.updateFlashcard(id, flashcard));
+    }
+
+    @DeleteMapping("/flashcards/{id}")
+    public ResponseEntity<Void> deleteFlashcard(@PathVariable Long id) {
+        flashcardService.deleteFlashcard(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/flashcards/{id}/evaluate-pronunciation")

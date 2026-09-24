@@ -123,6 +123,7 @@ public class LearningDashboardService {
                                     lesson.getLessonOrder(),
                                     lesson.getTitle(),
                                     lesson.getDescription(),
+                                    lesson.getType(),
                                     completed,
                                     score,
                                     xpEarned

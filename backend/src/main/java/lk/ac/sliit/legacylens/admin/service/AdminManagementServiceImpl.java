@@ -14,7 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -97,7 +97,7 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         }
         if (updates.containsKey("cityName") || updates.containsKey("cityRegion")) {
             String cityName = (String) updates.get("cityName");
-            String cityRegion = (String) updates.get("cityRegion");
+
             City city = null;
             if (cityName != null && !cityName.isBlank()) {
                 city = cityRepository.findAll().stream()

@@ -37,4 +37,17 @@ public class LearningTrackController {
                 learningTrackService.createTrack(learningTrack)
         );
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<LearningTrack> updateTrack(
+            @PathVariable Long id,
+            @RequestBody LearningTrack learningTrack) {
+        return ResponseEntity.ok(learningTrackService.updateTrack(id, learningTrack));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTrack(@PathVariable Long id) {
+        learningTrackService.deleteTrack(id);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -67,7 +67,7 @@ const BalanceCard: React.FC<BalanceCardProps> = ({ onHistoryPress, onWithdrawPre
     }}
   >
     {cardSize.width > 0 && cardSize.height > 0 && (
-      <Svg style={StyleSheet.absoluteFillObject} width={cardSize.width} height={cardSize.height}>
+      <Svg style={StyleSheet.absoluteFill as any} width={cardSize.width} height={cardSize.height}>
         <Defs>
           <LinearGradient id="balanceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
             <Stop offset="0%" stopColor={D.primaryContainer} />

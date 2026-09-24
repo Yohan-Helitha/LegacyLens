@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Audio } from 'expo-av';
+import { useAudioRecorder, AudioModule, RecordingPresets, setAudioModeAsync } from 'expo-audio';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { Pause, Play, Video as VideoIcon } from 'lucide-react-native';
 import { RoundIconButton, SegmentedControl } from '../../components/common';
@@ -46,19 +46,6 @@ function formatDuration(ms: number): string {
 
 const BAR_COUNT = 5;
 
-async function beginAudioRecording(): Promise<Audio.Recording | null> {
-  const perm = await Audio.requestPermissionsAsync();
-  if (!perm.granted) {
-    Alert.alert(
-      'Microphone access needed',
-      'Legacy Lens needs microphone access to record your story.'
-    );
-    return null;
-  }
-  await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-  const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-  return recording;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen — live audio or video capture, no transcription, just the clip
@@ -69,7 +56,7 @@ export const RecordCapture: React.FC<RecordCaptureProps> = ({ onClose, onFinish 
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
 
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const cameraRef = useRef<CameraView>(null);
   const recordingPromiseRef = useRef<Promise<{ uri: string } | undefined> | null>(null);
   const elapsedMsRef = useRef(0);
@@ -81,20 +68,30 @@ export const RecordCapture: React.FC<RecordCaptureProps> = ({ onClose, onFinish 
     Array.from({ length: BAR_COUNT }, () => new Animated.Value(0.3))
   ).current;
 
-  // Audio auto-starts as soon as the screen mounts, matching the mic press
-  // that already happened on the prompt screen. Video needs an explicit tap
-  // since the camera preview has to be shown first.
   useEffect(() => {
     let cancelled = false;
-    beginAudioRecording().then((recording) => {
-      if (cancelled || !recording) return;
-      recordingRef.current = recording;
-    });
+    const initAudio = async () => {
+      const perm = await AudioModule.requestRecordingPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          'Microphone access needed',
+          'Legacy Lens needs microphone access to record your story.'
+        );
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      if (cancelled) return;
+      await audioRecorder.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY);
+      audioRecorder.record();
+    };
+    initAudio();
     return () => {
       cancelled = true;
-      recordingRef.current?.stopAndUnloadAsync().catch(() => {});
-      recordingRef.current = null;
+      if (audioRecorder.isRecording) {
+        audioRecorder.stop().catch(() => {});
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Ask for camera + microphone access as soon as the Video tab is selected.
@@ -147,12 +144,10 @@ export const RecordCapture: React.FC<RecordCaptureProps> = ({ onClose, onFinish 
     if (nextMode === mode) return;
 
     if (mode === 'audio') {
-      const previous = recordingRef.current;
-      recordingRef.current = null;
       try {
-        await previous?.stopAndUnloadAsync();
+        if (audioRecorder.isRecording) await audioRecorder.stop();
       } catch {
-        // already stopped — nothing to clean up
+        // already stopped
       }
     } else if (isRecordingVideo && cameraRef.current) {
       cameraRef.current.stopRecording();
@@ -166,44 +161,44 @@ export const RecordCapture: React.FC<RecordCaptureProps> = ({ onClose, onFinish 
     setMode(nextMode);
 
     if (nextMode === 'audio') {
-      const fresh = await beginAudioRecording();
-      recordingRef.current = fresh;
+      const perm = await AudioModule.requestRecordingPermissionsAsync();
+      if (perm.granted) {
+        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        await audioRecorder.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY);
+        audioRecorder.record();
+      }
     }
   };
 
   // ── Audio controls ──────────────────────────────────────────────────────
   const handlePauseToggle = async () => {
-    const recording = recordingRef.current;
-    if (!recording) return;
     if (isPaused) {
-      await recording.startAsync();
+      audioRecorder.record();
       setIsPaused(false);
     } else {
-      await recording.pauseAsync();
+      audioRecorder.pause();
       setIsPaused(true);
     }
   };
 
   const handleStartOverAudio = async () => {
-    const previous = recordingRef.current;
-    recordingRef.current = null;
     resetTimer();
     setIsPaused(false);
     try {
-      await previous?.stopAndUnloadAsync();
-    } catch {
-      // already stopped — nothing to clean up
+      if (audioRecorder.isRecording) await audioRecorder.stop();
+    } catch {}
+    const perm = await AudioModule.requestRecordingPermissionsAsync();
+    if (perm.granted) {
+      await audioRecorder.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY);
+      audioRecorder.record();
     }
-    const fresh = await beginAudioRecording();
-    recordingRef.current = fresh;
   };
 
   const handleFinishAudio = async () => {
-    const recording = recordingRef.current;
-    if (!recording) return;
-    await recording.stopAndUnloadAsync();
-    const uri = recording.getURI();
-    recordingRef.current = null;
+    try {
+      if (audioRecorder.isRecording) await audioRecorder.stop();
+    } catch {}
+    const uri = audioRecorder.uri;
     if (uri) {
       onFinish?.({ uri, durationMillis: elapsedMs, kind: 'audio' });
     }

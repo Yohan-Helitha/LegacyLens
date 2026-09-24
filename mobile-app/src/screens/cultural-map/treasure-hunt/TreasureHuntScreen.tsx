@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 import { useTreasureHunt } from '../../../context/TreasureHuntContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -186,7 +186,7 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
       fetchBadges();
     }, [fetchBadges])
   );
-  
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsReady(true);
@@ -269,28 +269,16 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
   const introAnimY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const puzzleAnimY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const journeyAnimY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const soundRef = useRef<Audio.Sound | null>(null);
   const webviewRef = useRef<WebView>(null);
 
+  const unlockPlayer = useAudioPlayer(require('../../../../assets/sounds/inside-map/badge-unlocked.mp3'));
+  const musicPlayer = useAudioPlayer(require('../../../../assets/sounds/inside-map/treasure-hunt-music.mp3'));
+
   useEffect(() => {
-    const playMusic = async () => {
-      try {
-        const { sound } = await Audio.Sound.createAsync(
-          require('../../../../assets/sounds/inside-map/treasure-hunt-music.mp3'),
-          { shouldPlay: true, isLooping: true, volume: 0.45 }
-        );
-        soundRef.current = sound;
-      } catch (err) {
-        console.log('Failed to play treasure hunt music', err);
-      }
-    };
-    playMusic();
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
-    };
-  }, []);
+    musicPlayer.loop = true;
+    musicPlayer.volume = 0.45;
+    musicPlayer.play();
+  }, [musicPlayer]);
 
   useEffect(() => {
     Animated.spring(introAnimY, { toValue: showIntro ? 0 : SCREEN_HEIGHT, useNativeDriver: true, friction: 8, tension: 40 }).start();
@@ -298,17 +286,11 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
 
   useEffect(() => {
     if (showBadgeUnlock) {
-      const playUnlockSound = async () => {
+      const playUnlockSound = () => {
         try {
-          const { sound } = await Audio.Sound.createAsync(
-            require('../../../../assets/sounds/inside-map/badge-unlocked.mp3'),
-            { shouldPlay: true, volume: 1.0 }
-          );
-          sound.setOnPlaybackStatusUpdate((status: any) => {
-            if (status.didJustFinish) {
-              sound.unloadAsync();
-            }
-          });
+          unlockPlayer.volume = 1.0;
+          unlockPlayer.seekTo(0);
+          unlockPlayer.play();
         } catch (err) {
           console.log('Failed to play unlock sound', err);
         }
@@ -343,7 +325,7 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
     if (isAnswerRevealed) {
       const currentQuestion = activeStage?.questions?.[currentQuestionIndex];
       const choice = (currentQuestion?.choices || activeStage.choices)?.find((c: any) => c.id === selectedChoiceId);
-      
+
       if (choice?.isCorrect) {
         if (activeStage.questions && currentQuestionIndex + 1 < activeStage.questions.length) {
           setCurrentQuestionIndex(prev => prev + 1);
@@ -373,7 +355,7 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
           ref={webviewRef}
           source={{ html: buildTreasureMapHTML(MAPBOX_TOKEN, adventureStages.map(s => ({ ...s, imageUri: Image.resolveAssetSource(s.badgeImage).uri })), currentStageIndex) }}
           style={StyleSheet.absoluteFillObject}
-          onMessage={(event) => { try { const data = JSON.parse(event.nativeEvent.data); if (data.type === 'MARKER_PRESS') setShowObjective(true); } catch (e) {} }}
+          onMessage={(event) => { try { const data = JSON.parse(event.nativeEvent.data); if (data.type === 'MARKER_PRESS') setShowObjective(true); } catch (e) { } }}
         />
       ) : null}
 
@@ -386,8 +368,8 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
           <MaterialIcons name="stars" size={20} color={Colors.accent} />
           <Text style={styles.hudText}>{Math.min(currentStageIndex, adventureStages.length)} / {adventureStages.length}</Text>
         </View>
-        <TouchableOpacity 
-          style={styles.targetBtn} 
+        <TouchableOpacity
+          style={styles.targetBtn}
           onPress={() => {
             const stage = adventureStages[currentStageIndex];
             if (!stage) return;
@@ -401,8 +383,8 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
         >
           <MaterialIcons name="my-location" size={24} color={Colors.secondary} />
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.targetBtn} 
+        <TouchableOpacity
+          style={styles.targetBtn}
           onPress={() => {
             webviewRef.current?.injectJavaScript(`
               if (window.map) {
@@ -414,8 +396,8 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
         >
           <MaterialIcons name="public" size={24} color={Colors.secondary} />
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.targetBtn} 
+        <TouchableOpacity
+          style={styles.targetBtn}
           onPress={() => setShowJourney(true)}
         >
           <MaterialIcons name="format-list-bulleted" size={24} color={Colors.secondary} />
@@ -430,22 +412,22 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
             <Text style={styles.heroTagline}>ISLAND EXPEDITION</Text>
             <Text style={styles.heroTitle}>The Heritage Trail</Text>
             <Text style={styles.heroSubtitle}>Solve riddles to unearth cultural relics.</Text>
-            <TouchableOpacity 
-              style={[styles.startJourneyBtn, adventureStages.length === 0 && { opacity: 0.7 }]} 
+            <TouchableOpacity
+              style={[styles.startJourneyBtn, adventureStages.length === 0 && { opacity: 0.7 }]}
               disabled={adventureStages.length === 0}
               onPress={() => {
-              isGameActive.current = true;
-              
-              // Ensure we have the latest index based on fetched badges before starting
-              const nextUnfinishedIdx = adventureStages.findIndex(s => !unlockedBadges.includes(s.badgeId));
-              const indexToSet = nextUnfinishedIdx === -1 ? Math.max(adventureStages.length - 1, 0) : nextUnfinishedIdx;
-              setCurrentStageIndex(indexToSet);
+                isGameActive.current = true;
 
-              setShowIntro(false);
-              setTimeout(() => {
-                setShowQuestIntro(true);
-              }, 400);
-            }}>
+                // Ensure we have the latest index based on fetched badges before starting
+                const nextUnfinishedIdx = adventureStages.findIndex(s => !unlockedBadges.includes(s.badgeId));
+                const indexToSet = nextUnfinishedIdx === -1 ? Math.max(adventureStages.length - 1, 0) : nextUnfinishedIdx;
+                setCurrentStageIndex(indexToSet);
+
+                setShowIntro(false);
+                setTimeout(() => {
+                  setShowQuestIntro(true);
+                }, 400);
+              }}>
               <Text style={styles.startJourneyText}>
                 {adventureStages.length === 0 ? 'Loading Journey...' : 'Start Journey'}
               </Text>
@@ -463,22 +445,22 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
             {activeStage?.title} {activeStage?.questions && activeStage.questions.length > 1 ? `(${currentQuestionIndex + 1}/${activeStage.questions.length})` : ''}
           </Text>
           <Text style={styles.instructionPrompt}>{activeStage?.questions?.[currentQuestionIndex]?.riddle || activeStage?.riddle}</Text>
-          
+
           {activeStage?.questions?.[currentQuestionIndex]?.image && (
-            <Image 
-              source={{ uri: activeStage.questions[currentQuestionIndex].image }} 
+            <Image
+              source={{ uri: activeStage.questions[currentQuestionIndex].image }}
               style={{ width: '100%', height: 160, borderRadius: Radii.lg, marginBottom: Spacing.lg }}
-              resizeMode="cover" 
+              resizeMode="cover"
             />
           )}
 
           <View style={styles.choicesGrid}>
             {(activeStage?.questions?.[currentQuestionIndex]?.choices || activeStage?.choices)?.map((item: any) => {
               const isSelected = selectedChoiceId === item.id;
-              
+
               let cardStyle: any = [styles.choiceCard];
               let textColor: string = Colors.textMuted;
-              
+
               if (isAnswerRevealed) {
                 if (item.isCorrect) {
                   cardStyle.push({ borderColor: '#27AE60', backgroundColor: 'rgba(39, 174, 96, 0.05)' });
@@ -509,7 +491,7 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
           </View>
           <TouchableOpacity style={styles.analyzeButton} onPress={handleAnalyzeChoice}>
             <Text style={styles.analyzeButtonText}>
-              {isAnswerRevealed ? ((activeStage?.questions?.[currentQuestionIndex]?.choices || activeStage?.choices)?.find((c:any) => c.id === selectedChoiceId)?.isCorrect ? 'Next' : 'Try Again') : 'Submit'}
+              {isAnswerRevealed ? ((activeStage?.questions?.[currentQuestionIndex]?.choices || activeStage?.choices)?.find((c: any) => c.id === selectedChoiceId)?.isCorrect ? 'Next' : 'Try Again') : 'Submit'}
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -525,7 +507,7 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
           <ScrollView horizontal style={{ marginBottom: Spacing.xl }} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: Spacing.md, alignItems: 'center' }}>
             {adventureStages.slice(0, currentStageIndex).map((stage, idx, arr) => (
               <View key={stage.id} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={{ alignItems: 'center', width: 90 }}
                   onPress={() => {
                     setShowJourney(false);
@@ -559,16 +541,16 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
         <View style={styles.fullscreenOverlay}>
           <Text style={styles.badgeUnlockHeading}>✨ BADGE UNLOCKED ✨</Text>
           <Text style={styles.badgeUnlockSubheading}>Incredible work! You solved all riddles.</Text>
-          
+
           <Animated.View style={[styles.badgeGlowContainer, { transform: [{ scale: badgeGlowAnim }] }]}>
             <View style={styles.badgeGlowBg} />
             <Image source={activeStage?.badgeImage} style={styles.unlockedBadgeImage} resizeMode="contain" />
           </Animated.View>
-          
+
           <Text style={styles.badgeUnlockTitle}>{activeStage?.title}</Text>
           <Text style={styles.badgeUnlockLocation}>{activeStage?.location}</Text>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.continueQuestBtn}
             onPress={() => {
               setShowBadgeUnlock(false);
@@ -587,7 +569,7 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
             <Text style={styles.continueQuestText}>Continue Journey</Text>
             <MaterialIcons name="arrow-forward" size={20} color={Colors.white} />
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.continueQuestBtn, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: Colors.white, marginTop: Spacing.sm }]}
             onPress={() => {
               setShowBadgeUnlock(false);
@@ -603,16 +585,16 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
       <Modal visible={showQuestIntro} transparent animationType="fade">
         <View style={styles.fullscreenOverlayDark}>
           <Text style={styles.questIntroHeading}>NEXT QUEST</Text>
-          
+
           <View style={styles.lockedBadgeContainer}>
             <Image source={adventureStages[currentStageIndex]?.badgeImage} style={styles.lockedBadgeImage} resizeMode="contain" />
             <MaterialIcons name="lock" size={48} color="rgba(255,255,255,0.9)" style={{ position: 'absolute' }} />
           </View>
-          
+
           <Text style={styles.questIntroTitle}>{adventureStages[currentStageIndex]?.title}</Text>
           <Text style={styles.questIntroLocation}>{adventureStages[currentStageIndex]?.location}</Text>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.beginQuestBtn}
             onPress={() => {
               setShowQuestIntro(false);
@@ -628,7 +610,7 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
             <Text style={styles.beginQuestText}>Begin Quest</Text>
             <MaterialIcons name="arrow-forward" size={20} color={Colors.secondary} />
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.beginQuestBtn, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: Colors.white, marginTop: Spacing.sm }]}
             onPress={() => {
               setShowQuestIntro(false);

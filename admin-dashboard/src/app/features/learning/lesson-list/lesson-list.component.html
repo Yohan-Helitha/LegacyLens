@@ -1,40 +1,132 @@
-<div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Lessons for: <span class="text-primary">{{ track?.title || 'Loading...' }}</span></h2>
-    <div>
-      <a routerLink="/learning" class="btn btn-outline-secondary me-2">Back to Tracks</a>
-      <a [routerLink]="['new']" [queryParams]="{ type: 'FLASHCARDS' }" class="btn btn-info text-white me-2">+ Flashcards Lesson</a>
-      <a [routerLink]="['new']" [queryParams]="{ type: 'QUIZ' }" class="btn btn-success">+ Quiz Lesson</a>
-    </div>
-  </div>
+<div class="flex h-screen w-full overflow-hidden font-sans" style="background: var(--le-bg)">
+  <app-learning-sidebar></app-learning-sidebar>
 
-  <div class="table-responsive">
-    <table class="table table-hover table-bordered">
-      <thead class="table-light">
-        <tr>
-          <th>Order</th>
-          <th>Title</th>
-          <th>Type</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let lesson of lessons">
-          <td>{{ lesson.lessonOrder }}</td>
-          <td>{{ lesson.title }}</td>
-          <td>
-            <span class="badge" [ngClass]="lesson.type === 'FLASHCARDS' ? 'bg-info' : 'bg-success'">
-              {{ lesson.type }}
-            </span>
-          </td>
-          <td>
-            <a [routerLink]="[lesson.id, 'edit']" [queryParams]="{ type: lesson.type }" class="btn btn-sm btn-outline-primary">Manage Content</a>
-          </td>
-        </tr>
-        <tr *ngIf="lessons.length === 0">
-          <td colspan="4" class="text-center py-4 text-muted">No lessons found. Add flashcards or a quiz to get started.</td>
-        </tr>
-      </tbody>
-    </table>
+  <!-- Main Area -->
+  <div class="flex-1 min-w-0 overflow-y-auto relative"
+    style="scrollbar-width: thin; scrollbar-color: var(--le-border) transparent">
+
+    <!-- Ambient background glows -->
+    <div class="fixed top-[-200px] right-[-100px] w-[500px] h-[500px] pointer-events-none"
+      style="background: radial-gradient(circle, rgba(16,185,129,0.05) 0%, transparent 70%); z-index: 0"></div>
+    <div class="fixed bottom-[-100px] left-[150px] w-[400px] h-[400px] pointer-events-none"
+      style="background: radial-gradient(circle, rgba(139,92,246,0.04) 0%, transparent 70%); z-index: 0"></div>
+
+    <!-- Sticky Top Nav -->
+    <div class="le-nav-bar sticky top-0 z-50 flex items-center justify-between px-8 py-4">
+      <div class="flex items-center gap-2 text-[12px] font-semibold" style="color: var(--le-text-secondary)">
+        <a routerLink="/learning/tracks" class="hover:text-[var(--le-text-primary)] transition-colors">Learning
+          Tracks</a>
+        <span class="material-symbols-outlined text-[14px] text-[var(--le-text-muted)]">chevron_right</span>
+        <span class="truncate max-w-[200px]" style="color: var(--le-text-primary)">{{ track?.title || 'Loading...'
+          }}</span>
+        <span class="material-symbols-outlined text-[14px] text-[var(--le-text-muted)]">chevron_right</span>
+        <span style="color: var(--le-text-primary)">Lessons</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- Back button -->
+        <a routerLink="/learning/tracks"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all hover:bg-[var(--le-surface-hover)]"
+          style="border: 1px solid var(--le-border); color: var(--le-text-secondary)">
+          <span class="material-symbols-outlined text-[14px]">arrow_back</span>
+          Back to Tracks
+        </a>
+      </div>
+    </div>
+
+    <!-- Page Content -->
+    <div class="le-page relative z-10">
+
+      <!-- Page Header -->
+      <div class="flex flex-col md:flex-row md:justify-between md:items-end gap-6 mb-8">
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-widest mb-2 flex items-center gap-2"
+            style="color: var(--le-accent)">
+            <span class="material-symbols-outlined text-[14px]">auto_stories</span>
+            Track Contents
+          </p>
+          <h1 class="text-4xl font-black tracking-tight leading-none mb-3" style="color: var(--le-text-primary)">
+            {{ track?.title || 'Loading...' }}
+          </h1>
+          <p class="text-[13px] font-medium flex items-center gap-2" style="color: var(--le-text-secondary)">
+            <span class="material-symbols-outlined text-[16px]">format_list_numbered</span>
+            {{ lessons.length }} lesson{{ lessons.length !== 1 ? 's' : '' }} in this track
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <a [routerLink]="['new']" [queryParams]="{ type: 'FLASHCARDS' }"
+            class="btn-add flashcard flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-[13px] transition-all hover:-translate-y-0.5">
+            <span class="material-symbols-outlined text-[18px]">style</span>
+            Add Flashcards
+          </a>
+          <a [routerLink]="['new']" [queryParams]="{ type: 'QUIZ' }"
+            class="btn-add quiz flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-[13px] transition-all hover:-translate-y-0.5">
+            <span class="material-symbols-outlined text-[18px]">quiz</span>
+            Add Quiz
+          </a>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div class="state-card" *ngIf="loading">
+        <div class="spinner"></div>
+        <p class="text-[13px] font-semibold" style="color: var(--le-text-secondary)">Loading lessons...</p>
+      </div>
+
+      <!-- Lessons Grid -->
+      <div class="lessons-grid" *ngIf="!loading && lessons.length > 0">
+        <div class="lesson-card" *ngFor="let lesson of lessons; let i = index">
+          <div class="lesson-card-stripe" [class]="(lesson.type || '').toLowerCase()"></div>
+
+          <div class="lesson-card-body">
+            <div class="flex justify-between items-start gap-3 mb-3">
+              <div class="lesson-order-badge" [class]="(lesson.type || '').toLowerCase()">
+                Lesson {{ lesson.lessonOrder }}
+              </div>
+              <div class="lesson-type-badge" [class]="(lesson.type || '').toLowerCase()">
+                <span class="material-symbols-outlined text-[14px]">
+                  {{ lesson.type === 'FLASHCARDS' ? 'style' : 'quiz' }}
+                </span>
+                {{ lesson.type }}
+              </div>
+            </div>
+
+            <h3 class="lesson-title">{{ lesson.title }}</h3>
+            <p class="lesson-description">{{ lesson.description || 'No description provided.' }}</p>
+          </div>
+
+          <div class="lesson-card-footer">
+            <a [routerLink]="[lesson.id, 'edit']" [queryParams]="{ type: lesson.type }" class="btn-lessons">
+              <span class="material-symbols-outlined text-[15px]">edit_note</span>
+              Manage Content
+            </a>
+            <button class="btn-icon delete" (click)="deleteLesson(lesson.id)" title="Delete Lesson">
+              <span class="material-symbols-outlined">delete</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div class="state-card" *ngIf="!loading && lessons.length === 0">
+        <span class="material-symbols-outlined text-[48px]" style="color: var(--le-text-muted)">note_stack</span>
+        <p class="font-bold text-lg mt-2" style="color: var(--le-text-primary)">No lessons yet</p>
+        <p class="text-[13px] max-w-sm mx-auto" style="color: var(--le-text-secondary)">
+          This track is empty. Add flashcards to teach concepts or quizzes to test knowledge.
+        </p>
+        <div class="flex items-center justify-center gap-3 mt-4">
+          <a [routerLink]="['new']" [queryParams]="{ type: 'FLASHCARDS' }"
+            class="btn-add flashcard flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[13px] transition-all hover:-translate-y-0.5">
+            <span class="material-symbols-outlined text-[18px]">style</span>
+            Create Flashcards
+          </a>
+          <a [routerLink]="['new']" [queryParams]="{ type: 'QUIZ' }"
+            class="btn-add quiz flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[13px] transition-all hover:-translate-y-0.5">
+            <span class="material-symbols-outlined text-[18px]">quiz</span>
+            Create Quiz
+          </a>
+        </div>
+      </div>
+
+    </div>
   </div>
 </div>

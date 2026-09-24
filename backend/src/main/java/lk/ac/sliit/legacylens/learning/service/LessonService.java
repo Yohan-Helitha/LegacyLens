@@ -75,4 +75,28 @@ public class LessonService {
 
         return savedLesson;
     }
+
+    public Lesson updateLesson(Long id, Lesson updatedLesson) {
+        return lessonRepository.findById(id).map(existingLesson -> {
+            if (updatedLesson.getLessonOrder() != null && !existingLesson.getLessonOrder().equals(updatedLesson.getLessonOrder())) {
+                if (lessonRepository.existsByTrackIdAndLessonOrder(existingLesson.getTrack().getId(), updatedLesson.getLessonOrder())) {
+                    throw new IllegalArgumentException("A lesson with this order already exists for this track");
+                }
+                existingLesson.setLessonOrder(updatedLesson.getLessonOrder());
+            }
+            existingLesson.setTitle(updatedLesson.getTitle());
+            existingLesson.setDescription(updatedLesson.getDescription());
+            return lessonRepository.save(existingLesson);
+        }).orElseThrow(() -> new ResourceNotFoundException("Lesson not found"));
+    }
+
+    public void deleteLesson(Long id) {
+        Lesson lesson = lessonRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Lesson not found"));
+        LearningTrack track = lesson.getTrack();
+        lessonRepository.delete(lesson);
+        
+        int lessonCount = lessonRepository.findByTrackIdOrderByLessonOrderAsc(track.getId()).size();
+        track.setTotalLessons(lessonCount);
+        learningTrackRepository.save(track);
+    }
 }

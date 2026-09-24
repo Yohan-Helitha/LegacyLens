@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { LearningService, Lesson, Flashcard, QuizQuestion } from '../../../core/services/learning.service';
+import { LearningSidebarComponent } from '../components/learning-sidebar/learning-sidebar.component';
+
 
 @Component({
   selector: 'app-lesson-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, LearningSidebarComponent],
   templateUrl: './lesson-form.component.html',
   styleUrl: './lesson-form.component.scss'
 })
@@ -20,6 +22,7 @@ export class LessonFormComponent implements OnInit {
   lessonType: string = 'FLASHCARDS';
   
   isLessonSaved = false;
+  editingContentId?: number;
   
   flashcards: Flashcard[] = [];
   quizQuestions: QuizQuestion[] = [];
@@ -32,18 +35,31 @@ export class LessonFormComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    const tId = this.route.snapshot.paramMap.get('id');
-    if (tId) this.trackId = +tId;
+    const tId = this.route.snapshot.paramMap.get('trackId');
+    if (tId) {
+      this.trackId = +tId;
+    }
     
     this.route.queryParams.subscribe(params => {
       if (params['type']) this.lessonType = params['type'];
       this.initForms();
+      this.autoSetNextLessonOrder();
     });
 
     const lId = this.route.snapshot.paramMap.get('lessonId');
     if (lId) {
       this.lessonId = +lId;
       this.isLessonSaved = true;
+      this.learningService.getLessonsByTrack(this.trackId).subscribe(lessons => {
+        const existing = lessons.find(l => l.id === this.lessonId);
+        if (existing) {
+          this.lessonForm.patchValue({
+            title: existing.title,
+            description: existing.description,
+            lessonOrder: existing.lessonOrder
+          });
+        }
+      });
       this.loadContent();
     } else {
       this.initForms();
@@ -59,18 +75,32 @@ export class LessonFormComponent implements OnInit {
 
     if (this.lessonType === 'FLASHCARDS') {
       this.contentForm = this.fb.group({
-        term: ['', Validators.required],
-        translation: ['', Validators.required],
+        word: ['', Validators.required],
+        meaning: ['', Validators.required],
         audioUrl: ['']
       });
     } else {
       this.contentForm = this.fb.group({
-        questionText: ['', Validators.required],
+        question: ['', Validators.required],
         optionA: ['', Validators.required],
         optionB: ['', Validators.required],
         optionC: ['', Validators.required],
         optionD: ['', Validators.required],
         correctOption: ['A', Validators.required]
+      });
+    }
+  }
+
+  autoSetNextLessonOrder() {
+    if (!this.lessonId && this.trackId) {
+      this.learningService.getLessonsByTrack(this.trackId).subscribe({
+        next: (lessons) => {
+          if (lessons && lessons.length > 0) {
+            const nextOrder = Math.max(...lessons.map(l => l.lessonOrder || 0)) + 1;
+            this.lessonForm.patchValue({ lessonOrder: nextOrder });
+          }
+        },
+        error: (err) => console.error('Could not fetch existing lessons for auto-ordering', err)
       });
     }
   }
@@ -93,17 +123,24 @@ export class LessonFormComponent implements OnInit {
       type: this.lessonType
     };
 
-    this.learningService.createLesson(lesson).subscribe({
-      next: (saved) => {
-        this.lessonId = saved.id;
-        this.isLessonSaved = true;
-      },
-      error: (err) => {
-        console.error('Error saving lesson:', err);
-        const errorMsg = err.error?.message || err.message || 'An error occurred';
-        alert('Failed to save lesson: ' + errorMsg + '\n\n(Tip: Make sure the Order Index is unique for this track!)');
-      }
-    });
+    if (this.isLessonSaved && this.lessonId) {
+      this.learningService.updateLesson(this.lessonId, lesson).subscribe({
+        next: () => alert('Lesson updated successfully!'),
+        error: (err) => alert('Failed to update lesson: ' + (err.error?.message || err.message))
+      });
+    } else {
+      this.learningService.createLesson(lesson).subscribe({
+        next: (saved) => {
+          this.lessonId = saved.id;
+          this.isLessonSaved = true;
+        },
+        error: (err) => {
+          console.error('Error saving lesson:', err);
+          const errorMsg = err.error?.message || err.message || 'An error occurred';
+          alert('Failed to save lesson: ' + errorMsg + '\n\n(Tip: Make sure the Order Index is unique for this track!)');
+        }
+      });
+    }
   }
 
   addContent() {
@@ -111,16 +148,74 @@ export class LessonFormComponent implements OnInit {
 
     if (this.lessonType === 'FLASHCARDS') {
       const fc: Flashcard = { ...this.contentForm.value, lessonId: this.lessonId };
-      this.learningService.createFlashcard(fc).subscribe(() => {
-        this.contentForm.reset();
-        this.loadContent();
-      });
+      if (this.editingContentId) {
+        this.learningService.updateFlashcard(this.editingContentId, fc).subscribe(() => {
+          this.cancelEdit();
+          this.loadContent();
+        });
+      } else {
+        this.learningService.createFlashcard(fc).subscribe(() => {
+          this.contentForm.reset();
+          this.loadContent();
+        });
+      }
     } else {
       const qq: QuizQuestion = { ...this.contentForm.value, lessonId: this.lessonId };
-      this.learningService.createQuizQuestion(qq).subscribe(() => {
-        this.contentForm.reset({ correctOption: 'A' });
-        this.loadContent();
-      });
+      if (this.editingContentId) {
+        this.learningService.updateQuizQuestion(this.editingContentId, qq).subscribe(() => {
+          this.cancelEdit();
+          this.loadContent();
+        });
+      } else {
+        this.learningService.createQuizQuestion(qq).subscribe(() => {
+          this.contentForm.reset({ correctOption: 'A' });
+          this.loadContent();
+        });
+      }
+    }
+  }
+
+  editFlashcard(fc: Flashcard) {
+    this.editingContentId = fc.id;
+    this.contentForm.patchValue({
+      word: fc.word,
+      meaning: fc.meaning,
+      audioUrl: fc.audioUrl
+    });
+  }
+
+  deleteFlashcard(id: number | undefined) {
+    if (!id) return;
+    if (confirm('Are you sure you want to delete this flashcard?')) {
+      this.learningService.deleteFlashcard(id).subscribe(() => this.loadContent());
+    }
+  }
+
+  editQuizQuestion(q: QuizQuestion) {
+    this.editingContentId = q.id;
+    this.contentForm.patchValue({
+      question: q.question,
+      optionA: q.optionA,
+      optionB: q.optionB,
+      optionC: q.optionC,
+      optionD: q.optionD,
+      correctOption: q.correctOption
+    });
+  }
+
+  deleteQuizQuestion(id: number | undefined) {
+    if (!id) return;
+    if (confirm('Are you sure you want to delete this quiz question?')) {
+      this.learningService.deleteQuizQuestion(id).subscribe(() => this.loadContent());
+    }
+  }
+
+  cancelEdit() {
+    this.editingContentId = undefined;
+    if (this.lessonType === 'FLASHCARDS') {
+      this.contentForm.reset();
+    } else {
+      this.contentForm.reset({ correctOption: 'A' });
     }
   }
 }

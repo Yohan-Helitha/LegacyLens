@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import { Colors } from '../../theme';
 import { styles } from './CulturalMapScreen.styles';
 
@@ -399,7 +399,7 @@ function SlidePanel({
 }
 
 const panelStyles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.2)', zIndex: 30 },
+  backdrop: { ...(StyleSheet.absoluteFill as object), backgroundColor: 'rgba(0,0,0,0.2)', zIndex: 30 },
   sheet: {
     position: 'absolute',
     bottom: 0,
@@ -455,7 +455,7 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
 
   const webViewRef = useRef<WebView>(null);
 
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const playerRef = useRef<AudioPlayer | null>(null);
   const soundIdRef = useRef(0);
 
   React.useEffect(() => {
@@ -500,34 +500,31 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
     }).start();
   }, [filterVisible]);
 
-  const stopSound = async () => {
+  const stopSound = () => {
     soundIdRef.current += 1;
-    if (soundRef.current) {
-      const sound = soundRef.current;
-      soundRef.current = null;
-      await sound.unloadAsync();
+    if (playerRef.current) {
+      playerRef.current.remove();
+      playerRef.current = null;
     }
   };
 
   const playOceanSound = async () => {
     const playId = ++soundIdRef.current;
     try {
-      if (soundRef.current) {
-        const sound = soundRef.current;
-        soundRef.current = null;
-        await sound.unloadAsync();
+      if (playerRef.current) {
+        playerRef.current.remove();
+        playerRef.current = null;
       }
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync(require('../../../assets/sounds/ocean.mp3'), {
-        shouldPlay: false,
-        isLooping: true,
-        volume: 1.0,
-      });
+      await setAudioModeAsync({ playsInSilentMode: true });
+      const player = createAudioPlayer(require('../../../assets/sounds/ocean.mp3'));
+      player.loop = true;
+      player.volume = 1.0;
+      
       if (playId === soundIdRef.current) {
-        soundRef.current = sound;
-        await sound.playAsync();
+        playerRef.current = player;
+        player.play();
       } else {
-        await sound.unloadAsync();
+        player.remove();
       }
     } catch (error) {
       console.warn('Error playing ocean sound', error);
@@ -537,10 +534,9 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
   const playLocationSound = async (id: string) => {
     const playId = ++soundIdRef.current;
     try {
-      if (soundRef.current) {
-        const sound = soundRef.current;
-        soundRef.current = null;
-        await sound.unloadAsync();
+      if (playerRef.current) {
+        playerRef.current.remove();
+        playerRef.current = null;
       }
 
       let soundFile;
@@ -550,17 +546,16 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
         soundFile = require('../../../assets/sounds/bells.mp3');
       }
 
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync(soundFile, {
-        shouldPlay: false,
-        isLooping: true,
-        volume: 1.0,
-      });
+      await setAudioModeAsync({ playsInSilentMode: true });
+      const player = createAudioPlayer(soundFile);
+      player.loop = true;
+      player.volume = 1.0;
+      
       if (playId === soundIdRef.current) {
-        soundRef.current = sound;
-        await sound.playAsync();
+        playerRef.current = player;
+        player.play();
       } else {
-        await sound.unloadAsync();
+        player.remove();
       }
     } catch (error) {
       console.warn('Error playing location sound', error);
@@ -613,7 +608,7 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
         // Fly camera to marker
         webViewRef.current?.injectJavaScript(`flyTo(${area.lng}, ${area.lat}, 11); true;`);
       }
-    } catch (_) {}
+    } catch (_) { }
   };
 
   const handleCloseSheet = () => {

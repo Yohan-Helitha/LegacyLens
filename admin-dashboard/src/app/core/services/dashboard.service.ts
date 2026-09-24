@@ -33,6 +33,7 @@ export interface ModerationItem {
 export interface UserVerification {
   id: string;
   fullName: string;
+  phoneNumber?: string;
   verificationStatus?: string;
   accountStatus?: string;
   roles?: string[];
@@ -204,6 +205,7 @@ export class DashboardService {
           return arr.map((u: any): UserVerification => ({
             id: u.id,
             fullName: u.fullName || 'Unknown User',
+            phoneNumber: u.phoneNumber,
             verificationStatus: u.verificationStatus,
             accountStatus: u.accountStatus,
             roles: u.roles || []

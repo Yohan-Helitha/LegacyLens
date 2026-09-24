@@ -1,0 +1,264 @@
+// track-list.component.scss
+// Theme tokens are global (styles.scss). This file only has page-specific styles.
+
+:host {
+  display: block;
+  background: var(--le-bg);
+  min-height: 100vh;
+  transition: background 0.3s ease;
+}
+
+.le-page {
+  padding: 2rem 2.5rem 4rem;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.le-nav-bar {
+  background: var(--le-bg);
+  border-bottom: 1px solid var(--le-border);
+  backdrop-filter: blur(16px);
+  opacity: 0.97;
+  transition: background 0.3s, border-color 0.3s;
+}
+
+// Glass card mixin
+%glass-card {
+  background: var(--le-surface);
+  border: 1px solid var(--le-border);
+  border-radius: 20px;
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s, transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  &:hover {
+    background: var(--le-surface-hover);
+    border-color: var(--le-border-hover);
+    box-shadow: 0 16px 50px rgba(0,0,0,0.1);
+  }
+}
+
+.glass-card { @extend %glass-card; }
+
+.stats-row-item {
+  @extend %glass-card;
+  padding: 1.25rem 1.5rem;
+  display: flex; align-items: center; gap: 1rem;
+  cursor: default;
+  &:hover { transform: translateY(-3px); }
+
+  .stat-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  &:hover .stat-icon { transform: scale(1.15) rotate(-8deg); }
+
+  .stat-value {
+    font-size: 1.75rem; font-weight: 800;
+    color: var(--le-text-primary);
+    letter-spacing: -0.04em; line-height: 1;
+    transition: color 0.3s;
+  }
+  .stat-label {
+    font-size: 10px; font-weight: 700;
+    color: var(--le-text-secondary);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    transition: color 0.3s;
+  }
+}
+
+// Search / Filter
+.search-bar-wrapper { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+.search-input-wrapper {
+  position: relative; flex: 1; min-width: 240px;
+  input {
+    width: 100%;
+    background: var(--le-surface);
+    border: 1px solid var(--le-border);
+    border-radius: 14px;
+    color: var(--le-text-primary);
+    font-size: 13px; font-weight: 500;
+    padding: 12px 16px 12px 44px;
+    outline: none;
+    transition: all 0.2s;
+    &::placeholder { color: var(--le-text-muted); }
+    &:focus {
+      border-color: var(--le-accent-border);
+      background: var(--le-accent-soft);
+      box-shadow: 0 0 0 3px var(--le-accent-soft);
+    }
+  }
+  .search-icon {
+    position: absolute; left: 14px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--le-text-muted); font-size: 18px;
+  }
+}
+
+.filter-select-wrapper {
+  position: relative; min-width: 210px;
+  select {
+    width: 100%;
+    background: var(--le-surface);
+    border: 1px solid var(--le-border);
+    border-radius: 14px;
+    color: var(--le-text-primary);
+    font-size: 13px; font-weight: 600;
+    padding: 12px 40px 12px 44px;
+    outline: none; appearance: none; cursor: pointer;
+    transition: all 0.2s;
+    option { background: var(--le-bg); color: var(--le-text-primary); }
+    &:focus {
+      border-color: var(--le-accent-border);
+      background: var(--le-accent-soft);
+    }
+  }
+  .filter-icon, .chevron-icon {
+    position: absolute; top: 50%;
+    transform: translateY(-50%);
+    color: var(--le-text-muted); font-size: 18px; pointer-events: none;
+  }
+  .filter-icon { left: 14px; }
+  .chevron-icon { right: 12px; }
+}
+
+// Track cards
+.tracks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.track-card {
+  @extend %glass-card;
+  overflow: hidden; display: flex; flex-direction: column; position: relative;
+
+  &:hover {
+    transform: translateY(-6px);
+    border-color: var(--le-accent-border);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.1), 0 0 0 1px var(--le-accent-border);
+    .track-banner { transform: scale(1.08); }
+    .track-banner-icon { opacity: 0.12; transform: scale(1.1) rotate(-5deg); }
+  }
+}
+
+.track-banner-wrapper { height: 110px; overflow: hidden; position: relative; }
+
+.track-banner {
+  height: 100%; width: 100%;
+  background: linear-gradient(135deg, var(--le-accent-soft) 0%, rgba(16,185,129,0.03) 100%);
+  border-bottom: 1px solid var(--le-border);
+  transition: transform 0.5s ease;
+}
+
+.track-banner-icon {
+  position: absolute; right: -10px; bottom: -10px;
+  font-size: 90px;
+  color: var(--le-accent);
+  opacity: 0.07;
+  transition: all 0.4s ease;
+  pointer-events: none; line-height: 1;
+}
+
+.track-card-body {
+  padding: 1.25rem; flex: 1;
+  display: flex; flex-direction: column; gap: 0.75rem;
+}
+
+.track-title {
+  font-size: 1rem; font-weight: 700;
+  color: var(--le-text-primary);
+  line-height: 1.3; letter-spacing: -0.01em;
+}
+
+.difficulty-badge {
+  font-size: 9px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 3px 8px; border-radius: 6px;
+  &.beginner    { background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
+  &.intermediate { background: rgba(251,191,36,0.1); color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
+  &.advanced    { background: rgba(239,68,68,0.1);   color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+}
+
+.track-description {
+  font-size: 12.5px; line-height: 1.6;
+  color: var(--le-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.track-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.meta-chip {
+  font-size: 10px; font-weight: 600;
+  color: var(--le-text-secondary);
+  background: var(--le-surface);
+  border: 1px solid var(--le-border);
+  padding: 3px 8px; border-radius: 7px;
+  display: inline-flex; align-items: center; gap: 4px;
+  transition: all 0.2s;
+  &:hover { background: var(--le-surface-hover); border-color: var(--le-border-hover); }
+}
+
+.track-card-footer {
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid var(--le-border);
+  display: flex; align-items: center; gap: 8px;
+}
+
+.btn-lessons {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 12px; border-radius: 12px;
+  font-size: 12.5px; font-weight: 700; text-decoration: none;
+  background: var(--le-accent-soft);
+  border: 1px solid var(--le-accent-border);
+  color: var(--le-accent);
+  transition: all 0.2s;
+  &:hover {
+    background: var(--le-accent); color: #fff; border-color: var(--le-accent);
+    box-shadow: 0 4px 20px rgba(16,185,129,0.25);
+    transform: translateY(-1px);
+  }
+}
+
+.btn-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--le-surface); border: 1px solid var(--le-border);
+  color: var(--le-text-secondary);
+  cursor: pointer; transition: all 0.2s; text-decoration: none;
+  .material-symbols-outlined { font-size: 16px; }
+  &.edit:hover   { background: rgba(59,130,246,0.1);  border-color: rgba(59,130,246,0.25); color: #60a5fa; transform: translateY(-1px); }
+  &.delete:hover { background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.22);  color: #f87171; transform: translateY(-1px); }
+}
+
+.state-card {
+  @extend %glass-card;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 4rem 2rem; text-align: center; gap: 1rem;
+}
+
+.btn-add-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 22px; border-radius: 14px;
+  font-size: 13.5px; font-weight: 700;
+  text-decoration: none; color: white;
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 4px 20px rgba(16,185,129,0.3);
+  transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+  &:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(16,185,129,0.4); }
+  .material-symbols-outlined { font-size: 20px; }
+}
+
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--le-border);
+  border-top-color: var(--le-accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

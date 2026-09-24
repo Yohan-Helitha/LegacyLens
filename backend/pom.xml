@@ -118,6 +118,25 @@
       <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
       <version>2.5.0</version>
     </dependency>
+
+    <!-- JAVE2 for audio conversion -->
+    <dependency>
+      <groupId>ws.schild</groupId>
+      <artifactId>jave-all-deps</artifactId>
+      <version>3.3.1</version>
+    </dependency>
+
+    <!-- Vosk for offline speech recognition -->
+    <dependency>
+      <groupId>com.alphacephei</groupId>
+      <artifactId>vosk</artifactId>
+      <version>0.3.32</version>
+    </dependency>
+    <dependency>
+      <groupId>net.java.dev.jna</groupId>
+      <artifactId>jna</artifactId>
+      <version>5.13.0</version>
+    </dependency>
   </dependencies>
 
   <build>

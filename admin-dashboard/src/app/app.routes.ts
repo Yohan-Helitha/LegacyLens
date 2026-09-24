@@ -132,6 +132,46 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
+    path: 'learning',
+    redirectTo: 'learning/dashboard',
+    pathMatch: 'full'
+  },
+  {
+    path: 'learning/dashboard',
+    loadComponent: () => import('./features/learning/dashboard/dashboard.component').then(m => m.DashboardComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning/tracks',
+    loadComponent: () => import('./features/learning/track-list/track-list.component').then(m => m.TrackListComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning/tracks/new',
+    loadComponent: () => import('./features/learning/track-form/track-form.component').then(m => m.TrackFormComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning/tracks/:id/edit',
+    loadComponent: () => import('./features/learning/track-form/track-form.component').then(m => m.TrackFormComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning/tracks/:trackId/lessons',
+    loadComponent: () => import('./features/learning/lesson-list/lesson-list.component').then(m => m.LessonListComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning/tracks/:trackId/lessons/new',
+    loadComponent: () => import('./features/learning/lesson-form/lesson-form.component').then(m => m.LessonFormComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning/tracks/:trackId/lessons/:lessonId/edit',
+    loadComponent: () => import('./features/learning/lesson-form/lesson-form.component').then(m => m.LessonFormComponent),
+    canActivate: [authGuard]
+  },
+  {
     path: 'platform-analytics',
     redirectTo: 'analytics'
   },

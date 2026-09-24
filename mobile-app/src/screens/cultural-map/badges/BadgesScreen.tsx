@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 import { Header } from '../../../components/common/Header';
 
@@ -54,7 +54,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
   const { unlockedBadges, allBadges: dbBadges, fetchBadges } = useTreasureHunt();
-  
+
   useFocusEffect(
     React.useCallback(() => {
       fetchBadges();
@@ -88,7 +88,7 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
       isUnlocked: false
     };
   });
-  
+
   const earnedBadges = unlockedBadges
     .map(id => ALL_BADGES.find(b => b.id === id))
     .filter((b): b is BadgeItem => b !== undefined)
@@ -106,7 +106,7 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
     imageSource: badge.imageSource,
     textureType: (index === arr.length - 1) ? 'start' as const : 'clay' as const,
   }));
-  
+
   const lockedBadges = ALL_BADGES.filter(b => !unlockedBadges.includes(b.id)).map(b => ({
     ...b,
     isUnlocked: false,
@@ -115,31 +115,13 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
 
   const [selectedBadge, setSelectedBadge] = useState<BadgeItem | null>(null);
   const modalSlideAnim = useRef(new Animated.Value(300)).current;
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const musicPlayer = useAudioPlayer(require('../../../../assets/sounds/inside-map/badges-music.mp3'));
 
   React.useEffect(() => {
-    const playMusic = async () => {
-      try {
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-        const { sound } = await Audio.Sound.createAsync(
-          require('../../../../assets/sounds/inside-map/badges-music.mp3'),
-          { shouldPlay: true, isLooping: true, volume: 1.0 }
-        );
-        soundRef.current = sound;
-      } catch (error) {
-        console.warn('Error playing badges music', error);
-      }
-    };
-
-    playMusic();
-
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.stopAsync();
-        soundRef.current.unloadAsync();
-      }
-    };
-  }, []);
+    musicPlayer.loop = true;
+    musicPlayer.volume = 1.0;
+    musicPlayer.play();
+  }, [musicPlayer]);
 
   const openBadgeModal = (badge: BadgeItem) => {
     if (!badge.isUnlocked) return;
@@ -161,16 +143,16 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
   };
 
   return (
-    <ImageBackground 
-      source={require('../../../../assets/map/badges-bg.png')} 
+    <ImageBackground
+      source={require('../../../../assets/map/badges-bg.png')}
       style={styles.safeArea}
       imageStyle={{ opacity: 0.1 }}
     >
       <StatusBar barStyle="light-content" backgroundColor="#0f5c5c" />
 
       {/* ── Floating Back Button ─────────────────────────────────────────────── */}
-      <TouchableOpacity 
-        style={styles.floatingBackBtn} 
+      <TouchableOpacity
+        style={styles.floatingBackBtn}
         activeOpacity={0.8}
         onPress={() => onNavigate && onNavigate('map')}
       >
@@ -217,7 +199,7 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
 
         {/* ── 2. Next Badge Insight Banner ─────────────────────────────── */}
         <View style={styles.insightSection}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.insightBox}
             activeOpacity={0.85}
             onPress={() => onNavigate && onNavigate('hunt')}
@@ -263,9 +245,9 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
                 activeOpacity={0.85}
               >
                 <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm }}>
-                  <Image 
-                    source={badge.imageSource} 
-                    style={{ width: 100, height: 100, resizeMode: 'contain' }} 
+                  <Image
+                    source={badge.imageSource}
+                    style={{ width: 100, height: 100, resizeMode: 'contain' }}
                   />
                 </View>
 
@@ -315,13 +297,13 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
                         styles.timelineIconBadge,
                       ]}
                     >
-                      <Image 
+                      <Image
                         source={item.imageSource}
-                        style={{ 
-                          width: 44, 
-                          height: 44, 
-                          resizeMode: 'contain', 
-                          opacity: item.textureType === 'start' ? 0.6 : 1.0 
+                        style={{
+                          width: 44,
+                          height: 44,
+                          resizeMode: 'contain',
+                          opacity: item.textureType === 'start' ? 0.6 : 1.0
                         }}
                       />
                     </View>
@@ -356,14 +338,14 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
                 ]}
               >
                 <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs }}>
-                  <Image 
-                    source={badge.imageSource} 
-                    style={{ 
-                      width: 80, 
-                      height: 80, 
+                  <Image
+                    source={badge.imageSource}
+                    style={{
+                      width: 80,
+                      height: 80,
                       resizeMode: 'contain',
-                      opacity: badge.textureType === 'rare' ? 1.0 : 0.4 
-                    }} 
+                      opacity: badge.textureType === 'rare' ? 1.0 : 0.4
+                    }}
                   />
                 </View>
 
@@ -411,9 +393,9 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
               <>
                 <View style={styles.modalHeaderCol}>
                   <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md }}>
-                    <Image 
-                      source={selectedBadge.imageSource} 
-                      style={{ width: 200, height: 200, resizeMode: 'contain' }} 
+                    <Image
+                      source={selectedBadge.imageSource}
+                      style={{ width: 200, height: 200, resizeMode: 'contain' }}
                     />
                   </View>
 

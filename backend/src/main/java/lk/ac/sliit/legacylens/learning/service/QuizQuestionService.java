@@ -56,6 +56,25 @@ public class QuizQuestionService {
         return quizQuestionRepository.save(question);
     }
 
+    public QuizQuestion updateQuestion(Long id, QuizQuestion updatedQuestion) {
+        return quizQuestionRepository.findById(id).map(existingQuestion -> {
+            existingQuestion.setQuestion(updatedQuestion.getQuestion());
+            existingQuestion.setOptionA(updatedQuestion.getOptionA());
+            existingQuestion.setOptionB(updatedQuestion.getOptionB());
+            existingQuestion.setOptionC(updatedQuestion.getOptionC());
+            existingQuestion.setOptionD(updatedQuestion.getOptionD());
+            existingQuestion.setCorrectOption(updatedQuestion.getCorrectOption());
+            return quizQuestionRepository.save(existingQuestion);
+        }).orElseThrow(() -> new ResourceNotFoundException("Quiz question not found"));
+    }
+
+    public void deleteQuestion(Long id) {
+        if (!quizQuestionRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Quiz question not found");
+        }
+        quizQuestionRepository.deleteById(id);
+    }
+
     public QuizResult evaluateAnswer(
             Long questionId,
             String selectedOption) {

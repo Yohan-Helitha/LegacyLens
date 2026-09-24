@@ -72,6 +72,19 @@ public class QuizQuestionController {
         );
     }
 
+    @PutMapping("/questions/{id}")
+    public ResponseEntity<QuizQuestion> updateQuestion(
+            @PathVariable Long id,
+            @RequestBody QuizQuestion question) {
+        return ResponseEntity.ok(quizQuestionService.updateQuestion(id, question));
+    }
+
+    @DeleteMapping("/questions/{id}")
+    public ResponseEntity<Void> deleteQuestion(@PathVariable Long id) {
+        quizQuestionService.deleteQuestion(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/questions/{id}/answer")
     public ResponseEntity<QuizResult> checkAnswer(
             @PathVariable Long id,

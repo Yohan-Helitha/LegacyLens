@@ -1,44 +1,59 @@
 // src/screens/learning/FlashcardScreen.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Circle, Polygon } from 'react-native-svg';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming, 
+  interpolate, 
+  withSpring,
+  FadeIn
+} from 'react-native-reanimated';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { apiGet, apiPostMultiPart } from '../../services/api/client';
+import { apiGet, apiPut, apiPostForm } from '../../services/api/client';
 import { useAudioPlayer, setAudioModeAsync, useAudioRecorder, AudioModule, RecordingPresets } from 'expo-audio';
+import { Mic, Square, RefreshCcw } from 'lucide-react-native';
 
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'Flashcard'>;
 
-/** Circular gradient play button with a triangle glyph drawn in SVG. */
 function PlayButton({ onPress }: { onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.playButton, pressed && styles.playButtonPressed]}>
-      <Svg width={22} height={22} viewBox="0 0 22 22">
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.playButton, pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] }]}>
+      <Svg width={24} height={24} viewBox="0 0 24 24">
         <Defs>
           <LinearGradient id="playGrad" x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor={Colors.accent} />
             <Stop offset="1" stopColor={Colors.secondary} />
           </LinearGradient>
         </Defs>
-        <Circle cx="11" cy="11" r="11" fill="url(#playGrad)" />
-        <Polygon points="8.5,6.5 16,11 8.5,15.5" fill={Colors.white} />
+        <Circle cx="12" cy="12" r="12" fill="url(#playGrad)" />
+        <Polygon points="9.5,7.5 17,12 9.5,16.5" fill={Colors.white} />
       </Svg>
-      <Text style={styles.playButtonText}>Play Pronunciation</Text>
+      <Text style={styles.playButtonText}>Pronunciation</Text>
     </Pressable>
   );
 }
 
 function RecordButton({ isRecording, onPress, disabled }: { isRecording: boolean; onPress: () => void; disabled?: boolean }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [styles.recordButton, isRecording && styles.recordButtonActive, pressed && styles.recordButtonPressed, disabled && styles.recordButtonDisabled]}>
+    <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [styles.recordButton, isRecording && styles.recordButtonActive, pressed && { opacity: 0.8 }, disabled && { opacity: 0.5 }]}>
+      {isRecording ? (
+        <Square size={16} color={Colors.white} fill={Colors.white} />
+      ) : (
+        <Mic size={16} color={Colors.text} />
+      )}
       <Text style={[styles.recordButtonText, isRecording && styles.recordButtonTextActive]}>
-        {isRecording ? '⏹ Stop Recording' : '🎙 Record Pronunciation'}
+        {isRecording ? 'Stop Recording' : 'Record'}
       </Text>
     </Pressable>
   );
 }
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function FlashcardScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -47,18 +62,17 @@ export default function FlashcardScreen() {
   const [cards, setCards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [index, setIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
+  
   const [evaluating, setEvaluating] = useState(false);
   const [result, setResult] = useState<{ passed: boolean; score: number; feedback: string } | null>(null);
 
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const flipValue = useSharedValue(0);
 
   useEffect(() => {
     const loadFlashcards = async () => {
       try {
-        const data = await apiGet<any[]>(
-          `/learning/lessons/${route.params.lessonId}/flashcards`
-        );
+        const data = await apiGet<any[]>(`/learning/lessons/${route.params.lessonId}/flashcards`);
         setCards(data);
       } catch (error: any) {
         console.log('FLASHCARD ERROR:', error?.message ?? error);
@@ -66,45 +80,27 @@ export default function FlashcardScreen() {
         setLoading(false);
       }
     };
-
     loadFlashcards();
   }, [route.params.lessonId]);
 
   const card = cards[index];
-
   const player = useAudioPlayer(card?.audioUrl ? { uri: card.audioUrl } : null);
 
-  // expo-audio can release the native player object before React runs our
-  // cleanup (e.g. on unmount / fast navigation). Calling pause() on it then
-  // throws "Unable to find the native shared object..." — harmless in that
-  // case, since there's nothing left to pause. Swallow it here.
   const safePause = () => {
-    try {
-      player.pause();
-    } catch (error: any) {
-      console.log('AUDIO PAUSE (already released):', error?.message ?? error);
-    }
+    try { player.pause(); } catch (e) {}
   };
 
   useEffect(() => {
-    setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true }).catch((err) =>
-      console.log('AUDIO MODE ERROR:', err?.message ?? err)
-    );
+    setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true }).catch(() => {});
   }, []);
 
   useEffect(() => {
     safePause();
-    if (card?.audioUrl) {
-      player.replace({ uri: card.audioUrl });
-    }
+    if (card?.audioUrl) player.replace({ uri: card.audioUrl });
   }, [card?.audioUrl]);
 
-  // Stop playback if the learner navigates away from this screen entirely
-  // (e.g. backs out mid-clip or jumps to the quiz).
   useEffect(() => {
-    return () => {
-      safePause();
-    };
+    return () => { safePause(); };
   }, []);
 
   const playPronunciation = async () => {
@@ -112,31 +108,27 @@ export default function FlashcardScreen() {
     try {
       await player.seekTo(0);
       await player.play();
-    } catch (error: any) {
-      console.log('AUDIO PLAY ERROR:', error?.message ?? error);
-    }
+    } catch (e) {}
   };
 
   const toggleRecording = async () => {
     try {
       if (audioRecorder.isRecording) {
         await audioRecorder.stop();
-        
         const uri = audioRecorder.uri;
-        if (uri) {
-          submitRecording(uri);
-        }
+        if (uri) submitRecording(uri);
       } else {
         const permission = await AudioModule.requestRecordingPermissionsAsync();
-        if (permission.status === 'granted') {
-          await audioRecorder.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY);
+        if (permission.granted) {
+          await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+          try { await audioRecorder.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY); } catch (e) {}
           audioRecorder.record();
         } else {
-          console.log('Recording permission not granted');
+          Alert.alert('Permission Denied', 'Please enable microphone access to record pronunciation.');
         }
       }
-    } catch (error) {
-      console.log('RECORDING ERROR:', error);
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'An unexpected error occurred.');
     }
   };
 
@@ -144,22 +136,12 @@ export default function FlashcardScreen() {
     if (!card?.id) return;
     setEvaluating(true);
     setResult(null);
-
     try {
       const formData = new FormData();
-      formData.append('audio', {
-        uri,
-        name: 'pronunciation.m4a',
-        type: 'audio/m4a',
-      } as any);
-
-      const res = await apiPostMultiPart<{ passed: boolean; score: number; feedback: string }>(
-        `/learning/flashcards/${card.id}/evaluate-pronunciation`,
-        formData
-      );
+      formData.append('audio', { uri, name: 'pronunciation.m4a', type: 'audio/m4a' } as any);
+      const res = await apiPostForm<{ passed: boolean; score: number; feedback: string }>(`/learning/flashcards/${card.id}/evaluate-pronunciation`, formData);
       setResult(res);
     } catch (error) {
-      console.log('EVALUATE ERROR:', error);
       setResult({ passed: false, score: 0, feedback: 'Failed to evaluate audio.' });
     } finally {
       setEvaluating(false);
@@ -167,21 +149,47 @@ export default function FlashcardScreen() {
   };
 
   const goNext = () => {
-    setFlipped(false);
-    setResult(null);
-    setIndex((prev) => Math.min(prev + 1, cards.length - 1));
+    flipValue.value = withTiming(0, { duration: 300 });
+    setTimeout(() => {
+      setResult(null);
+      setIndex((prev) => Math.min(prev + 1, cards.length - 1));
+    }, 150);
   };
 
   const goPrev = () => {
-    setFlipped(false);
-    setResult(null);
-    setIndex((prev) => Math.max(prev - 1, 0));
+    flipValue.value = withTiming(0, { duration: 300 });
+    setTimeout(() => {
+      setResult(null);
+      setIndex((prev) => Math.max(prev - 1, 0));
+    }, 150);
   };
+
+  const toggleFlip = () => {
+    flipValue.value = withSpring(flipValue.value === 0 ? 1 : 0, { damping: 15, stiffness: 100 });
+  };
+
+  const frontAnimatedStyle = useAnimatedStyle(() => {
+    const rotateY = interpolate(flipValue.value, [0, 1], [0, 180]);
+    return {
+      transform: [{ perspective: 1000 }, { rotateY: `${rotateY}deg` }],
+      zIndex: flipValue.value < 0.5 ? 1 : 0,
+      opacity: flipValue.value < 0.5 ? 1 : 0,
+    };
+  });
+
+  const backAnimatedStyle = useAnimatedStyle(() => {
+    const rotateY = interpolate(flipValue.value, [0, 1], [180, 360]);
+    return {
+      transform: [{ perspective: 1000 }, { rotateY: `${rotateY}deg` }],
+      zIndex: flipValue.value > 0.5 ? 1 : 0,
+      opacity: flipValue.value > 0.5 ? 1 : 0,
+    };
+  });
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <Text style={{ color: Colors.text }}>Loading flashcards...</Text>
+        <Text style={{ color: Colors.text, textAlign: 'center', marginTop: 100 }}>Loading flashcards...</Text>
       </View>
     );
   }
@@ -189,7 +197,7 @@ export default function FlashcardScreen() {
   if (!card) {
     return (
       <View style={styles.container}>
-        <Text style={{ color: Colors.text }}>No flashcards found for this lesson.</Text>
+        <Text style={{ color: Colors.text, textAlign: 'center', marginTop: 100 }}>No flashcards found.</Text>
       </View>
     );
   }
@@ -200,7 +208,7 @@ export default function FlashcardScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.header}>Boat Parts Vocabulary</Text>
+        <Text style={styles.header}>Vocabulary Training</Text>
         <Text style={styles.counter}>{index + 1} / {cards.length}</Text>
       </View>
 
@@ -217,47 +225,43 @@ export default function FlashcardScreen() {
         ))}
       </View>
 
-      <Pressable style={styles.card} onPress={() => setFlipped(!flipped)}>
-        <View style={styles.flipHint}>
-          <Text style={styles.flipHintText}>⟳</Text>
-        </View>
+      <View style={styles.cardContainer}>
+        {/* Front of Card */}
+        <AnimatedPressable style={[styles.card, styles.cardFront, frontAnimatedStyle]} onPress={toggleFlip}>
+          <View style={styles.flipHint}>
+            <RefreshCcw size={16} color={Colors.textMuted} />
+          </View>
+          
+          <Text style={styles.word}>{card.word}</Text>
+          {card.audioUrl ? (
+            <PlayButton onPress={playPronunciation} />
+          ) : (
+            <Text style={styles.hint}>No audio available</Text>
+          )}
+          
+          <RecordButton isRecording={audioRecorder.isRecording} onPress={toggleRecording} disabled={evaluating} />
+          
+          {evaluating && <Text style={styles.evaluatingText}>Evaluating pronunciation...</Text>}
+          
+          {result && !evaluating && (
+            <Animated.View entering={FadeIn.duration(400)} style={[styles.resultCard, result.passed ? styles.resultPass : styles.resultFail]}>
+              <Text style={styles.resultScore}>{result.score}/100 - {result.passed ? 'Excellent!' : 'Keep trying'}</Text>
+              <Text style={styles.resultFeedback}>{result.feedback}</Text>
+            </Animated.View>
+          )}
+        </AnimatedPressable>
 
-        {!flipped ? (
-          <>
-            <Text style={styles.word}>{card.word}</Text>
-            {card.audioUrl ? (
-              <PlayButton onPress={playPronunciation} />
-            ) : (
-              <Text style={styles.hint}>No audio for this word</Text>
-            )}
-            
-            <RecordButton 
-              isRecording={audioRecorder.isRecording} 
-              onPress={toggleRecording}
-              disabled={evaluating}
-            />
-            
-            {evaluating && (
-              <Text style={styles.evaluatingText}>Evaluating pronunciation...</Text>
-            )}
-            
-            {result && !evaluating && (
-              <View style={[styles.resultCard, result.passed ? styles.resultPass : styles.resultFail]}>
-                <Text style={styles.resultScore}>{result.score}/100 - {result.passed ? 'Pass' : 'Try Again'}</Text>
-                <Text style={styles.resultFeedback}>{result.feedback}</Text>
-              </View>
-            )}
-
-            <Text style={styles.tapHint}>Tap card to flip</Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.meaning}>{card.meaning}</Text>
-            {card.culturalNote ? <Text style={styles.note}>{card.culturalNote}</Text> : null}
-            {card.recordedBy ? <Text style={styles.recordedBy}>Recorded by: {card.recordedBy}</Text> : null}
-          </>
-        )}
-      </Pressable>
+        {/* Back of Card */}
+        <AnimatedPressable style={[styles.card, styles.cardBack, backAnimatedStyle]} onPress={toggleFlip}>
+          <View style={styles.flipHint}>
+            <RefreshCcw size={16} color={Colors.white} />
+          </View>
+          
+          <Text style={styles.meaning}>{card.meaning}</Text>
+          {card.culturalNote ? <Text style={styles.note}>{card.culturalNote}</Text> : null}
+          {card.recordedBy ? <Text style={styles.recordedBy}>Recorded by: {card.recordedBy}</Text> : null}
+        </AnimatedPressable>
+      </View>
 
       <View style={styles.navRow}>
         <Pressable
@@ -277,14 +281,17 @@ export default function FlashcardScreen() {
       </View>
 
       <Pressable
-        style={({ pressed }) => [styles.quizButton, pressed && styles.quizButtonPressed]}
-        onPress={() =>
-          navigation.navigate('Quiz', {
-            lessonId: route.params.lessonId,
-          })
-        }
+        style={({ pressed }) => [styles.quizButton, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
+        onPress={async () => {
+          try {
+            await apiPut(`/learning/progress/me/lessons/${route.params.lessonId}?completed=true&score=100&xpEarned=20`, {});
+            navigation.goBack();
+          } catch (error) {
+            navigation.goBack();
+          }
+        }}
       >
-        <Text style={styles.quizButtonText}>Take Quiz</Text>
+        <Text style={styles.quizButtonText}>Complete Lesson</Text>
       </Pressable>
     </View>
   );
@@ -293,117 +300,128 @@ export default function FlashcardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dominant, paddingTop: 50, paddingHorizontal: Spacing.md },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  header: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: Colors.text },
-  counter: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS + 1, color: Colors.textMuted },
+  header: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, color: Colors.text },
+  counter: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: Colors.textMuted },
 
-  progressRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.lg - 4 },
-  progressDot: { flex: 1, height: 4, borderRadius: Radii.full, backgroundColor: Colors.surface },
+  progressRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.lg },
+  progressDot: { flex: 1, height: 6, borderRadius: Radii.full, backgroundColor: Colors.surface },
   progressDotDone: { backgroundColor: Colors.secondary },
   progressDotActive: { backgroundColor: Colors.accent },
 
+  cardContainer: {
+    height: 420,
+    marginBottom: Spacing.xl,
+  },
   card: {
-    backgroundColor: Colors.white,
-    borderRadius: Radii.xl,
-    minHeight: 320,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: Radii.xl + 4,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.lg,
     shadowColor: Colors.secondaryDark,
     shadowOpacity: 0.12,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
-    marginBottom: Spacing.lg - 4,
-    borderWidth: 1,
-    borderColor: Colors.surface,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+    backfaceVisibility: 'hidden',
+  },
+  cardFront: {
+    backgroundColor: Colors.white,
+  },
+  cardBack: {
+    backgroundColor: Colors.secondaryDark,
   },
   flipHint: {
     position: 'absolute',
-    top: Spacing.sm + 2,
-    right: Spacing.sm + 2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.dominant,
+    top: Spacing.md,
+    right: Spacing.md,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  flipHintText: { fontSize: 15, color: Colors.textMuted },
   word: {
     fontFamily: Typography.fontDisplay,
-    fontSize: Typography.size2XL,
+    fontSize: Typography.size2XL + 4,
     color: Colors.text,
-    marginBottom: Spacing.lg - 4,
+    marginBottom: Spacing.xl,
     textAlign: 'center',
   },
   playButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs + 2,
+    gap: Spacing.sm,
     backgroundColor: Colors.secondarySubtle,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 2,
+    paddingVertical: Spacing.sm,
     borderRadius: Radii.full,
-    marginBottom: Spacing.lg - 4,
+    marginBottom: Spacing.md,
   },
-  playButtonPressed: { opacity: 0.8, transform: [{ scale: 0.98 }] },
   playButtonText: { color: Colors.secondary, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM },
   
   recordButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 2,
+    paddingVertical: Spacing.sm,
     borderRadius: Radii.full,
-    marginBottom: Spacing.lg - 4,
+    marginBottom: Spacing.md,
   },
-  recordButtonActive: { backgroundColor: '#FF3B30' },
-  recordButtonPressed: { opacity: 0.8 },
-  recordButtonDisabled: { opacity: 0.5 },
+  recordButtonActive: { backgroundColor: Colors.accent },
   recordButtonText: { color: Colors.text, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM },
   recordButtonTextActive: { color: Colors.white },
   
-  evaluatingText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.accent, marginBottom: Spacing.sm },
+  evaluatingText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: Colors.accent, marginTop: Spacing.sm },
   
   resultCard: {
-    padding: Spacing.sm,
-    borderRadius: Radii.md,
-    marginBottom: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: Radii.lg,
+    marginTop: Spacing.sm,
     alignItems: 'center',
     width: '100%',
   },
-  resultPass: { backgroundColor: 'rgba(52, 199, 89, 0.15)' },
-  resultFail: { backgroundColor: 'rgba(255, 59, 48, 0.15)' },
-  resultScore: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: Colors.text },
-  resultFeedback: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.textMuted, textAlign: 'center', marginTop: 2 },
+  resultPass: { backgroundColor: 'rgba(52, 199, 89, 0.1)' },
+  resultFail: { backgroundColor: 'rgba(255, 59, 48, 0.1)' },
+  resultScore: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM + 1, color: Colors.text },
+  resultFeedback: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: Colors.textMuted, textAlign: 'center', marginTop: 4 },
 
-  hint: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.textMuted, marginBottom: Spacing.lg - 4 },
-  tapHint: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.textMuted },
+  hint: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: Colors.textMuted, marginBottom: Spacing.lg },
   meaning: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeXL - 2,
-    color: Colors.text,
-    marginBottom: Spacing.sm + 4,
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeXL + 4,
+    color: Colors.white,
+    marginBottom: Spacing.lg,
     textAlign: 'center',
   },
   note: {
     fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeXS + 1,
-    color: Colors.textMuted,
+    fontSize: Typography.sizeMD,
+    color: 'rgba(255,255,255,0.8)',
     textAlign: 'center',
-    marginBottom: Spacing.sm + 4,
+    marginBottom: Spacing.xl,
+    lineHeight: 24,
   },
-  recordedBy: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.secondary, fontStyle: 'italic' },
+  recordedBy: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: Colors.accent },
 
-  navRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.lg - 4 },
-  navButton: { paddingVertical: Spacing.sm + 2, paddingHorizontal: Spacing.md },
-  navButtonDisabled: { opacity: 0.35 },
-  navButtonText: { color: Colors.accent, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM },
+  navRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xl },
+  navButton: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.sm },
+  navButtonDisabled: { opacity: 0.3 },
+  navButtonText: { color: Colors.secondary, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD },
   navButtonTextDisabled: { color: Colors.textMuted },
 
   quizButton: {
     backgroundColor: Colors.accent,
-    borderRadius: Radii.lg + 2,
-    paddingVertical: Spacing.sm + 6,
+    borderRadius: Radii.full,
+    paddingVertical: Spacing.md + 2,
     alignItems: 'center',
     shadowColor: Colors.accent,
     shadowOffset: { width: 0, height: 4 },
@@ -411,6 +429,5 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  quizButtonPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
-  quizButtonText: { color: Colors.white, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM + 1 },
+  quizButtonText: { color: Colors.white, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD },
 });

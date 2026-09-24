@@ -80,16 +80,22 @@ apiClient.interceptors.response.use(
   },
 );
 
+/** Helper to robustly handle both enveloped and raw backend responses. */
+function unwrapResponse<T>(data: any): T {
+  if (data && typeof data === 'object' && !Array.isArray(data) && 'success' in data) {
+    return data.data as T;
+  }
+  return data as T;
+}
+
 /** POST helper that unwraps the ApiResponse envelope's `data` field. */
 export async function apiPost<TResponse, TRequest = unknown>(
   url: string,
   body: TRequest,
 ): Promise<TResponse> {
-  const response = await apiClient.post<TResponse>(url, body);
-
+  const response = await apiClient.post<any>(url, body);
   console.log('FULL API RESPONSE:', response.data);
-
-  return response.data;
+  return unwrapResponse<TResponse>(response.data);
 }
 
 /** PATCH helper that unwraps the ApiResponse envelope's `data` field. */
@@ -97,14 +103,23 @@ export async function apiPatch<TResponse, TRequest = unknown>(
   url: string,
   body: TRequest,
 ): Promise<TResponse> {
-  const response = await apiClient.patch<ApiEnvelope<TResponse>>(url, body);
-  return response.data.data as TResponse;
+  const response = await apiClient.patch<any>(url, body);
+  return unwrapResponse<TResponse>(response.data);
 }
 
 /** GET helper that unwraps the ApiResponse envelope's `data` field. */
 export async function apiGet<TResponse>(url: string): Promise<TResponse> {
-  const response = await apiClient.get<TResponse>(url);
-  return response.data;
+  const response = await apiClient.get<any>(url);
+  return unwrapResponse<TResponse>(response.data);
+}
+
+/** PUT helper that unwraps the ApiResponse envelope's `data` field. */
+export async function apiPut<TResponse, TRequest = unknown>(
+  url: string,
+  body: TRequest,
+): Promise<TResponse> {
+  const response = await apiClient.put<any>(url, body);
+  return unwrapResponse<TResponse>(response.data);
 }
 
 /**
@@ -114,14 +129,14 @@ export async function apiGet<TResponse>(url: string): Promise<TResponse> {
  * itself once it sees a FormData body.
  */
 export async function apiPostForm<TResponse>(url: string, formData: FormData): Promise<TResponse> {
-  const response = await apiClient.post<ApiEnvelope<TResponse>>(url, formData, {
+  const response = await apiClient.post<any>(url, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
-  return response.data.data as TResponse;
+  return unwrapResponse<TResponse>(response.data);
 }
 
 /** DELETE helper that unwraps the ApiResponse envelope's `data` field. */
 export async function apiDelete<TResponse = void>(url: string): Promise<TResponse> {
-  const response = await apiClient.delete<ApiEnvelope<TResponse>>(url);
-  return response.data.data as TResponse;
+  const response = await apiClient.delete<any>(url);
+  return unwrapResponse<TResponse>(response.data);
 }

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Audio, ResizeMode, Video } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { Pause, Play, Trash2 } from 'lucide-react-native';
 import { ConfirmDialog, Header, RoundIconButton, UserFooter } from '../../components/common';
 import type { UserTabKey } from '../../components/common';
@@ -46,38 +47,27 @@ export const StoryReview: React.FC<StoryReviewProps> = ({ story, onBack, onDelet
   const [deleteVisible, setDeleteVisible] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const audioSource = story.mediaUrl && story.mediaType === 'AUDIO' ? { uri: getMediaUrl(story.mediaUrl) } : null;
+  const audioPlayer = useAudioPlayer(audioSource);
 
-  useEffect(() => {
-    return () => {
-      soundRef.current?.unloadAsync().catch(() => {});
-    };
-  }, []);
+  const videoSource = story.mediaUrl && story.mediaType === 'VIDEO' ? { uri: getMediaUrl(story.mediaUrl) } : null;
+  const videoPlayer = useVideoPlayer(videoSource, (p) => {
+    p.loop = false;
+  });
 
-  const isDirty = title.trim() !== savedTitle || description.trim() !== savedDescription;
-
-  const toggleAudioPlayback = async () => {
+  const toggleAudioPlayback = () => {
     if (!story.mediaUrl) return;
 
-    if (isPlaying) {
-      await soundRef.current?.pauseAsync();
+    if (audioPlayer.playing) {
+      audioPlayer.pause();
       setIsPlaying(false);
-      return;
+    } else {
+      audioPlayer.play();
+      setIsPlaying(true);
     }
-
-    if (!soundRef.current) {
-      const { sound } = await Audio.Sound.createAsync({ uri: getMediaUrl(story.mediaUrl) });
-      soundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          setIsPlaying(false);
-          sound.setPositionAsync(0);
-        }
-      });
-    }
-    await soundRef.current.playAsync();
-    setIsPlaying(true);
   };
+
+  const isDirty = title.trim() !== savedTitle || description.trim() !== savedDescription;
 
   const handleSave = async () => {
     if (saving || !isDirty) return;
@@ -156,12 +146,11 @@ export const StoryReview: React.FC<StoryReviewProps> = ({ story, onBack, onDelet
         {story.mediaUrl && story.mediaType === 'VIDEO' && (
           <View style={s.section}>
             <Text style={s.sectionLabel}>Video</Text>
-            <Video
-              source={{ uri: getMediaUrl(story.mediaUrl) }}
+            <VideoView
+              player={videoPlayer}
               style={s.videoPlayer}
-              resizeMode={ResizeMode.CONTAIN}
-              useNativeControls
-              isLooping={false}
+              contentFit="contain"
+              nativeControls
             />
           </View>
         )}

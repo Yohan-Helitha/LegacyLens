@@ -21,15 +21,8 @@ export const authApi = {
   resendOtp: (body: ResendOtpRequest) =>
     apiPost<void, ResendOtpRequest>('/auth/resend-otp', body),
 
-  login: async (body: LoginRequest): Promise<AuthResponse> => {
-  const response = await apiPost<{
-    success: boolean;
-    message?: string;
-    data: AuthResponse;
-  }, LoginRequest>('/auth/login', body);
-
-  return response.data;
-},
+  login: (body: LoginRequest) =>
+    apiPost<AuthResponse, LoginRequest>('/auth/login', body),
 
   forgotPin: (body: ForgotPinRequest) =>
     apiPost<void, ForgotPinRequest>('/auth/forgot-pin', body),

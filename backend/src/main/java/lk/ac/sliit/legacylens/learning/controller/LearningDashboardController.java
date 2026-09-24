@@ -59,4 +59,14 @@ public class LearningDashboardController {
                         .getNextLesson(userId, trackId)
         );
     }
+
+    // New Endpoint for Admin to fetch specific user's dashboard progress
+    @GetMapping("/admin/users/{userId}")
+    public ResponseEntity<LearningDashboardResponse> getUserDashboard(
+            @PathVariable Long userId) {
+        
+        return ResponseEntity.ok(
+                learningDashboardService.getDashboard(userId)
+        );
+    }
 }

@@ -1,141 +1,325 @@
-<div class="container mt-4 mb-5">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>{{ isLessonSaved ? 'Manage' : 'Create' }} {{ lessonType === 'FLASHCARDS' ? 'Flashcards' : 'Quiz' }} Lesson</h2>
-    <a [routerLink]="['/learning/track', trackId, 'lessons']" class="btn btn-outline-secondary">Back to Lessons</a>
-  </div>
+<div class="flex h-screen w-full overflow-hidden font-sans" style="background: var(--le-bg)">
+  <app-learning-sidebar></app-learning-sidebar>
 
-  <div class="row">
-    <!-- Lesson Metadata (Left) -->
-    <div class="col-md-4">
-      <div class="card shadow-sm mb-4">
-        <div class="card-header bg-light">
-          <h5 class="mb-0">Lesson Details</h5>
-        </div>
-        <div class="card-body">
-          <form [formGroup]="lessonForm" (ngSubmit)="saveLesson()">
-            <div class="mb-3">
-              <label class="form-label fw-bold">Title *</label>
-              <input type="text" class="form-control" formControlName="title" [readonly]="isLessonSaved">
-            </div>
-            <div class="mb-3">
-              <label class="form-label fw-bold">Order Index *</label>
-              <input type="number" class="form-control" formControlName="lessonOrder" [readonly]="isLessonSaved">
-            </div>
-            <div class="mb-3">
-              <label class="form-label fw-bold">Description</label>
-              <textarea class="form-control" formControlName="description" rows="2" [readonly]="isLessonSaved"></textarea>
-            </div>
-            <div class="d-grid" *ngIf="!isLessonSaved">
-              <button type="submit" class="btn btn-primary" [disabled]="lessonForm.invalid">Save & Continue</button>
-            </div>
-            <div class="alert alert-success mt-3 mb-0" *ngIf="isLessonSaved">
-              Lesson created! You can now add content.
-            </div>
-          </form>
-        </div>
+  <!-- Main Area -->
+  <div class="flex-1 min-w-0 overflow-y-auto relative"
+    style="scrollbar-width: thin; scrollbar-color: var(--le-border) transparent">
+
+    <!-- Ambient background glows -->
+    <div class="fixed top-[-200px] right-[-100px] w-[500px] h-[500px] pointer-events-none"
+      style="background: radial-gradient(circle, rgba(16,185,129,0.05) 0%, transparent 70%); z-index: 0"></div>
+    <div class="fixed bottom-[-100px] left-[150px] w-[400px] h-[400px] pointer-events-none"
+      style="background: radial-gradient(circle, rgba(139,92,246,0.04) 0%, transparent 70%); z-index: 0"></div>
+
+    <!-- Sticky Top Nav -->
+    <div class="le-nav-bar sticky top-0 z-50 flex items-center justify-between px-8 py-4">
+      <div class="flex items-center gap-2 text-[12px] font-semibold" style="color: var(--le-text-secondary)">
+        <a routerLink="/learning/tracks" class="hover:text-[var(--le-text-primary)] transition-colors">Tracks</a>
+        <span class="material-symbols-outlined text-[14px] text-[var(--le-text-muted)]">chevron_right</span>
+        <a [routerLink]="['/learning/tracks', trackId, 'lessons']"
+          class="hover:text-[var(--le-text-primary)] transition-colors">Lessons</a>
+        <span class="material-symbols-outlined text-[14px] text-[var(--le-text-muted)]">chevron_right</span>
+        <span style="color: var(--le-text-primary)">
+          {{ isLessonSaved ? 'Manage' : 'Create' }} {{ lessonType === 'FLASHCARDS' ? 'Flashcards' : 'Quiz' }}
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <a [routerLink]="['/learning/tracks', trackId, 'lessons']"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all hover:bg-[var(--le-surface-hover)]"
+          style="border: 1px solid var(--le-border); color: var(--le-text-secondary)">
+          <span class="material-symbols-outlined text-[14px]">arrow_back</span>
+          Back to Lessons
+        </a>
       </div>
     </div>
 
-    <!-- Lesson Content (Right) -->
-    <div class="col-md-8" *ngIf="isLessonSaved">
-      
-      <!-- ADD CONTENT FORM -->
-      <div class="card shadow-sm mb-4 border-primary">
-        <div class="card-header bg-primary text-white">
-          <h5 class="mb-0">Add New {{ lessonType === 'FLASHCARDS' ? 'Flashcard' : 'Question' }}</h5>
-        </div>
-        <div class="card-body">
-          <form [formGroup]="contentForm" (ngSubmit)="addContent()">
-            
-            <!-- FLASHCARD INPUTS -->
-            <ng-container *ngIf="lessonType === 'FLASHCARDS'">
-              <div class="row">
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-bold">Term / Word *</label>
-                  <input type="text" class="form-control" formControlName="term">
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-bold">Translation *</label>
-                  <input type="text" class="form-control" formControlName="translation">
-                </div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-bold">Audio URL (Optional)</label>
-                <input type="text" class="form-control" formControlName="audioUrl" placeholder="https://...">
-              </div>
-            </ng-container>
+    <!-- Page Content -->
+    <div class="le-page relative z-10">
 
-            <!-- QUIZ INPUTS -->
-            <ng-container *ngIf="lessonType === 'QUIZ'">
-              <div class="mb-3">
-                <label class="form-label fw-bold">Question *</label>
-                <input type="text" class="form-control" formControlName="questionText">
-              </div>
-              <div class="row">
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-bold">Option A *</label>
-                  <input type="text" class="form-control" formControlName="optionA">
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-bold">Option B *</label>
-                  <input type="text" class="form-control" formControlName="optionB">
-                </div>
-              </div>
-              <div class="row">
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-bold">Option C *</label>
-                  <input type="text" class="form-control" formControlName="optionC">
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label class="form-label fw-bold">Option D *</label>
-                  <input type="text" class="form-control" formControlName="optionD">
-                </div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label fw-bold text-success">Correct Option *</label>
-                <select class="form-select border-success" formControlName="correctOption">
-                  <option value="A">Option A</option>
-                  <option value="B">Option B</option>
-                  <option value="C">Option C</option>
-                  <option value="D">Option D</option>
-                </select>
-              </div>
-            </ng-container>
-
-            <button type="submit" class="btn btn-success" [disabled]="contentForm.invalid">Add to Lesson</button>
-          </form>
+      <!-- Header -->
+      <div class="flex items-end justify-between mb-8">
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-widest mb-2 flex items-center gap-2"
+            [style.color]="lessonType === 'FLASHCARDS' ? '#8b5cf6' : '#3b82f6'">
+            <span class="material-symbols-outlined text-[14px]">
+              {{ lessonType === 'FLASHCARDS' ? 'style' : 'quiz' }}
+            </span>
+            {{ lessonType === 'FLASHCARDS' ? 'Flashcards Lesson' : 'Quiz Lesson' }}
+          </p>
+          <h1 class="text-4xl font-black tracking-tight leading-none" style="color: var(--le-text-primary)">
+            {{ isLessonSaved ? 'Manage Content' : 'Create Lesson' }}
+          </h1>
         </div>
       </div>
 
-      <!-- EXISTING CONTENT LIST -->
-      <h4 class="mb-3">Existing Content</h4>
-      
-      <!-- Flashcards Table -->
-      <table class="table table-bordered table-striped" *ngIf="lessonType === 'FLASHCARDS'">
-        <thead class="table-light">
-          <tr><th>Term</th><th>Translation</th></tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let fc of flashcards">
-            <td>{{fc.term}}</td><td>{{fc.translation}}</td>
-          </tr>
-          <tr *ngIf="flashcards.length === 0"><td colspan="2" class="text-center text-muted">No flashcards added yet.</td></tr>
-        </tbody>
-      </table>
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-      <!-- Quiz Questions Table -->
-      <table class="table table-bordered table-striped" *ngIf="lessonType === 'QUIZ'">
-        <thead class="table-light">
-          <tr><th>Question</th><th>Answer</th></tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let q of quizQuestions">
-            <td>{{q.questionText}}</td><td><span class="badge bg-success">Option {{q.correctOption}}</span></td>
-          </tr>
-          <tr *ngIf="quizQuestions.length === 0"><td colspan="2" class="text-center text-muted">No questions added yet.</td></tr>
-        </tbody>
-      </table>
+        <!-- LEFT COLUMN: Lesson Details -->
+        <div class="lg:col-span-4 space-y-6">
+          <div class="glass-card flex flex-col h-full">
+            <div class="card-header">
+              <span class="material-symbols-outlined text-[20px]" style="color: var(--le-accent)">info</span>
+              <h5 class="font-bold text-[15px]" style="color: var(--le-text-primary)">Lesson Details</h5>
+            </div>
 
+            <div class="card-body flex-1">
+              <form [formGroup]="lessonForm" (ngSubmit)="saveLesson()" class="flex flex-col h-full gap-5">
+
+                <div class="form-group">
+                  <label class="form-label">Lesson Title <span class="text-red-400">*</span></label>
+                  <input type="text" class="form-control" formControlName="title" placeholder="e.g. Basic Greetings">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Order Index <span class="text-red-400">*</span></label>
+                  <input type="number" class="form-control" formControlName="lessonOrder" min="1">
+                </div>
+
+                <div class="form-group flex-1">
+                  <label class="form-label">Description</label>
+                  <textarea class="form-control" formControlName="description" rows="3"
+                    placeholder="Brief overview of this lesson..."></textarea>
+                </div>
+
+                <div class="mt-4">
+                  <button type="submit" class="btn-primary w-full" [disabled]="lessonForm.invalid">
+                    <span class="material-symbols-outlined text-[18px]">
+                      {{ isLessonSaved ? 'save' : 'arrow_forward' }}
+                    </span>
+                    {{ isLessonSaved ? 'Update Details' : 'Save & Continue' }}
+                  </button>
+
+                  <div class="success-alert" *ngIf="isLessonSaved">
+                    <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                    Lesson saved! You can add content.
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Lesson Content -->
+        <div class="lg:col-span-8">
+
+          <div class="locked-overlay" *ngIf="!isLessonSaved">
+            <div class="glass-card text-center py-16 px-6">
+              <span class="material-symbols-outlined text-[48px] mb-4" style="color: var(--le-text-muted)">lock</span>
+              <h3 class="text-xl font-bold mb-2" style="color: var(--le-text-primary)">Content Locked</h3>
+              <p style="color: var(--le-text-secondary)">Please save the lesson details on the left first to unlock
+                content management.</p>
+            </div>
+          </div>
+
+          <div class="space-y-6" *ngIf="isLessonSaved">
+
+            <!-- ADD CONTENT FORM -->
+            <div class="glass-card">
+              <div class="card-header border-b border-[var(--le-border)] pb-4 mb-5">
+                <span class="material-symbols-outlined text-[20px]"
+                  [style.color]="lessonType === 'FLASHCARDS' ? '#a78bfa' : '#60a5fa'">
+                  {{ editingContentId ? 'edit' : 'add_circle' }}
+                </span>
+                <h5 class="font-bold text-[15px]" style="color: var(--le-text-primary)">
+                  {{ editingContentId ? 'Update' : 'New' }} {{ lessonType === 'FLASHCARDS' ? 'Flashcard' : 'Quiz
+                  Question' }}
+                </h5>
+              </div>
+
+              <div class="card-body">
+                <form [formGroup]="contentForm" (ngSubmit)="addContent()" class="space-y-5">
+
+                  <!-- FLASHCARD FIELDS -->
+                  <ng-container *ngIf="lessonType === 'FLASHCARDS'">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div class="form-group">
+                        <label class="form-label">Word / Term <span class="text-red-400">*</span></label>
+                        <input type="text" class="form-control" formControlName="word" placeholder="e.g. Bokkuwa">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Meaning / Translation <span class="text-red-400">*</span></label>
+                        <input type="text" class="form-control" formControlName="meaning" placeholder="e.g. Box">
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Audio URL (Optional)</label>
+                      <input type="text" class="form-control" formControlName="audioUrl" placeholder="https://...">
+                    </div>
+                  </ng-container>
+
+                  <!-- QUIZ FIELDS -->
+                  <ng-container *ngIf="lessonType === 'QUIZ'">
+                    <div class="form-group">
+                      <label class="form-label">Question <span class="text-red-400">*</span></label>
+                      <input type="text" class="form-control" formControlName="question"
+                        placeholder="Type the question...">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div class="form-group">
+                        <label class="form-label">Option A <span class="text-red-400">*</span></label>
+                        <input type="text" class="form-control" formControlName="optionA">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Option B <span class="text-red-400">*</span></label>
+                        <input type="text" class="form-control" formControlName="optionB">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Option C <span class="text-red-400">*</span></label>
+                        <input type="text" class="form-control" formControlName="optionC">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Option D <span class="text-red-400">*</span></label>
+                        <input type="text" class="form-control" formControlName="optionD">
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Correct Answer <span class="text-red-400">*</span></label>
+                      <div class="select-wrapper">
+                        <select class="form-control" formControlName="correctOption">
+                          <option value="A">Option A</option>
+                          <option value="B">Option B</option>
+                          <option value="C">Option C</option>
+                          <option value="D">Option D</option>
+                        </select>
+                        <span class="material-symbols-outlined select-icon">expand_more</span>
+                      </div>
+                    </div>
+                  </ng-container>
+
+                  <div class="flex gap-3 pt-2">
+                    <button type="submit" class="btn-add-content" [class]="(lessonType || '').toLowerCase()"
+                      [disabled]="contentForm.invalid">
+                      <span class="material-symbols-outlined text-[18px]">
+                        {{ editingContentId ? 'save' : 'add' }}
+                      </span>
+                      {{ editingContentId ? 'Update Content' : 'Add to Lesson' }}
+                    </button>
+                    <button type="button" class="btn-secondary" *ngIf="editingContentId" (click)="cancelEdit()">
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- EXISTING CONTENT LIST -->
+            <div class="glass-card">
+              <div
+                class="card-header bg-[var(--le-surface-hover)] border-b border-[var(--le-border)] py-4 px-6 rounded-t-[20px]">
+                <div class="flex items-center justify-between w-full">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[18px]" style="color: var(--le-text-secondary)">
+                      list_alt
+                    </span>
+                    <h5 class="font-bold text-[14px]" style="color: var(--le-text-primary)">
+                      Existing {{ lessonType === 'FLASHCARDS' ? 'Flashcards' : 'Questions' }}
+                    </h5>
+                  </div>
+                  <span class="badge-count">{{ lessonType === 'FLASHCARDS' ? flashcards.length : quizQuestions.length }}
+                    item(s)</span>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto">
+                <!-- Flashcards Table -->
+                <table class="w-full text-left" *ngIf="lessonType === 'FLASHCARDS'">
+                  <thead>
+                    <tr style="border-bottom: 1px solid var(--le-border)">
+                      <th class="py-3 px-6 text-[10px] font-bold uppercase tracking-widest"
+                        style="color: var(--le-text-muted); width: 60px;">#</th>
+                      <th class="py-3 px-6 text-[10px] font-bold uppercase tracking-widest"
+                        style="color: var(--le-text-muted)">Word</th>
+                      <th class="py-3 px-6 text-[10px] font-bold uppercase tracking-widest"
+                        style="color: var(--le-text-muted)">Meaning</th>
+                      <th class="py-3 px-6 text-[10px] font-bold uppercase tracking-widest text-right"
+                        style="color: var(--le-text-muted); width: 140px;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let fc of flashcards; let i = index" class="le-table-row">
+                      <td class="py-3.5 px-6 font-bold text-[12px]" style="color: var(--le-text-muted)">{{ i + 1 }}</td>
+                      <td class="py-3.5 px-6 font-bold text-[13px]" style="color: var(--le-text-primary)">{{ fc.word }}
+                      </td>
+                      <td class="py-3.5 px-6 text-[13px]" style="color: var(--le-text-secondary)">{{ fc.meaning }}</td>
+                      <td class="py-3.5 px-6">
+                        <div class="flex justify-end gap-2">
+                          <button class="btn-icon-small edit" (click)="editFlashcard(fc)" title="Edit">
+                            <span class="material-symbols-outlined">edit</span>
+                          </button>
+                          <button class="btn-icon-small delete" (click)="deleteFlashcard(fc.id)" title="Delete">
+                            <span class="material-symbols-outlined">delete</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr *ngIf="flashcards.length === 0">
+                      <td colspan="4" class="py-12 text-center">
+                        <div class="flex flex-col items-center">
+                          <span class="material-symbols-outlined text-[32px] mb-2"
+                            style="color: var(--le-text-muted)">style</span>
+                          <p class="text-[13px]" style="color: var(--le-text-secondary)">No flashcards yet. Add one
+                            above!</p>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- Quiz Table -->
+                <table class="w-full text-left" *ngIf="lessonType === 'QUIZ'">
+                  <thead>
+                    <tr style="border-bottom: 1px solid var(--le-border)">
+                      <th class="py-3 px-6 text-[10px] font-bold uppercase tracking-widest"
+                        style="color: var(--le-text-muted); width: 60px;">#</th>
+                      <th class="py-3 px-6 text-[10px] font-bold uppercase tracking-widest"
+                        style="color: var(--le-text-muted)">Question</th>
+                      <th class="py-3 px-6 text-[10px] font-bold uppercase tracking-widest"
+                        style="color: var(--le-text-muted); width: 120px;">Answer</th>
+                      <th class="py-3 px-6 text-[10px] font-bold uppercase tracking-widest text-right"
+                        style="color: var(--le-text-muted); width: 140px;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let q of quizQuestions; let i = index" class="le-table-row">
+                      <td class="py-3.5 px-6 font-bold text-[12px]" style="color: var(--le-text-muted)">{{ i + 1 }}</td>
+                      <td class="py-3.5 px-6 text-[13px] font-medium" style="color: var(--le-text-primary)">{{
+                        q.question }}</td>
+                      <td class="py-3.5 px-6">
+                        <span class="px-2.5 py-1 rounded-md text-[10px] font-bold"
+                          style="background: rgba(16,185,129,0.15); color: var(--le-accent); border: 1px solid rgba(16,185,129,0.3)">
+                          Option {{ q.correctOption }}
+                        </span>
+                      </td>
+                      <td class="py-3.5 px-6">
+                        <div class="flex justify-end gap-2">
+                          <button class="btn-icon-small edit" (click)="editQuizQuestion(q)" title="Edit">
+                            <span class="material-symbols-outlined">edit</span>
+                          </button>
+                          <button class="btn-icon-small delete" (click)="deleteQuizQuestion(q.id)" title="Delete">
+                            <span class="material-symbols-outlined">delete</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr *ngIf="quizQuestions.length === 0">
+                      <td colspan="4" class="py-12 text-center">
+                        <div class="flex flex-col items-center">
+                          <span class="material-symbols-outlined text-[32px] mb-2"
+                            style="color: var(--le-text-muted)">quiz</span>
+                          <p class="text-[13px]" style="color: var(--le-text-secondary)">No questions yet. Add one
+                            above!</p>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
     </div>
   </div>
 </div>

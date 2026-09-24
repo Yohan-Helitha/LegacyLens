@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { LearningService, LearningTrack } from '../../../core/services/learning.service';
+import { LearningSidebarComponent } from '../components/learning-sidebar/learning-sidebar.component';
+
 
 @Component({
   selector: 'app-track-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, LearningSidebarComponent],
   templateUrl: './track-form.component.html',
   styleUrl: './track-form.component.scss'
 })
@@ -50,9 +52,17 @@ export class TrackFormComponent implements OnInit {
     this.isSubmitting = true;
     const trackData: LearningTrack = this.trackForm.value;
 
-    if (this.isEditMode) {
-      console.log('Update not yet implemented on backend', trackData);
-      this.router.navigate(['/learning']);
+    if (this.isEditMode && this.trackId) {
+      this.learningService.updateTrack(this.trackId, trackData).subscribe({
+        next: () => {
+          this.router.navigate(['/learning']);
+        },
+        error: (err) => {
+          console.error(err);
+          alert('Failed to update track');
+          this.isSubmitting = false;
+        }
+      });
     } else {
       this.learningService.createTrack(trackData).subscribe({
         next: () => {

@@ -1,0 +1,473 @@
+<div class="le-dashboard flex h-screen w-full overflow-hidden">
+  <app-learning-sidebar [isOpen]="isSidebarOpen" (closeSidebar)="isSidebarOpen = false"></app-learning-sidebar>
+
+  <!-- ── Main Content ── -->
+  <div class="le-main-content flex-1 min-w-0 overflow-y-auto">
+
+    <!-- Top Nav Bar (matches admin dashboard style) -->
+    <div class="le-nav-bar sticky top-0 z-50 flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-8 py-3.5 gap-4 sm:gap-0">
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-2 text-[13px] font-medium" style="color: var(--le-text-muted)">
+        <button (click)="isSidebarOpen = true" class="lg:hidden p-1.5 -ml-1 rounded-xl hover:bg-[var(--le-surface-hover)] text-[var(--le-text-primary)] transition-colors focus:outline-none flex items-center justify-center" aria-label="Open Menu">
+          <span class="material-symbols-outlined text-[20px]">menu</span>
+        </button>
+        <span class="material-symbols-outlined text-[15px] hidden lg:block">school</span>
+        <span>Console</span>
+        <span style="color: var(--le-border)">/</span>
+        <span style="color: var(--le-text-primary); font-weight: 600;">Overview &amp; Analytics</span>
+      </div>
+
+      <!-- Right cluster — matches admin nav exactly -->
+      <div class="flex items-center gap-3 w-full sm:w-auto">
+        <!-- Search -->
+        <div class="relative flex-1 sm:flex-none">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[15px]"
+            style="color: var(--le-text-muted)">search</span>
+          <input type="text" placeholder="Search tracks..."
+            class="pl-9 pr-4 py-2 text-[12px] rounded-lg border outline-none w-full sm:w-56 transition-all"
+            style="background: var(--le-bg); border-color: var(--le-border); color: var(--le-text-primary);">
+        </div>
+        <!-- Orange CTA — same as "Learning Hub" button in admin nav -->
+        <a routerLink="/learning/tracks/new"
+          class="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-[13px] font-bold transition-all hover:opacity-90 shrink-0"
+          style="background: var(--le-orange); color: #2D1200; box-shadow: 0 2px 8px var(--le-orange-border)">
+          <span class="material-symbols-outlined text-[16px]">add</span>
+          <span class="hidden sm:inline">New Track</span>
+          <span class="sm:hidden">New</span>
+        </a>
+
+        <!-- Avatar -->
+        <div class="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0"
+          style="background: var(--le-accent)">A</div>
+      </div>
+    </div>
+
+    <!-- ── Page Content ── -->
+    <div class="px-4 sm:px-8 py-5 sm:py-7 max-w-[1440px] mx-auto space-y-5 sm:space-y-6">
+
+      <!-- Page Header (matches "Admin Dashboard Overview" style) -->
+      <div>
+        <h1 class="text-[26px] font-bold tracking-tight" style="color: var(--le-text-primary)">Learning Engine Overview
+        </h1>
+        <p class="text-[13px] mt-1" style="color: var(--le-text-muted)">Live content metrics from tracks, lessons,
+          flashcards, and quiz performance.</p>
+      </div>
+
+      <!-- ── KPI Cards Row 1 (4 cards — matches the admin stat cards exactly) ── -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+
+        <!-- Card 1: Total Learners -->
+        <div class="metric-card accent-primary group">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="metric-label">Total Learners</p>
+              <div class="flex items-center gap-3 mt-2">
+                <p class="metric-value">{{ totalLearners | number }}</p>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-md"
+                  style="background: var(--le-accent-soft); color: var(--le-accent)">
+                  ↑ Community
+                </span>
+              </div>
+            </div>
+            <div class="card-icon-wrapper" style="background: var(--le-accent-soft)">
+              <span class="material-symbols-outlined text-[20px]" style="color: var(--le-accent)">groups</span>
+            </div>
+          </div>
+          <p class="text-[12px] mt-2" style="color: var(--le-text-muted)">Registered platform members</p>
+          <!-- Progress bar — teal (like admin dashboard) -->
+          <div class="mt-3 h-1.5 rounded-full overflow-hidden" style="background: var(--le-border)">
+            <div class="h-full rounded-full" style="background: var(--le-accent); width: 70%"></div>
+          </div>
+        </div>
+
+        <!-- Card 2: Badges Earned -->
+        <div class="metric-card group">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="metric-label">Badges Earned</p>
+              <div class="flex items-center gap-3 mt-2">
+                <p class="metric-value">{{ totalBadgesEarned | number }}</p>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-md"
+                  style="background: var(--le-orange-soft); color: var(--le-orange-dark)">
+                  ↑ Rewards
+                </span>
+              </div>
+            </div>
+            <div class="card-icon-wrapper" style="background: var(--le-orange-soft)">
+              <span class="material-symbols-outlined text-[20px]"
+                style="color: var(--le-orange)">workspace_premium</span>
+            </div>
+          </div>
+          <p class="text-[12px] mt-2" style="color: var(--le-text-muted)">Achievements across all tracks</p>
+          <div class="mt-3 h-1.5 rounded-full overflow-hidden" style="background: var(--le-border)">
+            <div class="h-full rounded-full" style="background: var(--le-orange); width: 35%"></div>
+          </div>
+        </div>
+
+        <!-- Card 3: Learning Tracks -->
+        <div class="metric-card group">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="metric-label">Learning Tracks</p>
+              <div class="flex items-center gap-3 mt-2">
+                <p class="metric-value">{{ completedTracks | number }}</p>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-md"
+                  style="background: var(--le-accent-soft); color: var(--le-accent)">
+                  ✓ Content
+                </span>
+              </div>
+            </div>
+            <div class="card-icon-wrapper" style="background: var(--le-accent-soft)">
+              <span class="material-symbols-outlined text-[20px]" style="color: var(--le-accent)">auto_stories</span>
+            </div>
+          </div>
+          <p class="text-[12px] mt-2" style="color: var(--le-text-muted)">All published heritage tracks</p>
+          <div class="mt-3 h-1.5 rounded-full overflow-hidden" style="background: var(--le-border)">
+            <div class="h-full rounded-full" style="background: var(--le-accent); width: 80%"></div>
+          </div>
+        </div>
+
+        <!-- Card 4: Quiz Questions -->
+        <div class="metric-card group">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="metric-label">Quiz Questions</p>
+              <div class="flex items-center gap-3 mt-2">
+                <p class="metric-value">{{ completedQuizzes | number }}</p>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-md"
+                  style="background: var(--le-orange-soft); color: var(--le-orange-dark)">
+                  ↑ Review
+                </span>
+              </div>
+            </div>
+            <div class="card-icon-wrapper" style="background: var(--le-orange-soft)">
+              <span class="material-symbols-outlined text-[20px]" style="color: var(--le-orange)">quiz</span>
+            </div>
+          </div>
+          <p class="text-[12px] mt-2" style="color: var(--le-text-muted)">Guideline checks &amp; quiz review</p>
+          <div class="mt-3 h-1.5 rounded-full overflow-hidden" style="background: var(--le-border)">
+            <div class="h-full rounded-full" style="background: var(--le-orange); width: 55%"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── KPI Cards Row 2 ── -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+
+        <!-- Card 5: Total Lessons -->
+        <div class="metric-card group">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="metric-label">Total Lessons</p>
+              <div class="flex items-center gap-3 mt-2">
+                <p class="metric-value">{{ completedLessons | number }}</p>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-md"
+                  style="background: var(--le-accent-soft); color: var(--le-accent)">
+                  ✓ Live
+                </span>
+              </div>
+            </div>
+            <div class="card-icon-wrapper" style="background: var(--le-accent-soft)">
+              <span class="material-symbols-outlined text-[20px]" style="color: var(--le-accent)">book</span>
+            </div>
+          </div>
+          <p class="text-[12px] mt-2" style="color: var(--le-text-muted)">Approved &amp; live lessons</p>
+          <div class="mt-3 h-1.5 rounded-full overflow-hidden" style="background: var(--le-border)">
+            <div class="h-full rounded-full" style="background: var(--le-accent); width: 65%"></div>
+          </div>
+        </div>
+
+        <!-- Card 6: Flashcards -->
+        <div class="metric-card group">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="metric-label">Flashcards</p>
+              <div class="flex items-center gap-3 mt-2">
+                <p class="metric-value">{{ completedFlashcards | number }}</p>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-md"
+                  style="background: rgba(186,26,26,0.08); color: var(--le-danger)">
+                  ↑ Content
+                </span>
+              </div>
+            </div>
+            <div class="card-icon-wrapper" style="background: rgba(186,26,26,0.08)">
+              <span class="material-symbols-outlined text-[20px]" style="color: var(--le-danger)">style</span>
+            </div>
+          </div>
+          <p class="text-[12px] mt-2" style="color: var(--le-text-muted)">Active flashcard content</p>
+          <div class="mt-3 h-1.5 rounded-full overflow-hidden" style="background: var(--le-border)">
+            <div class="h-full rounded-full" style="background: var(--le-danger); width: 40%"></div>
+          </div>
+        </div>
+
+        <!-- Card 7: Total Content -->
+        <div class="metric-card group">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="metric-label">Total Content</p>
+              <div class="flex items-center gap-3 mt-2">
+                <p class="metric-value">{{ (completedLessons + completedFlashcards + completedQuizzes) | number }}</p>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-md"
+                  style="background: var(--le-accent-soft); color: var(--le-accent)">
+                  ✓ Assets
+                </span>
+              </div>
+            </div>
+            <div class="card-icon-wrapper" style="background: var(--le-accent-soft)">
+              <span class="material-symbols-outlined text-[20px]" style="color: var(--le-accent)">inventory_2</span>
+            </div>
+          </div>
+          <p class="text-[12px] mt-2" style="color: var(--le-text-muted)">Platform content library total</p>
+          <div class="mt-3 h-1.5 rounded-full overflow-hidden" style="background: var(--le-border)">
+            <div class="h-full rounded-full" style="background: var(--le-accent); width: 75%"></div>
+          </div>
+        </div>
+
+        <!-- Card 8: Active Learners -->
+        <div class="metric-card group">
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="metric-label">Active Learners</p>
+              <div class="flex items-center gap-3 mt-2">
+                <p class="metric-value">{{ totalLearners | number }}</p>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-md"
+                  style="background: var(--le-accent-soft); color: var(--le-accent)">
+                  ✓ Active
+                </span>
+              </div>
+            </div>
+            <div class="card-icon-wrapper" style="background: var(--le-accent-soft)">
+              <span class="material-symbols-outlined text-[20px]" style="color: var(--le-accent)">person_check</span>
+            </div>
+          </div>
+          <p class="text-[12px] mt-2" style="color: var(--le-text-muted)">Currently active admin accounts</p>
+          <div class="mt-3 h-1.5 rounded-full overflow-hidden" style="background: var(--le-border)">
+            <div class="h-full rounded-full" style="background: var(--le-accent); width: 90%"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Charts Row (matches admin "Content Moderation Breakdown" style) ── -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+
+        <!-- Engagement Chart -->
+        <div class="glass-card p-6">
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center"
+                style="background: var(--le-accent-soft)">
+                <span class="material-symbols-outlined text-[18px]" style="color: var(--le-accent)">show_chart</span>
+              </div>
+              <div>
+                <h3 class="text-[14px] font-bold" style="color: var(--le-text-primary)">Learner Engagement</h3>
+                <p class="text-[12px]" style="color: var(--le-text-muted)">Platform activity over 12 months</p>
+              </div>
+            </div>
+            <button class="text-[12px] font-semibold flex items-center gap-1 transition-colors"
+              style="color: var(--le-accent)">
+              View all <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </button>
+          </div>
+
+          <!-- Chart area -->
+          <div class="relative h-[160px] mt-4">
+            <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+              <div *ngFor="let l of [100,75,50,25,0]" class="flex items-center gap-2">
+                <span class="text-[10px] w-7 shrink-0 text-right" style="color: var(--le-text-muted)">{{l}}%</span>
+                <div class="flex-1 border-t" style="border-color: var(--le-border)"></div>
+              </div>
+            </div>
+            <svg viewBox="0 0 1000 140" class="absolute inset-0 w-full h-full pl-8" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="leEngGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#004343" stop-opacity="0.18" />
+                  <stop offset="100%" stop-color="#004343" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M0,112 C100,95 160,52 240,68 C320,84 370,28 460,44 C550,60 590,92 680,74 C770,56 820,96 920,80 C970,70 990,88 1000,84 L1000,140 L0,140Z"
+                fill="url(#leEngGrad)" />
+              <path
+                d="M0,112 C100,95 160,52 240,68 C320,84 370,28 460,44 C550,60 590,92 680,74 C770,56 820,96 920,80 C970,70 990,88 1000,84"
+                fill="none" stroke="#004343" stroke-width="2.5" stroke-linecap="round" />
+              <circle cx="240" cy="68" r="5" fill="white" stroke="#004343" stroke-width="2.5" />
+              <circle cx="460" cy="44" r="5" fill="white" stroke="#004343" stroke-width="2.5" />
+              <circle cx="680" cy="74" r="5" fill="white" stroke="#004343" stroke-width="2.5" />
+            </svg>
+          </div>
+          <!-- Progress bar row (like admin dashboard breakdown) -->
+          <div class="mt-4 space-y-2.5">
+            <div class="flex items-center gap-3">
+              <div class="w-2.5 h-2.5 rounded-full shrink-0" style="background: var(--le-accent)"></div>
+              <span class="text-[12px] flex-1" style="color: var(--le-text-secondary)">Active learners</span>
+              <div class="w-40 h-2 rounded-full overflow-hidden" style="background: var(--le-border)">
+                <div class="h-full rounded-full" style="background: var(--le-accent); width: 70%"></div>
+              </div>
+              <span class="text-[12px] font-semibold w-8 text-right" style="color: var(--le-text-primary)">{{
+                totalLearners }}</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-2.5 h-2.5 rounded-full shrink-0" style="background: var(--le-orange)"></div>
+              <span class="text-[12px] flex-1" style="color: var(--le-text-secondary)">Completed tracks</span>
+              <div class="w-40 h-2 rounded-full overflow-hidden" style="background: var(--le-border)">
+                <div class="h-full rounded-full" style="background: var(--le-orange); width: 40%"></div>
+              </div>
+              <span class="text-[12px] font-semibold w-8 text-right" style="color: var(--le-text-primary)">{{
+                completedTracks }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Learner Progress Breakdown -->
+        <div class="glass-card p-6">
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center"
+                style="background: var(--le-orange-soft)">
+                <span class="material-symbols-outlined text-[18px]" style="color: var(--le-orange)">leaderboard</span>
+              </div>
+              <div>
+                <h3 class="text-[14px] font-bold" style="color: var(--le-text-primary)">Content Distribution</h3>
+                <p class="text-[12px]" style="color: var(--le-text-muted)">Breakdown by content type</p>
+              </div>
+            </div>
+            <button class="text-[12px] font-semibold flex items-center gap-1 transition-colors"
+              style="color: var(--le-accent)">
+              View all <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </button>
+          </div>
+
+          <!-- Content breakdown rows — exactly like admin dashboard "Content Moderation Breakdown" -->
+          <div class="mt-5 space-y-4">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="flex items-center gap-2 text-[13px]" style="color: var(--le-text-secondary)">
+                  <span class="w-2.5 h-2.5 rounded-full" style="background: var(--le-accent)"></span>Lessons
+                </span>
+                <span class="text-[13px] font-bold" style="color: var(--le-text-primary)">{{ completedLessons }}</span>
+              </div>
+              <div class="h-2 rounded-full overflow-hidden" style="background: var(--le-border)">
+                <div class="h-full rounded-full" style="background: var(--le-accent); width: 60%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="flex items-center gap-2 text-[13px]" style="color: var(--le-text-secondary)">
+                  <span class="w-2.5 h-2.5 rounded-full" style="background: var(--le-orange)"></span>Flashcards
+                </span>
+                <span class="text-[13px] font-bold" style="color: var(--le-text-primary)">{{ completedFlashcards
+                  }}</span>
+              </div>
+              <div class="h-2 rounded-full overflow-hidden" style="background: var(--le-border)">
+                <div class="h-full rounded-full" style="background: var(--le-orange); width: 45%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="flex items-center gap-2 text-[13px]" style="color: var(--le-text-secondary)">
+                  <span class="w-2.5 h-2.5 rounded-full" style="background: var(--le-danger)"></span>Quiz Q's
+                </span>
+                <span class="text-[13px] font-bold" style="color: var(--le-text-primary)">{{ completedQuizzes }}</span>
+              </div>
+              <div class="h-2 rounded-full overflow-hidden" style="background: var(--le-border)">
+                <div class="h-full rounded-full" style="background: var(--le-danger); width: 50%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="flex items-center gap-2 text-[13px] font-semibold"
+                  style="color: var(--le-text-secondary)">Total Assets</span>
+                <span class="text-[13px] font-bold" style="color: var(--le-text-primary)">{{ (completedLessons +
+                  completedFlashcards + completedQuizzes) | number }}</span>
+              </div>
+              <div class="h-2 rounded-full overflow-hidden" style="background: var(--le-border)">
+                <div class="h-full rounded-full" style="background: var(--le-accent); width: 80%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Leaderboard Table (matches admin table style perfectly) ── -->
+      <div class="glass-card overflow-hidden pb-10">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 gap-4 sm:gap-0" style="border-bottom: 1px solid var(--le-border)">
+          <div>
+            <h3 class="text-[15px] font-bold" style="color: var(--le-text-primary)">Top Performing Learners</h3>
+            <p class="text-[12px] mt-0.5" style="color: var(--le-text-muted)">Ranked by completion rate across all
+              tracks</p>
+          </div>
+          <button class="text-[12px] font-semibold px-4 py-2 rounded-lg border transition-all hover:opacity-80"
+            style="color: var(--le-accent); border-color: var(--le-accent-border); background: var(--le-accent-soft)">
+            View All →
+          </button>
+        </div>
+
+        <div class="w-full overflow-x-auto">
+          <div class="min-w-[700px]">
+            <!-- Table header — matching admin table styling -->
+            <div class="grid text-[11px] font-bold uppercase tracking-wider px-6 py-3"
+              style="color: var(--le-text-muted); border-bottom: 1px solid var(--le-border); grid-template-columns: 40px 1fr 100px 80px 160px 90px; background: var(--le-surface-hover)">
+              <span>#</span>
+              <span>Learner</span>
+              <span class="text-center">Tracks</span>
+              <span class="text-center">Badges</span>
+              <span>Progress</span>
+              <span class="text-right">Status</span>
+            </div>
+
+            <div>
+              <div *ngFor="let learner of learnerProgressList; let i = index"
+                class="le-table-row grid items-center px-6 py-3.5"
+                style="grid-template-columns: 40px 1fr 100px 80px 160px 90px;">
+            <span class="text-[13px] font-bold" style="color: var(--le-text-muted)">{{ i + 1 }}</span>
+            <div class="flex items-center gap-3">
+              <div
+                class="w-8 h-8 rounded-full text-[13px] font-bold text-white flex items-center justify-center shrink-0"
+                style="background: var(--le-accent)">
+                {{ learner.name.charAt(0).toUpperCase() }}
+              </div>
+              <div>
+                <p class="text-[13px] font-semibold leading-tight" style="color: var(--le-text-primary)">{{ learner.name
+                  }}</p>
+                <p class="text-[11px] flex items-center gap-1 mt-0.5" style="color: var(--le-text-muted)">
+                  <span class="w-1.5 h-1.5 rounded-full" style="background: #10B981"></span>{{ learner.status }}
+                </p>
+              </div>
+            </div>
+            <div class="text-center text-[13px] font-semibold" style="color: var(--le-text-primary)">{{
+              learner.completedTracks }}</div>
+            <div class="text-center text-[13px] font-semibold" style="color: var(--le-text-primary)">{{ learner.badges
+              }}</div>
+            <div class="flex items-center gap-3">
+              <div class="flex-1 h-1.5 rounded-full overflow-hidden" style="background: var(--le-border)">
+                <div class="h-full rounded-full" [style.width.%]="learner.completionRate"
+                  [style.background]="learner.completionRate > 50 ? 'var(--le-accent)' : 'var(--le-orange)'"></div>
+              </div>
+              <span class="text-[12px] font-bold w-8 text-right tabular-nums" style="color: var(--le-text-primary)">{{
+                learner.completionRate }}%</span>
+            </div>
+            <div class="flex justify-end">
+              <span class="px-2.5 py-1 rounded-lg text-[11px] font-bold"
+                [style.background]="learner.completionRate > 50 ? 'var(--le-accent-soft)' : 'var(--le-orange-soft)'"
+                [style.color]="learner.completionRate > 50 ? 'var(--le-accent)' : 'var(--le-orange-dark)'">
+                {{ learner.completionRate > 50 ? 'Active' : 'Started' }}
+              </span>
+            </div>
+          </div>
+
+          <div *ngIf="learnerProgressList.length === 0" class="py-14 text-center" style="color: var(--le-text-muted)">
+            <span class="material-symbols-outlined text-[44px] block mb-3"
+              style="color: var(--le-border)">group_off</span>
+            <p class="text-[13px] font-medium">No learner data available yet.</p>
+          </div>
+        </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

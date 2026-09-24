@@ -1,7 +1,14 @@
 // src/screens/learning/CourseTracksListScreen.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Pressable, ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
+import Animated, { 
+  FadeInDown, 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring 
+} from 'react-native-reanimated';
+import { MapPin, Briefcase, Zap, CheckCircle2 } from 'lucide-react-native';
 import { Track } from '../../types/learning';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { useNavigation } from '@react-navigation/native';
@@ -32,15 +39,109 @@ function GradientProgressFill({ percent }: { percent: number }) {
   );
 }
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function TrackCard({ item, index, navigation }: { item: Track; index: number; navigation: NavigationProp }) {
+  const completed = item.completedLessons ?? 0;
+  const progressPercent = item.totalLessons
+    ? Math.round((completed / item.totalLessons) * 100)
+    : 0;
+  const isComplete = progressPercent >= 100;
+  const stripeColor = DIFFICULTY_COLOR[item.difficulty] ?? Colors.secondary;
+
+  const scale = useSharedValue(1);
+
+  const onPressIn = () => {
+    scale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
+  };
+  const onPressOut = () => {
+    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View entering={FadeInDown.delay(index * 100).duration(500).springify()}>
+      <AnimatedPressable
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        onPress={() => navigation.navigate('TrackDetail', { trackId: item.id })}
+        style={[styles.card, animatedStyle]}
+      >
+        <View style={[styles.accentStripe, { backgroundColor: stripeColor }]} />
+
+        <View style={styles.cardBody}>
+          <View style={styles.titleRow}>
+            <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+            {isComplete && (
+              <View style={styles.completeBadge}>
+                <CheckCircle2 size={12} color={Colors.secondary} strokeWidth={3} />
+                <Text style={styles.completeBadgeText}>Done</Text>
+              </View>
+            )}
+          </View>
+
+          <Text style={styles.cardDescription} numberOfLines={2}>{item.description}</Text>
+
+          <View style={styles.tagsRow}>
+            <View style={styles.tagWrapper}>
+              <MapPin size={12} color={Colors.secondary} />
+              <Text style={styles.tag}>{item.region}</Text>
+            </View>
+            <View style={styles.tagWrapper}>
+              <Briefcase size={12} color={Colors.secondary} />
+              <Text style={styles.tag}>{item.occupation}</Text>
+            </View>
+            <View style={[styles.tagWrapper, styles.difficultyTagWrapper]}>
+              <Zap size={12} color={stripeColor} />
+              <Text style={[styles.tag, { color: stripeColor }]}>{item.difficulty}</Text>
+            </View>
+          </View>
+
+          <View style={styles.progressBarBackground}>
+            <GradientProgressFill percent={progressPercent} />
+          </View>
+          <Text style={styles.progressText}>
+            {completed} of {item.totalLessons} lessons · {progressPercent}%
+          </Text>
+        </View>
+      </AnimatedPressable>
+    </Animated.View>
+  );
+}
+
 export default function CourseTracksListScreen() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigation = useNavigation<NavigationProp>();
 
   useEffect(() => {
     const loadTracks = async () => {
       try {
-        const data = await apiGet<Track[]>('/learning/tracks');
-        setTracks(data);
+        const [tracksData, progressData] = await Promise.all([
+          apiGet<Track[]>('/learning/tracks'),
+          apiGet<any[]>('/learning/progress/tracks/me').catch(() => [])
+        ]);
+
+        const progressMap = new Map(progressData.map(p => [p.trackId, p]));
+        
+        const mergedTracks = tracksData.map(track => {
+          const progress = progressMap.get(track.id);
+          if (progress) {
+            return {
+              ...track,
+              completedLessons: progress.completedLessons,
+            };
+          }
+          return {
+            ...track,
+            completedLessons: 0,
+          };
+        });
+
+        setTracks(mergedTracks);
       } catch (error: any) {
         console.log('Failed to load learning tracks:', error?.message ?? error);
       } finally {
@@ -51,71 +152,30 @@ export default function CourseTracksListScreen() {
     loadTracks();
   }, []);
 
-  const navigation = useNavigation<NavigationProp>();
-
-  const renderTrack = ({ item }: { item: Track }) => {
-    const completed = item.completedLessons ?? 0;
-    const progressPercent = item.totalLessons
-      ? Math.round((completed / item.totalLessons) * 100)
-      : 0;
-    const isComplete = progressPercent >= 100;
-    const stripeColor = DIFFICULTY_COLOR[item.difficulty] ?? Colors.secondary;
-
-    return (
-      <Pressable
-        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-        onPress={() => navigation.navigate('TrackDetail', { trackId: item.id })}
-      >
-        <View style={[styles.accentStripe, { backgroundColor: stripeColor }]} />
-
-        <View style={styles.cardBody}>
-          <View style={styles.titleRow}>
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            {isComplete ? (
-              <View style={styles.completeBadge}>
-                <Text style={styles.completeBadgeText}>✓ Done</Text>
-              </View>
-            ) : null}
-          </View>
-
-          <Text style={styles.cardDescription}>{item.description}</Text>
-
-          <View style={styles.tagsRow}>
-            <Text style={styles.tag}>📍 {item.region}</Text>
-            <Text style={styles.tag}>🛠 {item.occupation}</Text>
-            <Text style={[styles.tag, styles.difficultyTag, { color: stripeColor }]}>{item.difficulty}</Text>
-          </View>
-
-          <View style={styles.progressBarBackground}>
-            <GradientProgressFill percent={progressPercent} />
-          </View>
-          <Text style={styles.progressText}>
-            {completed} of {item.totalLessons} lessons · {progressPercent}%
-          </Text>
-        </View>
-      </Pressable>
-    );
-  };
-
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={styles.header}>Learning Tracks</Text>
+      <Animated.View entering={FadeInDown.duration(600)} style={styles.headerRow}>
+        <View>
+          <Text style={styles.headerSubtitle}>Ready to learn?</Text>
+          <Text style={styles.header}>Discover Tracks</Text>
+        </View>
         <Pressable
-          style={styles.progressButton}
+          style={({ pressed }) => [styles.progressButton, pressed && { opacity: 0.8 }]}
           onPress={() => navigation.navigate('ProgressTracking')}
         >
           <Text style={styles.progressButtonText}>📊 Progress</Text>
         </Pressable>
-      </View>
+      </Animated.View>
+
       {loading ? (
         <Text style={styles.loadingText}>Loading tracks...</Text>
       ) : (
         <FlatList
           data={tracks}
           keyExtractor={(item) => String(item.id)}
-          renderItem={renderTrack}
+          renderItem={({ item, index }) => <TrackCard item={item} index={index} navigation={navigation} />}
           contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </View>
@@ -123,73 +183,92 @@ export default function CourseTracksListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.dominant, paddingTop: 50, paddingHorizontal: Spacing.md },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  container: { flex: 1, backgroundColor: Colors.dominant, paddingTop: 60, paddingHorizontal: Spacing.md },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
+  headerSubtitle: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeSM,
+    color: Colors.accent,
+    marginBottom: 2,
+  },
   header: {
     fontFamily: Typography.fontDisplay,
-    fontSize: Typography.sizeXL,
+    fontSize: Typography.sizeXL + 2,
     color: Colors.text,
   },
   progressButton: {
-    backgroundColor: Colors.secondarySubtle,
-    borderRadius: Radii.full,
-    paddingHorizontal: Spacing.sm + 4,
-    paddingVertical: Spacing.xs + 2,
-  },
-  progressButtonText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS + 1, color: Colors.secondary },
-  loadingText: { fontFamily: Typography.fontBody, color: Colors.textMuted },
-  list: { paddingBottom: Spacing.lg },
-
-  card: {
-    flexDirection: 'row',
     backgroundColor: Colors.white,
-    borderRadius: Radii.xl,
-    marginBottom: Spacing.sm + 6,
-    overflow: 'hidden',
+    borderRadius: Radii.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     shadowColor: Colors.secondaryDark,
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  cardPressed: { opacity: 0.92, transform: [{ scale: 0.995 }] },
-  accentStripe: { width: 5 },
-  cardBody: { flex: 1, padding: Spacing.md },
+  progressButtonText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: Colors.secondary },
+  loadingText: { fontFamily: Typography.fontBody, color: Colors.textMuted, textAlign: 'center', marginTop: 40 },
+  list: { paddingBottom: Spacing.xl },
+
+  card: {
+    flexDirection: 'row',
+    backgroundColor: Colors.white,
+    borderRadius: Radii.xl + 4,
+    marginBottom: Spacing.md,
+    overflow: 'hidden',
+    shadowColor: Colors.secondaryDark,
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
+  },
+  accentStripe: { width: 6 },
+  cardBody: { flex: 1, padding: Spacing.lg },
 
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.xs },
   cardTitle: {
     flex: 1,
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeLG,
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeLG + 2,
     color: Colors.text,
+    lineHeight: 26,
+    paddingRight: Spacing.sm,
   },
   completeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: Colors.secondarySubtle,
     borderRadius: Radii.full,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
-    marginLeft: Spacing.sm,
+    paddingVertical: 4,
   },
-  completeBadgeText: { color: Colors.secondary, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS - 2 },
+  completeBadgeText: { color: Colors.secondary, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS },
 
   cardDescription: {
     fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeXS + 1,
+    fontSize: Typography.sizeSM,
     color: Colors.textMuted,
-    marginBottom: Spacing.sm + 2,
+    lineHeight: 20,
+    marginBottom: Spacing.md,
   },
-  tagsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm + 4, flexWrap: 'wrap' },
-  tag: {
+  tagsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md, flexWrap: 'wrap' },
+  tagWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: Colors.secondarySubtle,
-    color: Colors.secondary,
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeXS - 1,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: Radii.md,
-    overflow: 'hidden',
   },
-  difficultyTag: { backgroundColor: Colors.accentSubtle },
+  difficultyTagWrapper: { backgroundColor: Colors.accentSubtle },
+  tag: {
+    color: Colors.secondary,
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeXS,
+  },
   progressBarBackground: {
     height: 8,
     backgroundColor: Colors.surface,
@@ -197,9 +276,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressText: {
-    fontFamily: Typography.fontBody,
+    fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeXS,
     color: Colors.textMuted,
-    marginTop: Spacing.xs + 2,
+    marginTop: Spacing.sm,
   },
 });
