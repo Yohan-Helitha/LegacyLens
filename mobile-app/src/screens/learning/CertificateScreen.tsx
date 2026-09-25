@@ -1,12 +1,14 @@
 // src/screens/learning/CertificateScreen.tsx
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Circle, Path, Polygon } from 'react-native-svg';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
 import { apiGet } from '../../services/api/client';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 
 type CertificateData = {
   trackId: number;
@@ -68,6 +70,28 @@ export default function CertificateScreen() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const viewRef = useRef<View>(null);
+
+  const handleDownloadShare = async () => {
+    try {
+      const uri = await captureRef(viewRef, {
+        format: 'png',
+        quality: 1,
+      });
+
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(uri, {
+          dialogTitle: 'Download / Share Certificate',
+        });
+      } else {
+        Alert.alert('Success', 'Certificate ready, but sharing is not supported on this device.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to process certificate.');
+    }
+  };
+
   useEffect(() => {
     const loadCertificate = async () => {
       try {
@@ -119,7 +143,7 @@ export default function CertificateScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.header}>Certificate of Completion</Text>
 
-      <View style={styles.certificateCard}>
+      <View ref={viewRef} collapsable={false} style={styles.certificateCard}>
         <View style={styles.innerBorder}>
           <CornerFlourish rotate="0deg" />
           <CornerFlourish rotate="90deg" />
@@ -149,10 +173,16 @@ export default function CertificateScreen() {
       </View>
 
       <View style={styles.actionsRow}>
-        <Pressable style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}>
+        <Pressable 
+          onPress={handleDownloadShare}
+          style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+        >
           <Text style={styles.actionButtonText}>⬇ Download</Text>
         </Pressable>
-        <Pressable style={({ pressed }) => [styles.actionButtonOutline, pressed && styles.actionButtonPressed]}>
+        <Pressable 
+          onPress={handleDownloadShare}
+          style={({ pressed }) => [styles.actionButtonOutline, pressed && styles.actionButtonPressed]}
+        >
           <Text style={styles.actionButtonOutlineText}>↗ Share</Text>
         </Pressable>
       </View>
