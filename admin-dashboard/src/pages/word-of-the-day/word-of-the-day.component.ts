@@ -6,6 +6,8 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { SidebarComponent } from '../../components/common/sidebar/sidebar.component';
 import { HeaderComponent } from '../../components/common/header/header.component';
 import { AuthService } from '../../app/core/services/auth.service';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export interface WordEntry {
   id?: number;
@@ -38,6 +40,70 @@ const API_BASE = 'http://localhost:8081/api/admin/word-of-the-day';
           <span class="material-symbols-outlined text-xl">{{ isErrorToast() ? 'error' : 'auto_stories' }}</span>
           <div class="text-xs font-semibold max-w-xs">{{ toastMessage() }}</div>
           <button (click)="toastMessage.set(null)" class="text-white/70 hover:text-white ml-2 text-xs cursor-pointer">✕</button>
+        </div>
+      }
+
+      <!-- Export PDF Modal -->
+      @if (showExportPdfModal()) {
+        <div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#191c1c]/40 backdrop-blur-sm">
+          <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-[#dde3eb] animate-in fade-in zoom-in duration-200">
+            <!-- Header -->
+            <div class="px-6 py-5 border-b border-[#f2f4f3] flex items-center justify-between bg-[#f8faf9]">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
+                  <span class="material-symbols-outlined">picture_as_pdf</span>
+                </div>
+                <div>
+                  <h3 class="text-lg font-bold text-[#191c1c]">Export Report</h3>
+                  <p class="text-xs text-[#6e7978]">Download words list as PDF</p>
+                </div>
+              </div>
+              <button (click)="showExportPdfModal.set(false)" class="text-[#6e7978] hover:text-[#191c1c] transition-colors cursor-pointer">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 space-y-5">
+              <div>
+                <label class="block text-xs font-bold text-[#191c1c] mb-1.5">From Date</label>
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6e7978] text-base pointer-events-none">event</span>
+                  <input type="date" [(ngModel)]="exportDateFrom"
+                    class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl pl-9 pr-3 py-2.5 text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-[#191c1c] mb-1.5">To Date</label>
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6e7978] text-base pointer-events-none">event</span>
+                  <input type="date" [(ngModel)]="exportDateTo"
+                    class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl pl-9 pr-3 py-2.5 text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all">
+                </div>
+              </div>
+
+              <div class="p-3 bg-blue-50 rounded-xl border border-blue-100 flex gap-2">
+                <span class="material-symbols-outlined text-blue-600 text-base shrink-0">info</span>
+                <p class="text-xs text-blue-800 leading-relaxed">
+                  The PDF will include the <strong>{{ activeListTab() }}</strong> words currently visible in the table. Leave dates empty to export all dates.
+                </p>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-4 bg-[#f8faf9] border-t border-[#f2f4f3] flex items-center justify-end gap-3">
+              <button (click)="showExportPdfModal.set(false)"
+                class="px-4 py-2 rounded-xl text-xs font-bold text-[#6e7978] hover:text-[#191c1c] hover:bg-[#f2f4f3] transition-colors cursor-pointer">
+                Cancel
+              </button>
+              <button (click)="downloadPdf()"
+                class="px-4 py-2 rounded-xl text-xs font-bold bg-[#004343] text-white hover:bg-[#003333] shadow-sm flex items-center gap-2 transition-all cursor-pointer">
+                <span class="material-symbols-outlined text-sm">download</span>
+                Generate PDF
+              </button>
+            </div>
+          </div>
         </div>
       }
 
@@ -333,7 +399,16 @@ const API_BASE = 'http://localhost:8081/api/admin/word-of-the-day';
                 </button>
               }
 
-              <div class="ml-auto pb-1">
+              <div class="ml-auto pb-1 flex items-center gap-3">
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6e7978] text-base pointer-events-none">search</span>
+                  <input type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)"
+                    placeholder="Search words..."
+                    class="w-48 bg-[#f8faf9] border border-[#dde3eb] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all">
+                </div>
+                <button (click)="showExportPdfModal.set(true)" class="text-xs text-[#004343] font-bold flex items-center gap-1 hover:underline cursor-pointer px-2 py-1 rounded-lg hover:bg-[#f2f4f3]">
+                  <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Export
+                </button>
                 <button (click)="loadWords()" class="text-xs text-[#004343] font-bold flex items-center gap-1 hover:underline cursor-pointer px-2 py-1 rounded-lg hover:bg-[#f2f4f3]">
                   <span class="material-symbols-outlined text-sm">refresh</span> Refresh
                 </button>
@@ -436,6 +511,12 @@ export class WordOfTheDayComponent implements OnInit {
   wordList = signal<WordEntry[]>([]);
   activeListTab = signal<string>('Published');
 
+  // Export PDF Modal
+  showExportPdfModal = signal<boolean>(false);
+  exportDateFrom = '';
+  exportDateTo = '';
+  searchQuery = signal<string>('');
+
   languages = [
     { label: 'සිංහල', value: 'Sinhala' },
     { label: 'தமிழ்', value: 'Tamil' },
@@ -464,8 +545,17 @@ export class WordOfTheDayComponent implements OnInit {
     this.wordList().filter(w => {
       const s = w.status ?? '';
       const tab = this.activeListTab();
-      if (tab === 'Published') return s === 'Published' || s === 'Today';
-      return s === tab;
+      let matchTab = false;
+      if (tab === 'Published') matchTab = (s === 'Published' || s === 'Today');
+      else matchTab = (s === tab);
+
+      if (!matchTab) return false;
+
+      const q = this.searchQuery().toLowerCase();
+      if (!q) return true;
+      return (w.word?.toLowerCase().includes(q) || 
+              w.definition?.toLowerCase().includes(q) || 
+              w.transliteration?.toLowerCase().includes(q));
     })
   );
 
@@ -502,6 +592,47 @@ export class WordOfTheDayComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadWords();
+  }
+
+  downloadPdf(): void {
+    const doc = new jsPDF();
+    const adminName = this.authService.currentUser()?.fullName || 'Generic Admin';
+    const dateText = (this.exportDateFrom || this.exportDateTo)
+      ? `Date Range: ${this.exportDateFrom || 'Start'} to ${this.exportDateTo || 'End'}`
+      : 'All Dates';
+
+    doc.setFontSize(16);
+    doc.text('LegacyLens', 14, 20);
+    doc.setFontSize(12);
+    doc.text(`Generated by: ${adminName}`, 14, 30);
+    doc.text(dateText, 14, 40);
+
+    let exportData = this.filteredWords();
+    
+    if (this.exportDateFrom) {
+      exportData = exportData.filter(w => w.activeDate >= this.exportDateFrom);
+    }
+    if (this.exportDateTo) {
+      exportData = exportData.filter(w => w.activeDate <= this.exportDateTo);
+    }
+
+    const tableData = exportData.map(w => [
+      w.language || '-',
+      w.word || '-',
+      w.definition || '-',
+      w.partOfSpeech || '-',
+      w.activeDate || '-',
+      w.status || '-'
+    ]);
+
+    autoTable(doc, {
+      startY: 50,
+      head: [['Language', 'Word', 'Definition', 'Part of Speech', 'Active Date', 'Status']],
+      body: tableData,
+    });
+
+    doc.save('word-of-the-day-report.pdf');
+    this.showExportPdfModal.set(false);
   }
 
   loadWords(): void {

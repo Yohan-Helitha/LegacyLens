@@ -1,10 +1,12 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../app/core/services/auth.service';
 import { SidebarComponent } from '../../components/common/sidebar/sidebar.component';
 import { HeaderComponent } from '../../components/common/header/header.component';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface ClearanceDelegation {
   title: string;
@@ -58,6 +60,57 @@ interface AuditLogEntry {
           <span class="material-symbols-outlined text-emerald-300 text-xl">check_circle</span>
           <div class="text-xs font-semibold">{{ toastMessage() }}</div>
           <button (click)="toastMessage.set(null)" class="text-white/70 hover:text-white ml-2 text-xs">✕</button>
+        </div>
+      }
+
+      <!-- Export PDF Modal -->
+      @if (showExportPdfModal()) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-[#dde3eb] overflow-hidden">
+            <div class="p-6 border-b border-[#dde3eb] flex items-center justify-between bg-[#f8faf9]">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-red-500/10 text-red-600 flex items-center justify-center">
+                  <span class="material-symbols-outlined text-2xl">picture_as_pdf</span>
+                </div>
+                <div>
+                  <h3 class="text-base font-serif font-bold text-[#191c1c]">Export PDF Report</h3>
+                  <p class="text-xs text-[#6e7978]">Select date range for export</p>
+                </div>
+              </div>
+              <button (click)="showExportPdfModal.set(false)" class="text-[#6e7978] hover:text-[#191c1c] transition-colors">
+                <span class="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+            
+            <div class="p-6 space-y-5">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-[#191c1c] mb-1.5">From Date</label>
+                  <input type="date" [(ngModel)]="exportDateFrom" class="w-full text-xs px-3.5 py-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl focus:bg-white focus:outline-none focus:border-[#004343] transition-colors" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-[#191c1c] mb-1.5">To Date</label>
+                  <input type="date" [(ngModel)]="exportDateTo" class="w-full text-xs px-3.5 py-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl focus:bg-white focus:outline-none focus:border-[#004343] transition-colors" />
+                </div>
+              </div>
+              <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-amber-600 text-lg shrink-0">info</span>
+                <p class="text-xs text-amber-800 leading-relaxed">
+                  Date filtering is ignored for clearance delegations/roles. The current filtered view will be exported.
+                </p>
+              </div>
+            </div>
+            
+            <div class="p-6 bg-[#f8faf9] border-t border-[#dde3eb] flex items-center justify-end gap-3">
+              <button (click)="showExportPdfModal.set(false)" class="px-4 py-2.5 border border-[#c2c8c7] rounded-xl text-xs font-semibold text-[#3e4948] hover:bg-white transition-colors">
+                Cancel
+              </button>
+              <button (click)="downloadPdf()" class="px-5 py-2.5 bg-[#004343] text-white rounded-xl text-xs font-bold hover:bg-[#003131] transition-all shadow-md flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">download</span>
+                Download PDF
+              </button>
+            </div>
+          </div>
         </div>
       }
 
@@ -217,8 +270,19 @@ interface AuditLogEntry {
                   </span>
                 </div>
 
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-[#dde3eb]">
+                  <div class="relative w-full sm:w-64">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6e7978] text-lg">search</span>
+                    <input type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" placeholder="Search delegations..." class="w-full pl-9 pr-4 py-2 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs focus:bg-white focus:outline-none focus:border-[#004343] transition-colors" />
+                  </div>
+                  <button (click)="showExportPdfModal.set(true)" class="flex items-center gap-1.5 px-3 py-2 bg-white border border-[#c2c8c7] rounded-xl text-xs font-semibold text-[#3e4948] hover:bg-[#f2f4f7] transition-colors">
+                    <span class="material-symbols-outlined text-sm">picture_as_pdf</span>
+                    Export PDF
+                  </button>
+                </div>
+
                 <div class="space-y-3">
-                  @for (item of clearanceDelegations(); track item.title) {
+                  @for (item of filteredClearanceDelegations(); track item.title) {
                     <div class="flex items-center justify-between p-3.5 rounded-xl border border-[#dde3eb] bg-[#f8faf9] hover:bg-white hover:border-[#004343]/30 transition-all">
                       <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-lg bg-white border border-[#dde3eb] flex items-center justify-center text-[#004343]">
@@ -593,6 +657,12 @@ interface AuditLogEntry {
 export class AccessControlComponent {
   toastMessage = signal<string | null>(null);
 
+  // Export PDF Modal
+  showExportPdfModal = signal<boolean>(false);
+  exportDateFrom = '';
+  exportDateTo = '';
+  searchQuery = signal<string>('');
+
   // Profile Signals
   profileName = signal<string>('Dr. Samantha Senanayake');
   profileEmail = signal<string>('s.senanayake@legacylens.gov.lk');
@@ -641,6 +711,15 @@ export class AccessControlComponent {
       badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300'
     }
   ]);
+
+  filteredClearanceDelegations = computed(() => {
+    const query = this.searchQuery().toLowerCase();
+    return this.clearanceDelegations().filter(item => 
+      item.title.toLowerCase().includes(query) || 
+      item.scope.toLowerCase().includes(query) ||
+      item.status.toLowerCase().includes(query)
+    );
+  });
 
   // Hardware Keys
   hardwareKeys = signal<HardwareKey[]>([
@@ -807,6 +886,39 @@ export class AccessControlComponent {
   showAllAuditLogs(): void {
     this.router.navigate(['/analytics']);
     this.router.navigate(['/audit']);
+  }
+
+  downloadPdf(): void {
+    const doc = new jsPDF();
+    const adminName = this.profileName() || 'Admin';
+    const dateText = (this.exportDateFrom && this.exportDateTo) 
+      ? `Date Range: ${this.exportDateFrom} to ${this.exportDateTo}` 
+      : 'Date Range: All Time';
+
+    doc.setFontSize(18);
+    doc.text('LegacyLens', 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated by ${adminName}`, 14, 30);
+    doc.text(dateText, 14, 36);
+
+    const tableData = this.filteredClearanceDelegations().map(item => [
+      item.title,
+      item.scope,
+      item.status
+    ]);
+
+    autoTable(doc, {
+      startY: 45,
+      head: [['Title', 'Scope', 'Status']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [0, 67, 67] }
+    });
+
+    doc.save('Clearance_Delegations.pdf');
+    this.showExportPdfModal.set(false);
   }
 
   logout(): void {

@@ -7,6 +7,8 @@ import { VerificationService } from '../../app/core/services/verification.servic
 import { AdminUserVerificationResponse, AdminUserRoleDto } from '../../app/core/models/verification.model';
 import { SidebarComponent } from '../../components/common/sidebar/sidebar.component';
 import { HeaderComponent } from '../../components/common/header/header.component';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export type VerificationTab = 'verification' | 'directory';
 
@@ -24,6 +26,50 @@ export type VerificationTab = 'verification' | 'directory';
         <span class="material-symbols-outlined text-emerald-300 text-xl">verified_user</span>
         <div class="text-xs font-semibold">{{ toastMessage() }}</div>
         <button (click)="toastMessage.set(null)" class="text-white/70 hover:text-white ml-2 text-xs cursor-pointer">✕</button>
+      </div>
+
+      <!-- Export PDF Modal -->
+      <div *ngIf="showExportPdfModal()" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+          <div class="flex items-center gap-3 text-[#004343]">
+            <span class="material-symbols-outlined text-3xl">picture_as_pdf</span>
+            <h3 class="font-['Source_Serif_4',serif] text-lg font-bold text-[#202426]">Export PDF Report</h3>
+          </div>
+          <p class="text-xs text-[#3f4948]">
+            Select a date range for the verification records to include in the PDF report.
+          </p>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-[11px] font-bold text-[#6f7978] uppercase mb-1">Start Date</label>
+              <input 
+                type="date" 
+                [(ngModel)]="exportDateFrom"
+                class="w-full p-2.5 bg-[#f8faf9] border border-[#dde3eb] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]"
+              />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-[#6f7978] uppercase mb-1">End Date</label>
+              <input 
+                type="date" 
+                [(ngModel)]="exportDateTo"
+                class="w-full p-2.5 bg-[#f8faf9] border border-[#dde3eb] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]"
+              />
+            </div>
+          </div>
+          <div class="flex items-center justify-end gap-2 pt-2">
+            <button 
+              (click)="showExportPdfModal.set(false)"
+              class="px-4 py-2 rounded-xl text-xs font-bold text-[#3f4948] hover:bg-[#f2f4f3] cursor-pointer">
+              Cancel
+            </button>
+            <button 
+              (click)="downloadVerificationPdf()"
+              class="px-4 py-2 rounded-xl text-xs font-bold bg-[#004343] hover:bg-[#0f5c5c] text-white cursor-pointer flex items-center gap-1.5 shadow-md">
+              <span class="material-symbols-outlined text-sm">download</span>
+              <span>Export</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Suspend Modal -->
@@ -162,34 +208,75 @@ export type VerificationTab = 'verification' | 'directory';
                 </h2>
                 <p class="text-xs text-[#6f7978]">Review identity documents, OTP confirmation, and activate assigned roles</p>
               </div>
-
-              <!-- Search Bar -->
-              <div class="relative w-full sm:w-80">
-                <span class="material-symbols-outlined absolute left-3 top-2.5 text-[#6f7978] text-sm">search</span>
-                <input 
-                  type="text" 
-                  [(ngModel)]="searchQuery" 
-                  placeholder="Search name, NIC, phone, city, ID..." 
-                  class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl pl-9 pr-8 py-2 text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all"
-                />
-                <button 
-                  *ngIf="searchQuery" 
-                  (click)="searchQuery = ''" 
-                  class="absolute right-2.5 top-2.5 text-[#6f7978] hover:text-[#191c1c] text-xs cursor-pointer">
-                  ✕
-                </button>
-              </div>
             </div>
 
             <!-- Filter Controls Bar -->
             <div class="flex flex-col gap-3 pt-2 border-t border-[#eceeed]">
               
-              <!-- Row 1: Status & Role Filter Chips -->
-              <div class="flex items-center gap-64 overflow-x-auto pb-1 shrink-0">
+              <!-- Row 1: Search Bar, Export Btn, Role Filter -->
+              <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 shrink-0 w-full">
+                
+                <div class="flex flex-col sm:flex-row sm:items-center gap-3 w-full xl:w-auto">
+                  <!-- Search Bar -->
+                  <div class="relative w-full sm:w-96 lg:w-[830px] shrink-0">
+                    <span class="material-symbols-outlined absolute left-3 top-2.5 text-[#6f7978] text-sm">search</span>
+                    <input 
+                      type="text" 
+                      [(ngModel)]="searchQuery" 
+                      placeholder="Search name, NIC, phone, city, ID..." 
+                      class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl pl-9 pr-8 py-2 text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all"
+                    />
+                    <button 
+                      *ngIf="searchQuery" 
+                      (click)="searchQuery = ''" 
+                      class="absolute right-2.5 top-2.5 text-[#6f7978] hover:text-[#191c1c] text-xs cursor-pointer">
+                      ✕
+                    </button>
+                  </div>
+                  
+                  <!-- Export PDF Button -->
+                  <button 
+                    (click)="showExportPdfModal.set(true)"
+                    title="Download verification records as PDF"
+                    class="px-3 py-2 bg-[#004343] hover:bg-[#0f5c5c] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm shrink-0 sm:w-auto">
+                    <span class="material-symbols-outlined text-sm">download</span>
+                    <span>Export PDF</span>
+                  </button>
+                </div>
+
+                <!-- Role Filter Group -->
+                <div class="flex items-center gap-1.5 shrink-0 overflow-x-auto w-full xl:w-auto">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-[#6f7978] mr-0.5 whitespace-nowrap">Role:</span>
+                  
+                  <button 
+                    (click)="activeRoleFilter.set('ALL')"
+                    [class]="activeRoleFilter() === 'ALL' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'bg-[#f2f4f3] text-[#3f4948] hover:bg-[#dde3eb]'"
+                    class="text-xs px-2.5 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer">
+                    All Roles
+                  </button>
+
+                  <button 
+                    (click)="activeRoleFilter.set('ELDER')"
+                    [class]="activeRoleFilter() === 'ELDER' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'bg-[#f2f4f3] text-[#3f4948] hover:bg-[#dde3eb]'"
+                    class="text-xs px-2.5 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer">
+                    Elders ({{ eldersCount() }})
+                  </button>
+
+                  <button 
+                    (click)="activeRoleFilter.set('YOUTH_CREATOR')"
+                    [class]="activeRoleFilter() === 'YOUTH_CREATOR' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'bg-[#f2f4f3] text-[#3f4948] hover:bg-[#dde3eb]'"
+                    class="text-xs px-2.5 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer">
+                    Youth Creators ({{ creatorsCount() }})
+                  </button>
+                </div>
+              </div>
+
+              <!-- Row 2: Status Filter, Date Filter -->
+              <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 flex-wrap w-full">
                 
                 <!-- Status Filter Group -->
-                <div class="flex items-center gap-1.5 shrink-0">
-                  <span class="text-[10px] font-bold uppercase tracking-wider text-[#6f7978] mr-0.5">Status:</span>
+                <div class="flex items-center gap-1.5 shrink-0 overflow-x-auto w-full xl:w-auto">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-[#6f7978] mr-0.5 whitespace-nowrap">Status:</span>
                   
                   <button 
                     (click)="activeStatusFilter.set('PENDING')"
@@ -220,93 +307,64 @@ export type VerificationTab = 'verification' | 'directory';
                   </button>
                 </div>
 
-                <div class="h-4 w-px bg-[#dde3eb] shrink-0"></div>
-
-                <!-- Role Filter Group -->
-                <div class="flex items-center gap-1.5 shrink-0">
-                  <span class="text-[10px] font-bold uppercase tracking-wider text-[#6f7978] mr-0.5">Role:</span>
+                <!-- Date Filter Group -->
+                <div class="flex items-center gap-2 flex-wrap w-full xl:w-auto">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-[#6f7978]">Date:</span>
                   
-                  <button 
-                    (click)="activeRoleFilter.set('ALL')"
-                    [class]="activeRoleFilter() === 'ALL' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'bg-[#f2f4f3] text-[#3f4948] hover:bg-[#dde3eb]'"
-                    class="text-xs px-2.5 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer">
-                    All Roles
-                  </button>
+                  <div class="flex items-center gap-1 bg-[#f8faf9] p-1 rounded-xl border border-[#dde3eb]">
+                    <button 
+                      (click)="setDatePreset('all')"
+                      [class]="activeDatePreset() === 'all' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'text-[#3f4948] hover:bg-[#dde3eb]'"
+                      class="text-[11px] px-2 py-0.5 rounded-lg transition-colors cursor-pointer">
+                      All Time
+                    </button>
+                    <button 
+                      (click)="setDatePreset('today')"
+                      [class]="activeDatePreset() === 'today' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'text-[#3f4948] hover:bg-[#dde3eb]'"
+                      class="text-[11px] px-2 py-0.5 rounded-lg transition-colors cursor-pointer">
+                      Today
+                    </button>
+                    <button 
+                      (click)="setDatePreset('7days')"
+                      [class]="activeDatePreset() === '7days' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'text-[#3f4948] hover:bg-[#dde3eb]'"
+                      class="text-[11px] px-2 py-0.5 rounded-lg transition-colors cursor-pointer">
+                      7 Days
+                    </button>
+                    <button 
+                      (click)="setDatePreset('month')"
+                      [class]="activeDatePreset() === 'month' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'text-[#3f4948] hover:bg-[#dde3eb]'"
+                      class="text-[11px] px-2 py-0.5 rounded-lg transition-colors cursor-pointer">
+                      Month
+                    </button>
+                  </div>
+
+                  <div class="flex items-center gap-1.5">
+                    <input 
+                      type="date" 
+                      [(ngModel)]="dateFrom" 
+                      (change)="activeDatePreset.set('custom')"
+                      title="From date"
+                      class="p-1 bg-[#f8faf9] border border-[#dde3eb] rounded-lg text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]"
+                    />
+                    <span class="text-xs text-[#6f7978]">to</span>
+                    <input 
+                      type="date" 
+                      [(ngModel)]="dateTo" 
+                      (change)="activeDatePreset.set('custom')"
+                      title="To date"
+                      class="p-1 bg-[#f8faf9] border border-[#dde3eb] rounded-lg text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]"
+                    />
+                  </div>
 
                   <button 
-                    (click)="activeRoleFilter.set('ELDER')"
-                    [class]="activeRoleFilter() === 'ELDER' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'bg-[#f2f4f3] text-[#3f4948] hover:bg-[#dde3eb]'"
-                    class="text-xs px-2.5 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer">
-                    Elders ({{ eldersCount() }})
-                  </button>
-
-                  <button 
-                    (click)="activeRoleFilter.set('YOUTH_CREATOR')"
-                    [class]="activeRoleFilter() === 'YOUTH_CREATOR' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'bg-[#f2f4f3] text-[#3f4948] hover:bg-[#dde3eb]'"
-                    class="text-xs px-2.5 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer">
-                    Youth Creators ({{ creatorsCount() }})
+                    *ngIf="isAnyVerificationFilterActive()"
+                    (click)="resetVerificationFilters()"
+                    title="Reset verification filters"
+                    class="px-2.5 py-1 bg-[#f2f4f3] hover:bg-red-50 hover:text-red-700 text-[11px] font-bold text-[#3f4948] rounded-xl border border-[#dde3eb] flex items-center gap-1 transition-colors cursor-pointer">
+                    <span class="material-symbols-outlined text-sm">filter_alt_off</span>
+                    <span>Reset</span>
                   </button>
                 </div>
-
-              </div>
-
-              <!-- Row 2: Date Selector Filter -->
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-[#6f7978]">Date:</span>
-                
-                <div class="flex items-center gap-1 bg-[#f8faf9] p-1 rounded-xl border border-[#dde3eb]">
-                  <button 
-                    (click)="setDatePreset('all')"
-                    [class]="activeDatePreset() === 'all' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'text-[#3f4948] hover:bg-[#dde3eb]'"
-                    class="text-[11px] px-2 py-0.5 rounded-lg transition-colors cursor-pointer">
-                    All Time
-                  </button>
-                  <button 
-                    (click)="setDatePreset('today')"
-                    [class]="activeDatePreset() === 'today' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'text-[#3f4948] hover:bg-[#dde3eb]'"
-                    class="text-[11px] px-2 py-0.5 rounded-lg transition-colors cursor-pointer">
-                    Today
-                  </button>
-                  <button 
-                    (click)="setDatePreset('7days')"
-                    [class]="activeDatePreset() === '7days' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'text-[#3f4948] hover:bg-[#dde3eb]'"
-                    class="text-[11px] px-2 py-0.5 rounded-lg transition-colors cursor-pointer">
-                    7 Days
-                  </button>
-                  <button 
-                    (click)="setDatePreset('month')"
-                    [class]="activeDatePreset() === 'month' ? 'bg-[#004343] text-white font-bold shadow-xs' : 'text-[#3f4948] hover:bg-[#dde3eb]'"
-                    class="text-[11px] px-2 py-0.5 rounded-lg transition-colors cursor-pointer">
-                    Month
-                  </button>
-                </div>
-
-                <div class="flex items-center gap-1.5">
-                  <input 
-                    type="date" 
-                    [(ngModel)]="dateFrom" 
-                    (change)="activeDatePreset.set('custom')"
-                    title="From date"
-                    class="p-1 bg-[#f8faf9] border border-[#dde3eb] rounded-lg text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]"
-                  />
-                  <span class="text-xs text-[#6f7978]">to</span>
-                  <input 
-                    type="date" 
-                    [(ngModel)]="dateTo" 
-                    (change)="activeDatePreset.set('custom')"
-                    title="To date"
-                    class="p-1 bg-[#f8faf9] border border-[#dde3eb] rounded-lg text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]"
-                  />
-                </div>
-
-                <button 
-                  *ngIf="isAnyVerificationFilterActive()"
-                  (click)="resetVerificationFilters()"
-                  title="Reset verification filters"
-                  class="px-2.5 py-1 bg-[#f2f4f3] hover:bg-red-50 hover:text-red-700 text-[11px] font-bold text-[#3f4948] rounded-xl border border-[#dde3eb] flex items-center gap-1 transition-colors cursor-pointer">
-                  <span class="material-symbols-outlined text-sm">filter_alt_off</span>
-                  <span>Reset</span>
-                </button>
               </div>
 
             </div>
@@ -978,6 +1036,11 @@ export class VerificationComponent implements OnInit {
   // Toast message
   toastMessage = signal<string | null>(null);
 
+  // Export PDF Modal
+  showExportPdfModal = signal<boolean>(false);
+  exportDateFrom = '';
+  exportDateTo = '';
+
   // Action fields for single user adjudication
   rejectionReason = '';
   auditNote = 'Identity verified via official records.';
@@ -1388,6 +1451,106 @@ export class VerificationComponent implements OnInit {
         setTimeout(() => this.toastMessage.set(null), 4500);
       }
     });
+  }
+
+  downloadVerificationPdf(): void {
+    const doc = new jsPDF();
+    const admin = this.adminName();
+    const currentDate = new Date().toLocaleString();
+
+    doc.setFontSize(20);
+    doc.setTextColor(0, 67, 67);
+    doc.text('LegacyLens', 14, 20);
+
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Community Verification Queue Report', 14, 30);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated by: ${admin}`, 14, 40);
+    doc.text(`Date & Time: ${currentDate}`, 14, 46);
+
+    let filterText = 'Filters applied: ';
+    filterText += `Status: ${this.activeStatusFilter()}, Role: ${this.activeRoleFilter()}`;
+    if (this.exportDateFrom || this.exportDateTo) {
+      filterText += `, Export Date: ${this.exportDateFrom || 'Start'} to ${this.exportDateTo || 'End'}`;
+    }
+    doc.text(filterText, 14, 52);
+
+    let users = this.users().filter(u => {
+      // 1. Status Filter
+      if (this.activeStatusFilter() === 'PENDING') {
+        const isPending = u.verificationStatus === 'PENDING' || u.roleDetails?.some(r => r.status === 'INACTIVE' && r.roleType !== 'GENERAL_USER');
+        if (!isPending) return false;
+      } else if (this.activeStatusFilter() === 'VERIFIED') {
+        if (u.verificationStatus !== 'VERIFIED') return false;
+      } else if (this.activeStatusFilter() === 'REJECTED') {
+        const isRejected = u.verificationStatus === 'REJECTED' || u.verificationStatus === 'SUSPENDED' || u.accountStatus === 'SUSPENDED';
+        if (!isRejected) return false;
+      }
+
+      // 2. Role Filter
+      if (this.activeRoleFilter() !== 'ALL') {
+        if (!u.roles?.includes(this.activeRoleFilter())) {
+          return false;
+        }
+      }
+
+      // 3. Export Date Filter
+      if (u.createdAt) {
+        const userDate = new Date(u.createdAt);
+        if (this.exportDateFrom) {
+          const from = new Date(this.exportDateFrom + 'T00:00:00');
+          if (userDate < from) return false;
+        }
+        if (this.exportDateTo) {
+          const to = new Date(this.exportDateTo + 'T23:59:59');
+          if (userDate > to) return false;
+        }
+      }
+
+      // 4. Search Query Filter
+      const query = (this.searchQuery || '').trim().toLowerCase();
+      if (query) {
+        const matchesName = u.fullName?.toLowerCase().includes(query);
+        const matchesNic = u.nicNumber?.toLowerCase().includes(query);
+        const matchesPhone = u.phoneNumber?.toLowerCase().includes(query);
+        const matchesCity = u.cityName?.toLowerCase().includes(query);
+        const matchesRegion = u.cityRegion?.toLowerCase().includes(query);
+        const matchesId = u.id?.toLowerCase().includes(query);
+        if (!matchesName && !matchesNic && !matchesPhone && !matchesCity && !matchesRegion && !matchesId) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    const tableData = users.map(u => [
+      u.fullName || 'N/A',
+      u.nicNumber || 'N/A',
+      u.phoneNumber || 'N/A',
+      u.cityName || 'N/A',
+      u.roles?.join(', ') || 'N/A',
+      (u.verificationStatus === 'SUSPENDED' || u.verificationStatus === 'REJECTED') ? 'REJECTED' : (u.verificationStatus || 'N/A'),
+      u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'
+    ]);
+
+    autoTable(doc, {
+      head: [['Full Name', 'NIC', 'Phone', 'City', 'Roles', 'Status', 'Registered']],
+      body: tableData,
+      startY: 60,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [0, 67, 67] },
+    });
+
+    doc.save(`Verification_Queue_Report_${new Date().getTime()}.pdf`);
+    
+    // Close modal and show toast
+    this.showExportPdfModal.set(false);
+    this.toastMessage.set('PDF report exported successfully.');
+    setTimeout(() => this.toastMessage.set(null), 3000);
   }
 
   logout(): void {

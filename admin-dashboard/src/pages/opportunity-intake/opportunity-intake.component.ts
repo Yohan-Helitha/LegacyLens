@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../app/core/services/auth.service';
 import { OpportunityService } from '../../app/core/services/opportunity.service';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   AdminOpportunityResponse,
   OpportunityAudioResponse,
@@ -96,6 +98,49 @@ export interface OpportunityItem {
           </span>
           <div class="text-xs font-semibold">{{ toastMessage() }}</div>
           <button (click)="toastMessage.set(null)" class="text-white/70 hover:text-white ml-2 text-xs">✕</button>
+        </div>
+      }
+
+      <!-- Export PDF Modal -->
+      @if (showExportPdfModal()) {
+        <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-[#dde3eb]">
+            <h3 class="text-lg font-bold text-[#004343] mb-4 font-serif">Export Opportunities to PDF</h3>
+            
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-[#191c1c] mb-1 uppercase tracking-wider">From Date</label>
+                <input 
+                  type="date" 
+                  [(ngModel)]="exportDateFrom"
+                  class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3 py-2 text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:ring-1 focus:ring-[#004343]"
+                />
+              </div>
+              
+              <div>
+                <label class="block text-xs font-bold text-[#191c1c] mb-1 uppercase tracking-wider">To Date</label>
+                <input 
+                  type="date" 
+                  [(ngModel)]="exportDateTo"
+                  class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3 py-2 text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:ring-1 focus:ring-[#004343]"
+                />
+              </div>
+            </div>
+
+            <div class="mt-6 flex items-center justify-end gap-3">
+              <button 
+                (click)="showExportPdfModal.set(false)"
+                class="px-4 py-2 bg-[#f2f4f3] hover:bg-[#e1e3e2] text-[#3f4948] rounded-xl text-xs font-bold transition-colors cursor-pointer">
+                Cancel
+              </button>
+              <button 
+                (click)="downloadPdf()"
+                class="px-4 py-2 bg-[#004343] hover:bg-[#003131] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-sm">download</span>
+                <span>Download PDF</span>
+              </button>
+            </div>
+          </div>
         </div>
       }
 
@@ -854,6 +899,14 @@ export interface OpportunityItem {
                     </button>
                   </div>
 
+                  <!-- Export PDF Button -->
+                  <button 
+                    (click)="showExportPdfModal.set(true)"
+                    class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
+                    <span class="material-symbols-outlined text-sm">picture_as_pdf</span>
+                    <span>Export PDF</span>
+                  </button>
+
                   <!-- New Opportunity Button -->
                   <button 
                     (click)="startNewOpportunity()"
@@ -1350,7 +1403,7 @@ export interface OpportunityItem {
                       <span class="material-symbols-outlined absolute left-3 top-2.5 text-[#6f7978] text-sm">search</span>
                       <input 
                         type="text" 
-                        [(ngModel)]="holderSearchQuery" 
+                        [ngModel]="holderSearchQuery()" (ngModelChange)="holderSearchQuery.set($event)" 
                         placeholder="Search knowledge custodians by name, craft, or district..."
                         class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl pl-9 pr-4 py-2 text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white"
                       />
@@ -1424,7 +1477,7 @@ export interface OpportunityItem {
                           <span class="material-symbols-outlined absolute left-3 top-2.5 text-[#6f7978] text-sm">search</span>
                           <input 
                             type="text" 
-                            [(ngModel)]="oppLocationText" 
+                            [ngModel]="oppLocationText()" (ngModelChange)="oppLocationText.set($event)" 
                             (keyup.enter)="handleLocationSearch()"
                             placeholder="Enter site location, district, or town..."
                             class="w-full bg-white border border-[#c2c8c7] rounded-xl pl-9 pr-3 py-2 text-xs text-[#191c1c] focus:ring-1 focus:ring-[#004343] focus:outline-none"
@@ -2032,6 +2085,11 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   toastMessage = signal<string | null>(null);
   toastType = signal<'success' | 'warning' | 'info' | 'error'>('info');
 
+  // Export PDF Modal
+  showExportPdfModal = signal<boolean>(false);
+  exportDateFrom = '';
+  exportDateTo = '';
+
   // ----------------------------------------------------
   // CREATE OPPORTUNITY WIZARD STATE
   // ----------------------------------------------------
@@ -2216,13 +2274,13 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
 
     if (query) {
       items = items.filter(o =>
-        o.title.toLowerCase().includes(query) ||
-        o.description.toLowerCase().includes(query) ||
-        o.location.toLowerCase().includes(query) ||
+        (o.title && o.title.toLowerCase().includes(query)) ||
+        (o.description && o.description.toLowerCase().includes(query)) ||
+        (o.location && o.location.toLowerCase().includes(query)) ||
         (o.elderName && o.elderName.toLowerCase().includes(query)) ||
         (o.category && o.category.toLowerCase().includes(query)) ||
-        o.skills.some(s => s.toLowerCase().includes(query)) ||
-        o.perks.some(p => p.toLowerCase().includes(query))
+        (o.skills && o.skills.some(s => s.toLowerCase().includes(query))) ||
+        (o.perks && o.perks.some(p => p.toLowerCase().includes(query)))
       );
     }
 
@@ -2249,13 +2307,13 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
 
     if (query) {
       items = items.filter(o =>
-        o.title.toLowerCase().includes(query) ||
-        o.description.toLowerCase().includes(query) ||
-        o.location.toLowerCase().includes(query) ||
+        (o.title && o.title.toLowerCase().includes(query)) ||
+        (o.description && o.description.toLowerCase().includes(query)) ||
+        (o.location && o.location.toLowerCase().includes(query)) ||
         (o.elderName && o.elderName.toLowerCase().includes(query)) ||
         (o.category && o.category.toLowerCase().includes(query)) ||
-        o.skills.some(s => s.toLowerCase().includes(query)) ||
-        o.perks.some(p => p.toLowerCase().includes(query))
+        (o.skills && o.skills.some(s => s.toLowerCase().includes(query))) ||
+        (o.perks && o.perks.some(p => p.toLowerCase().includes(query)))
       );
     }
 
@@ -2281,9 +2339,9 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
 
     if (query) {
       items = items.filter(o =>
-        o.title.toLowerCase().includes(query) ||
-        o.description.toLowerCase().includes(query) ||
-        o.location.toLowerCase().includes(query) ||
+        (o.title && o.title.toLowerCase().includes(query)) ||
+        (o.description && o.description.toLowerCase().includes(query)) ||
+        (o.location && o.location.toLowerCase().includes(query)) ||
         (o.elderName && o.elderName.toLowerCase().includes(query)) ||
         (o.category && o.category.toLowerCase().includes(query))
       );
@@ -2292,16 +2350,69 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     return items;
   });
 
+  filteredOpportunities = computed(() => {
+    const tab = this.activeHubTab();
+    if (tab === 'drafts') return this.filteredDraftOpportunities();
+    if (tab === 'published') return this.filteredPublishedOpportunities();
+    return this.filteredRemovedOpportunities();
+  });
+
+  downloadPdf(): void {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text('LegacyLens', 14, 20);
+    
+    doc.setFontSize(12);
+    doc.text('Generated by Admin', 14, 28);
+    
+    if (this.exportDateFrom || this.exportDateTo) {
+      doc.setFontSize(10);
+      doc.text(`Date Range: ${this.exportDateFrom || 'Any'} to ${this.exportDateTo || 'Any'}`, 14, 34);
+    }
+    
+    let exportData = this.filteredOpportunities();
+    if (this.exportDateFrom) {
+      const from = new Date(this.exportDateFrom).getTime();
+      exportData = exportData.filter(item => new Date(item.lastEditedAt || item.createdAt).getTime() >= from);
+    }
+    if (this.exportDateTo) {
+      const to = new Date(this.exportDateTo).getTime();
+      exportData = exportData.filter(item => new Date(item.lastEditedAt || item.createdAt).getTime() <= to + 86400000);
+    }
+
+    const data = exportData.map(item => [
+      item.title || 'N/A',
+      item.category || 'N/A',
+      item.location || 'N/A',
+      item.status || 'N/A'
+    ]);
+    
+    autoTable(doc, {
+      startY: 40,
+      head: [['Title', 'Category', 'Location', 'Status']],
+      body: data,
+    });
+    
+    doc.save('opportunities_export.pdf');
+    this.showExportPdfModal.set(false);
+  }
+
   featuredDraft = computed(() => {
     const drafts = this.filteredDraftOpportunities();
     if (drafts.length === 0) return null;
-    return [...drafts].sort((a, b) => new Date(b.lastEditedAt).getTime() - new Date(a.lastEditedAt).getTime())[0];
+    const mostRecent = [...drafts].sort((a, b) => new Date(b.lastEditedAt).getTime() - new Date(a.lastEditedAt).getTime())[0];
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    if (new Date(mostRecent.lastEditedAt) >= threeDaysAgo) return mostRecent;
+    return null;
   });
 
   otherDrafts = computed(() => {
     const feat = this.featuredDraft();
-    if (!feat) return [];
-    return this.filteredDraftOpportunities().filter(d => d.id !== feat.id);
+    const drafts = this.filteredDraftOpportunities();
+    if (!feat) return drafts;
+    return drafts.filter(d => d.id !== feat.id);
   });
 
   featuredPublished = computed(() => {
@@ -3229,3 +3340,4 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     }, 3800);
   }
 }
+

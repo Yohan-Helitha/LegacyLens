@@ -2,6 +2,8 @@ import { Component, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { AuthService } from '../../app/core/services/auth.service';
 import { ModerationService } from '../../app/core/services/moderation.service';
 import { ModerationQueueItemResponse, StoryQuizDTO, RegionDTO } from '../../app/core/models/moderation.model';
@@ -66,6 +68,45 @@ export interface ModerationItem {
             <div class="text-xs font-semibold">{{ toastMessage() }}</div>
           </div>
           <button (click)="toastMessage.set(null)" class="text-white/70 hover:text-white ml-2 text-xs">✕</button>
+        </div>
+      }
+
+      <!-- Export PDF Modal -->
+      @if (showExportPdfModal()) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div class="bg-white rounded-2xl max-w-md w-full border border-[#dde3eb] shadow-2xl p-6 space-y-5">
+            <div class="flex items-center justify-between border-b border-[#dde3eb] pb-3">
+              <div class="flex items-center gap-2 text-[#004343]">
+                <span class="material-symbols-outlined text-2xl">picture_as_pdf</span>
+                <h3 class="font-serif font-bold text-lg text-[#191c1c]">Export to PDF</h3>
+              </div>
+              <button (click)="showExportPdfModal.set(false)" class="text-[#6e7978] hover:text-[#191c1c] cursor-pointer">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div class="space-y-3">
+              <p class="text-xs text-[#3f4948]">Select a date range to filter the current moderation queue export.</p>
+              <div>
+                <label class="block text-[11px] font-bold text-[#6e7978] uppercase mb-1">From Date</label>
+                <input type="date" [(ngModel)]="exportDateFrom" class="w-full p-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-[#6e7978] uppercase mb-1">To Date</label>
+                <input type="date" [(ngModel)]="exportDateTo" class="w-full p-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]" />
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-3 border-t border-[#dde3eb]">
+              <button (click)="showExportPdfModal.set(false)" class="px-4 py-2 border border-[#dde3eb] rounded-xl text-xs font-bold text-[#3e4948] hover:bg-[#f2f4f3] cursor-pointer">
+                Cancel
+              </button>
+              <button (click)="downloadPdf()" class="px-5 py-2 bg-[#004343] hover:bg-[#0f5c5c] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer">
+                <span class="material-symbols-outlined text-sm">download</span>
+                <span>Download PDF</span>
+              </button>
+            </div>
+          </div>
         </div>
       }
 
@@ -185,7 +226,7 @@ export interface ModerationItem {
         </app-header>
 
         <!-- Main Body Scrollable View -->
-        <main class="flex-1 overflow-y-auto p-6 space-y-6">
+        <main class="flex-1 overflow-y-auto px-6 pt-6 space-y-6">
           
           <!-- Loading State -->
           @if (isLoading()) {
@@ -217,8 +258,14 @@ export interface ModerationItem {
               </p>
             </div>
 
-            <!-- Action Triggers: Sync Button & Archive Post -->
+            <!-- Action Triggers: Sync Button & Export PDF -->
             <div class="flex items-center gap-3 self-start xl:self-auto flex-wrap">
+              <button 
+                (click)="showExportPdfModal.set(true)"
+                class="px-4 py-2.5 rounded-xl bg-white border border-[#dde3eb] hover:bg-[#f2f4f3] text-[#191c1c] text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer">
+                <span class="material-symbols-outlined text-base text-[#ba1a1a]">picture_as_pdf</span>
+                <span>Export PDF</span>
+              </button>
               <button 
                 (click)="syncQueue()"
                 [disabled]="isSyncing()"
@@ -299,6 +346,16 @@ export interface ModerationItem {
               <!-- Top Controls in Queue Sidebar -->
               <div class="p-4 border-b border-[#dde3eb] space-y-3">
                 
+                <!-- Search Bar -->
+                <div class="relative w-full">
+                  <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#6e7978] text-[18px]">search</span>
+                  <input type="text"
+                         [ngModel]="searchQuery()"
+                         (ngModelChange)="searchQuery.set($event)"
+                         placeholder="Search queue by title, contributor, or code..."
+                         class="w-full pl-9 pr-3 py-2 bg-[#f8faf9] border border-[#dde3eb] rounded-xl text-xs text-[#191c1c] focus:bg-white focus:outline-none focus:border-[#004343] transition-all" />
+                </div>
+
                 <!-- 4 Primary Workflow Tabs (Segmented Control) -->
                 <div class="grid grid-cols-4 gap-1 bg-[#f2f4f7] p-1 rounded-xl text-center text-xs font-semibold">
                   <button (click)="setTab('review')" 
@@ -546,439 +603,504 @@ export interface ModerationItem {
             </div>
 
             <!-- RIGHT PANE: Detailed Curatorial Inspector & Decision Workspace (7 cols) -->
-            <div class="lg:col-span-7 flex flex-col gap-6">
+            <div class="lg:col-span-7 flex flex-col gap-3">
               @if (selectedItem(); as item) {
-                
-                <!-- 1. Submission Overview & Media Viewer Card -->
-                <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-xs space-y-5">
-                  
-                  <!-- Status & Identification Header -->
-                  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-[#dde3eb]">
-                    <div>
-                      <div class="flex items-center gap-2 mb-1.5 flex-wrap">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#004343]/10 text-[#004343]">
-                          {{ item.code }}
-                        </span>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
-                          {{ item.category }}
-                        </span>
-                        <span class="text-xs text-[#6e7978] font-mono">
-                          {{ item.dialect || 'Southern High-Kandyan Sinhala' }}
-                        </span>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase"
-                              [ngClass]="{
-                                'bg-emerald-100 text-emerald-800': item.status === 'PUBLISHED',
-                                'bg-amber-100 text-amber-800': item.status === 'PENDING',
-                                'bg-red-100 text-red-800': item.status === 'REJECTED',
-                                'bg-orange-100 text-orange-800': item.status === 'ARCHIVED'
-                              }">
-                          {{ item.status }}
-                        </span>
-                      </div>
-                      <h2 class="text-xl font-serif font-bold text-[#191c1c]">{{ item.title }}</h2>
-                    </div>
 
-                    <!-- Contributor Profile Pill -->
-                    <div class="flex items-center gap-3 bg-[#f8faf9] p-2.5 rounded-xl border border-[#dde3eb]">
-                      <div class="w-10 h-10 rounded-xl bg-[#004343] text-white flex items-center justify-center font-serif font-bold text-sm">
-                        {{ item.avatar }}
-                      </div>
-                      <div>
-                        <div class="text-[10px] uppercase font-bold text-[#6e7978]">Contributor Clearance</div>
-                        <div class="text-xs font-bold text-[#004343] flex items-center gap-1">
-                          {{ item.contributor }}
-                          @if (item.isElder) {
-                            <span class="text-amber-500 font-bold" title="Verified Elder Custodian">★</span>
-                          }
-                        </div>
-                        <div class="text-[10px] text-[#6e7978]">{{ item.role }}</div>
+                <!-- 1. Submission Overview & Media Viewer Card (Collapsible) -->
+                <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-xs overflow-hidden">
+                  <button (click)="sectionOverviewOpen.set(!sectionOverviewOpen())"
+                          class="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[#f8faf9] transition-colors cursor-pointer">
+                    <div class="flex items-center gap-2.5">
+                      <span class="material-symbols-outlined text-[#004343] text-xl">preview</span>
+                      <div class="text-left">
+                        <h3 class="text-sm font-serif font-bold text-[#191c1c]">Submission Overview &amp; Media Viewer</h3>
+                        <p class="text-[10px] text-[#6e7978]">{{ item.code }} &bull; {{ item.type | uppercase }} &bull; {{ item.status }}</p>
                       </div>
                     </div>
-                  </div>
-
-                  <!-- Rejection Banner if item is REJECTED -->
-                  @if (item.status === 'REJECTED') {
-                    <div class="p-4 bg-[#ba1a1a]/5 border border-[#ba1a1a]/20 rounded-xl space-y-1 text-xs">
-                      <div class="flex items-center gap-1.5 font-bold text-[#ba1a1a]">
-                        <span class="material-symbols-outlined text-sm">cancel</span>
-                        <span>Rejection Reason: {{ item.rejectionReason }}</span>
-                      </div>
-                      <p class="text-[#6e7978] text-[11px]">{{ item.rejectionNotes || 'No additional curator notes recorded.' }}</p>
+                    <div class="flex items-center gap-2">
+                      <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase"
+                            [ngClass]="{
+                              'bg-emerald-100 text-emerald-800': item.status === 'PUBLISHED',
+                              'bg-amber-100 text-amber-800': item.status === 'PENDING',
+                              'bg-red-100 text-red-800': item.status === 'REJECTED',
+                              'bg-orange-100 text-orange-800': item.status === 'ARCHIVED'
+                            }">{{ item.status }}</span>
+                      <span class="material-symbols-outlined text-[#6e7978] text-xl transition-transform duration-200"
+                            [ngClass]="sectionOverviewOpen() ? 'rotate-180' : ''">expand_more</span>
                     </div>
-                  }
-
-                  <!-- Media Artifact Viewer Box -->
-                  @if (item.type === 'video') {
-                    <div class="rounded-xl bg-[#191c1c] overflow-hidden relative group aspect-video max-h-[380px] flex items-center justify-center shadow-inner">
-                      <div class="absolute inset-0 bg-cover bg-center opacity-40" 
-                           style="background-image: url('https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=1200');">
-                      </div>
-                      <div class="relative z-10 text-center text-white space-y-3">
-                        <button (click)="toggleVideoPlayback()" 
-                                class="w-16 h-16 rounded-full bg-white/20 hover:bg-[#fe893e] backdrop-blur-md flex items-center justify-center text-white hover:scale-105 transition-all shadow-xl cursor-pointer">
-                          <span class="material-symbols-outlined text-3xl">
-                            {{ isPlayingVideo ? 'pause' : 'play_arrow' }}
-                          </span>
-                        </button>
-                        <div class="text-xs font-mono bg-black/70 px-4 py-1.5 rounded-full backdrop-blur-sm">
-                          Length: {{ item.durationOrSize }} • HD 1080p 60fps • 48kHz Stereo Master
+                  </button>
+                  @if (sectionOverviewOpen()) {
+                    <div class="px-5 pb-5 space-y-4 border-t border-[#dde3eb]">
+                      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-4">
+                        <div>
+                          <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#004343]/10 text-[#004343]">{{ item.code }}</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">{{ item.category }}</span>
+                            <span class="text-xs text-[#6e7978] font-mono">{{ item.dialect || 'Southern High-Kandyan Sinhala' }}</span>
+                          </div>
+                          <h2 class="text-xl font-serif font-bold text-[#191c1c]">{{ item.title }}</h2>
                         </div>
-                      </div>
-                      <!-- Scrubbing simulation bar -->
-                      <div class="absolute bottom-0 inset-x-0 bg-black/60 p-2 flex items-center gap-3 text-[11px] text-white font-mono">
-                        <span>06:12</span>
-                        <div class="flex-1 bg-white/30 h-1.5 rounded-full overflow-hidden">
-                          <div class="bg-[#fe893e] h-full" [style.width.%]="videoProgress"></div>
-                        </div>
-                        <span>{{ item.durationOrSize }}</span>
-                      </div>
-                    </div>
-                  } @else if (item.type === 'audio') {
-                    <!-- Waveform Audio Analyzer Box -->
-                    <div class="p-5 rounded-xl bg-[#f8faf9] border border-[#dde3eb] space-y-4">
-                      <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                          <span class="material-symbols-outlined text-[#004343] text-lg">graphic_eq</span>
+                        <div class="flex items-center gap-3 bg-[#f8faf9] p-2.5 rounded-xl border border-[#dde3eb]">
+                          <div class="w-10 h-10 rounded-xl bg-[#004343] text-white flex items-center justify-center font-serif font-bold text-sm">{{ item.avatar }}</div>
                           <div>
-                            <div class="text-xs font-bold text-[#191c1c]">AI Audio Transcription & Sacred Syllable Verification</div>
-                            <div class="text-[10px] text-[#6e7978]">Lossless Ambisonic Lineage Recording</div>
+                            <div class="text-[10px] uppercase font-bold text-[#6e7978]">Contributor Clearance</div>
+                            <div class="text-xs font-bold text-[#004343] flex items-center gap-1">
+                              {{ item.contributor }}
+                              @if (item.isElder) { <span class="text-amber-500 font-bold" title="Verified Elder Custodian">&#9733;</span> }
+                            </div>
+                            <div class="text-[10px] text-[#6e7978]">{{ item.role }}</div>
                           </div>
                         </div>
-                        <span class="text-xs font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                          {{ item.nlpConfidence || 98.4 }}% Precision Attested
-                        </span>
                       </div>
-
-                      <!-- Animated equalizer waveform bars -->
-                      <div class="h-12 flex items-end gap-1 px-3 bg-white rounded-xl border border-[#dde3eb] py-2">
-                        @for (bar of waveBars; track $index) {
-                          <div class="flex-1 bg-[#004343]/60 rounded-t hover:bg-[#fe893e] transition-colors" [style.height.%]="bar"></div>
-                        }
-                      </div>
-
-                      <!-- Transcript excerpt -->
-                      <div class="p-3 bg-white rounded-xl border border-[#dde3eb] text-xs text-[#3e4948] italic font-serif leading-relaxed">
-                        "{{ item.bodyContent || item.excerpt }}"
-                      </div>
-                    </div>
-                  } @else {
-                    <!-- Article / Blog Viewer Box -->
-                    <div class="p-5 rounded-xl bg-white border border-[#dde3eb] space-y-4">
-                      <div class="aspect-video max-h-[260px] rounded-xl overflow-hidden bg-cover bg-center border border-[#dde3eb]"
-                           style="background-image: url('https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=1200');">
-                      </div>
-                      <div class="prose prose-sm max-w-none text-[#3e4948] font-serif leading-relaxed">
-                        <p class="font-bold text-sm text-[#191c1c]">{{ item.excerpt }}</p>
-                        <p>{{ item.bodyContent || 'The master artisans maintain an oral tradition where every grain and incision represents an elemental spirit. During the early morning rituals, blessed timber is soaked in herbal resin before carving the sacred eyes.' }}</p>
-                      </div>
+                      @if (item.status === 'REJECTED') {
+                        <div class="p-4 bg-[#ba1a1a]/5 border border-[#ba1a1a]/20 rounded-xl space-y-1 text-xs">
+                          <div class="flex items-center gap-1.5 font-bold text-[#ba1a1a]">
+                            <span class="material-symbols-outlined text-sm">cancel</span>
+                            <span>Rejection Reason: {{ item.rejectionReason }}</span>
+                          </div>
+                          <p class="text-[#6e7978] text-[11px]">{{ item.rejectionNotes || 'No additional curator notes recorded.' }}</p>
+                        </div>
+                      }
+                      @if (item.type === 'video') {
+                        <div class="rounded-xl bg-[#191c1c] overflow-hidden relative group aspect-video max-h-[380px] flex items-center justify-center shadow-inner">
+                          <div class="absolute inset-0 bg-cover bg-center opacity-40" style="background-image: url('https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=1200');"></div>
+                          <div class="relative z-10 text-center text-white space-y-3">
+                            <button (click)="toggleVideoPlayback()" class="w-16 h-16 rounded-full bg-white/20 hover:bg-[#fe893e] backdrop-blur-md flex items-center justify-center text-white hover:scale-105 transition-all shadow-xl cursor-pointer">
+                              <span class="material-symbols-outlined text-3xl">{{ isPlayingVideo ? 'pause' : 'play_arrow' }}</span>
+                            </button>
+                            <div class="text-xs font-mono bg-black/70 px-4 py-1.5 rounded-full backdrop-blur-sm">Length: {{ item.durationOrSize }} &bull; HD 1080p 60fps &bull; 48kHz Stereo Master</div>
+                          </div>
+                          <div class="absolute bottom-0 inset-x-0 bg-black/60 p-2 flex items-center gap-3 text-[11px] text-white font-mono">
+                            <span>06:12</span>
+                            <div class="flex-1 bg-white/30 h-1.5 rounded-full overflow-hidden"><div class="bg-[#fe893e] h-full" [style.width.%]="videoProgress"></div></div>
+                            <span>{{ item.durationOrSize }}</span>
+                          </div>
+                        </div>
+                      } @else if (item.type === 'audio') {
+                        <div class="p-5 rounded-xl bg-[#f8faf9] border border-[#dde3eb] space-y-4">
+                          <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                              <button (click)="toggleVideoPlayback()" class="w-10 h-10 rounded-full bg-[#004343] hover:bg-[#fe893e] text-white flex items-center justify-center transition-colors shadow-md cursor-pointer">
+                                <span class="material-symbols-outlined text-xl">{{ isPlayingVideo ? 'pause' : 'play_arrow' }}</span>
+                              </button>
+                              <div>
+                                <div class="text-xs font-bold text-[#191c1c]">Audio Recording</div>
+                                <div class="text-[10px] text-[#6e7978]">AI Transcription Enabled</div>
+                              </div>
+                            </div>
+                            <span class="text-[10px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">High Confidence</span>
+                          </div>
+                          
+                          <div class="bg-white rounded-xl border border-[#dde3eb] overflow-hidden shadow-sm">
+                            <div class="flex items-center gap-3 px-4 py-2.5 border-b border-[#dde3eb] bg-[#f8faf9]">
+                               <span class="text-[10px] font-mono text-[#6e7978] w-8 text-right">00:45</span>
+                               <div class="flex-1 bg-[#dde3eb] h-1.5 rounded-full overflow-hidden relative cursor-pointer">
+                                 <div class="bg-[#fe893e] h-full absolute left-0 top-0" [style.width.%]="videoProgress"></div>
+                               </div>
+                               <span class="text-[10px] font-mono text-[#6e7978] w-8">{{ item.durationOrSize || '04:12' }}</span>
+                            </div>
+                            <div class="h-10 flex items-end gap-[2px] px-4 py-1">
+                              @for (bar of waveBars; track $index) { <div class="flex-1 bg-[#004343]/30 rounded-t transition-all duration-300" [ngClass]="{'bg-[#fe893e]': isPlayingVideo && $index < (videoProgress / 100) * waveBars.length}" [style.height.%]="bar"></div> }
+                            </div>
+                          </div>
+                          
+                          <div class="p-3 bg-white rounded-xl border border-[#dde3eb] text-xs text-[#3e4948] italic font-serif leading-relaxed max-h-[120px] overflow-y-auto pr-2 custom-scrollbar">"{{ item.bodyContent || item.excerpt }}"</div>
+                        </div>
+                      } @else {
+                        <div class="p-5 rounded-xl bg-white border border-[#dde3eb] space-y-4">
+                          <div class="aspect-video max-h-[260px] rounded-xl overflow-hidden bg-cover bg-center border border-[#dde3eb]" style="background-image: url('https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=1200');"></div>
+                          <div class="prose prose-sm max-w-none text-[#3e4948] font-serif leading-relaxed max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                            <p class="font-bold text-sm text-[#191c1c]">{{ item.excerpt }}</p>
+                            <p>{{ item.bodyContent || 'The master artisans maintain an oral tradition where every grain and incision represents an elemental spirit. During the early morning rituals, blessed timber is soaked in herbal resin before carving the sacred eyes.' }}</p>
+                          </div>
+                        </div>
+                      }
+                      @if (item.status === 'REJECTED') {
+                        <div class="p-4 bg-[#ffdad6] border border-[#ba1a1a]/30 rounded-xl space-y-2">
+                          <div class="flex items-center gap-2 font-bold text-[#ba1a1a] text-xs">
+                            <span class="material-symbols-outlined text-base">error</span>
+                            <span>Rejection Information</span>
+                          </div>
+                          <div class="bg-white p-3.5 rounded-lg border border-[#ba1a1a]/20 space-y-2">
+                            <div>
+                              <div class="text-[10px] font-bold text-[#ba1a1a] uppercase tracking-wider">Primary Reason</div>
+                              <div class="text-xs font-bold text-[#191c1c] mt-0.5">{{ item.rejectionReason || 'Needs Revision' }}</div>
+                            </div>
+                            <div>
+                              <div class="text-[10px] font-bold text-[#6e7978] uppercase tracking-wider">Detailed Feedback Sent to Contributor</div>
+                              <div class="text-xs text-[#3e4948] mt-0.5 leading-relaxed">{{ item.rejectionNotes || 'No additional curator notes recorded.' }}</div>
+                            </div>
+                          </div>
+                        </div>
+                      }
                     </div>
                   }
-                  <!-- Rejection Information (Only under the post when rejected) -->
-                  @if (item.status === 'REJECTED') {
-                    <div class="p-4 bg-[#ffdad6] border border-[#ba1a1a]/30 rounded-xl space-y-2 mt-4">
-                      <div class="flex items-center gap-2 font-bold text-[#ba1a1a] text-xs">
-                        <span class="material-symbols-outlined text-base">error</span>
-                        <span>Rejection Information</span>
-                      </div>
-                      <div class="bg-white p-3.5 rounded-lg border border-[#ba1a1a]/20 space-y-2">
-                        <div>
-                          <div class="text-[10px] font-bold text-[#ba1a1a] uppercase tracking-wider">Primary Reason</div>
-                          <div class="text-xs font-bold text-[#191c1c] mt-0.5">{{ item.rejectionReason || 'Needs Revision' }}</div>
-                        </div>
-                        <div>
-                          <div class="text-[10px] font-bold text-[#6e7978] uppercase tracking-wider">Detailed Feedback Sent to Contributor</div>
-                          <div class="text-xs text-[#3e4948] mt-0.5 leading-relaxed">{{ item.rejectionNotes || 'No additional curator notes recorded.' }}</div>
-                        </div>
-                      </div>
-                    </div>
-                  }
-
                 </div>
 
-                <!-- Curatorial Verification & Decision Controls (Only for non-rejected items) -->
                 @if (item.status !== 'REJECTED') {
-                  <!-- 2. Knowledge Check (AI Quiz Generator) Section -->
-                  <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-xs space-y-4">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#dde3eb]">
-                      <div class="flex items-center gap-2">
+
+                  <!-- 2. Knowledge Check (AI Quiz Generator) Section (Collapsible) -->
+                  <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-xs overflow-hidden">
+                    <button (click)="sectionQuizOpen.set(!sectionQuizOpen())"
+                            class="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[#f8faf9] transition-colors cursor-pointer">
+                      <div class="flex items-center gap-2.5">
                         <span class="material-symbols-outlined text-[#fe893e] text-xl">psychology</span>
-                        <div>
+                        <div class="text-left">
                           <h3 class="text-sm font-serif font-bold text-[#191c1c]">Knowledge Check / AI Quiz Generator</h3>
                           <p class="text-[10px] text-[#6e7978]">Interactive cultural engagement quiz for learners in the mobile app</p>
                         </div>
                       </div>
-
                       <div class="flex items-center gap-2">
                         @if (quizSaved()) {
                           <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-bold flex items-center gap-1">
-                            <span class="material-symbols-outlined text-xs">check_circle</span>
-                            Quiz Ready
+                            <span class="material-symbols-outlined text-xs">check_circle</span> Quiz Ready
                           </span>
                         }
-                        <button (click)="generateAiQuiz()" 
-                                [disabled]="isGeneratingQuiz()"
-                                class="px-3.5 py-1.5 bg-[#fe893e]/10 hover:bg-[#fe893e]/20 text-[#9b4600] rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
-                          <span class="material-symbols-outlined text-sm" [ngClass]="{'animate-spin': isGeneratingQuiz()}">
-                            {{ isGeneratingQuiz() ? 'sync' : 'auto_awesome' }}
-                          </span>
-                          <span>{{ isGeneratingQuiz() ? 'Synthesizing...' : 'Auto-Generate with AI' }}</span>
-                        </button>
+                        <span class="material-symbols-outlined text-[#6e7978] text-xl transition-transform duration-200" [ngClass]="sectionQuizOpen() ? 'rotate-180' : ''">expand_more</span>
                       </div>
-                    </div>
-
-                    <!-- Question Prompt -->
-                    <div>
-                      <label class="block text-xs font-bold text-[#191c1c] mb-1">Knowledge Question Prompt</label>
-                      <input type="text" [(ngModel)]="quizQuestion" (ngModelChange)="quizSaved.set(false)"
-                             placeholder="e.g. Which sacred timber is traditionally seasoned for carving Raksha masks?"
-                             class="w-full p-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all font-medium" />
-                    </div>
-
-                    <!-- 4 Options (A, B, C, D) -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                      @for (opt of quizOptions; track opt.optionKey) {
-                        <div class="p-3 rounded-xl border transition-all"
-                             [ngClass]="opt.isCorrect ? 'border-emerald-500 bg-emerald-50/30' : 'border-[#dde3eb] bg-[#f8faf9]'">
-                          
-                          <div class="flex items-center justify-between mb-2">
-                            <span class="w-6 h-6 rounded-lg bg-[#004343] text-white text-xs font-bold flex items-center justify-center">
-                              {{ opt.optionKey }}
-                            </span>
-                            <label class="flex items-center gap-1.5 text-xs font-bold cursor-pointer"
-                                   [ngClass]="opt.isCorrect ? 'text-emerald-700' : 'text-[#6e7978]'">
-                              <input type="radio" name="correctOption" [value]="opt.optionKey"
-                                     [checked]="opt.isCorrect"
-                                     (change)="setCorrectOption(opt.optionKey)"
-                                     class="text-emerald-600 focus:ring-emerald-500" />
-                              <span>{{ opt.isCorrect ? 'Correct Answer' : 'Mark Correct' }}</span>
-                            </label>
-                          </div>
-
-                          <input type="text" [(ngModel)]="opt.optionText" (ngModelChange)="quizSaved.set(false)"
-                                 placeholder="Option text..."
-                                 class="w-full p-2 bg-white border border-[#c2c8c7] rounded-lg text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] mb-1.5" />
-                          
-                          <input type="text" [(ngModel)]="opt.description" (ngModelChange)="quizSaved.set(false)"
-                                 placeholder="Explanation / hint for this choice..."
-                                 class="w-full p-1.5 bg-white/70 border border-[#dde3eb] rounded-lg text-[11px] text-[#6e7978] focus:outline-none focus:border-[#004343]" />
+                    </button>
+                    @if (sectionQuizOpen()) {
+                      <div class="px-5 pb-5 border-t border-[#dde3eb] space-y-4 pt-4">
+                        <div class="flex items-center justify-end">
+                          <button (click)="generateAiQuiz()" [disabled]="isGeneratingQuiz()"
+                                  class="px-3.5 py-1.5 bg-[#fe893e]/10 hover:bg-[#fe893e]/20 text-[#9b4600] rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
+                            <span class="material-symbols-outlined text-sm" [ngClass]="{'animate-spin': isGeneratingQuiz()}">{{ isGeneratingQuiz() ? 'sync' : 'auto_awesome' }}</span>
+                            <span>{{ isGeneratingQuiz() ? 'Synthesizing...' : 'Auto-Generate with AI' }}</span>
+                          </button>
                         </div>
-                      }
-                    </div>
-
-                    <!-- Detailed Explanation Field -->
-                    <div>
-                      <label class="block text-xs font-bold text-[#191c1c] mb-1">Educational Explanation / Historic Rationale</label>
-                      <textarea [(ngModel)]="quizExplanation" (ngModelChange)="quizSaved.set(false)" rows="2"
-                                placeholder="Explain why the correct answer holds historical significance in Sri Lankan intangible heritage..."
-                                class="w-full p-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all"></textarea>
-                    </div>
-
-                    <!-- Save Quiz Button -->
-                    <div class="flex justify-end pt-1">
-                      <button (click)="saveQuiz()" 
-                              [disabled]="isSavingQuiz()"
-                              class="px-4 py-2 bg-[#004343] hover:bg-[#003131] text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer">
-                        <span class="material-symbols-outlined text-sm">bookmark_added</span>
-                        <span>Save Knowledge Check</span>
-                      </button>
-                    </div>
+                        <div>
+                          <label class="block text-xs font-bold text-[#191c1c] mb-1">Knowledge Question Prompt</label>
+                          <input type="text" [(ngModel)]="quizQuestion" (ngModelChange)="quizSaved.set(false)"
+                                 placeholder="e.g. Which sacred timber is traditionally seasoned for carving Raksha masks?"
+                                 class="w-full p-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all font-medium" />
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          @for (opt of quizOptions; track opt.optionKey) {
+                            <div class="p-3 rounded-xl border transition-all" [ngClass]="opt.isCorrect ? 'border-emerald-500 bg-emerald-50/30' : 'border-[#dde3eb] bg-[#f8faf9]'">
+                              <div class="flex items-center justify-between mb-2">
+                                <span class="w-6 h-6 rounded-lg bg-[#004343] text-white text-xs font-bold flex items-center justify-center">{{ opt.optionKey }}</span>
+                                <label class="flex items-center gap-1.5 text-xs font-bold cursor-pointer" [ngClass]="opt.isCorrect ? 'text-emerald-700' : 'text-[#6e7978]'">
+                                  <input type="radio" name="correctOption" [value]="opt.optionKey" [checked]="opt.isCorrect" (change)="setCorrectOption(opt.optionKey)" class="text-emerald-600 focus:ring-emerald-500" />
+                                  <span>{{ opt.isCorrect ? 'Correct Answer' : 'Mark Correct' }}</span>
+                                </label>
+                              </div>
+                              <input type="text" [(ngModel)]="opt.optionText" (ngModelChange)="quizSaved.set(false)" placeholder="Option text..."
+                                     class="w-full p-2 bg-white border border-[#c2c8c7] rounded-lg text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] mb-1.5" />
+                              <input type="text" [(ngModel)]="opt.description" (ngModelChange)="quizSaved.set(false)" placeholder="Explanation / hint for this choice..."
+                                     class="w-full p-1.5 bg-white/70 border border-[#dde3eb] rounded-lg text-[11px] text-[#6e7978] focus:outline-none focus:border-[#004343]" />
+                            </div>
+                          }
+                        </div>
+                        <div>
+                          <label class="block text-xs font-bold text-[#191c1c] mb-1">Educational Explanation / Historic Rationale</label>
+                          <textarea [(ngModel)]="quizExplanation" (ngModelChange)="quizSaved.set(false)" rows="2"
+                                    placeholder="Explain why the correct answer holds historical significance in Sri Lankan intangible heritage..."
+                                    class="w-full p-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all"></textarea>
+                        </div>
+                        <div class="flex justify-end">
+                          <button (click)="saveQuiz()" [disabled]="isSavingQuiz()"
+                                  class="px-4 py-2 bg-[#004343] hover:bg-[#003131] text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer">
+                            <span class="material-symbols-outlined text-sm">bookmark_added</span>
+                            <span>Save Knowledge Check</span>
+                          </button>
+                        </div>
+                      </div>
+                    }
                   </div>
 
-                  <!-- 3. Geographical Provenance & Cultural Regional Alignment -->
-                  <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-xs space-y-4">
-                    <div class="flex items-center justify-between pb-3 border-b border-[#dde3eb]">
-                      <div class="flex items-center gap-2">
+                  <!-- 3. Geographical Provenance & Cultural Regional Alignment (Collapsible) -->
+                  <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-xs overflow-hidden">
+                    <button (click)="sectionProvenanceOpen.set(!sectionProvenanceOpen())"
+                            class="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[#f8faf9] transition-colors cursor-pointer">
+                      <div class="flex items-center gap-2.5">
                         <span class="material-symbols-outlined text-[#004343] text-xl">map</span>
-                        <div>
-                          <h3 class="text-sm font-serif font-bold text-[#191c1c]">Geographical & Cultural Provenance</h3>
+                        <div class="text-left">
+                          <h3 class="text-sm font-serif font-bold text-[#191c1c]">Geographical &amp; Cultural Provenance</h3>
                           <p class="text-[10px] text-[#6e7978]">Link this submission to Sri Lanka's official cultural landscape</p>
                         </div>
                       </div>
-                      <span class="px-2.5 py-1 rounded-full text-[10px] font-bold"
-                            [ngClass]="item.region ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'">
-                        {{ item.region ? 'Provenance Assigned' : 'Region Compulsory *' }}
-                      </span>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <!-- Cultural Region Dropdown (Compulsory) -->
-                      <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                          <label class="block text-xs font-bold text-[#191c1c]">
-                            Cultural Region <span class="text-[#ba1a1a] font-bold">*</span>
-                          </label>
-                          <span class="text-[10px] text-[#ba1a1a] font-bold uppercase tracking-wider">Compulsory</span>
-                        </div>
-                        <select [ngModel]="item.region" (ngModelChange)="onInspectorRegionChange(item, $event)"
-                                class="w-full p-2.5 bg-[#f8faf9] border rounded-xl text-xs font-medium text-[#191c1c] focus:outline-none transition-all"
-                                [ngClass]="item.region ? 'border-[#c2c8c7] focus:border-[#004343]' : 'border-[#ba1a1a] bg-rose-50/20 focus:border-[#ba1a1a]'">
-                          <option value="">-- Select Cultural Region (Compulsory) --</option>
-                          @for (reg of selectableRegions(); track reg.id) {
-                            <option [value]="reg.label">{{ reg.label }} ({{ reg.regionName }})</option>
-                          }
-                        </select>
-                        @if (!item.region) {
-                          <p class="text-[10px] text-[#ba1a1a] mt-1 flex items-center gap-1 font-semibold">
-                            <span class="material-symbols-outlined text-xs">info</span>
-                            Cultural region is mandatory before publishing.
-                          </p>
-                        }
+                      <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold"
+                              [ngClass]="item.region ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'">
+                          {{ item.region ? 'Assigned' : 'Required *' }}
+                        </span>
+                        <span class="material-symbols-outlined text-[#6e7978] text-xl transition-transform duration-200" [ngClass]="sectionProvenanceOpen() ? 'rotate-180' : ''">expand_more</span>
                       </div>
-
-                      <!-- District Dropdown (Optional, Enabled only after region selected) -->
-                      <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                          <label class="block text-xs font-bold text-[#191c1c]">
-                            District
-                          </label>
-                          <span class="text-[10px] text-[#6e7978] font-normal uppercase tracking-wider">Optional</span>
-                        </div>
-                        <select [ngModel]="item.district" (ngModelChange)="onInspectorDistrictChange(item, $event)"
-                                [disabled]="!item.region"
-                                [ngClass]="!item.region ? 'bg-[#f2f4f7] text-[#6e7978] border-[#dde3eb] cursor-not-allowed' : 'bg-[#f8faf9] text-[#191c1c] border-[#c2c8c7] focus:border-[#004343]'"
-                                class="w-full p-2.5 border rounded-xl text-xs font-medium focus:outline-none transition-all">
-                          <option value="">
-                            {{ !item.region ? '-- Select Region First --' : '-- Entire Region / Optional District --' }}
-                          </option>
-                          @for (dist of getDistrictsForRegion(item.region); track dist) {
-                            <option [value]="dist">{{ dist }}</option>
-                          }
-                        </select>
-                        @if (item.region) {
-                          <p class="text-[10px] text-[#6e7978] mt-1">
-                            Available districts in {{ item.region }}
-                          </p>
-                        }
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- 4. Taxonomy, Category & Tag Curation -->
-                  <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-xs space-y-4">
-                    <div class="flex items-center justify-between pb-3 border-b border-[#dde3eb]">
-                      <h3 class="text-sm font-serif font-bold text-[#191c1c]">Cultural Taxonomy & Category Alignment</h3>
-                      <span class="text-[10px] text-[#6e7978]">Metadata Classification</span>
-                    </div>
-
-                    <div class="space-y-4">
-                      <!-- Category Assignment Dropdown -->
-                      <div>
-                        <label class="block text-xs font-bold text-[#191c1c] mb-1.5">Official Heritage Category</label>
-                        <select [(ngModel)]="item.category" 
-                                class="w-full p-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs font-medium text-[#191c1c] focus:outline-none focus:border-[#004343]">
-                          @for (cat of availableCategories; track cat) {
-                            <option [value]="cat">{{ cat }}</option>
-                          }
-                        </select>
-                      </div>
-
-                      <!-- Applied Tags Editor -->
-                      <div>
-                        <label class="block text-xs font-bold text-[#191c1c] mb-1.5">Applied Taxonomy Tags</label>
-                        <div class="flex flex-wrap items-center gap-1.5 p-2 bg-[#f8faf9] border border-[#dde3eb] rounded-xl">
-                          @for (tag of item.tags; track tag) {
-                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#004343]/10 text-[#004343] border border-[#004343]/20">
-                              {{ tag }}
-                              <button (click)="removeTagFromItem(item, tag)" class="hover:text-[#ba1a1a] text-xs cursor-pointer">✕</button>
-                            </span>
-                          }
-                          <div class="inline-flex items-center gap-1">
-                            <input type="text" [(ngModel)]="newTagInput" (keyup.enter)="addTagToItem(item)" placeholder="+ Add tag"
-                                   class="px-2.5 py-1 bg-white border border-[#c2c8c7] rounded-full text-xs focus:outline-none focus:border-[#004343] w-28" />
+                    </button>
+                    @if (sectionProvenanceOpen()) {
+                      <div class="px-5 pb-5 border-t border-[#dde3eb] pt-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                              <label class="block text-xs font-bold text-[#191c1c]">Cultural Region <span class="text-[#ba1a1a] font-bold">*</span></label>
+                              <span class="text-[10px] text-[#ba1a1a] font-bold uppercase tracking-wider">Compulsory</span>
+                            </div>
+                            <select [ngModel]="item.region" (ngModelChange)="onInspectorRegionChange(item, $event)"
+                                    class="w-full p-2.5 bg-[#f8faf9] border rounded-xl text-xs font-medium text-[#191c1c] focus:outline-none transition-all"
+                                    [ngClass]="item.region ? 'border-[#c2c8c7] focus:border-[#004343]' : 'border-[#ba1a1a] bg-rose-50/20 focus:border-[#ba1a1a]'">
+                              <option value="">-- Select Cultural Region (Compulsory) --</option>
+                              @for (reg of selectableRegions(); track reg.id) {
+                                <option [value]="reg.label">{{ reg.label }} ({{ reg.regionName }})</option>
+                              }
+                            </select>
+                            @if (!item.region) {
+                              <p class="text-[10px] text-[#ba1a1a] mt-1 flex items-center gap-1 font-semibold">
+                                <span class="material-symbols-outlined text-xs">info</span> Cultural region is mandatory before publishing.
+                              </p>
+                            }
+                          </div>
+                          <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                              <label class="block text-xs font-bold text-[#191c1c]">District</label>
+                              <span class="text-[10px] text-[#6e7978] font-normal uppercase tracking-wider">Optional</span>
+                            </div>
+                            <select [ngModel]="item.district" (ngModelChange)="onInspectorDistrictChange(item, $event)"
+                                    [disabled]="!item.region"
+                                    [ngClass]="!item.region ? 'bg-[#f2f4f7] text-[#6e7978] border-[#dde3eb] cursor-not-allowed' : 'bg-[#f8faf9] text-[#191c1c] border-[#c2c8c7] focus:border-[#004343]'"
+                                    class="w-full p-2.5 border rounded-xl text-xs font-medium focus:outline-none transition-all">
+                              <option value="">{{ !item.region ? '-- Select Region First --' : '-- Entire Region / Optional District --' }}</option>
+                              @for (dist of getDistrictsForRegion(item.region); track dist) {
+                                <option [value]="dist">{{ dist }}</option>
+                              }
+                            </select>
+                            @if (item.region) {
+                              <p class="text-[10px] text-[#6e7978] mt-1">Available districts in {{ item.region }}</p>
+                            }
                           </div>
                         </div>
                       </div>
-                    </div>
+                    }
                   </div>
 
-                  <!-- 5. Guideline Checklist (Matched with Mobile App Admin Screen) -->
-                  <div class="bg-white rounded-2xl border border-[#dde3eb] p-6 shadow-xs space-y-4">
-                    <div class="flex items-center justify-between pb-3 border-b border-[#dde3eb]">
+                  <!-- 4. Taxonomy, Category & Tag Curation (Collapsible) -->
+                  <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-xs overflow-hidden">
+                    <button (click)="sectionTaxonomyOpen.set(!sectionTaxonomyOpen())"
+                            class="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[#f8faf9] transition-colors cursor-pointer">
+                      <div class="flex items-center gap-2.5">
+                        <span class="material-symbols-outlined text-[#004343] text-xl">label</span>
+                        <div class="text-left">
+                          <h3 class="text-sm font-serif font-bold text-[#191c1c]">Cultural Taxonomy &amp; Category Alignment</h3>
+                          <p class="text-[10px] text-[#6e7978]">Metadata classification â€” {{ item.tags.length }} tag{{ item.tags.length !== 1 ? 's' : '' }} applied</p>
+                        </div>
+                      </div>
+                      <span class="material-symbols-outlined text-[#6e7978] text-xl transition-transform duration-200" [ngClass]="sectionTaxonomyOpen() ? 'rotate-180' : ''">expand_more</span>
+                    </button>
+                    @if (sectionTaxonomyOpen()) {
+                      <div class="px-5 pb-5 border-t border-[#dde3eb] pt-4 space-y-4">
+                        <div>
+                          <label class="block text-xs font-bold text-[#191c1c] mb-1.5">Official Heritage Category</label>
+                          <select [(ngModel)]="item.category" class="w-full p-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs font-medium text-[#191c1c] focus:outline-none focus:border-[#004343]">
+                            @for (cat of availableCategories; track cat) { <option [value]="cat">{{ cat }}</option> }
+                          </select>
+                        </div>
+                        <div>
+                          <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-bold text-[#191c1c]">Applied Taxonomy Tags</label>
+                            <button (click)="generateAiTags()" [disabled]="isAutoTagging()"
+                                    class="px-2.5 py-1 bg-[#004343]/10 hover:bg-[#004343]/20 text-[#004343] rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50">
+                              <span class="material-symbols-outlined text-xs" [ngClass]="{'animate-spin': isAutoTagging()}">{{ isAutoTagging() ? 'sync' : 'auto_awesome' }}</span>
+                              <span>{{ isAutoTagging() ? 'Generating...' : 'Auto-Tag' }}</span>
+                            </button>
+                          </div>
+                          <div class="flex flex-wrap items-center gap-1.5 p-2 bg-[#f8faf9] border border-[#dde3eb] rounded-xl">
+                            @for (tag of item.tags; track tag) {
+                              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#004343]/10 text-[#004343] border border-[#004343]/20">
+                                {{ tag }}
+                                <button (click)="removeTagFromItem(item, tag)" class="hover:text-[#ba1a1a] text-xs cursor-pointer">&#x2715;</button>
+                              </span>
+                            }
+                            <div class="inline-flex items-center gap-1">
+                              <input type="text" [(ngModel)]="newTagInput" (keyup.enter)="addTagToItem(item)" placeholder="+ Add tag"
+                                     class="px-2.5 py-1 bg-white border border-[#c2c8c7] rounded-full text-xs focus:outline-none focus:border-[#004343] w-28" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+
+                  <!-- 5. Cover Image Upload (Collapsible, Optional) -->
+                  <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-xs overflow-hidden">
+                    <button (click)="sectionCoverImageOpen.set(!sectionCoverImageOpen())"
+                            class="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[#f8faf9] transition-colors cursor-pointer">
+                      <div class="flex items-center gap-2.5">
+                        <span class="material-symbols-outlined text-[#004343] text-xl">add_photo_alternate</span>
+                        <div class="text-left">
+                          <h3 class="text-sm font-serif font-bold text-[#191c1c]">Cover Image</h3>
+                          <p class="text-[10px] text-[#6e7978]">
+                            @if (coverImagePreview() || coverImageUrl()) { Cover image set — click to change }
+                            @else { Optional — upload a representative thumbnail for this heritage entry }
+                          </p>
+                        </div>
+                      </div>
                       <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[#004343] text-xl">fact_check</span>
-                        <div>
-                          <h3 class="text-sm font-serif font-bold text-[#191c1c]">Guideline Checklist</h3>
-                          <p class="text-[10px] text-[#6e7978]">Review the submission below before publishing to the main feed</p>
-                        </div>
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border"
+                              [ngClass]="(coverImagePreview() || coverImageUrl()) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-[#f2f4f7] text-[#6e7978] border-[#dde3eb]'">
+                          {{ (coverImagePreview() || coverImageUrl()) ? 'Image Set' : 'Optional' }}
+                        </span>
+                        <span class="material-symbols-outlined text-[#6e7978] text-xl transition-transform duration-200" [ngClass]="sectionCoverImageOpen() ? 'rotate-180' : ''">expand_more</span>
                       </div>
-                      <button (click)="toggleAllGuidelines()" class="text-xs text-[#004343] font-bold hover:underline cursor-pointer">
-                        {{ allGuidelinesMet ? 'Uncheck All' : 'Check All' }}
-                      </button>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                      <label class="flex items-start gap-3 p-3.5 rounded-xl border border-[#dde3eb] bg-[#f8faf9] cursor-pointer hover:bg-white transition-colors"
-                             [ngClass]="{'border-[#004343] bg-[#004343]/5': guideNoHateSpeech}">
-                        <input type="checkbox" [(ngModel)]="guideNoHateSpeech" class="mt-0.5 rounded text-[#004343] focus:ring-[#004343]" />
-                        <div>
-                          <div class="font-bold text-[#191c1c]">No hate speech or harmful content</div>
-                          <div class="text-[10px] text-[#6e7978] mt-0.5">Verify submission is free of discrimination, hate speech, or harmful narratives.</div>
-                        </div>
-                      </label>
-
-                      <label class="flex items-start gap-3 p-3.5 rounded-xl border border-[#dde3eb] bg-[#f8faf9] cursor-pointer hover:bg-white transition-colors"
-                             [ngClass]="{'border-[#004343] bg-[#004343]/5': guideCulturallyAccurate}">
-                        <input type="checkbox" [(ngModel)]="guideCulturallyAccurate" class="mt-0.5 rounded text-[#004343] focus:ring-[#004343]" />
-                        <div>
-                          <div class="font-bold text-[#191c1c]">Culturally accurate and respectful</div>
-                          <div class="text-[10px] text-[#6e7978] mt-0.5">Authentic representation of Sri Lankan traditions, customs, and heritage.</div>
-                        </div>
-                      </label>
-
-                      <label class="flex items-start gap-3 p-3.5 rounded-xl border border-[#dde3eb] bg-[#f8faf9] cursor-pointer hover:bg-white transition-colors"
-                             [ngClass]="{'border-[#004343] bg-[#004343]/5': guideHighQuality}">
-                        <input type="checkbox" [(ngModel)]="guideHighQuality" class="mt-0.5 rounded text-[#004343] focus:ring-[#004343]" />
-                        <div>
-                          <div class="font-bold text-[#191c1c]">High quality audio and clear visuals</div>
-                          <div class="text-[10px] text-[#6e7978] mt-0.5">Clear audio recording, legible imagery, and audible narrative fidelity.</div>
-                        </div>
-                      </label>
-                    </div>
-
-                    <!-- 6. Decision Action Controls Bar -->
-                    <div class="pt-4 border-t border-[#dde3eb] flex flex-col sm:flex-row items-center justify-between gap-3">
-                      
-                      <!-- Left contextual action buttons based on status -->
-                      <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
-                        @if (item.status === 'PENDING') {
-                          <button (click)="openRejectModal(item)"
-                                  class="flex-1 sm:flex-none px-4 py-2 border border-[#ba1a1a]/30 text-[#ba1a1a] hover:bg-[#ba1a1a]/10 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer">
-                            <span class="material-symbols-outlined text-sm">block</span>
-                            Reject
-                          </button>
-                        } @else if (item.status === 'PUBLISHED') {
-                          <button (click)="archiveItem(item)"
-                                  class="flex-1 sm:flex-none px-4 py-2 border border-[#fe893e]/40 text-[#9b4600] hover:bg-[#fe893e]/10 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer">
-                            <span class="material-symbols-outlined text-sm">archive</span>
-                            Archives
-                          </button>
-                        } @else if (item.status === 'ARCHIVED') {
-                          <button (click)="restoreToReview(item)"
-                                  class="flex-1 sm:flex-none px-4 py-2 border border-[#004343]/30 text-[#004343] hover:bg-[#004343]/10 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer">
-                            <span class="material-symbols-outlined text-sm">restore</span>
-                            Restore to Review Queue
-                          </button>
+                    </button>
+                    @if (sectionCoverImageOpen()) {
+                      <div class="px-5 pb-5 border-t border-[#dde3eb] pt-4 space-y-4">
+                        @if (coverImagePreview()) {
+                          <div class="relative group rounded-xl overflow-hidden border border-[#dde3eb]">
+                            <img [src]="coverImagePreview()" alt="Cover preview" class="w-full max-h-52 object-cover" />
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                              <button (click)="removeCoverImage()" class="px-3 py-1.5 bg-[#ba1a1a] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer hover:bg-[#93000a] transition-colors">
+                                <span class="material-symbols-outlined text-sm">delete</span> Remove
+                              </button>
+                              <label class="px-3 py-1.5 bg-white text-[#191c1c] text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer hover:bg-[#f2f4f3] transition-colors">
+                                <span class="material-symbols-outlined text-sm">upload</span> Change
+                                <input type="file" accept="image/*" class="hidden" (change)="onCoverImageFileSelected($event)" />
+                              </label>
+                            </div>
+                          </div>
+                          <p class="text-[10px] text-[#6e7978] flex items-center gap-1">
+                            <span class="material-symbols-outlined text-xs text-emerald-600">check_circle</span>
+                            File selected: {{ coverImageFile?.name || 'image' }}
+                          </p>
+                        } @else if (coverImageUrl()) {
+                          <div class="relative group rounded-xl overflow-hidden border border-[#dde3eb]">
+                            <img [src]="coverImageUrl()" alt="Cover preview" class="w-full max-h-52 object-cover" />
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <button (click)="removeCoverImage()" class="px-3 py-1.5 bg-[#ba1a1a] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer hover:bg-[#93000a] transition-colors">
+                                <span class="material-symbols-outlined text-sm">delete</span> Remove
+                              </button>
+                            </div>
+                          </div>
+                        } @else {
+                          <div (dragover)="onCoverDragOver($event)" (dragleave)="onCoverDragLeave()" (drop)="onCoverImageDrop($event)"
+                               class="border-2 border-dashed rounded-xl p-6 text-center transition-all space-y-3"
+                               [ngClass]="isDraggingCover() ? 'border-[#004343] bg-[#004343]/5' : 'border-[#dde3eb] bg-[#f8faf9] hover:border-[#004343]/40'">
+                            <div class="w-12 h-12 rounded-xl bg-[#004343]/10 text-[#004343] flex items-center justify-center mx-auto">
+                              <span class="material-symbols-outlined text-2xl">cloud_upload</span>
+                            </div>
+                            <div>
+                              <p class="text-xs font-bold text-[#191c1c]">Drag &amp; drop an image here</p>
+                              <p class="text-[10px] text-[#6e7978] mt-0.5">or click to browse — JPG, PNG, WebP up to 5 MB</p>
+                            </div>
+                            <label class="inline-flex items-center gap-1.5 px-4 py-2 bg-[#004343] text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-[#003131] transition-colors shadow-xs">
+                              <span class="material-symbols-outlined text-sm">upload_file</span> Browse File
+                              <input type="file" accept="image/*" class="hidden" (change)="onCoverImageFileSelected($event)" />
+                            </label>
+                          </div>
                         }
-                      </div>
-
-                      <!-- Right Approve & Publish Live action -->
-                      @if (item.status !== 'PUBLISHED') {
-                        <button (click)="approveAndPublish(item)"
-                                [disabled]="!allGuidelinesMet || !item.region"
-                                [ngClass]="(allGuidelinesMet && item.region) ? 'bg-[#004343] text-white hover:bg-[#003131] shadow-md shadow-[#004343]/20 cursor-pointer' : 'bg-[#e1e3e3] text-[#6e7978] cursor-not-allowed'"
-                                class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all"
-                                [title]="!item.region ? 'Cultural Region is compulsory' : (!allGuidelinesMet ? 'Please satisfy all guidelines' : 'Publish Live')">
-                          <span class="material-symbols-outlined text-base">verified</span>
-                          <span>Approve & Publish Live</span>
-                        </button>
-                      } @else {
-                        <div class="flex items-center gap-2 text-emerald-700 text-xs font-bold">
-                          <span class="material-symbols-outlined text-lg">check_circle</span>
-                          <span>Published in Sovereign Heritage Canon</span>
+                        <div class="flex items-center gap-2">
+                          <div class="flex-1 h-px bg-[#dde3eb]"></div>
+                          <span class="text-[10px] text-[#6e7978] font-semibold uppercase">or enter image URL</span>
+                          <div class="flex-1 h-px bg-[#dde3eb]"></div>
                         </div>
-                      }
+                        <div class="flex items-center gap-2">
+                          <input type="url" [ngModel]="coverImageUrl()" (ngModelChange)="coverImageUrl.set($event); coverImagePreview.set('')"
+                                 placeholder="https://example.com/cover-image.jpg"
+                                 class="flex-1 p-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all" />
+                          @if (coverImageUrl()) {
+                            <button (click)="removeCoverImage()" class="p-2.5 text-[#ba1a1a] border border-[#ba1a1a]/20 rounded-xl hover:bg-[#ba1a1a]/10 transition-colors cursor-pointer" title="Clear URL">
+                              <span class="material-symbols-outlined text-sm">close</span>
+                            </button>
+                          }
+                        </div>
+                        <p class="text-[10px] text-[#6e7978]">
+                          <span class="material-symbols-outlined text-xs align-middle">info</span>
+                          The cover image will be used as the thumbnail across the heritage feed and mobile app cards.
+                        </p>
+                      </div>
+                    }
+                  </div>
 
+                  <!-- 6. Guideline Checklist & Decision Controls (Collapsible) -->
+                  <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-xs overflow-hidden">
+                    <button (click)="sectionGuidelinesOpen.set(!sectionGuidelinesOpen())"
+                            class="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[#f8faf9] transition-colors cursor-pointer">
+                      <div class="flex items-center gap-2.5">
+                        <span class="material-symbols-outlined text-[#004343] text-xl">fact_check</span>
+                        <div class="text-left">
+                          <h3 class="text-sm font-serif font-bold text-[#191c1c]">Guideline Checklist &amp; Decision Controls</h3>
+                          <p class="text-[10px] text-[#6e7978]">Complete all checks before publishing to the heritage feed</p>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border"
+                              [ngClass]="allGuidelinesMet ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'">
+                          {{ allGuidelinesMet ? 'All Clear' : 'Pending' }}
+                        </span>
+                        <span class="material-symbols-outlined text-[#6e7978] text-xl transition-transform duration-200" [ngClass]="sectionGuidelinesOpen() ? 'rotate-180' : ''">expand_more</span>
+                      </div>
+                    </button>
+                    @if (sectionGuidelinesOpen()) {
+                      <div class="px-5 pb-5 border-t border-[#dde3eb] pt-4 space-y-4">
+                        <div class="flex justify-end">
+                          <button (click)="toggleAllGuidelines()" class="text-xs text-[#004343] font-bold hover:underline cursor-pointer">
+                            {{ allGuidelinesMet ? 'Uncheck All' : 'Check All' }}
+                          </button>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                          <label class="flex items-start gap-3 p-3.5 rounded-xl border border-[#dde3eb] bg-[#f8faf9] cursor-pointer hover:bg-white transition-colors"
+                                 [ngClass]="{'border-[#004343] bg-[#004343]/5': guideNoHateSpeech}">
+                            <input type="checkbox" [(ngModel)]="guideNoHateSpeech" class="mt-0.5 rounded text-[#004343] focus:ring-[#004343]" />
+                            <div>
+                              <div class="font-bold text-[#191c1c]">No hate speech or harmful content</div>
+                              <div class="text-[10px] text-[#6e7978] mt-0.5">Verify submission is free of discrimination, hate speech, or harmful narratives.</div>
+                            </div>
+                          </label>
+                          <label class="flex items-start gap-3 p-3.5 rounded-xl border border-[#dde3eb] bg-[#f8faf9] cursor-pointer hover:bg-white transition-colors"
+                                 [ngClass]="{'border-[#004343] bg-[#004343]/5': guideCulturallyAccurate}">
+                            <input type="checkbox" [(ngModel)]="guideCulturallyAccurate" class="mt-0.5 rounded text-[#004343] focus:ring-[#004343]" />
+                            <div>
+                              <div class="font-bold text-[#191c1c]">Culturally accurate and respectful</div>
+                              <div class="text-[10px] text-[#6e7978] mt-0.5">Authentic representation of Sri Lankan traditions, customs, and heritage.</div>
+                            </div>
+                          </label>
+                          <label class="flex items-start gap-3 p-3.5 rounded-xl border border-[#dde3eb] bg-[#f8faf9] cursor-pointer hover:bg-white transition-colors"
+                                 [ngClass]="{'border-[#004343] bg-[#004343]/5': guideHighQuality}">
+                            <input type="checkbox" [(ngModel)]="guideHighQuality" class="mt-0.5 rounded text-[#004343] focus:ring-[#004343]" />
+                            <div>
+                              <div class="font-bold text-[#191c1c]">High quality audio and clear visuals</div>
+                              <div class="text-[10px] text-[#6e7978] mt-0.5">Clear audio recording, legible imagery, and audible narrative fidelity.</div>
+                            </div>
+                          </label>
+                        </div>
+
+                      </div>
+                    }
+                  </div>
+                  
+                  <!-- Permanently Visible Decision Controls -->
+                  <div class="mt-6 pt-4 border-t-2 border-[#dde3eb] flex flex-col sm:flex-row items-center justify-between gap-3 sticky bottom-0 bg-[#f8faf9] py-4 z-10">
+                    <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                      @if (item.status === 'PENDING') {
+                        <button (click)="openRejectModal(item)"
+                                class="flex-1 sm:flex-none px-4 py-2 border border-[#ba1a1a]/30 text-[#ba1a1a] hover:bg-[#ba1a1a]/10 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                          <span class="material-symbols-outlined text-sm">block</span> Reject
+                        </button>
+                      } @else if (item.status === 'PUBLISHED') {
+                        <button (click)="archiveItem(item)"
+                                class="flex-1 sm:flex-none px-4 py-2 border border-[#fe893e]/40 text-[#9b4600] hover:bg-[#fe893e]/10 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                          <span class="material-symbols-outlined text-sm">archive</span> Archives
+                        </button>
+                      } @else if (item.status === 'ARCHIVED') {
+                        <button (click)="restoreToReview(item)"
+                                class="flex-1 sm:flex-none px-4 py-2 border border-[#004343]/30 text-[#004343] hover:bg-[#004343]/10 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 cursor-pointer">
+                          <span class="material-symbols-outlined text-sm">restore</span> Restore to Review Queue
+                        </button>
+                      }
                     </div>
+                    @if (item.status !== 'PUBLISHED') {
+                      <button (click)="approveAndPublish(item)"
+                              [disabled]="!allGuidelinesMet || !item.region"
+                              [ngClass]="(allGuidelinesMet && item.region) ? 'bg-[#004343] text-white hover:bg-[#003131] shadow-md shadow-[#004343]/20 cursor-pointer' : 'bg-[#e1e3e3] text-[#6e7978] cursor-not-allowed'"
+                              class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all"
+                              [title]="!item.region ? 'Cultural Region is compulsory' : (!allGuidelinesMet ? 'Please satisfy all guidelines' : 'Publish Live')">
+                        <span class="material-symbols-outlined text-base">verified</span>
+                        <span>Approve &amp; Publish Live</span>
+                      </button>
+                    } @else {
+                      <div class="flex items-center gap-2 text-emerald-700 text-xs font-bold bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-200">
+                        <span class="material-symbols-outlined text-lg">check_circle</span>
+                        <span>Published in Sovereign Heritage Canon</span>
+                      </div>
+                    }
                   </div>
                 }
 
@@ -1225,6 +1347,11 @@ export class ModerationComponent implements OnInit {
   archiveNotesText = '';
   archiveSearchQuery = '';
 
+  // Export PDF modal state
+  showExportPdfModal = signal<boolean>(false);
+  exportDateFrom = '';
+  exportDateTo = '';
+
   // Guideline checklist flags (aligned with Mobile App Moderation Screen)
   guideNoHateSpeech = true;
   guideCulturallyAccurate = true;
@@ -1232,6 +1359,64 @@ export class ModerationComponent implements OnInit {
 
   get allGuidelinesMet(): boolean {
     return this.guideNoHateSpeech && this.guideCulturallyAccurate && this.guideHighQuality;
+  }
+
+  // Collapsible section states for right pane inspector
+  sectionOverviewOpen = signal<boolean>(true);
+  sectionQuizOpen = signal<boolean>(false);
+  sectionProvenanceOpen = signal<boolean>(false);
+  sectionTaxonomyOpen = signal<boolean>(false);
+  sectionCoverImageOpen = signal<boolean>(false);
+  sectionGuidelinesOpen = signal<boolean>(true);
+
+  // Cover Image upload state
+  coverImageUrl = signal<string>('');
+  coverImageFile: File | null = null;
+  coverImagePreview = signal<string>('');
+  isDraggingCover = signal<boolean>(false);
+
+  onCoverImageFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      this.coverImageFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.coverImagePreview.set(e.target?.result as string);
+        this.coverImageUrl.set('');
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  onCoverImageDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.isDraggingCover.set(false);
+    const file = event.dataTransfer?.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      this.coverImageFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.coverImagePreview.set(e.target?.result as string);
+        this.coverImageUrl.set('');
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  onCoverDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.isDraggingCover.set(true);
+  }
+
+  onCoverDragLeave(): void {
+    this.isDraggingCover.set(false);
+  }
+
+  removeCoverImage(): void {
+    this.coverImageFile = null;
+    this.coverImagePreview.set('');
+    this.coverImageUrl.set('');
   }
 
   // Media Simulation
@@ -1251,6 +1436,7 @@ export class ModerationComponent implements OnInit {
   isGeneratingQuiz = signal<boolean>(false);
   isSavingQuiz = signal<boolean>(false);
   quizSaved = signal<boolean>(false);
+  isAutoTagging = signal<boolean>(false);
 
   // Tag editor input
   newTagInput = '';
@@ -1734,6 +1920,39 @@ export class ModerationComponent implements OnInit {
     if (updated) this.selectedItem.set(updated);
   }
 
+  generateAiTags(): void {
+    const item = this.selectedItem();
+    if (!item || !(item.id && item.id.includes('-'))) {
+      this.showToast('⚠️ Cannot generate tags for this item.');
+      return;
+    }
+
+    this.isAutoTagging.set(true);
+
+    this.moderationService.generateAiTags(item.id).subscribe({
+      next: (res) => {
+        this.isAutoTagging.set(false);
+        if (res && res.tags && res.tags.length > 0) {
+          // Merge AI tags with existing tags (deduped, keep both)
+          const currentTags = item.tags || [];
+          // Format: prefix with # if not already
+          const newTags = res.tags.map((t: string) => t.startsWith('#') ? t : '#' + t);
+          const merged = [...new Set([...currentTags, ...newTags])];
+          this.items.update(list => list.map(i => i.id === item.id ? { ...i, tags: merged } : i));
+          const updated = this.items().find(i => i.id === item.id) || null;
+          if (updated) this.selectedItem.set(updated);
+          this.showToast(`✨ AI generated ${res.tags.length} heritage tags from content!`);
+        } else {
+          this.showToast('⚠️ AI could not generate tags — try adding more content/description.');
+        }
+      },
+      error: () => {
+        this.isAutoTagging.set(false);
+        this.showToast('❌ Auto-tag failed. Check backend connection.');
+      }
+    });
+  }
+
   toggleAllGuidelines(): void {
     const newState = !this.allGuidelinesMet;
     this.guideNoHateSpeech = newState;
@@ -1908,6 +2127,63 @@ export class ModerationComponent implements OnInit {
   syncQueue(): void {
     if (this.isSyncing()) return;
     this.loadQueueFromBackend(false);
+  }
+
+  downloadPdf(): void {
+    const doc = new jsPDF();
+    const adminName = 'Admin';
+    
+    let yPos = 20;
+    doc.setFontSize(16);
+    doc.text('LegacyLens - Moderation Queue Export', 14, yPos);
+    yPos += 8;
+    
+    doc.setFontSize(11);
+    doc.text(`Generated by ${adminName}`, 14, yPos);
+    yPos += 6;
+    
+    if (this.exportDateFrom || this.exportDateTo) {
+      doc.text(`Date Range: ${this.exportDateFrom || 'Start'} to ${this.exportDateTo || 'End'}`, 14, yPos);
+      yPos += 6;
+    }
+    
+    let exportList = this.filteredQueueList();
+    if (this.exportDateFrom) {
+      const fromDate = new Date(this.exportDateFrom);
+      exportList = exportList.filter(item => {
+        const itemDate = new Date(item.submittedAt);
+        return itemDate >= fromDate;
+      });
+    }
+    if (this.exportDateTo) {
+      const toDate = new Date(this.exportDateTo);
+      toDate.setHours(23, 59, 59, 999);
+      exportList = exportList.filter(item => {
+        const itemDate = new Date(item.submittedAt);
+        return itemDate <= toDate;
+      });
+    }
+
+    const head = [['Code', 'Title', 'Status', 'Category', 'Contributor', 'Submitted At']];
+    const body = exportList.map(item => [
+      item.code,
+      item.title,
+      item.status,
+      item.category,
+      item.contributor,
+      item.submittedAt
+    ]);
+    
+    autoTable(doc, {
+      startY: yPos + 2,
+      head: head,
+      body: body,
+      theme: 'grid',
+      headStyles: { fillColor: [0, 67, 67] }
+    });
+    
+    doc.save('legacylens-moderation-queue.pdf');
+    this.showExportPdfModal.set(false);
   }
 
   logout(): void {
