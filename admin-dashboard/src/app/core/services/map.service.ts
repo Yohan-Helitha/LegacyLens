@@ -133,12 +133,43 @@ export class MapService {
       map(res => {
         if (res && res.data && res.data.imageUrl) {
           const imgUrl = res.data.imageUrl;
-          return imgUrl.startsWith('http') ? imgUrl : `${environment.apiUrl.replace('/api', '')}${imgUrl}`;
+          return imgUrl.startsWith('http') ? imgUrl : `${environment.apiUrl.replace('/api', '')}${imgUrl.startsWith('/') ? '' : '/'}${imgUrl}`;
         }
         return '';
       }),
       catchError(err => {
         console.error('[MapService] Failed to upload badge image:', err);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  /**
+   * Upload a 3D model file to uploads/models directory with progress
+   */
+  uploadModelFile(file: File): Observable<number | string> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<any>(`${environment.apiUrl}/admin/cultural-map/models/upload`, formData, {
+      headers: this.getAuthHeadersOnly(),
+      reportProgress: true,
+      observe: 'events'
+    }).pipe(
+      map(event => {
+        if (event.type === 1) { // HttpEventType.UploadProgress
+          return Math.round(100 * event.loaded / (event.total || 1));
+        } else if (event.type === 4) { // HttpEventType.Response
+          const res = event.body;
+          if (res && res.data && res.data.modelUrl) {
+            const modelUrl = res.data.modelUrl;
+            return modelUrl.startsWith('http') ? modelUrl : `${environment.apiUrl.replace('/api', '')}${modelUrl.startsWith('/') ? '' : '/'}${modelUrl}`;
+          }
+          return '';
+        }
+        return 0; // Other events (like Sent)
+      }),
+      catchError(err => {
+        console.error('[MapService] Failed to upload model file:', err);
         return throwError(() => err);
       })
     );
@@ -208,7 +239,9 @@ export class MapService {
    * Fetch dynamic Mapbox Public Token securely from backend
    */
   getMapboxToken(): Observable<string> {
-    return this.http.get<any>(`${environment.apiUrl}/map/token`).pipe(
+    return this.http.get<any>(`${environment.apiUrl}/map/token`, {
+      headers: this.getAuthHeadersOnly()
+    }).pipe(
       map(res => (res && res.data && res.data.mapboxToken ? res.data.mapboxToken : '')),
       catchError(err => {
         console.warn('[MapService] Could not fetch dynamic Mapbox token from backend:', err);

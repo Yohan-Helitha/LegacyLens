@@ -88,6 +88,13 @@ public class MapController {
         return ResponseEntity.ok(ApiResponse.ok("Badge image uploaded successfully", java.util.Map.of("imageUrl", url)));
     }
 
+    @PostMapping("/models/upload")
+    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> uploadModelFile(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        String url = mapService.uploadModelFile(file);
+        return ResponseEntity.ok(ApiResponse.ok("Model uploaded successfully", java.util.Map.of("modelUrl", "/uploads/" + url)));
+    }
+
     @PostMapping("/badges")
     public ResponseEntity<ApiResponse<lk.ac.sliit.legacylens.map.dto.BadgeResponse>> saveBadge(
             @jakarta.validation.Valid @RequestBody lk.ac.sliit.legacylens.map.dto.SaveBadgeRequest request) {

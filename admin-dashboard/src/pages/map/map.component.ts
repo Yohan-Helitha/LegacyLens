@@ -1,5 +1,7 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, NgZone, signal, computed, inject, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -59,35 +61,30 @@ export const LANDMARK_TYPES = [
     label: 'Historical & Archaeological Sites',
     value: 'Historical & Archaeological Sites',
     icon: 'account_balance',
-    modelUrl: 'assets/glb/archiological.glb',
     badgeClass: 'bg-amber-50 text-amber-800 border-amber-200'
   },
   {
     label: 'Religious & Sacred Places',
     value: 'Religious & Sacred Places',
     icon: 'temple_buddhist',
-    modelUrl: 'assets/glb/sacred.glb',
     badgeClass: 'bg-purple-50 text-purple-800 border-purple-200'
   },
   {
     label: 'Natural Landmarks',
     value: 'Natural Landmarks',
     icon: 'forest',
-    modelUrl: 'assets/glb/nature.glb',
     badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200'
   },
   {
     label: 'Cultural & Traditional Heritage',
     value: 'Cultural & Traditional Heritage',
     icon: 'palette',
-    modelUrl: 'assets/glb/cultural.glb',
     badgeClass: 'bg-orange-50 text-orange-800 border-orange-200'
   },
   {
     label: 'Colonial & Architectural Heritage',
     value: 'Colonial & Architectural Heritage',
     icon: 'fort',
-    modelUrl: 'assets/glb/colonial.glb',
     badgeClass: 'bg-blue-50 text-blue-800 border-blue-200'
   }
 ];
@@ -102,7 +99,6 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
     lng: 80.7603, 
     lat: 7.9570, 
     icon: 'account_balance', 
-    modelUrl: 'assets/glb/archiological.glb',
     region: 'North Central', 
     district: 'Matale', 
     badge: { id: 'sigiriya_badge', title: 'Sigiriya Conqueror', image: 'https://images.unsplash.com/photo-1586220742614-eb06ec4a3629?q=80&w=200' }, 
@@ -117,7 +113,6 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
     lng: 80.6416, 
     lat: 7.2936, 
     icon: 'temple_buddhist', 
-    modelUrl: 'assets/glb/sacred.glb',
     region: 'Central Highlands', 
     district: 'Kandy', 
     badge: { id: 'kandy_badge', title: 'Guardian of the Sacred Relic', image: 'https://images.unsplash.com/photo-1620025983849-01eaae8b7c7b?q=80&w=200' }, 
@@ -132,7 +127,6 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
     lng: 80.2170, 
     lat: 6.0267, 
     icon: 'fort', 
-    modelUrl: 'assets/glb/colonial.glb',
     region: 'Southern & Sabaragamuwa', 
     district: 'Galle', 
     badge: { id: 'galle_badge', title: 'Galle Fort Navigator', image: 'https://images.unsplash.com/photo-1590480376288-7243c5bdf13c?q=80&w=200' }, 
@@ -147,7 +141,6 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
     lng: 80.3965, 
     lat: 8.3444, 
     icon: 'temple_buddhist', 
-    modelUrl: 'assets/glb/sacred.glb',
     region: 'North Central', 
     district: 'Anuradhapura', 
     badge: { id: 'anuradhapura_badge', title: 'Sacred City Pilgrim', image: 'https://images.unsplash.com/photo-1616853755490-8edb8be232b7?q=80&w=200' }, 
@@ -162,7 +155,6 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
     lng: 81.0608, 
     lat: 6.8767, 
     icon: 'fort', 
-    modelUrl: 'assets/glb/colonial.glb',
     region: 'Uva & Eastern Highlands', 
     district: 'Badulla', 
     badge: { id: 'ella_badge', title: 'Highland Wanderer', image: 'https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?q=80&w=200' }, 
@@ -177,7 +169,6 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
     lng: 80.0306, 
     lat: 9.6738, 
     icon: 'temple_buddhist', 
-    modelUrl: 'assets/glb/sacred.glb',
     region: 'Northern Sri Lanka', 
     district: 'Jaffna', 
     badge: { id: 'jaffna_badge', title: 'Northern Crown Seeker', image: 'https://images.unsplash.com/photo-1658428384165-f123dcd2f33c?q=80&w=200' }, 
@@ -201,6 +192,46 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
           <span class="material-symbols-outlined text-xl">{{ isDestructiveToast() ? 'error' : 'verified' }}</span>
           <div class="text-xs font-semibold">{{ toastMessage() }}</div>
           <button (click)="toastMessage.set(null)" class="text-white/70 hover:text-white ml-2 text-xs cursor-pointer">✕</button>
+        </div>
+      }
+      
+      <!-- Export PDF Modal -->
+      @if (showExportPdfModal()) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
+          <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl scale-100 transition-transform">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-bold text-[#191c1c] flex items-center gap-2">
+                <span class="material-symbols-outlined text-[#004343]">picture_as_pdf</span>
+                Export Landmarks Report
+              </h3>
+              <button (click)="showExportPdfModal.set(false)" class="text-[#6f7978] hover:text-[#191c1c] transition-colors cursor-pointer">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div class="space-y-4">
+              <p class="text-sm text-[#6f7978]">Select a date range for the generated report header (Optional).</p>
+              
+              <div class="flex flex-col gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-[#191c1c] mb-1">From Date</label>
+                  <input type="date" [(ngModel)]="exportDateFrom" class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2.5 text-[#191c1c] focus:outline-none focus:border-[#004343] transition-all">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-[#191c1c] mb-1">To Date</label>
+                  <input type="date" [(ngModel)]="exportDateTo" class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2.5 text-[#191c1c] focus:outline-none focus:border-[#004343] transition-all">
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3">
+              <button (click)="showExportPdfModal.set(false)" class="px-4 py-2 text-xs font-bold text-[#4e5d5b] bg-[#f2f4f7] hover:bg-[#e4e7ec] rounded-xl transition-all cursor-pointer">Cancel</button>
+              <button (click)="downloadPdf()" class="px-4 py-2 text-xs font-bold text-white bg-[#004343] hover:bg-[#003333] rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">download</span>
+                Download PDF
+              </button>
+            </div>
+          </div>
         </div>
       }
 
@@ -267,6 +298,29 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
             }
           </div>
         </div>
+
+        <!-- Landmark Sub-Tab Bar (fixed, outside scroll area) -->
+        @if (activeTab() === 'landmarks') {
+          <div class="shrink-0 bg-white border-b border-[#dde3eb] px-6 py-2 flex items-center gap-2 overflow-x-auto custom-scrollbar">
+            <button
+              (click)="setLandmarkSubTab('add_edit')"
+              [class]="landmarkSubTab() === 'add_edit' ? 'bg-[#004343] text-white font-bold' : 'bg-[#f2f4f3] text-[#3f4948] hover:bg-[#e1e3e2] font-semibold'"
+              class="px-3.5 py-2 rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer shrink-0">
+              <span class="material-symbols-outlined text-sm">{{ isEditMode() ? 'edit_location' : 'add_location_alt' }}</span>
+              <span>{{ isEditMode() ? 'Modify Landmark Node (Edit Mode)' : 'Adding & Editing Landmarks' }}</span>
+            </button>
+            <button
+              (click)="setLandmarkSubTab('details')"
+              [class]="landmarkSubTab() === 'details' ? 'bg-[#004343] text-white font-bold' : 'bg-[#f2f4f3] text-[#3f4948] hover:bg-[#e1e3e2] font-semibold'"
+              class="px-3.5 py-2 rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer shrink-0">
+              <span class="material-symbols-outlined text-sm">map</span>
+              <span>Show All Landmark Details & Sri Lanka Map</span>
+              <span class="px-1.5 py-0.2 rounded-full text-[10px]" [class]="landmarkSubTab() === 'details' ? 'bg-white/20 text-white' : 'bg-black/10 text-[#3f4948]'">
+                {{ filteredLandmarks().length }}
+              </span>
+            </button>
+          </div>
+        }
 
         <!-- Main Body Scrollable View -->
         <main class="flex-1 overflow-y-auto p-6 space-y-6">
@@ -383,29 +437,6 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
           <!-- TAB 1: LANDMARK MANAGEMENT -->
           @if (activeTab() === 'landmarks') {
             <div class="space-y-6">
-              
-              <!-- Sub-Page Status Filter Chips Bar (Opportunity Page Style) -->
-              <div class="flex items-center gap-2 pb-1 overflow-x-auto custom-scrollbar">
-                <button 
-                  (click)="setLandmarkSubTab('add_edit')"
-                  [class]="landmarkSubTab() === 'add_edit' ? 'bg-[#004343] text-white font-bold' : 'bg-[#f2f4f3] text-[#3f4948] hover:bg-[#e1e3e2] font-semibold'"
-                  class="px-3.5 py-2 rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer shrink-0">
-                  <span class="material-symbols-outlined text-sm">{{ isEditMode() ? 'edit_location' : 'add_location_alt' }}</span>
-                  <span>{{ isEditMode() ? 'Modify Landmark Node (Edit Mode)' : 'Adding & Editing Landmarks' }}</span>
-                </button>
-
-                <button 
-                  (click)="setLandmarkSubTab('details')"
-                  [class]="landmarkSubTab() === 'details' ? 'bg-[#004343] text-white font-bold' : 'bg-[#f2f4f3] text-[#3f4948] hover:bg-[#e1e3e2] font-semibold'"
-                  class="px-3.5 py-2 rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer shrink-0">
-                  <span class="material-symbols-outlined text-sm">map</span>
-                  <span>Show All Landmark Details & Sri Lanka Map</span>
-                  <span class="px-1.5 py-0.2 rounded-full text-[10px]" [class]="landmarkSubTab() === 'details' ? 'bg-white/20 text-white' : 'bg-black/10 text-[#3f4948]'">
-                    {{ filteredLandmarks().length }}
-                  </span>
-                </button>
-              </div>
-
               <!-- SUB-PAGE 1: ADDING & EDITING LANDMARKS -->
               @if (landmarkSubTab() === 'add_edit') {
                 <div class="space-y-6">
@@ -607,85 +638,58 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
                           </div>
 
                           <div>
-                            <div class="flex items-center justify-between mb-1.5">
-                              <label class="block text-xs font-bold text-[#191c1c]">
-                                Unique Identifier Code <span class="text-red-500">*</span>
-                              </label>
-                              <span class="text-[10px] font-mono font-bold text-[#004343] bg-[#004343]/10 px-2 py-0.5 rounded-md">
-                                Auto-generated
-                              </span>
-                            </div>
+                            <label class="block text-xs font-bold text-[#191c1c] mb-1.5">
+                              Unique Identifier Code <span class="text-red-500">*</span>
+                            </label>
                             <input 
                               type="text" 
                               [(ngModel)]="landmarkForm.code"
-                              placeholder="e.g. sigiriya-rock-fortress"
+                              placeholder="Auto-generated"
                               class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2.5 font-mono text-[#191c1c] focus:outline-hidden focus:border-[#004343] focus:bg-white transition-all">
                           </div>
                         </div>
 
-                        <!-- Landmark Type / Classification Dropdown -->
+
+
+                        <!-- 3D Model Upload -->
                         <div>
                           <label class="block text-xs font-bold text-[#191c1c] mb-1.5">
-                            Landmark Type & Heritage Category <span class="text-red-500">*</span>
+                            Upload 3D Model (.glb)
                           </label>
-                          <select 
-                            [(ngModel)]="landmarkForm.type"
-                            (ngModelChange)="onLandmarkTypeChange($event)"
-                            class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2.5 font-medium text-[#191c1c] focus:outline-hidden focus:border-[#004343] focus:bg-white transition-all cursor-pointer">
-                            <option value="" disabled selected>-- Select Landmark Heritage Type --</option>
-                            @for (t of landmarkTypes; track t.value) {
-                              <option [value]="t.value">{{ t.label }}</option>
-                            }
-                          </select>
-                          <p class="text-[10px] text-[#6e7978] mt-1">
-                            Sets the 3D model asset and spatial classification badge for this landmark.
-                          </p>
+                          <input 
+                            type="file" 
+                            accept=".glb"
+                            (change)="onModelFileSelected($event)"
+                            class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl p-2 text-[#191c1c] file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#004343] file:text-white file:cursor-pointer cursor-pointer">
+                          @if (isUploadingModel()) {
+                            <div class="mt-2 space-y-1.5">
+                              <div class="text-[10px] text-[#004343] font-bold flex items-center justify-between">
+                                <div class="flex items-center gap-1">
+                                  <span class="material-symbols-outlined text-xs animate-spin">sync</span>
+                                  Uploading model asset...
+                                </div>
+                                <span>{{ uploadModelProgress() }}%</span>
+                              </div>
+                              <div class="w-full bg-[#dde3eb] rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-[#004343] h-full rounded-full transition-all duration-300" [style.width.%]="uploadModelProgress()"></div>
+                              </div>
+                            </div>
+                          } @else if (landmarkForm.modelUrl) {
+                            <div class="mt-2 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between group transition-all">
+                              <div class="flex items-center gap-2 overflow-hidden">
+                                <span class="material-symbols-outlined text-sm text-emerald-600">check_circle</span>
+                                <span class="text-[10px] font-mono font-bold text-emerald-800 truncate" title="{{ landmarkForm.modelUrl }}">
+                                  {{ landmarkForm.modelUrl.split('/').pop() }}
+                                </span>
+                              </div>
+                              <button (click)="landmarkForm.modelUrl = ''" class="text-emerald-500 hover:text-red-500 transition-colors flex items-center" title="Remove 3D Model">
+                                <span class="material-symbols-outlined text-[14px]">close</span>
+                              </button>
+                            </div>
+                          }
                         </div>
 
-                        <!-- Interactive 3D Model Asset Viewer for Selected Type -->
-                        @if (landmarkForm.modelUrl) {
-                          <div class="space-y-1.5">
-                            <div class="flex items-center justify-between">
-                              <label class="block text-xs font-bold text-[#191c1c] flex items-center gap-1.5">
-                                <span class="material-symbols-outlined text-sm text-[#fe893e]">view_in_ar</span>
-                                <span>3D GLB Model Asset Preview (Selected Type)</span>
-                              </label>
-                              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                {{ landmarkForm.modelUrl }}
-                              </span>
-                            </div>
 
-                            <div class="relative w-full rounded-2xl overflow-hidden border border-[#1e293b] bg-[#0f172a] shadow-md">
-                              <model-viewer 
-                                [src]="landmarkForm.modelUrl"
-                                auto-rotate
-                                rotation-per-second="25deg"
-                                camera-controls
-                                shadow-intensity="1.2"
-                                exposure="1.05"
-                                touch-action="pan-y"
-                                style="width: 100%; height: 200px; background-color: #0f172a; outline: none;">
-                              </model-viewer>
-
-                              <!-- Overlays -->
-                              <div class="absolute top-2.5 left-2.5 flex items-center gap-1.5 pointer-events-none">
-                                <span class="px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-[10px] font-mono font-bold text-emerald-400 border border-emerald-500/30 flex items-center gap-1 shadow-xs">
-                                  <span class="material-symbols-outlined text-xs">{{ getLandmarkTypeIcon(landmarkForm.type) }}</span>
-                                  {{ landmarkForm.type || 'Heritage 3D Model' }}
-                                </span>
-                              </div>
-
-                              <div class="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] text-white/80 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10">
-                                <span class="flex items-center gap-1 font-medium">
-                                  <span class="material-symbols-outlined text-xs text-amber-400">3d_rotation</span>
-                                  Drag to 360° orbit • Scroll to zoom
-                                </span>
-                                <span class="font-mono text-[9px] text-emerald-300 font-bold">3D Map Model</span>
-                              </div>
-                            </div>
-                          </div>
-                        }
 
                         <!-- Coordinates (Lng / Lat) with Map Interaction Hint -->
                         <div>
@@ -801,8 +805,8 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
                         <!-- Map Style Toggle Buttons -->
                         <div class="flex items-center gap-1 bg-[#f0f4f3] p-1 rounded-xl border border-[#dde3eb]">
                           <button 
-                            (click)="setMapStyle('satellite-streets-v12')"
-                            [ngClass]="activeMapStyle === 'satellite-streets-v12' ? 'bg-[#004343] text-white font-bold' : 'text-[#4e5d5b] hover:bg-black/5'"
+                            (click)="setMapStyle('standard-satellite')"
+                            [ngClass]="activeMapStyle === 'standard-satellite' ? 'bg-[#004343] text-white font-bold' : 'text-[#4e5d5b] hover:bg-black/5'"
                             class="px-2.5 py-1 rounded-lg text-[10px] transition-all cursor-pointer">
                             Satellite 3D
                           </button>
@@ -1002,13 +1006,21 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
                       </div>
                     </div>
 
-                    <!-- Action: Add New Landmark -->
-                    <button 
-                      (click)="navigateToAddLandmark()"
-                      class="px-4 py-2 bg-[#004343] hover:bg-[#003333] text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-2">
-                      <span class="material-symbols-outlined text-sm">add_circle</span>
-                      <span>Add New Landmark</span>
-                    </button>
+                    <!-- Actions: Export PDF & Add New Landmark -->
+                    <div class="flex items-center gap-2">
+                      <button 
+                        (click)="showExportPdfModal.set(true)"
+                        class="px-4 py-2 bg-[#f0f4f3] hover:bg-[#dde3eb] text-[#004343] text-xs font-bold rounded-xl shadow-sm border border-[#dde3eb] transition-all cursor-pointer flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">picture_as_pdf</span>
+                        <span>Export PDF</span>
+                      </button>
+                      <button 
+                        (click)="navigateToAddLandmark()"
+                        class="px-4 py-2 bg-[#004343] hover:bg-[#003333] text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">add_circle</span>
+                        <span>Add New Landmark</span>
+                      </button>
+                    </div>
                   </div>
 
                   <!-- Full Interactive Sri Lanka Mapbox 3D Map -->
@@ -1476,9 +1488,45 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   hasError = signal<boolean>(false);
   isSaving = signal<boolean>(false);
   isSavingBadge = signal<boolean>(false);
+  isUploadingModel = signal<boolean>(false);
+  uploadModelProgress = signal<number>(0);
   isSavingQuest = signal<boolean>(false);
   toastMessage = signal<string | null>(null);
   isDestructiveToast = signal<boolean>(false);
+
+  // Export PDF Modal
+  showExportPdfModal = signal<boolean>(false);
+  exportDateFrom = '';
+  exportDateTo = '';
+
+  downloadPdf() {
+    const doc = new jsPDF();
+    doc.text('LegacyLens', 14, 10);
+    
+    let subtitle = 'Generated by Admin';
+    if (this.exportDateFrom && this.exportDateTo) {
+      subtitle += ` - Date: ${this.exportDateFrom} to ${this.exportDateTo}`;
+    }
+    doc.text(subtitle, 14, 20);
+
+    const body = this.filteredLandmarks().map(l => [
+      l.id,
+      l.name,
+      l.type || 'N/A',
+      l.region || 'N/A',
+      l.district || 'N/A',
+      l.lng + ', ' + l.lat
+    ]);
+
+    autoTable(doc, {
+      startY: 30,
+      head: [['ID', 'Name', 'Type', 'Region', 'District', 'Coordinates']],
+      body: body
+    });
+
+    doc.save('LegacyLens_Landmarks_Export.pdf');
+    this.showExportPdfModal.set(false);
+  }
 
   // Map Location Search & Dynamic Mapbox Token State
   currentMapboxToken = signal<string>(environment.mapboxToken || '');
@@ -1511,7 +1559,6 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     description: '',
     longitude: 80.7603,
     latitude: 7.9570,
-    modelUrl: 'assets/glb/archiological.glb',
     region: '',
     district: '',
     attachedStoryIds: []
@@ -1548,7 +1595,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   pickerMarker: any = null;
   showPointer: boolean = false;
   landmarkMarkers: any[] = [];
-  activeMapStyle: string = 'satellite-streets-v12';
+  activeMapStyle: string = 'outdoors-v12';
 
   // Computed Properties
   totalQuestsCount = computed(() => {
@@ -1853,13 +1900,31 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
           const style = this.mapInstance.getStyle();
           if (style && style.layers) {
             style.layers.forEach((layer: any) => {
-              if (layer.id.includes('country-label') || layer.id.includes('admin-0-boundary-disputed')) {
+              const id: string = layer.id;
+              if (
+                id.includes('country-label') ||
+                id.includes('admin-0-boundary-disputed') ||
+                id.includes('road') ||
+                id.includes('tunnel') ||
+                id.includes('bridge') ||
+                id.includes('motorway') ||
+                id.includes('street') ||
+                id.includes('transit')
+              ) {
                 try {
-                  this.mapInstance.setLayoutProperty(layer.id, 'visibility', 'none');
+                  this.mapInstance.setLayoutProperty(id, 'visibility', 'none');
                 } catch (e) {}
               }
             });
           }
+
+          // For Mapbox Standard / Standard-Satellite styles, use config to hide roads
+          try {
+            if (typeof this.mapInstance.setConfigProperty === 'function') {
+              this.mapInstance.setConfigProperty('basemap', 'showRoadLabels', false);
+              this.mapInstance.setConfigProperty('basemap', 'showTransitLabels', false);
+            }
+          } catch (e) {}
         } catch (err) {
           console.warn('Terrain/fog setup notice:', err);
         }
@@ -1915,6 +1980,27 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.mapInstance) {
       this.mapInstance.setStyle(`mapbox://styles/mapbox/${styleId}`);
       this.mapInstance.once('style.load', () => {
+        // Re-hide roads on every style switch
+        const style = this.mapInstance.getStyle();
+        if (style && style.layers) {
+          style.layers.forEach((layer: any) => {
+            const id: string = layer.id;
+            if (
+              id.includes('road') || id.includes('tunnel') ||
+              id.includes('bridge') || id.includes('motorway') ||
+              id.includes('street') || id.includes('transit')
+            ) {
+              try { this.mapInstance.setLayoutProperty(id, 'visibility', 'none'); } catch (e) {}
+            }
+          });
+        }
+        try {
+          if (typeof this.mapInstance.setConfigProperty === 'function') {
+            this.mapInstance.setConfigProperty('basemap', 'showRoadLabels', false);
+            this.mapInstance.setConfigProperty('basemap', 'showTransitLabels', false);
+          }
+        } catch (e) {}
+
         this.renderLandmarkMarkersOnMap();
         if (this.landmarkSubTab() === 'add_edit') {
           this.renderPickerMarker();
@@ -2001,6 +2087,23 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.landmarkMarkers.forEach(m => m.remove());
     this.landmarkMarkers = [];
 
+    // Render native Mapbox 3D models (GLB layers)
+    this.render3DGlbModels();
+
+    // Preload all GLB model files so the browser fetches them before model-viewer elements are created
+    this.landmarks().forEach(l => {
+      const rawUrl = this.getLandmarkModelUrl(l);
+      if (!rawUrl) return;
+      const resolved = this.resolveGlbUrl(rawUrl);
+      if (!resolved || document.querySelector(`link[rel="preload"][href="${resolved}"]`)) return;
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'fetch';
+      link.href = resolved;
+      link.crossOrigin = 'anonymous';
+      document.head.appendChild(link);
+    });
+
     // Render interactive 3D GLB Model Markers with Landmark Name
     this.landmarks().forEach(l => {
       if (!l.lng || !l.lat) return;
@@ -2017,25 +2120,29 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       el.style.cursor = 'pointer';
 
       el.innerHTML = `
+        ${modelUrl ? `
         <div style="
-          width: 140px;
-          height: 140px;
-          position: relative;
-          transition: transform 0.25s ease;">
-          
+          width: 110px;
+          height: 110px;
+          position: relative;">
           <model-viewer
             src="${modelUrl}"
+            loading="eager"
+            reveal="auto"
+            bounds="tight"
             camera-controls
             disable-zoom
             interaction-prompt="none"
-            shadow-intensity="1.5"
+            shadow-intensity="1"
             exposure="1.1"
+            min-camera-orbit="auto 75deg auto"
+            max-camera-orbit="auto 75deg auto"
+            field-of-view="30deg"
             style="width: 100%; height: 100%; background: transparent; outline: none; pointer-events: none;">
           </model-viewer>
-        </div>
-
+        </div>` : ''}
         <div style="
-          margin-top: 4px;
+          margin-top: ${modelUrl ? '-20px' : '0'};
           background: #004343;
           color: #ffffff;
           border: 1.5px solid #ffffff;
@@ -2049,12 +2156,23 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
           max-width: 130px;
           overflow: hidden;
           text-overflow: ellipsis;
-          text-align: center;">
+          text-align: center;
+          position: relative;
+          z-index: 2;">
           ${l.name}
+        </div>
+        <div style="
+          width: 0; 
+          height: 0; 
+          border-left: 6px solid transparent;
+          border-right: 6px solid transparent;
+          border-top: 6px solid #004343;
+          margin-top: -1.5px;
+          z-index: 1;">
         </div>
       `;
 
-      // Keep marker on top when interacting (no scale/translate — interferes with model-viewer mouse events)
+      // Keep marker on top when interacting
       el.style.zIndex = '1';
       el.addEventListener('mouseenter', () => { el.style.zIndex = '999'; });
       el.addEventListener('mouseleave', () => { el.style.zIndex = '1'; });
@@ -2091,18 +2209,9 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.mapInstance) return;
 
     try {
-      // 1. Preload all 5 type 3D models into Mapbox so they are immediately available
-      LANDMARK_TYPES.forEach(t => {
-        const resolvedUrl = this.resolveGlbUrl(t.modelUrl);
-        try {
-          if (!this.mapInstance.hasModel || !this.mapInstance.hasModel(t.modelUrl)) {
-            this.mapInstance.addModel(t.modelUrl, resolvedUrl);
-          }
-        } catch (e) {}
-      });
-
       const features = this.landmarks().map(l => {
         const model = this.getLandmarkModelUrl(l);
+        if (!model) return null;
         const resolvedUrl = this.resolveGlbUrl(model);
 
         try {
@@ -2124,7 +2233,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
             district: l.district || ''
           }
         };
-      });
+      }).filter(f => f !== null);
 
       const geojsonData: any = {
         type: 'FeatureCollection',
@@ -2154,7 +2263,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
             'model-id': ['get', 'modelUrl']
           },
           paint: {
-            'model-scale': [2200, 2200, 2200],
+            'model-scale': [3500, 3500, 3500],
             'model-rotation': [0, 0, 0]
           }
         });
@@ -2527,59 +2636,36 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   resolveGlbUrl(url: string): string {
-    if (!url) return `${window.location.origin}/assets/glb/archiological.glb`;
+    if (!url) return '';
+    
+    // Fix historically malformed URLs that missed a slash and were saved to the DB
+    if (url.includes('8081models/')) {
+      return url.replace('8081models/', '8081/uploads/models/');
+    }
+
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) {
       return url;
+    }
+    if (url.startsWith('/uploads/') || url.startsWith('uploads/')) {
+      const cleanPath = url.startsWith('/') ? url : '/' + url;
+      return `${environment.apiUrl.replace('/api', '')}${cleanPath}`;
     }
     const cleanPath = url.startsWith('/') ? url.slice(1) : url;
     return `${window.location.origin}/${cleanPath}`;
   }
 
   getLandmarkType(landmark: LandmarkDTO | any): string {
-    if (!landmark) return 'Historical & Archaeological Sites';
-    if (landmark.type && LANDMARK_TYPES.some(t => t.value === landmark.type)) {
+    if (landmark && landmark.type && LANDMARK_TYPES.some(t => t.value === landmark.type)) {
       return landmark.type;
     }
-
-    const typeStr = (landmark.type || '').toLowerCase();
-    if (typeStr.includes('religious') || typeStr.includes('sacred') || typeStr.includes('temple') || typeStr.includes('kovil') || typeStr.includes('stupa') || typeStr.includes('buddhist') || typeStr.includes('hindu')) {
-      return 'Religious & Sacred Places';
-    }
-    if (typeStr.includes('colonial') || typeStr.includes('architectural') || typeStr.includes('fort') || typeStr.includes('bridge') || typeStr.includes('dutch') || typeStr.includes('viaduct')) {
-      return 'Colonial & Architectural Heritage';
-    }
-    if (typeStr.includes('natural') || typeStr.includes('nature') || typeStr.includes('forest') || typeStr.includes('park') || typeStr.includes('wildlife') || typeStr.includes('botanical') || typeStr.includes('fall')) {
-      return 'Natural Landmarks';
-    }
-    if (typeStr.includes('cultural') || typeStr.includes('traditional') || typeStr.includes('heritage') || typeStr.includes('folklore') || typeStr.includes('craft') || typeStr.includes('dance')) {
-      return 'Cultural & Traditional Heritage';
-    }
-    if (typeStr.includes('historical') || typeStr.includes('archaeological') || typeStr.includes('archaeology') || typeStr.includes('ancient') || typeStr.includes('ruin') || typeStr.includes('citadel') || typeStr.includes('palace')) {
-      return 'Historical & Archaeological Sites';
-    }
-
-    // Name-based detection
-    const nameStr = (landmark.name || landmark.id || '').toLowerCase();
-    if (nameStr.includes('tooth') || nameStr.includes('ruwanweli') || nameStr.includes('nallur') || nameStr.includes('temple') || nameStr.includes('kovil') || nameStr.includes('stupa') || nameStr.includes('dagoba')) {
-      return 'Religious & Sacred Places';
-    }
-    if (nameStr.includes('fort') || nameStr.includes('galle') || nameStr.includes('bridge') || nameStr.includes('ella') || nameStr.includes('colonial') || nameStr.includes('clock tower')) {
-      return 'Colonial & Architectural Heritage';
-    }
-    if (nameStr.includes('sigiriya') || nameStr.includes('polonnaruwa') || nameStr.includes('anuradhapura') || nameStr.includes('dambulla') || nameStr.includes('citadel') || nameStr.includes('palace') || nameStr.includes('rock')) {
-      return 'Historical & Archaeological Sites';
-    }
-    if (nameStr.includes('yala') || nameStr.includes('sinharaja') || nameStr.includes('peak') || nameStr.includes('horton') || nameStr.includes('falls') || nameStr.includes('nature')) {
-      return 'Natural Landmarks';
-    }
-
     return 'Historical & Archaeological Sites';
   }
 
   getLandmarkModelUrl(landmark: LandmarkDTO | any): string {
-    const determinedType = this.getLandmarkType(landmark);
-    const match = LANDMARK_TYPES.find(t => t.value === determinedType);
-    return match ? match.modelUrl : 'assets/glb/archiological.glb';
+    if (landmark && landmark.modelUrl) {
+      return landmark.modelUrl;
+    }
+    return '';
   }
 
   private landmarkNameSearchDebounce: any = null;
@@ -2656,7 +2742,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.landmarkForm.type = typeValue;
     const match = LANDMARK_TYPES.find(t => t.value === typeValue);
     if (match) {
-      this.landmarkForm.modelUrl = match.modelUrl;
+      
       this.landmarkForm.icon = match.icon;
     }
   }
@@ -2677,7 +2763,6 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       description: '',
       longitude: 80.7603,
       latitude: 7.9570,
-      modelUrl: 'assets/glb/archiological.glb',
       region: '',
       district: '',
       attachedStoryIds: []
@@ -2751,9 +2836,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       this.landmarkForm.type = 'Historical & Archaeological Sites';
     }
     const typeMatch = LANDMARK_TYPES.find(t => t.value === this.landmarkForm.type);
-    if (!this.landmarkForm.modelUrl && typeMatch) {
-      this.landmarkForm.modelUrl = typeMatch.modelUrl;
-    }
+    
 
     this.isSaving.set(true);
 
@@ -2815,7 +2898,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
             lng: this.landmarkForm.longitude || 80.7603,
             lat: this.landmarkForm.latitude || 7.9570,
             icon: typeMatch ? typeMatch.icon : 'place',
-            modelUrl: this.landmarkForm.modelUrl || (typeMatch ? typeMatch.modelUrl : 'assets/glb/archiological.glb'),
+              modelUrl: this.landmarkForm.modelUrl || '',
             attachedStoryIds: this.landmarkForm.attachedStoryIds
           };
           this.landmarks.set([...this.landmarks(), newLandmark]);
@@ -2936,6 +3019,32 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
         error: (err) => {
           this.isSavingBadge.set(false);
           this.showToast('Failed to upload badge file.', true);
+        }
+      });
+    }
+  }
+
+  onModelFileSelected(event: any): void {
+    const file = event.target.files[0];
+    if (file) {
+      this.isUploadingModel.set(true);
+      this.uploadModelProgress.set(0);
+      this.mapService.uploadModelFile(file).subscribe({
+        next: (progressOrUrl) => {
+          if (typeof progressOrUrl === 'number') {
+            this.uploadModelProgress.set(progressOrUrl);
+          } else if (typeof progressOrUrl === 'string' && progressOrUrl !== '') {
+            this.landmarkForm.modelUrl = progressOrUrl;
+            this.isUploadingModel.set(false);
+            this.showToast('3D model uploaded successfully!');
+          }
+        },
+        error: (err) => {
+          this.isUploadingModel.set(false);
+          this.uploadModelProgress.set(0);
+          console.error('Upload Error Details:', err);
+          const errMsg = err.error?.message || err.message || 'Unknown error';
+          this.showToast(`Failed to upload 3D model: ${errMsg}`, true);
         }
       });
     }

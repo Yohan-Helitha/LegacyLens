@@ -103,6 +103,11 @@ public class AdminCulturalMapServiceImpl implements AdminCulturalMapService {
         }
 
         @Override
+        public String uploadModelFile(MultipartFile file) {
+                return mapService.uploadModelFile(file);
+        }
+
+        @Override
         public BadgeResponse saveBadge(AdminBadgeRequest request,
                         String performedById, String performedByName) {
                 SaveBadgeRequest req = SaveBadgeRequest.builder()
