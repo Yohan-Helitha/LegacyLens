@@ -1,6 +1,7 @@
 package lk.ac.sliit.legacylens.admin.service;
 
 import lk.ac.sliit.legacylens.admin.dto.AdminResponse;
+import lk.ac.sliit.legacylens.admin.dto.UpdateAdminRequest;
 import lk.ac.sliit.legacylens.admin.entity.AuditActionType;
 import lk.ac.sliit.legacylens.users.entity.AccountStatus;
 import lk.ac.sliit.legacylens.users.entity.City;
@@ -17,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -74,30 +74,30 @@ public class AdminManagementServiceImpl implements AdminManagementService {
 
     @Override
     @Transactional
-    public AdminResponse updateAdmin(String id, Map<String, Object> updates,
+    public AdminResponse updateAdmin(String id, UpdateAdminRequest updates,
             String performedById, String performedByName) {
         User user = userRepository.findById(UUID.fromString(id))
                 .orElseThrow(() -> new RuntimeException("Administrator not found with id " + id));
 
-        if (updates.containsKey("fullName")) {
-            user.setFullName((String) updates.get("fullName"));
+        if (updates.getFullName() != null && !updates.getFullName().isBlank()) {
+            user.setFullName(updates.getFullName());
         }
-        if (updates.containsKey("phoneNumber")) {
-            user.setPhoneNumber((String) updates.get("phoneNumber"));
+        if (updates.getPhoneNumber() != null && !updates.getPhoneNumber().isBlank()) {
+            user.setPhoneNumber(updates.getPhoneNumber());
         }
-        if (updates.containsKey("nicNumber")) {
-            user.setNicNumber((String) updates.get("nicNumber"));
+        if (updates.getNicNumber() != null && !updates.getNicNumber().isBlank()) {
+            user.setNicNumber(updates.getNicNumber());
         }
-        if (updates.containsKey("accountStatus")) {
+        if (updates.getAccountStatus() != null && !updates.getAccountStatus().isBlank()) {
             try {
-                user.setAccountStatus(AccountStatus.valueOf(((String) updates.get("accountStatus")).toUpperCase()));
+                user.setAccountStatus(AccountStatus.valueOf(updates.getAccountStatus().toUpperCase()));
             } catch (IllegalArgumentException ignored) {
                 // ignore invalid status
             }
         }
-        if (updates.containsKey("cityName") || updates.containsKey("cityRegion")) {
-            String cityName = (String) updates.get("cityName");
-            String cityRegion = (String) updates.get("cityRegion");
+        if (updates.getCityName() != null || updates.getCityRegion() != null) {
+            String cityName = updates.getCityName();
+            String cityRegion = updates.getCityRegion();
             City city = null;
             if (cityName != null && !cityName.isBlank()) {
                 city = cityRepository.findAll().stream()
@@ -120,8 +120,8 @@ public class AdminManagementServiceImpl implements AdminManagementService {
 
         // Determine specific action description
         String actionNote = "Admin profile updated";
-        if (updates.containsKey("accountStatus")) {
-            String status = ((String) updates.get("accountStatus")).toUpperCase();
+        if (updates.getAccountStatus() != null && !updates.getAccountStatus().isBlank()) {
+            String status = updates.getAccountStatus().toUpperCase();
             if ("SUSPENDED".equals(status) || "DEACTIVATED".equals(status)) {
                 actionNote = "Admin account suspended";
             }
