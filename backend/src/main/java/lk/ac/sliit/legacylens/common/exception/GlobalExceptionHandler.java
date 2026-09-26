@@ -122,7 +122,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-                .body(ApiResponse.error("That file is too large to upload. Please choose a shorter clip."));
+                .body(ApiResponse.error("That file is too large to upload. Please choose a smaller file."));
     }
 
     @ExceptionHandler(FileStorageException.class)
