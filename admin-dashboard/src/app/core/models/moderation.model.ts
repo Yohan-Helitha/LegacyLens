@@ -64,3 +64,6 @@ export interface AiGenerateQuizRequest {
   tags?: string[];
 }
 
+export interface AiTagsResponse {
+  tags: string[];
+}

@@ -8,6 +8,8 @@ import lk.ac.sliit.legacylens.moderation.entity.StoryQuiz;
 import lk.ac.sliit.legacylens.moderation.entity.StoryQuizOption;
 import lk.ac.sliit.legacylens.moderation.repository.ModerationQueueRepository;
 import lk.ac.sliit.legacylens.moderation.repository.StoryQuizRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,8 @@ public class StoryQuizService {
 
         private final StoryQuizRepository quizRepository;
         private final ModerationQueueRepository storyRepository;
+        private final GroqAiService groqAiService;
+        private final ObjectMapper objectMapper = new ObjectMapper();
 
         @Transactional(readOnly = true)
         public StoryQuizDTO getQuizByStoryId(UUID storyId) {
@@ -109,7 +113,22 @@ public class StoryQuizService {
                         }
                 }
 
-                StoryQuizDTO aiQuiz = generateQuizFromDescription(title, desc, body, tags);
+                StoryQuizDTO aiQuiz;
+
+                // ── 1. Try Groq AI first ───────────────────────────────────────
+                String storyType = null;
+                if (storyRepository.findById(storyId).isPresent()) {
+                        storyType = storyRepository.findById(storyId).get().getType();
+                }
+                String groqRaw = groqAiService.generateQuiz(title, desc, body, storyType);
+                aiQuiz = parseGroqQuizResponse(groqRaw);
+
+                // ── 2. Fallback to keyword matching if Groq failed ─────────────
+                if (aiQuiz == null) {
+                        log.warn("[StoryQuizService] Groq unavailable for story {} — using keyword fallback", storyId);
+                        aiQuiz = generateQuizFromDescription(title, desc, body, tags);
+                }
+
                 aiQuiz.setStoryId(storyId.toString());
 
                 return aiQuiz;
@@ -117,6 +136,65 @@ public class StoryQuizService {
 
         public StoryQuizDTO generateAiQuiz(UUID storyId) {
                 return generateAiQuiz(storyId, null);
+        }
+
+        /**
+         * Parse the raw JSON string returned by Groq into a StoryQuizDTO.
+         * Returns null if parsing fails so the caller can fall back.
+         */
+        private StoryQuizDTO parseGroqQuizResponse(String rawJson) {
+                if (rawJson == null || rawJson.isBlank()) return null;
+                try {
+                        JsonNode root = objectMapper.readTree(rawJson.trim());
+
+                        String question    = root.path("question").asText(null);
+                        String explanation = root.path("explanation").asText(null);
+                        JsonNode optionsNode = root.path("options");
+
+                        if (question == null || !optionsNode.isArray() || optionsNode.size() < 2) {
+                                log.warn("[StoryQuizService] Groq response missing required fields: {}", rawJson);
+                                return null;
+                        }
+
+                        List<StoryQuizOptionDTO> options = new ArrayList<>();
+                        String[] defaultKeys = {"A", "B", "C", "D"};
+                        for (int i = 0; i < optionsNode.size(); i++) {
+                                JsonNode opt = optionsNode.get(i);
+                                // Support both "key"/"text" and "optionKey"/"optionText" field names
+                                String key  = opt.has("key")        ? opt.get("key").asText()
+                                            : opt.has("optionKey")  ? opt.get("optionKey").asText()
+                                            : (i < defaultKeys.length ? defaultKeys[i] : String.valueOf((char)('A' + i)));
+                                String text = opt.has("text")       ? opt.get("text").asText("")
+                                            : opt.has("optionText") ? opt.get("optionText").asText("")
+                                            : "";
+                                String desc = opt.has("description") ? opt.get("description").asText("") : "";
+                                boolean correct = opt.has("isCorrect") ? opt.get("isCorrect").asBoolean(false)
+                                               : opt.has("correct")   ? opt.get("correct").asBoolean(false)
+                                               : false;
+                                options.add(StoryQuizOptionDTO.builder()
+                                        .optionKey(key.toUpperCase().trim())
+                                        .optionText(text.trim())
+                                        .description(desc.trim())
+                                        .isCorrect(correct)
+                                        .build());
+                        }
+
+                        // Ensure at least one correct option (Groq sometimes forgets)
+                        boolean hasCorrect = options.stream().anyMatch(StoryQuizOptionDTO::isCorrect);
+                        if (!hasCorrect && !options.isEmpty()) {
+                                options.get(0).setCorrect(true);
+                        }
+
+                        return StoryQuizDTO.builder()
+                                .question(question.trim())
+                                .explanation(explanation != null ? explanation.trim() : "")
+                                .options(options)
+                                .build();
+
+                } catch (Exception e) {
+                        log.error("[StoryQuizService] Failed to parse Groq quiz JSON: {}", e.getMessage());
+                        return null;
+                }
         }
 
         private StoryQuizDTO generateQuizFromDescription(String title, String description, String body,

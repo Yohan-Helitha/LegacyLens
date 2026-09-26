@@ -8,6 +8,7 @@ import {
   UpdateModerationStatusRequest,
   StoryQuizDTO,
   AiGenerateQuizRequest,
+  AiTagsResponse,
   RegionDTO
 } from '../models/moderation.model';
 import { AuthService } from './auth.service';
@@ -155,6 +156,23 @@ export class ModerationService {
     ).pipe(
       catchError(err => {
         console.warn(`[ModerationService] AI quiz generation failed for ${storyId}:`, err);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  /**
+   * AI-Generate Tags for a story
+   * Endpoint: POST /api/v1/moderation/stories/{storyId}/ai-tags
+   */
+  generateAiTags(storyId: string): Observable<AiTagsResponse> {
+    return this.http.post<AiTagsResponse>(
+      `${environment.apiUrl}/v1/moderation/stories/${storyId}/ai-tags`,
+      {},
+      { headers: this.getHeaders() }
+    ).pipe(
+      catchError(err => {
+        console.warn(`[ModerationService] AI tag generation failed for ${storyId}:`, err);
         return throwError(() => err);
       })
     );
