@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../theme';
 import { styles } from './AudioCard.styles';
+import { FeedCardActions } from './FeedCardActions';
+import { homeApi } from '../../services/api/homeApi';
 
 const TOTAL_BARS = 30; // number of waveform bars rendered
 
@@ -11,11 +13,13 @@ export const AudioCard = ({
   item,
   setActivePostId,
   setCommentModalVisible,
+  onNavigate,
 }: {
   a: any;
   item: any;
   setActivePostId: (id: string) => void;
   setCommentModalVisible: (v: boolean) => void;
+  onNavigate?: (tab: string, item?: any) => void;
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0 … TOTAL_BARS
@@ -48,7 +52,11 @@ export const AudioCard = ({
 
   return (
     <View style={styles.card}>
-      <View style={styles.cardHeader}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => onNavigate?.('video', item || a)}
+        style={styles.cardHeader}
+      >
         <View style={styles.authorRow}>
           <Image source={{ uri: a.avatar }} style={styles.avatar} />
           <View>
@@ -60,9 +68,13 @@ export const AudioCard = ({
           <MaterialIcons name="mic" size={13} color={Colors.secondary} />
           <Text style={styles.audioBadgeText}>Audio</Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
-      {a.topic ? <Text style={styles.audioTopic}>{a.topic}</Text> : null}
+      {a.topic ? (
+        <TouchableOpacity activeOpacity={0.8} onPress={() => onNavigate?.('video', item || a)}>
+          <Text style={styles.audioTopic}>{a.topic}</Text>
+        </TouchableOpacity>
+      ) : null}
 
       {/* ── Audio strip inside green box — full width, flex bars ── */}
       <View style={styles.audioStrip}>
@@ -82,14 +94,14 @@ export const AudioCard = ({
         {/* Waveform — always TOTAL_BARS, each bar flex:1 to fill width */}
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: 40, gap: 2 }}>
           {Array.from({ length: TOTAL_BARS }, (_, i) => {
-            const src = a.bars && a.bars.length > 0 ? a.bars : [2,3,4,5,3,2,4,5,3,2];
+            const src = a.bars && a.bars.length > 0 ? a.bars : [20, 30, 40, 50, 30, 20, 40, 50, 30, 20];
             const h = src[i % src.length] as number;
             return (
               <View
                 key={i}
                 style={{
                   flex: 1,
-                  height: Math.max(6, h * 5),
+                  height: Math.max(6, (h / 100) * 36),
                   borderRadius: 2,
                   backgroundColor: i < progress ? '#fe893e' : 'rgba(255,255,255,0.4)',
                 }}
@@ -99,6 +111,21 @@ export const AudioCard = ({
         </View>
         
         <Text style={styles.audioDurationText}>{a.duration}</Text>
+      </View>
+
+      <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+        <FeedCardActions
+          theme="light"
+          initialLikes={a.likesCount || 0}
+          initialComments={a.commentsCount || 0}
+          onLikePress={() => {
+            if (a.id) homeApi.likePost(a.id).catch(console.error);
+          }}
+          onCommentPress={() => {
+            setActivePostId(item.id);
+            setCommentModalVisible(true);
+          }}
+        />
       </View>
     </View>
   );

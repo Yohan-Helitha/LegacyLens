@@ -20,9 +20,12 @@ import LearningNavigator from './LearningNavigator';
 import { CreatorNavigator, CreatorScreen } from './CreatorNavigator';
 import { UserNavigator } from './UserNavigator';
 import { AdminNavigator } from './AdminNavigator';
+import { StorytellerOnboardingNavigator } from './StorytellerOnboardingNavigator';
+import { ContentCaptureNavigator } from './ContentCaptureNavigator';
 import { authApi } from '../services/api/authApi';
 import { profileApi } from '../services/api/profileApi';
 import { useAuthStore } from '../store/authStore';
+import { useLocaleStore } from '../store/localeStore';
 
 export type RootStackParamList = {
   Loading: undefined;
@@ -44,6 +47,8 @@ export type RootStackParamList = {
   OnBoarding3: undefined;
   User: undefined;
   Admin: undefined;
+  StorytellerOnboarding: undefined;
+  ContentCapture: undefined;
   PrivacyData: undefined;
   ChangePhone: undefined;
   ChangePhoneVerify: { newPhoneNumber: string };
@@ -83,7 +88,12 @@ export const RootNavigator: React.FC = () => {
 
       <Stack.Screen name="Language">
         {({ navigation }) => (
-          <LanguageSelectionScreen onContinue={() => navigation.navigate('Login')} />
+          <LanguageSelectionScreen
+            onContinue={(languageCode) => {
+              useLocaleStore.getState().setLocale(languageCode);
+              navigation.navigate('Login');
+            }}
+          />
         )}
       </Stack.Screen>
 
@@ -158,7 +168,7 @@ export const RootNavigator: React.FC = () => {
             }}
             onComplete={async () => {
               const canUseFingerprint = await isFingerprintAvailable();
-              navigation.navigate(canUseFingerprint ? 'Fingerprint' : 'Login');
+              navigation.navigate(canUseFingerprint ? 'Fingerprint' : 'OnBoarding1');
             }}
             onBack={() => navigation.goBack()}
           />
@@ -168,8 +178,8 @@ export const RootNavigator: React.FC = () => {
       <Stack.Screen name="Fingerprint">
         {({ navigation }) => (
           <FingerprintScreen
-            onComplete={() => navigation.navigate('Login')}
-            onSkip={() => navigation.navigate('Login')}
+            onComplete={() => navigation.navigate('OnBoarding1')}
+            onSkip={() => navigation.navigate('OnBoarding1')}
           />
         )}
       </Stack.Screen>
@@ -260,6 +270,15 @@ export const RootNavigator: React.FC = () => {
       {/* ── Admin flow — only reached when the logged-in user has the ADMIN role ── */}
       <Stack.Screen name="Admin">
         {({ navigation }) => <AdminNavigator navigation={navigation} />}
+      </Stack.Screen>
+
+      {/* ── Become a Storyteller → elder content-capture hand-off ───────────── */}
+      <Stack.Screen name="StorytellerOnboarding">
+        {({ navigation }) => <StorytellerOnboardingNavigator navigation={navigation} />}
+      </Stack.Screen>
+
+      <Stack.Screen name="ContentCapture">
+        {({ navigation }) => <ContentCaptureNavigator navigation={navigation} />}
       </Stack.Screen>
 
       {/* ── Profile & account security ────────────────────────────────────── */}

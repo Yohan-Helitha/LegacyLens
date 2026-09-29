@@ -5,11 +5,27 @@ import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { styles } from './KnowledgeKeeper.styles';
 
-export const KnowledgeKeeper = () => {
+export interface KnowledgeKeeperProps {
+  name: string;
+  title: string;
+  tag: string;
+  quote: string;
+  avatarUrl: string;
+  likesCount?: number;
+}
+
+export const KnowledgeKeeper: React.FC<KnowledgeKeeperProps> = ({
+  name,
+  title,
+  tag,
+  quote,
+  avatarUrl,
+  likesCount: initialLikesCount = 892,
+}) => {
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [following, setFollowing] = useState(false);
-  const [likesCount, setLikesCount] = useState(892);
+  const [likesCount, setLikesCount] = useState(initialLikesCount);
   const heartScale = useRef(new Animated.Value(1)).current;
   const shareScale = useRef(new Animated.Value(1)).current;
   const saveTranslateY = useRef(new Animated.Value(0)).current;
@@ -65,7 +81,7 @@ export const KnowledgeKeeper = () => {
     try {
       playSound('share');
       await Share.share({
-        message: `Meet the Knowledge Keeper: Sriyani Menike, Traditional Potter from Kegalle.\n"The clay speaks if your hands are quiet enough to listen. It remembers the river."\n\nShared via LegacyLens`,
+        message: `Meet the Knowledge Keeper: ${name}, ${title}.\n"${quote}"\n\nShared via LegacyLens`,
       });
     } catch (error) {
       console.error('Error sharing:', error);
@@ -87,20 +103,20 @@ export const KnowledgeKeeper = () => {
 
         <View style={styles.knowledgeProfileRow}>
           <Image 
-            source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC7rwnw0Fc5VTeiAV9lCDm_UTOe3NPfMMsAxFgxyUfaKbcnp4UpwRPNo0rTk4m7MxL3tWH3etBrMggHoN4qPqvCTRM3KnufiBZtr-S7yGEgzMYsVSQn4J-KgGuCbHqEs0pesF1Q2Q_kBd8duDIrjGwbBpFHmEn0raB8UsXA4Ezk0I_UL41Skh6fcwt_9KAF58wJ4DUBQb-p-WcA2HB3IoRWfVvOkrx7eNcBcR9uUHSgEa3rH0ftEwyu' }} 
+            source={{ uri: avatarUrl }} 
             style={styles.knowledgeAvatar} 
           />
           <View style={styles.knowledgeInfo}>
-            <Text style={styles.knowledgeName}>Sriyani Menike</Text>
-            <Text style={styles.knowledgeTitle}>Traditional Potter • Kegalle</Text>
+            <Text style={styles.knowledgeName}>{name}</Text>
+            <Text style={styles.knowledgeTitle}>{title}</Text>
             <View style={styles.knowledgeTag}>
-              <Text style={styles.knowledgeTagText}>Known for: Black Clay Cooking Pots</Text>
+              <Text style={styles.knowledgeTagText}>{tag}</Text>
             </View>
           </View>
         </View>
 
         <Text style={styles.knowledgeQuote}>
-          "The clay speaks if your hands are quiet enough to listen. It remembers the river."
+          "{quote}"
         </Text>
 
         <View style={styles.knowledgeFooter}>

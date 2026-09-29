@@ -10,4 +10,6 @@ public interface UserProfileService {
     UserProfileResponse getMyProfile(UUID userId);
 
     UserProfileResponse updateMyProfile(UUID userId, UpdateProfileRequest request);
+    /** Idempotent — safe to call again once already true. */
+    void markTutorialComplete(UUID userId);
 }

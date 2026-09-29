@@ -48,4 +48,13 @@ public class UserController {
 
         return ResponseEntity.ok(ApiResponse.ok("Profile updated", profile));
     }
+    /** The "replay tutorial" action itself needs no backend call — it's a pure frontend replay. */
+    @PatchMapping("/me/tutorial-complete")
+    public ResponseEntity<ApiResponse<Void>> markTutorialComplete(
+            @AuthenticationPrincipal CustomUserDetails principal) {
+
+        userProfileService.markTutorialComplete(principal.getUser().getId());
+
+        return ResponseEntity.ok(ApiResponse.ok("Tutorial marked complete", null));
+    }
 }

@@ -38,10 +38,23 @@ public class KnowledgeHolderProfile {
 
     /**
      * Comma separated or free-text description of topics the elder can speak about.
-     * Stored as TEXT to allow long lists.
+     * Stored as TEXT to allow long lists. Doubles as the answer to the
+     * storyteller intake question "Which topics are you interested in?"
+     * (comma-separated topic keys, e.g. "village-dialects,old-stories").
      */
     @Column(name = "known_topics", columnDefinition = "TEXT")
     private String knownTopics;
+
+    /**
+     * Comma separated content type keys from the storyteller intake question
+     * "What kind of content would you like to create?" (e.g. "video,audio").
+     */
+    @Column(name = "preferred_content_types", columnDefinition = "TEXT")
+    private String preferredContentTypes;
+
+    /** Free-text answer when "other" is selected as a topic of interest. */
+    @Column(name = "other_topic_note", columnDefinition = "TEXT")
+    private String otherTopicNote;
 
     /**
      * Platform-computed trust score (0.00 100.00).
@@ -53,6 +66,28 @@ public class KnowledgeHolderProfile {
     /** Short biography shown on the elder's public profile. */
     @Column(columnDefinition = "TEXT")
     private String bio;
+
+    /**
+     * Verification lifecycle for the storyteller upgrade: PENDING as soon as
+     * the intake answers are saved, VERIFIED once the requesting OTP is
+     * confirmed. See StorytellerService.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status", nullable = false, length = 20)
+    private VerificationStatus verificationStatus = VerificationStatus.PENDING;
+
+    /**
+     * Denormalized summary of this elder's ElderRating rows, kept in sync by
+     * RatingService.submitRating() — a separate metric from trustScore above
+     * (activity-based) since this one is feedback-based. Null until the
+     * first rating is submitted, so the client can distinguish "no ratings
+     * yet" from "rated 0".
+     */
+    @Column(name = "average_rating", precision = 3, scale = 2)
+    private BigDecimal averageRating;
+
+    @Column(name = "rating_count", nullable = false)
+    private int ratingCount = 0;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

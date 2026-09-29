@@ -37,7 +37,6 @@ export const styles = StyleSheet.create({
   pendingBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eceeed', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.3)' },
   pendingBadgeText: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: Colors.textMuted },
   cardDesc: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: Colors.textMuted, marginTop: 8, marginBottom: 16 },
-  
   cardFooter: { flexDirection: 'column', gap: 12, marginTop: 'auto' },
   cardTagsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 },
   elderTag: { backgroundColor: '#4d535a', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
@@ -46,6 +45,12 @@ export const styles = StyleSheet.create({
   articleTagText: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: Colors.textMuted },
   metaText: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: Colors.text },
   metaTextMuted: { fontFamily: Typography.fontBody, fontSize: 12, color: Colors.textMuted },
+  elderBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffdad6', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  elderBadgeText: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: '#ba1a1a' },
+  studentBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(15, 92, 92, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  studentBadgeText: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: '#0f5c5c' },
+  videoTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#e1e3e2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  videoTagText: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: Colors.textMuted },
   
   cardActionsRow: { flexDirection: 'row', gap: 12 },
   rejectBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
@@ -54,10 +59,10 @@ export const styles = StyleSheet.create({
   publishBtnText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.white },
 
   // Archived Queue
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f2f4f3', borderRadius: 24, paddingHorizontal: 16, paddingVertical: 12, marginBottom: Spacing.md },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f2f4f3', borderRadius: 20, paddingHorizontal: 16, height: 40, marginBottom: Spacing.md },
   searchInput: { flex: 1, marginLeft: 8, fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: Colors.text },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  archiveCard: { width: '100%', backgroundColor: Colors.white, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.4)', padding: Spacing.md },
+  archiveCard: { alignSelf: 'stretch', backgroundColor: Colors.white, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.4)', padding: Spacing.md },
   archiveCategoryTag: { backgroundColor: '#eceeed', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.5)' },
   archiveCategoryTagText: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: Colors.textMuted },
   archiveFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(191, 200, 200, 0.2)' },
@@ -93,6 +98,7 @@ export const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: 'rgba(191, 200, 200, 0.3)', marginBottom: 12 },
   checkItem: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   checkboxDone: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(15, 92, 92, 0.1)', borderWidth: 2, borderColor: Colors.secondary, alignItems: 'center', justifyContent: 'center' },
+  checkboxPending: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#bfc8c8', alignItems: 'center', justifyContent: 'center' },
   checkItemText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: Colors.text },
 
   bottomBar: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: Spacing.md, backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: 'rgba(191, 200, 200, 0.4)' },
@@ -100,6 +106,20 @@ export const styles = StyleSheet.create({
   btnRejectText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.text },
   btnPublish: { flex: 2, backgroundColor: '#0f5c5c', paddingVertical: 14, alignItems: 'center', borderRadius: 24 },
   btnPublishText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.white },
+
+  // Verify Tags Section
+  tagsCard: { backgroundColor: Colors.white, padding: Spacing.md, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.4)', marginBottom: Spacing.md },
+  tagsCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  tagsCardTitle: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.text },
+  tagsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tagPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#eceeed', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.4)' },
+  tagPillActive: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ffdbc9', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(155, 70, 0, 0.2)' },
+  tagText: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: Colors.text },
+  tagTextActive: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: '#672c00', fontWeight: '600' },
+  tagRemoveBtn: { padding: 2 },
+  addTagBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: Colors.secondary },
+  addTagText: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: Colors.secondary },
+  tagInput: { fontFamily: Typography.fontBodyMed, fontSize: 12, color: Colors.text, paddingVertical: 2, paddingHorizontal: 8, minWidth: 80, borderBottomWidth: 1, borderBottomColor: Colors.secondary },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(46, 49, 49, 0.4)', justifyContent: 'center', alignItems: 'center', padding: Spacing.md },
@@ -112,4 +132,29 @@ export const styles = StyleSheet.create({
   modalBtnCancelText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.text },
   modalBtnConfirm: { backgroundColor: Colors.secondary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
   modalBtnConfirmText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.white },
+
+  // Reject Modal Inputs
+  rejectInputLabel: { fontFamily: Typography.fontBodyMed, fontSize: 14, color: Colors.text, marginBottom: 6, marginTop: 12 },
+  rejectSelectContainer: { backgroundColor: '#f2f4f3', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.4)', overflow: 'hidden', marginVertical: 6 },
+  rejectSelectOption: { paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(191, 200, 200, 0.2)' },
+  rejectSelectOptionActive: { backgroundColor: '#ffdbc9' },
+  rejectSelectOptionText: { fontFamily: Typography.fontBody, fontSize: 14, color: Colors.text },
+  rejectSelectOptionTextActive: { fontFamily: Typography.fontBodyMed, fontSize: 14, color: '#672c00', fontWeight: '600' },
+  rejectNotesInput: { backgroundColor: '#f2f4f3', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.4)', padding: 12, height: 100, fontFamily: Typography.fontBody, fontSize: 14, color: Colors.text, textAlignVertical: 'top', marginTop: 8 },
+  
+  modalBtnCancelPill: { flex: 1, backgroundColor: '#eceeed', paddingVertical: 12, alignItems: 'center', borderRadius: 24 },
+  modalBtnCancelPillText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.text },
+  modalBtnConfirmPill: { flex: 1, backgroundColor: '#ba1a1a', paddingVertical: 12, alignItems: 'center', borderRadius: 24 },
+  modalBtnConfirmPillText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.white },
+  modalTitleError: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, fontWeight: '600', color: '#ba1a1a', marginBottom: 8 },
+
+  // Article Preview
+  articlePreviewCard: { backgroundColor: Colors.white, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(191, 200, 200, 0.4)', padding: Spacing.md, marginBottom: Spacing.md },
+  articlePreviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(191, 200, 200, 0.2)', paddingBottom: 12, marginBottom: 16 },
+  articlePreviewLabel: { fontFamily: Typography.fontBodyMed, fontSize: 11, color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  articleReadTimeBadge: { backgroundColor: '#f2f4f3', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+  articleReadTimeText: { fontFamily: Typography.fontBodyMed, fontSize: 11, color: Colors.secondary, fontWeight: '600' },
+  articlePreviewBody: { flex: 1 },
+  articlePreviewTitle: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, fontWeight: '700', color: Colors.text, marginBottom: 12 },
+  articlePreviewContent: { fontFamily: Typography.fontBody, fontSize: 14, color: Colors.text, lineHeight: 22 },
 });

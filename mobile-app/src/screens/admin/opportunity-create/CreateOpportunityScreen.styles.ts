@@ -4,9 +4,11 @@ import { Colors, Typography, Spacing, Radii } from '../../../theme';
 export const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#eaf2f2' },
   header: {
-    height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
+    height: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: Spacing.md, position: 'relative',
   },
+  headerLeft: { position: 'absolute', left: Spacing.md },
+  headerRight: { position: 'absolute', right: Spacing.md },
   iconButton: { padding: Spacing.xs },
   headerTitle: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeMD, fontWeight: '700', color: Colors.secondary },
   saveDraftButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radii.md },
@@ -47,8 +49,12 @@ export const styles = StyleSheet.create({
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(255,255,255,0.95)', borderTopWidth: 1, borderTopColor: '#e1e3e2', padding: Spacing.md, flexDirection: 'row', gap: Spacing.md },
   bottomBtnSecondary: { flex: 1, backgroundColor: '#e6e9e8', paddingVertical: 14, borderRadius: Radii.lg, alignItems: 'center' },
   bottomBtnSecondaryText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.text },
+  bottomBtnSecondaryDisabled: { flex: 1, backgroundColor: '#f2f4f3', paddingVertical: 14, borderRadius: Radii.lg, alignItems: 'center' },
+  bottomBtnSecondaryTextDisabled: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.textMuted },
   bottomBtnPrimary: { flex: 1, backgroundColor: Colors.secondary, paddingVertical: 14, borderRadius: Radii.lg, alignItems: 'center' },
   bottomBtnPrimaryText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.white },
+  bottomBtnPrimaryDisabled: { flex: 1, backgroundColor: '#b0c4c4', paddingVertical: 14, borderRadius: Radii.lg, alignItems: 'center' },
+  bottomBtnPrimaryTextDisabled: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: '#e6e9e8' },
   
   // Step 2 & others
   titleSection: { marginBottom: Spacing.lg },
@@ -122,6 +128,8 @@ export const styles = StyleSheet.create({
   btnTextOnlyLabel: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '600', color: Colors.textMuted },
   btnActionPrimary: { backgroundColor: Colors.secondary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: Radii.full, flexDirection: 'row', alignItems: 'center', gap: 8 },
   btnActionPrimaryText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '700', color: Colors.white },
+  btnActionPrimaryDisabled: { backgroundColor: '#b0c4c4', paddingHorizontal: 24, paddingVertical: 12, borderRadius: Radii.full, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  btnActionPrimaryTextDisabled: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, fontWeight: '700', color: '#e6e9e8' },
   
   // Step 5
   qualityRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },

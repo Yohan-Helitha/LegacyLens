@@ -78,6 +78,10 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<UserRole> roles = new ArrayList<>();
 
+    /** Whether the user has completed the in-app voice-guided tutorial. Replaying it needs no backend state. */
+    @Column(name = "tutorial_completed", nullable = false)
+    private boolean tutorialCompleted = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

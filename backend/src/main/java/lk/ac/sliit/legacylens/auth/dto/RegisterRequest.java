@@ -34,4 +34,6 @@ public class RegisterRequest {
     @NotBlank(message = "PIN is required")
     @Pattern(regexp = "^[0-9]{4,6}$", message = "PIN must be 4 to 6 digits")
     private String pin;
+
+    private String roleType;
 }
