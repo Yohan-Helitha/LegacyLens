@@ -52,6 +52,17 @@ public class JobWorkProgress {
     @Column(columnDefinition = "TEXT")
     private String story;
 
+    /**
+     * "Search Context (SEO)" — a short search-result description of the
+     * content, so beneficiaries can find it once it's published.
+     */
+    @Column(name = "seo_summary", length = 160)
+    private String seoSummary;
+
+    /** Comma separated search keywords/tags for the same purpose — see JobWorkProgressServiceImpl#updateSeo. */
+    @Column(name = "seo_keywords", columnDefinition = "TEXT")
+    private String seoKeywords;
+
     /** Explicitly saved via "Save As a Draft" — cleared once the work is actually submitted for review. */
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean draft = false;

@@ -3,6 +3,7 @@ package lk.ac.sliit.legacylens.marketplace.service;
 import lk.ac.sliit.legacylens.marketplace.dto.WorkProgressResponse;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 /** Backs MyWorkList's progress display and ContinueMyWorkPage's workspace actions — see JobWorkProgress's javadoc. */
@@ -14,6 +15,9 @@ public interface JobWorkProgressService {
     WorkProgressResponse updateChecklistItem(UUID creatorId, UUID jobId, UUID checklistItemId, boolean completed, String note);
 
     WorkProgressResponse updateNote(UUID creatorId, UUID jobId, String introduction, String story);
+
+    /** "Search Context (SEO)" — replaces the search summary and keywords wholesale. */
+    WorkProgressResponse updateSeo(UUID creatorId, UUID jobId, String summary, List<String> keywords);
 
     WorkProgressResponse addMaterial(UUID creatorId, UUID jobId, MultipartFile file);
 

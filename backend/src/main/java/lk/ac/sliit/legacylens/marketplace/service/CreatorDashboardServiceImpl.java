@@ -177,7 +177,8 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
                     .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
         }
 
-        String proofDocumentUrl = fileStorageService.store(proofDocument, PAYMENT_PROOF_UPLOAD_SUBDIR);
+        String proofDocumentUrl = fileStorageService.store(proofDocument, PAYMENT_PROOF_UPLOAD_SUBDIR,
+                FileStorageService.MEDIA_CONTENT_TYPES, FileStorageService.MAX_MEDIA_FILE_SIZE_BYTES);
 
         PaymentRecord record = new PaymentRecord();
         record.setCreator(creator);

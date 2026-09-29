@@ -53,7 +53,8 @@ public class ModerationQueueItem {
     @Column(name = "district", length = 100)
     private String district;
 
-    @Column(name = "author_id")
+    // Must match Story.author (nullable = false) — both entities map the same "stories" table.
+    @Column(name = "author_id", nullable = false)
     private UUID authorId;
 
     @ManyToOne(fetch = FetchType.LAZY)

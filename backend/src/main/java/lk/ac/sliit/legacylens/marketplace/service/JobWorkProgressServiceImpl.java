@@ -23,7 +23,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -100,11 +104,26 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
 
     @Override
     @Transactional
+    public WorkProgressResponse updateSeo(UUID creatorId, UUID jobId, String summary, List<String> keywords) {
+        Job job = getOwnedJob(creatorId, jobId);
+        JobWorkProgress progress = getOrCreateProgress(job);
+
+        progress.setSeoSummary(summary == null || summary.isBlank() ? null : summary.trim());
+
+        List<String> cleaned = normalizeKeywords(keywords);
+        progress.setSeoKeywords(cleaned.isEmpty() ? null : String.join(",", cleaned));
+
+        return mapToResponse(workProgressRepository.save(progress));
+    }
+
+    @Override
+    @Transactional
     public WorkProgressResponse addMaterial(UUID creatorId, UUID jobId, MultipartFile file) {
         Job job = getOwnedJob(creatorId, jobId);
         JobWorkProgress progress = getOrCreateProgress(job);
 
-        String fileUrl = fileStorageService.store(file, WORK_MATERIAL_UPLOAD_SUBDIR);
+        String fileUrl = fileStorageService.store(file, WORK_MATERIAL_UPLOAD_SUBDIR,
+                FileStorageService.MEDIA_CONTENT_TYPES, FileStorageService.MAX_MEDIA_FILE_SIZE_BYTES);
 
         JobWorkMaterial material = new JobWorkMaterial();
         material.setJob(job);
@@ -170,6 +189,35 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         workMaterialRepository.deleteByJobId(job.getId());
         checklistProgressRepository.deleteByJobId(job.getId());
         workProgressRepository.findByJobId(job.getId()).ifPresent(workProgressRepository::delete);
+    }
+
+    /**
+     * Trims each keyword, drops a leading "#", strips commas (the storage
+     * separator), skips blanks and removes case-insensitive duplicates while
+     * keeping the creator's original order and casing.
+     */
+    private static List<String> normalizeKeywords(List<String> keywords) {
+        if (keywords == null) {
+            return List.of();
+        }
+        Map<String, String> unique = new LinkedHashMap<>();
+        for (String raw : keywords) {
+            if (raw == null) {
+                continue;
+            }
+            String keyword = raw.replace(",", " ").trim().replaceFirst("^#+", "").trim();
+            if (!keyword.isEmpty()) {
+                unique.putIfAbsent(keyword.toLowerCase(Locale.ROOT), keyword);
+            }
+        }
+        return List.copyOf(unique.values());
+    }
+
+    private static List<String> splitKeywords(String stored) {
+        if (stored == null || stored.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(stored.split(",")).map(String::trim).filter(k -> !k.isEmpty()).toList();
     }
 
     private Job getOwnedJob(UUID creatorId, UUID jobId) {
@@ -315,6 +363,8 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .currentStage(currentStageFor(checklist))
                 .introduction(progress.getIntroduction())
                 .story(progress.getStory())
+                .seoSummary(progress.getSeoSummary())
+                .seoKeywords(splitKeywords(progress.getSeoKeywords()))
                 .draft(progress.isDraft())
                 .submittedAt(progress.getSubmittedAt())
                 .rejected(progress.isRejected())

@@ -34,6 +34,10 @@ public class WorkProgressResponse {
 
     private String introduction;
     private String story;
+
+    /** "Search Context (SEO)" — short search-result description and keywords. Empty list when none are set. */
+    private String seoSummary;
+    private List<String> seoKeywords;
     private boolean draft;
     private LocalDateTime submittedAt;
 

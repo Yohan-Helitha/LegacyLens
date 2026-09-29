@@ -41,6 +41,11 @@ const D = {
 
 const STEP_LABELS = ['Prep', 'Record', 'Edit', 'Submit'];
 
+// Limits mirror UpdateWorkSeoRequest on the backend.
+const SEO_SUMMARY_MAX = 160;
+const SEO_KEYWORDS_MAX = 10;
+const SEO_KEYWORD_MAX_LENGTH = 30;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Icons
 // ─────────────────────────────────────────────────────────────────────────────
@@ -137,6 +142,9 @@ export const ContinueMyWorkPage: React.FC<{
   const [progress, setProgress] = useState<WorkProgressResponse | null>(null);
   const [introductionText, setIntroductionText] = useState('');
   const [storyText, setStoryText] = useState('');
+  const [seoSummary, setSeoSummary] = useState('');
+  const [seoKeywords, setSeoKeywords] = useState<string[]>([]);
+  const [keywordInput, setKeywordInput] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -152,6 +160,8 @@ export const ContinueMyWorkPage: React.FC<{
         setProgress(data);
         setIntroductionText(data.introduction ?? '');
         setStoryText(data.story ?? '');
+        setSeoSummary(data.seoSummary ?? '');
+        setSeoKeywords(data.seoKeywords ?? []);
       })
       .catch((err) => {
         if (!cancelled) setLoadError(err instanceof ApiError ? err.message : 'Could not load this job.');
@@ -264,6 +274,33 @@ export const ContinueMyWorkPage: React.FC<{
     ]);
   };
 
+  // Adds whatever is typed in the keyword box — commas split it into several
+  // keywords at once, and case-insensitive duplicates are skipped.
+  const handleAddKeywords = () => {
+    const candidates = keywordInput
+      .split(',')
+      .map((k) => k.trim().replace(/^#+/, '').trim())
+      .filter((k) => k.length > 0);
+    if (candidates.length === 0) return;
+
+    const next = [...seoKeywords];
+    for (const keyword of candidates) {
+      if (next.length >= SEO_KEYWORDS_MAX) {
+        Alert.alert('Keyword limit reached', `You can add up to ${SEO_KEYWORDS_MAX} keywords.`);
+        break;
+      }
+      if (!next.some((k) => k.toLowerCase() === keyword.toLowerCase())) {
+        next.push(keyword.slice(0, SEO_KEYWORD_MAX_LENGTH));
+      }
+    }
+    setSeoKeywords(next);
+    setKeywordInput('');
+  };
+
+  const handleRemoveKeyword = (keyword: string) => {
+    setSeoKeywords((prev) => prev.filter((k) => k !== keyword));
+  };
+
   // Saves the note and flags this job as a draft only — it must NOT touch
   // checklist completion or the progress percentage. Real progress only ever
   // moves when a checklist item itself is checked/unchecked.
@@ -271,6 +308,7 @@ export const ContinueMyWorkPage: React.FC<{
     setSaving(true);
     try {
       await workProgressApi.updateNote(id, introductionText, storyText);
+      await workProgressApi.updateSeo(id, seoSummary, seoKeywords);
       const finalState = await workProgressApi.markDraft(id);
       setProgress(finalState);
       setSavedModalVisible(true); // onSaveDraft fires once the creator dismisses the modal below.
@@ -449,6 +487,86 @@ export const ContinueMyWorkPage: React.FC<{
                 multiline
                 textAlignVertical="top"
               />
+            </View>
+          </View>
+
+          <View style={{ gap: Spacing.sm }}>
+            <Text style={s.sectionTitle}>Search Context (SEO)</Text>
+            <Text style={s.emptyMaterialsText}>
+              Help beneficiaries find this content — describe it briefly and add the words people would search for.
+            </Text>
+
+            <View style={{ gap: 4 }}>
+              <View style={s.seoLabelRow}>
+                <Text style={s.noteSubLabel}>Search Summary</Text>
+                <Text style={[s.seoCounter, seoSummary.length >= SEO_SUMMARY_MAX && { color: D.danger }]}>
+                  {seoSummary.length}/{SEO_SUMMARY_MAX}
+                </Text>
+              </View>
+              <TextInput
+                style={[s.noteInput, s.seoSummaryInput]}
+                value={seoSummary}
+                onChangeText={setSeoSummary}
+                maxLength={SEO_SUMMARY_MAX}
+                placeholder="e.g. A war veteran from Anuradhapura recalls his years of service and the stories behind his medals."
+                placeholderTextColor={D.onSurfaceVariant}
+                multiline
+                textAlignVertical="top"
+              />
+            </View>
+
+            <View style={{ gap: 4 }}>
+              <View style={s.seoLabelRow}>
+                <Text style={s.noteSubLabel}>Keywords / Tags</Text>
+                <Text style={s.seoCounter}>{seoKeywords.length}/{SEO_KEYWORDS_MAX}</Text>
+              </View>
+
+              {seoKeywords.length > 0 && (
+                <View style={s.keywordChipWrap}>
+                  {seoKeywords.map((keyword) => (
+                    <Pressable
+                      key={keyword}
+                      onPress={() => handleRemoveKeyword(keyword)}
+                      style={({ pressed }) => [s.keywordChip, pressed && s.pressed]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove keyword ${keyword}`}
+                    >
+                      <Text style={s.keywordChipText}>{keyword}</Text>
+                      <Text style={s.keywordChipRemove}>×</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+
+              {seoKeywords.length < SEO_KEYWORDS_MAX && (
+                <View style={s.keywordInputRow}>
+                  <TextInput
+                    style={s.keywordInput}
+                    value={keywordInput}
+                    onChangeText={setKeywordInput}
+                    onSubmitEditing={handleAddKeywords}
+                    maxLength={SEO_KEYWORD_MAX_LENGTH * 3}
+                    placeholder="e.g. war history, Anuradhapura"
+                    placeholderTextColor={D.onSurfaceVariant}
+                    returnKeyType="done"
+                    submitBehavior="submit"
+                  />
+                  <Pressable
+                    onPress={handleAddKeywords}
+                    disabled={keywordInput.trim().length === 0}
+                    style={({ pressed }) => [
+                      s.keywordAddBtn,
+                      pressed && s.pressed,
+                      keywordInput.trim().length === 0 && { opacity: 0.5 },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add keyword"
+                  >
+                    <Text style={s.addMaterialBtnText}>Add</Text>
+                  </Pressable>
+                </View>
+              )}
+              <Text style={s.checklistHint}>Separate several keywords with commas. Tap a keyword to remove it.</Text>
             </View>
           </View>
         </View>
@@ -648,6 +766,31 @@ const s = StyleSheet.create({
     fontSize: Typography.sizeXS,
     lineHeight: 18,
     color: D.onSurfaceVariant,
+  },
+
+  // ── Search Context (SEO) ─────────────────────────────────────────────────
+  seoLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  seoCounter: { fontFamily: Typography.fontBody, fontSize: 11, color: D.onSurfaceVariant },
+  seoSummaryInput: { minHeight: 72 },
+  keywordChipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  keywordChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: D.secondaryContainer, borderRadius: Radii.full,
+    paddingLeft: 12, paddingRight: 10, paddingVertical: 6,
+  },
+  keywordChipText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSecondaryContainer },
+  keywordChipRemove: { fontFamily: Typography.fontBodySemi, fontSize: 14, lineHeight: 16, color: D.onSecondaryContainer },
+  keywordInputRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
+  keywordInput: {
+    flex: 1, minHeight: 44,
+    backgroundColor: D.surfaceContainerLowest,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant, borderRadius: Radii.lg,
+    paddingHorizontal: Spacing.sm,
+    fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurface,
+  },
+  keywordAddBtn: {
+    backgroundColor: D.primary, borderRadius: Radii.lg,
+    paddingHorizontal: 18, minHeight: 44, alignItems: 'center', justifyContent: 'center',
   },
 
   // ── Save button ──────────────────────────────────────────────────────────

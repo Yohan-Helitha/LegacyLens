@@ -26,6 +26,13 @@ export const workProgressApi = {
       { introduction, story },
     ),
 
+  /** "Search Context (SEO)" — replaces the search summary and keywords wholesale. */
+  updateSeo: (jobId: string, summary: string, keywords: string[]) =>
+    apiPut<WorkProgressResponse, { summary: string; keywords: string[] }>(
+      `/jobs/${jobId}/work-progress/seo`,
+      { summary, keywords },
+    ),
+
   markDraft: (jobId: string) =>
     apiPost<WorkProgressResponse, undefined>(`/jobs/${jobId}/work-progress/draft`, undefined),
 

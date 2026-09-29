@@ -5,6 +5,7 @@ import lk.ac.sliit.legacylens.auth.security.CustomUserDetails;
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.UpdateChecklistItemRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.UpdateWorkNoteRequest;
+import lk.ac.sliit.legacylens.marketplace.dto.UpdateWorkSeoRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.WorkProgressResponse;
 import lk.ac.sliit.legacylens.marketplace.service.JobWorkProgressService;
 import org.springframework.http.ResponseEntity;
@@ -71,6 +72,18 @@ public class JobWorkProgressController {
         return ResponseEntity.ok(ApiResponse.ok(
                 jobWorkProgressService.updateNote(
                         principal.getUser().getId(), jobId, request.getIntroduction(), request.getStory())));
+    }
+
+    /** "Search Context (SEO)" — search summary + keywords so beneficiaries can find the published content. */
+    @PutMapping("/seo")
+    public ResponseEntity<ApiResponse<WorkProgressResponse>> updateSeo(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID jobId,
+            @Valid @RequestBody UpdateWorkSeoRequest request) {
+
+        return ResponseEntity.ok(ApiResponse.ok(
+                jobWorkProgressService.updateSeo(
+                        principal.getUser().getId(), jobId, request.getSummary(), request.getKeywords())));
     }
 
     @PostMapping(value = "/materials", consumes = "multipart/form-data")

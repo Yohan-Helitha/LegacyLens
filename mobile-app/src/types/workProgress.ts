@@ -85,6 +85,9 @@ export interface WorkProgressResponse {
   /** The two "Note & Written Content" sub-sections — kept as separate fields, not one combined note. */
   introduction: string | null;
   story: string | null;
+  /** "Search Context (SEO)" — short search-result description (max 160 chars) and keywords (max 10). */
+  seoSummary: string | null;
+  seoKeywords: string[];
   draft: boolean;
   submittedAt: string | null;
   /** True when an admin sent this submission back with a reason instead of accepting it — see RejectedWorkPage. */
