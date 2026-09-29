@@ -16,8 +16,9 @@ export const choiceKey = (opportunityId: string, creatorId: string) => `${opport
 /**
  * Recommended creators for each of the signed-in elder's open opportunities
  * (Content Creator Recommendation screen). `choose` resolves true once the
- * backend has recorded the choice; `chosen` remembers, per opportunity, who
- * was picked during this visit so that section can lock itself.
+ * backend has recorded the choice; `chosen` holds, per opportunity, who was
+ * picked — seeded from the backend on every load, then updated locally
+ * right after a successful choose — so that section stays locked.
  */
 export function useCreatorRecommendations() {
   const [sections, setSections] = useState<OpportunityRecommendations[]>([]);
@@ -35,7 +36,20 @@ export function useCreatorRecommendations() {
       opportunity: section.opportunity,
       bestMatch: section.bestMatch ? normaliseCreator(section.bestMatch) : null,
       others: (section.others ?? []).map(normaliseCreator),
+      chosenCreator: section.chosenCreator ? normaliseCreator(section.chosenCreator) : null,
     }));
+  }, []);
+
+  /** Shows the new sections and re-locks every opportunity the backend says already has a chosen creator. */
+  const applySections = useCallback((result: OpportunityRecommendations[]) => {
+    setSections(result);
+    setChosen(
+      Object.fromEntries(
+        result
+          .filter((section) => section.chosenCreator)
+          .map((section) => [section.opportunity.opportunityId, section.chosenCreator as RecommendedCreator]),
+      ),
+    );
   }, []);
 
   const load = useCallback(async () => {
@@ -43,13 +57,13 @@ export function useCreatorRecommendations() {
     setLoadError(false);
     try {
       const result = await fetchSections();
-      if (mountedRef.current) setSections(result);
+      if (mountedRef.current) applySections(result);
     } catch {
       if (mountedRef.current) setLoadError(true);
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, [fetchSections]);
+  }, [fetchSections, applySections]);
 
   /** Pull-to-refresh — keeps the current list on screen if the refresh fails. */
   const refresh = useCallback(async () => {
@@ -57,7 +71,7 @@ export function useCreatorRecommendations() {
     try {
       const result = await fetchSections();
       if (mountedRef.current) {
-        setSections(result);
+        applySections(result);
         setLoadError(false);
       }
     } catch {
@@ -65,7 +79,7 @@ export function useCreatorRecommendations() {
     } finally {
       if (mountedRef.current) setRefreshing(false);
     }
-  }, [fetchSections]);
+  }, [fetchSections, applySections]);
 
   useEffect(() => {
     mountedRef.current = true;

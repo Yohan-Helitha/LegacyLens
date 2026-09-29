@@ -26,6 +26,14 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
 
     long countByCreatorIdAndStatus(UUID creatorId, JobStatus status);
 
+    /**
+     * Job counts in one status for every creator at once, as [creatorId, count]
+     * rows — lets creator recommendations score all candidates in one query
+     * instead of one count per creator.
+     */
+    @Query("SELECT j.creator.id, COUNT(j) FROM Job j WHERE j.status = :status GROUP BY j.creator.id")
+    List<Object[]> countByStatusGroupedByCreator(@Param("status") JobStatus status);
+
     /** Available balance: total earned from completed jobs. See JobStatus's
      * javadoc — nothing here yet excludes jobs already settled in cash,
      * since that tracking doesn't exist until the work-progress page ships. */

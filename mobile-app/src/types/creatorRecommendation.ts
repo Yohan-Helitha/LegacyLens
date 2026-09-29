@@ -45,4 +45,9 @@ export interface OpportunityRecommendations {
   /** Null when no creator matches this opportunity yet. */
   bestMatch: RecommendedCreator | null;
   others: RecommendedCreator[];
+  /**
+   * The creator the elder already chose for this opportunity (invited, or an
+   * application they approved / that was booked). Null until one is chosen.
+   */
+  chosenCreator: RecommendedCreator | null;
 }

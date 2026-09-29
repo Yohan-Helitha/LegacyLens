@@ -27,6 +27,9 @@ public interface OpportunityRepository extends JpaRepository<Opportunity, UUID> 
 
     List<Opportunity> findByStatus(OpportunityStatus status);
 
+    /** An elder's own opportunities in one status, newest first — backs the elder's creator recommendations. */
+    List<Opportunity> findByElderIdAndStatusOrderByCreatedAtDesc(UUID elderId, OpportunityStatus status);
+
     /** A single opportunity's full detail — only if it's actually published. */
     Optional<Opportunity> findByIdAndStatus(UUID id, OpportunityStatus status);
 
