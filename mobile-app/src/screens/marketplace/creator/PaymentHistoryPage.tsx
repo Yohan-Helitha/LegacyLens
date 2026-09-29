@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,7 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
+import { resolveUploadUrl } from '../../../constants/api';
 import type { PaymentHistoryItemResponse } from '../../../types/creatorDashboard';
 
 const D = {
@@ -31,13 +33,25 @@ const D = {
 const FALLBACK_HISTORY: PaymentHistoryItemResponse[] = [
   {
     id: 'fallback-1',
+    jobId: null,
+    opportunityTitle: 'Fishing Terms Documentation',
+    elderName: 'Mr. Sunil Perera',
     amount: 1500,
+    tipAmount: 200,
+    totalAmount: 1700,
+    proofDocumentUrl: null,
     collectedAt: new Date().toISOString(),
-    note: 'Cash tip from Mrs. Kamala Wijesinghe',
+    note: null,
   },
   {
     id: 'fallback-2',
+    jobId: null,
+    opportunityTitle: 'Traditional Food Recipe Documentation',
+    elderName: 'Mrs. Kamala Wijesinghe',
     amount: 4000,
+    tipAmount: 0,
+    totalAmount: 4000,
+    proofDocumentUrl: null,
     collectedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
     note: 'Traditional Food Recipe Documentation — Mrs. Kamala Wijesinghe',
   },
@@ -122,22 +136,34 @@ export const PaymentHistoryPage: React.FC<{
             <View key={group.label} style={s.group}>
               <Text style={s.groupLabel}>{group.label}</Text>
               <View style={s.groupCard}>
-                {group.items.map((item, index) => (
-                  <View
-                    key={item.id}
-                    style={[s.row, index < group.items.length - 1 && s.rowDivider]}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.rowNote} numberOfLines={2}>
-                        {item.note ?? 'Cash payment'}
-                      </Text>
-                      <Text style={s.rowTime}>{formatTime(item.collectedAt)}</Text>
+                {group.items.map((item, index) => {
+                  const proofUri = resolveUploadUrl(item.proofDocumentUrl);
+                  return (
+                    <View
+                      key={item.id}
+                      style={[s.row, index < group.items.length - 1 && s.rowDivider]}
+                    >
+                      {proofUri && (
+                        <Image source={{ uri: proofUri }} style={s.rowThumbnail} accessibilityLabel="Payment proof" />
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.rowNote} numberOfLines={2}>
+                          {item.opportunityTitle ?? item.note ?? 'Cash payment'}
+                        </Text>
+                        {item.elderName && <Text style={s.rowElder}>{item.elderName}</Text>}
+                        <Text style={s.rowTime}>{formatTime(item.collectedAt)}</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={s.rowAmount}>
+                          {`+LKR ${Math.round(item.totalAmount).toLocaleString('en-US')}`}
+                        </Text>
+                        {item.tipAmount > 0 && (
+                          <Text style={s.rowTip}>{`incl. LKR ${Math.round(item.tipAmount).toLocaleString('en-US')} tip`}</Text>
+                        )}
+                      </View>
                     </View>
-                    <Text style={s.rowAmount}>
-                      {`+LKR ${Math.round(item.amount).toLocaleString('en-US')}`}
-                    </Text>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             </View>
           ))
@@ -193,9 +219,12 @@ const s = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.md },
   rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: D.surfaceVariant },
+  rowThumbnail: { width: 40, height: 40, borderRadius: Radii.md, backgroundColor: D.surfaceVariant },
   rowNote: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurface },
+  rowElder: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, marginTop: 1 },
   rowTime: { fontFamily: Typography.fontBody, fontSize: 11, color: D.onSurfaceVariant, marginTop: 2 },
   rowAmount: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.primary },
+  rowTip: { fontFamily: Typography.fontBody, fontSize: 10, color: D.onSurfaceVariant, marginTop: 2 },
 
   emptyState: { alignItems: 'center', paddingVertical: Spacing.xl },
   emptyStateText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },

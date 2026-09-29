@@ -1,0 +1,149 @@
+package lk.ac.sliit.legacylens.marketplace.controller;
+
+import jakarta.validation.Valid;
+import lk.ac.sliit.legacylens.auth.security.CustomUserDetails;
+import lk.ac.sliit.legacylens.common.dto.ApiResponse;
+import lk.ac.sliit.legacylens.marketplace.dto.BookApplicationRequest;
+import lk.ac.sliit.legacylens.marketplace.dto.OpportunityApplicationRequest;
+import lk.ac.sliit.legacylens.marketplace.dto.OpportunityApplicationResponse;
+import lk.ac.sliit.legacylens.marketplace.service.OpportunityApplicationService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * "Apply to Opportunity" flow — backs OpportunityApplicationForm and
+ * SavedOpportunityApplication. Every endpoint requires a valid Bearer token
+ * — see SecurityConfig, only /api/auth/** and /api/cities/** are public.
+ */
+@RestController
+@RequestMapping("/api/opportunity-applications")
+public class OpportunityApplicationController {
+
+    private final OpportunityApplicationService opportunityApplicationService;
+
+    public OpportunityApplicationController(OpportunityApplicationService opportunityApplicationService) {
+        this.opportunityApplicationService = opportunityApplicationService;
+    }
+
+    /** Creates a new draft, or updates the caller's existing draft for that opportunity — the form's Save button. */
+    @PostMapping
+    public ResponseEntity<ApiResponse<OpportunityApplicationResponse>> saveDraft(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @Valid @RequestBody OpportunityApplicationRequest request) {
+
+        OpportunityApplicationResponse response = opportunityApplicationService.saveDraft(
+                principal.getUser().getId(), request);
+
+        return ResponseEntity.ok(ApiResponse.ok("Application saved", response));
+    }
+
+    /** Backs SavedOpportunityApplication's Saved + Submitted sections. */
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<List<OpportunityApplicationResponse>>> getMyApplications(
+            @AuthenticationPrincipal CustomUserDetails principal) {
+
+        return ResponseEntity.ok(ApiResponse.ok(
+                opportunityApplicationService.getMyApplications(principal.getUser().getId())));
+    }
+
+    /**
+     * Lets OpportunityApplicationForm check for an existing draft when
+     * opening "Apply" for an opportunity — data is null (not a 404) when the
+     * creator hasn't saved anything for it yet, since that's the normal
+     * first-time state, not an error.
+     */
+    @GetMapping("/by-opportunity/{opportunityId}")
+    public ResponseEntity<ApiResponse<OpportunityApplicationResponse>> getByOpportunity(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID opportunityId) {
+
+        OpportunityApplicationResponse response = opportunityApplicationService
+                .getByOpportunity(principal.getUser().getId(), opportunityId)
+                .orElse(null);
+
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    /** Moves a saved draft to PENDING — the Submit button. */
+    @PostMapping("/{id}/submit")
+    public ResponseEntity<ApiResponse<OpportunityApplicationResponse>> submit(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+
+        OpportunityApplicationResponse response = opportunityApplicationService.submitApplication(
+                principal.getUser().getId(), id);
+
+        return ResponseEntity.ok(ApiResponse.ok("Application submitted", response));
+    }
+
+    /**
+     * TEMPORARY: lets the creator self-approve their own submitted
+     * application. Normally this is the knowledge holder's decision, but
+     * there's no elder-facing review UI yet — remove this endpoint once one
+     * exists and route approval through that instead.
+     */
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<ApiResponse<OpportunityApplicationResponse>> approve(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+
+        OpportunityApplicationResponse response = opportunityApplicationService.approveApplication(
+                principal.getUser().getId(), id);
+
+        return ResponseEntity.ok(ApiResponse.ok("Application approved", response));
+    }
+
+    /**
+     * TEMPORARY: lets the creator self-reject their own submitted
+     * application, standing in for the knowledge holder's decision the same
+     * way #approve does. Remove once a real elder-facing review UI exists.
+     */
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<ApiResponse<OpportunityApplicationResponse>> reject(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+
+        OpportunityApplicationResponse response = opportunityApplicationService.rejectApplication(
+                principal.getUser().getId(), id);
+
+        return ResponseEntity.ok(ApiResponse.ok("Application rejected", response));
+    }
+
+    /**
+     * Moves an approved application to BOOKED and creates the real Job
+     * behind it — the "Confirm Booking" form on the dashboard's Upcoming
+     * Booking tab.
+     */
+    @PostMapping("/{id}/book")
+    public ResponseEntity<ApiResponse<OpportunityApplicationResponse>> book(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id,
+            @Valid @RequestBody BookApplicationRequest request) {
+
+        OpportunityApplicationResponse response = opportunityApplicationService.bookApplication(
+                principal.getUser().getId(), id, request);
+
+        return ResponseEntity.ok(ApiResponse.ok("Application booked", response));
+    }
+
+    /** Deletes a draft or a submitted application — the Delete/Cancel action. */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> delete(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+
+        opportunityApplicationService.deleteApplication(principal.getUser().getId(), id);
+
+        return ResponseEntity.ok(ApiResponse.ok("Application deleted", null));
+    }
+}

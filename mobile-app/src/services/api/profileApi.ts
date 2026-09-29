@@ -1,16 +1,20 @@
-import { apiGet, apiPost } from './client';
+import { apiGet, apiPatch, apiPost } from './client';
 import {
   ConfirmNicChangeRequest,
   ConfirmPhoneChangeRequest,
   ConfirmPinChangeRequest,
   RequestNicChangeRequest,
   RequestPhoneChangeRequest,
+  UpdateProfileRequest,
   UserProfile,
 } from '../../types/profile';
 
-/** Typed wrappers around GET/POST /api/users/me/**. */
+/** Typed wrappers around GET/PATCH/POST /api/users/me/**. */
 export const profileApi = {
   getMe: () => apiGet<UserProfile>('/users/me'),
+
+  /** Full name / city only — phone/NIC/PIN go through the OTP-verified request/confirm flows below. */
+  updateMe: (body: UpdateProfileRequest) => apiPatch<UserProfile, UpdateProfileRequest>('/users/me', body),
 
   requestPhoneChange: (body: RequestPhoneChangeRequest) =>
     apiPost<void, RequestPhoneChangeRequest>('/users/me/phone/request-change', body),

@@ -17,7 +17,7 @@ public interface PaymentRecordRepository extends JpaRepository<PaymentRecord, UU
 
     List<PaymentRecord> findByCreatorIdOrderByCollectedAtDesc(UUID creatorId, Pageable pageable);
 
-    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM PaymentRecord p "
+    @Query("SELECT COALESCE(SUM(p.amount + p.tipAmount), 0) FROM PaymentRecord p "
             + "WHERE p.creator.id = :creatorId AND p.collectedAt BETWEEN :start AND :end")
     BigDecimal sumByCreatorIdAndCollectedAtBetween(
             @Param("creatorId") UUID creatorId,

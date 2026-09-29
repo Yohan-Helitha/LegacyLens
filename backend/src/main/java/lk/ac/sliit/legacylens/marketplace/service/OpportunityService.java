@@ -25,4 +25,14 @@ public interface OpportunityService {
 
     /** One published opportunity's full detail. */
     OpportunityDetailResponse getById(UUID id);
+
+    /**
+     * Backs the filter chips. category is matched case-insensitively as a
+     * substring against Opportunity.category; pass null to not filter on it.
+     * When nearby is true, results are restricted to opportunities whose
+     * location mentions the creator's own city — if the creator has no city
+     * set, this correctly returns no results rather than silently ignoring
+     * the filter.
+     */
+    List<OpportunityCardResponse> search(int limit, UUID creatorId, String category, boolean nearby);
 }

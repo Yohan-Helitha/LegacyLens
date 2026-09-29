@@ -6,9 +6,12 @@ import Svg, { Path } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
+import { workProgressApi } from '../../../services/api/workProgressApi';
+import { ApiError } from '../../../services/api/client';
 import type { JobResponse } from '../../../types/creatorDashboard';
-import { useMyWorkProgressStore } from '../../../store/myWorkProgressStore';
+import type { WorkProgressResponse } from '../../../types/workProgress';
 
 // Same bundled photo used as every job's workspace hero on ContinueMyWorkPage
 // — there's no per-job image field on the backend Job entity yet.
@@ -17,20 +20,6 @@ const HERO_IMAGE = require('../../../../assets/images/work/traditional-rice-menu
 /** Shown for an elder with no uploaded profile photo. */
 const PLACEHOLDER_AVATAR =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuBdukQOb20lmYsNjgSC79bwk6nR11u86Bj87jNIlc_ZQzQ97BxLNMhydins5gSF08W2CSQyNGsh4guyGBVX0htKvkNTzRAY76Yfv8jK-W-9Z-cW30fTc-tVqTE_3MXVnOr3daWdokTEReYQUt-ciXqQB8LF7qkH10d4SgSRvnxi4hdlzLG5RUNcZvLxKkHwfHK5wXsfSfaNkQJdZelcgow41KGgsq77Fkd9zgLSrunJwEJsg3U5ZQcTdg';
-
-// Demo seed matching the fallback job id myWorkProgressStore pre-seeds with
-// materials/notes/draft status — shown only if that id isn't a real backend job.
-const DEMO_JOB: JobResponse = {
-  id: 'fallback-1',
-  title: 'Traditional Recipe Documentation',
-  description: '',
-  elderName: 'Mrs. Kamala Wijesinghe',
-  location: 'Matara',
-  offeredAmount: 3000,
-  status: 'ACTIVE',
-  scheduledAt: null,
-  completedAt: null,
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -67,23 +56,6 @@ const TrashIcon: React.FC<{ size?: number; color?: string }> = ({ size = 18, col
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC<{ onBack: () => void }> = ({ onBack }) => (
-  <View style={s.appBar}>
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} onPress={onBack} accessibilityRole="button" accessibilityLabel="Go back">
-      <Text style={s.backArrow}>{'←'}</Text>
-    </Pressable>
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Notifications">
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
@@ -91,54 +63,149 @@ const TopAppBar: React.FC<{ onBack: () => void }> = ({ onBack }) => (
 export const SavedCompletedWorkPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
-  onEditDraft: (jobId: string, currentSteps: number) => void;
+  onEditDraft: (jobId: string, title: string, elderName: string, location: string | null) => void;
 }> = ({ onNavigate, onBack, onEditDraft }) => {
   const [jobs, setJobs] = useState<JobResponse[]>([]);
+  const [progressByJobId, setProgressByJobId] = useState<Record<string, WorkProgressResponse>>({});
   const [index, setIndex] = useState(0);
-
-  const savedDraftJobIds = useMyWorkProgressStore((st) => st.savedDraftJobIds);
-  const completedStepsByJobId = useMyWorkProgressStore((st) => st.completedStepsByJobId);
-  const submitDraftForReview = useMyWorkProgressStore((st) => st.submitDraftForReview);
-  const deleteDraft = useMyWorkProgressStore((st) => st.deleteDraft);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    creatorDashboardApi.getJobs('ACTIVE').then(setJobs).catch(() => {});
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+
+    Promise.all([creatorDashboardApi.getJobs('UPCOMING'), creatorDashboardApi.getJobs('ACTIVE')])
+      .then(async ([upcoming, active]) => {
+        const jobsInProgress = [...upcoming, ...active];
+        const progressList = await Promise.all(
+          jobsInProgress.map((job) => workProgressApi.getProgress(job.id)),
+        );
+        if (cancelled) return;
+
+        const progressMap: Record<string, WorkProgressResponse> = {};
+        progressList.forEach((p) => {
+          progressMap[p.jobId] = p;
+        });
+
+        setJobs(jobsInProgress);
+        setProgressByJobId(progressMap);
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(err instanceof ApiError ? err.message : 'Could not load your drafts.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const drafts = useMemo(() => {
-    return savedDraftJobIds
-      .map((id) => jobs.find((j) => j.id === id) ?? (id === DEMO_JOB.id ? DEMO_JOB : null))
-      .filter((j): j is JobResponse => j != null);
-  }, [savedDraftJobIds, jobs]);
+  const drafts = useMemo(
+    () => jobs.filter((j) => progressByJobId[j.id]?.draft),
+    [jobs, progressByJobId],
+  );
 
   useEffect(() => {
     if (index > 0 && index >= drafts.length) setIndex(Math.max(0, drafts.length - 1));
   }, [drafts.length, index]);
 
   const current = drafts[index];
-  const steps = current ? (completedStepsByJobId[current.id] ?? 0) : 0;
 
-  const handleSubmitForReview = () => {
+  const submitCurrent = () => {
     if (!current) return;
     Alert.alert('Submit for review?', `"${current.title}" will be sent to ${current.elderName} to review.`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Submit', onPress: () => submitDraftForReview(current.id) },
+      {
+        text: 'Submit',
+        onPress: async () => {
+          try {
+            await workProgressApi.submitDraft(current.id);
+            setJobs((prev) => prev.filter((j) => j.id !== current.id));
+          } catch (err) {
+            const message = err instanceof ApiError ? err.message : 'Could not submit this draft.';
+            Alert.alert('Submit failed', message);
+          }
+        },
+      },
     ]);
+  };
+
+  // Submitting doesn't force checklist items complete or bump the percentage
+  // to 100 — if tasks remain unchecked, warn first and let the creator decide.
+  const handleSubmitForReview = () => {
+    if (!current) return;
+    const checklist = progressByJobId[current.id]?.checklistItems ?? [];
+    const incompleteCount = checklist.filter((item) => !item.completed).length;
+
+    if (incompleteCount > 0) {
+      Alert.alert(
+        'Not all tasks are complete',
+        `${incompleteCount} task${incompleteCount === 1 ? '' : 's'} on this job ${incompleteCount === 1 ? 'is' : 'are'} still unchecked. Submit anyway?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Continue', onPress: submitCurrent },
+        ],
+      );
+    } else {
+      submitCurrent();
+    }
   };
 
   const handleDelete = () => {
     if (!current) return;
     Alert.alert('Delete this draft?', `All progress on "${current.title}" will be discarded.`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteDraft(current.id) },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await workProgressApi.resetProgress(current.id);
+            setJobs((prev) => prev.filter((j) => j.id !== current.id));
+          } catch (err) {
+            const message = err instanceof ApiError ? err.message : 'Could not delete this draft.';
+            Alert.alert('Delete failed', message);
+          }
+        },
+      },
     ]);
   };
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+        <StatusBar style="dark" />
+        <CreatorTopAppBar variant="back" onBack={onBack} />
+        <View style={s.loadingWrap}>
+          <Text style={s.loadingText}>{loadError}</Text>
+        </View>
+        <BottomNavBar activeTab="home" onNavigate={onNavigate} />
+      </SafeAreaView>
+    );
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+        <StatusBar style="dark" />
+        <CreatorTopAppBar variant="back" onBack={onBack} />
+        <View style={s.loadingWrap}>
+          <Text style={s.loadingText}>Loading…</Text>
+        </View>
+        <BottomNavBar activeTab="home" onNavigate={onNavigate} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar onBack={onBack} />
+      <CreatorTopAppBar variant="back" onBack={onBack} />
 
       <ScrollView
         style={s.scroll}
@@ -187,7 +254,7 @@ export const SavedCompletedWorkPage: React.FC<{
 
             <View style={s.actionsRow}>
               <Pressable
-                onPress={() => onEditDraft(current.id, steps)}
+                onPress={() => onEditDraft(current.id, current.title, current.elderName, current.location)}
                 style={({ pressed }) => [s.outlineBtn, pressed && s.pressed]}
                 accessibilityRole="button"
                 accessibilityLabel={`View and edit ${current.title}`}
@@ -229,6 +296,8 @@ export default SavedCompletedWorkPage;
 // ─────────────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.lg },
+  loadingText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, textAlign: 'center' },
 
   // ── App Bar ──────────────────────────────────────────────────────────────
   appBar: {

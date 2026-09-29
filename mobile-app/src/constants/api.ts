@@ -35,3 +35,14 @@ export function getApiOrigin(): string {
 export function getMediaUrl(relativePath: string): string {
   return `${getApiOrigin()}${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
 }
+
+/**
+ * Turns a backend-relative "/uploads/..." path (see FileStorageService,
+ * which serves them outside the /api prefix via WebConfig's resource
+ * handler) into an absolute URL an <Image> can load.
+ */
+export function resolveUploadUrl(relativePath: string | null | undefined): string | null {
+  if (!relativePath) return null;
+  const base = getApiBaseUrl().replace(/\/api\/?$/, '');
+  return `${base}${relativePath}`;
+}

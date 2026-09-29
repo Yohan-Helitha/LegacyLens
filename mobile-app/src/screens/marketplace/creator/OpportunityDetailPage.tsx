@@ -14,6 +14,7 @@ import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import type { OpportunityDetailResponse } from '../../../types/opportunity';
 import { resolveOpportunityImage, resolveAvatarImage } from '../../../utils/opportunityImages';
@@ -130,34 +131,6 @@ function formatScheduledDate(iso: string | null): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar  (back arrow + title + bell)
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC<{ onBack: () => void }> = ({ onBack }) => (
-  <View style={s.appBar}>
-    <Pressable
-      style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
-      onPress={onBack}
-      accessibilityRole="button"
-      accessibilityLabel="Go back"
-    >
-      <Text style={s.backArrow}>{'←'}</Text>
-    </Pressable>
-
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-
-    <Pressable
-      style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Notifications"
-    >
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TaskStep — numbered stepper row (replaces the old plain checkmark list)
@@ -207,7 +180,7 @@ export const OpportunityDetailPage: React.FC<{
     return (
       <SafeAreaView style={s.safeArea} edges={['top'] as const}>
         <StatusBar style="dark" />
-        <TopAppBar onBack={onBack} />
+        <CreatorTopAppBar variant="back" onBack={onBack} />
         <View style={s.loadingContainer}>
           <ActivityIndicator size="large" color={D.primary} />
         </View>
@@ -234,7 +207,7 @@ export const OpportunityDetailPage: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar onBack={onBack} />
+      <CreatorTopAppBar variant="back" onBack={onBack} />
 
       {/* Scrollable content */}
       <ScrollView
