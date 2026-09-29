@@ -47,10 +47,21 @@ export const RecommendedCreatorCard: React.FC<RecommendedCreatorCardProps> = ({
 
   return (
     <View style={[s.card, isBest && s.cardBest]}>
-      {isBest && (
-        <View style={s.badge}>
-          <Award size={18} color={D.onPrimary} strokeWidth={2.25} />
-          <Text style={s.badgeText}>{t('recommend.bestMatch')}</Text>
+      {(isBest || creator.matchPercentage != null) && (
+        <View style={s.badgeRow}>
+          {isBest && (
+            <View style={s.badge}>
+              <Award size={18} color={D.onPrimary} strokeWidth={2.25} />
+              <Text style={s.badgeText}>{t('recommend.bestMatch')}</Text>
+            </View>
+          )}
+          {creator.matchPercentage != null && (
+            <View style={[s.percentChip, isBest && s.percentChipBest]}>
+              <Text style={[s.percentText, isBest && s.percentTextBest]}>
+                {t('recommend.matchPercent', { percent: creator.matchPercentage })}
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -167,6 +178,17 @@ const s = StyleSheet.create({
   },
   cardBest: { borderColor: D.primary, borderWidth: 2, paddingTop: Spacing.md + 2 },
 
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.sm },
+  percentChip: {
+    minHeight: 36,
+    paddingHorizontal: 14,
+    borderRadius: Radii.full,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(15,92,92,0.10)',
+  },
+  percentChipBest: { backgroundColor: D.secondaryContainer },
+  percentText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: D.primary },
+  percentTextBest: { color: D.onSecondaryContainer },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',

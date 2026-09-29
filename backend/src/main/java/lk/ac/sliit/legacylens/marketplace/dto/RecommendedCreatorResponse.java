@@ -18,6 +18,12 @@ public class RecommendedCreatorResponse {
     private String name;
     private String avatarUrl;
 
+    /**
+     * How well this creator fits the opportunity, 0–100 (see CreatorMatchScorer).
+     * Null only for an already-chosen creator who no longer ranks — never a guess.
+     */
+    private Integer matchPercentage;
+
     /** 0.00–5.00, or null for a creator with no ratings yet. */
     private BigDecimal rating;
 

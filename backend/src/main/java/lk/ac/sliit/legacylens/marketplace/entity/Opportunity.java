@@ -115,6 +115,16 @@ public class Opportunity {
     @Column(columnDefinition = "TEXT")
     private String tasks;
 
+    /**
+     * Comma separated "Required Skills" the admin picked when structuring the
+     * elder's recording (e.g. "Photography,Videography") — the strongest
+     * signal for which kind of creator the job needs. Null for opportunities
+     * published before this was stored; see CreatorMatchScorer#analyse, which
+     * then infers the need from the category/title/description instead.
+     */
+    @Column(name = "required_skills", columnDefinition = "TEXT")
+    private String requiredSkills;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private OpportunityStatus status = OpportunityStatus.DRAFT;

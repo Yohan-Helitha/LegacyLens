@@ -102,6 +102,7 @@ export const CreatorRecommendationsScreen: React.FC<CreatorRecommendationsScreen
 
   const describeCreator = (creator: RecommendedCreator) => {
     const parts = [creator.name];
+    if (creator.matchPercentage != null) parts.push(t('recommend.matchPercent', { percent: creator.matchPercentage }));
     if (creator.rating != null) parts.push(t('applicants.rating', { rating: formatRating(creator.rating) }));
     parts.push(t('recommend.completedJobs', { count: creator.completedJobs }));
     if (creator.specialty) parts.push(creator.specialty);
@@ -115,14 +116,16 @@ export const CreatorRecommendationsScreen: React.FC<CreatorRecommendationsScreen
     }
     sections.forEach(({ opportunity, bestMatch, others }, index) => {
       lines.push(t('recommend.speech.opportunity', { index: index + 1, title: opportunity.title }));
+      const names = others.map((creator) => creator.name).join(', ');
       if (bestMatch) {
         lines.push(t('recommend.speech.best', { name: describeCreator(bestMatch) }));
         if (bestMatch.reasons.length > 0) lines.push(`${t('recommend.whyTitle')}: ${bestMatch.reasons.join('. ')}.`);
+        if (others.length > 0) lines.push(t('recommend.speech.others', { names }));
+      } else if (others.length > 0) {
+        lines.push(t('recommend.noBestMatch'));
+        lines.push(t('recommend.speech.recommended', { names }));
       } else {
         lines.push(t('recommend.noMatchForOpportunity'));
-      }
-      if (others.length > 0) {
-        lines.push(t('recommend.speech.others', { names: others.map((creator) => creator.name).join(', ') }));
       }
     });
     return lines.join(' ');
@@ -382,8 +385,9 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
       {others.length > 0 && (
         <View style={s.others}>
           <Text style={s.othersTitle} accessibilityRole="header">
-            {t('recommend.others')}
+            {bestMatch ? t('recommend.others') : t('recommend.recommended')}
           </Text>
+          {!bestMatch && <Text style={s.noBestNote}>{t('recommend.noBestMatch')}</Text>}
           {others.map((creator) => (
             <RecommendedCreatorCard
               key={creator.creatorId}
@@ -515,6 +519,13 @@ const s = StyleSheet.create({
   },
 
   others: { gap: Spacing.md },
+  noBestNote: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeMD,
+    lineHeight: 24,
+    color: D.onSurfaceVariant,
+    marginTop: -Spacing.sm,
+  },
   othersTitle: {
     fontFamily: Typography.fontDisplay,
     fontSize: 22,

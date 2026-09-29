@@ -84,6 +84,9 @@ const en = {
   'recommend.scheduled': 'On {date}',
   'recommend.noMatchForOpportunity': "We're still looking for a good creator for this opportunity. We'll let you know.",
   'recommend.bestMatch': 'Best match',
+  'recommend.matchPercent': '{percent}% match',
+  'recommend.recommended': 'Recommended creators',
+  'recommend.noBestMatch': 'Nobody fits every need yet, but these creators can do the work.',
   'recommend.completedJobs_one': '{count} job completed',
   'recommend.completedJobs_other': '{count} jobs completed',
   'recommend.speaks': 'Speaks {languages}',
@@ -113,6 +116,7 @@ const en = {
   'recommend.speech.opportunity': 'Opportunity {index}: {title}.',
   'recommend.speech.best': 'Best match: {name}.',
   'recommend.speech.others': 'Also recommended: {names}.',
+  'recommend.speech.recommended': 'Recommended: {names}.',
 
   // ── Screen 10 — Applicant review ──────────────────────────────────────────
   'applicants.headerTitle': 'Applicants',
@@ -241,6 +245,9 @@ const si: HireStrings = {
   'recommend.scheduled': '{date} දින',
   'recommend.noMatchForOpportunity': 'මෙම අවස්ථාව සඳහා සුදුසු නිර්මාණකරුවෙකු අපි තවමත් සොයමින් සිටිමු. අපි ඔබට දන්වන්නෙමු.',
   'recommend.bestMatch': 'වඩාත් ගැළපෙන',
+  'recommend.matchPercent': '{percent}% ගැළපේ',
+  'recommend.recommended': 'නිර්දේශිත නිර්මාණකරුවන්',
+  'recommend.noBestMatch': 'සියලු අවශ්‍යතාවලට ගැළපෙන අයෙක් තවම නැත, නමුත් මෙම නිර්මාණකරුවන්ට මෙම කාර්යය කළ හැක.',
   'recommend.completedJobs_one': 'කාර්යයන් {count} ක් සම්පූර්ණ කර ඇත',
   'recommend.completedJobs_other': 'කාර්යයන් {count} ක් සම්පූර්ණ කර ඇත',
   'recommend.speaks': 'කතා කරන භාෂා: {languages}',
@@ -270,6 +277,7 @@ const si: HireStrings = {
   'recommend.speech.opportunity': 'අවස්ථාව {index}: {title}.',
   'recommend.speech.best': 'වඩාත් ගැළපෙන්නේ: {name}.',
   'recommend.speech.others': 'තවත් නිර්දේශිත අය: {names}.',
+  'recommend.speech.recommended': 'නිර්දේශිත අය: {names}.',
 
   'applicants.headerTitle': 'අයදුම්කරුවන්',
   'applicants.heading': 'ඔබේ ඉල්ලීමට පිළිතුරු',
@@ -391,6 +399,9 @@ const ta: HireStrings = {
   'recommend.scheduled': '{date} அன்று',
   'recommend.noMatchForOpportunity': 'இந்த வாய்ப்புக்குப் பொருத்தமான படைப்பாளரை இன்னும் தேடுகிறோம். உங்களுக்குத் தெரிவிப்போம்.',
   'recommend.bestMatch': 'சிறந்த பொருத்தம்',
+  'recommend.matchPercent': '{percent}% பொருத்தம்',
+  'recommend.recommended': 'பரிந்துரைக்கப்பட்ட படைப்பாளர்கள்',
+  'recommend.noBestMatch': 'எல்லாத் தேவைகளுக்கும் பொருந்துபவர் இன்னும் இல்லை, ஆனால் இந்தப் படைப்பாளர்களால் இந்தப் பணியைச் செய்ய முடியும்.',
   'recommend.completedJobs_one': '{count} பணி முடிக்கப்பட்டது',
   'recommend.completedJobs_other': '{count} பணிகள் முடிக்கப்பட்டன',
   'recommend.speaks': 'பேசும் மொழிகள்: {languages}',
@@ -420,6 +431,7 @@ const ta: HireStrings = {
   'recommend.speech.opportunity': 'வாய்ப்பு {index}: {title}.',
   'recommend.speech.best': 'சிறந்த பொருத்தம்: {name}.',
   'recommend.speech.others': 'மேலும் பரிந்துரைக்கப்பட்டவர்கள்: {names}.',
+  'recommend.speech.recommended': 'பரிந்துரைக்கப்பட்டவர்கள்: {names}.',
 
   'applicants.headerTitle': 'விண்ணப்பதாரர்கள்',
   'applicants.heading': 'உங்கள் கோரிக்கைக்கான பதில்கள்',

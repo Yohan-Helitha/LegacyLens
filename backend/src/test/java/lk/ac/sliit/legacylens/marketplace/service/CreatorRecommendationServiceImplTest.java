@@ -16,9 +16,11 @@ import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepos
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityCreatorInvitationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.users.entity.AccountStatus;
+import lk.ac.sliit.legacylens.users.entity.City;
 import lk.ac.sliit.legacylens.users.entity.CreatorProfile;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.entity.VerificationStatus;
+import lk.ac.sliit.legacylens.users.repository.CityRepository;
 import lk.ac.sliit.legacylens.users.repository.CreatorProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +54,7 @@ class CreatorRecommendationServiceImplTest {
     @Mock private CreatorProfileRepository creatorProfileRepository;
     @Mock private CreatorApplicationRepository creatorApplicationRepository;
     @Mock private JobRepository jobRepository;
+    @Mock private CityRepository cityRepository;
 
     private CreatorRecommendationServiceImpl service;
 
@@ -59,7 +62,7 @@ class CreatorRecommendationServiceImplTest {
     void setUp() {
         service = new CreatorRecommendationServiceImpl(
                 opportunityRepository, opportunityApplicationRepository, invitationRepository,
-                creatorProfileRepository, creatorApplicationRepository, jobRepository);
+                creatorProfileRepository, creatorApplicationRepository, jobRepository, cityRepository);
     }
 
     private static User user(UUID id, String name) {
@@ -86,6 +89,21 @@ class CreatorRecommendationServiceImplTest {
         profile.setSkills(skills);
         profile.setVerificationStatus(VerificationStatus.VERIFIED);
         profile.setRating(rating == null ? null : new BigDecimal(rating));
+        return profile;
+    }
+
+    private static City city(int id, String name, String region) {
+        City city = new City();
+        city.setId(id);
+        city.setName(name);
+        city.setRegion(region);
+        return city;
+    }
+
+    private static CreatorProfile verifiedCreator(String name, City city, String skills, String interests, String rating) {
+        CreatorProfile profile = verifiedCreator(name, skills, rating);
+        profile.getUser().setCity(city);
+        profile.setInterests(interests);
         return profile;
     }
 
@@ -120,40 +138,57 @@ class CreatorRecommendationServiceImplTest {
     }
 
     @Test
-    void getMyRecommendations_oneSectionPerOpportunity_rankedAndIrrelevantCreatorsDropped() {
-        Opportunity food = opportunity("Traditional recipe documentation", "Food", OpportunityStatus.PUBLISHED);
-        Opportunity craft = opportunity("Mask carving", "Craft", OpportunityStatus.PUBLISHED);
+    void getMyRecommendations_oneSectionPerOpportunity_bestMatchOnlyWhenStrongEnough() {
+        City matara = city(1, "Matara", "Southern");
+        City kandy = city(2, "Kandy", "Central");
 
-        CreatorProfile nimal = verifiedCreator("Nimal Perera", "Food, Video Editing", "4.8");
-        CreatorProfile ayesha = verifiedCreator("Ayesha Fernando", "Food", "4.7");
-        CreatorProfile kasun = verifiedCreator("Kasun Silva", "Craft", null);
-        CreatorProfile unrelated = verifiedCreator("Ruwan Jayasuriya", "Music", "5.0");
+        Opportunity food = opportunity("Traditional recipe documentation", "Food", OpportunityStatus.PUBLISHED);
+        food.setLocation("Matara");
+        Opportunity craft = opportunity("Mask carving", "Craft", OpportunityStatus.PUBLISHED);
+        craft.setLocation("Kandy");
+
+        CreatorProfile nimal = verifiedCreator("Nimal Perera", matara, "Videography, Photography", "Traditional Foods", "4.8");
+        CreatorProfile ayesha = verifiedCreator("Ayesha Fernando", kandy, "Photography", null, "4.7");
+        CreatorProfile kasun = verifiedCreator("Kasun Silva", kandy, "Photography", null, null);
+        CreatorProfile writer = verifiedCreator("Ruwan Jayasuriya", matara, "Script Writing", null, "5.0");
+        CreatorProfile noSkills = verifiedCreator("Sunil Perera", matara, null, "Traditional Foods", "5.0");
 
         when(opportunityRepository.findByElderIdAndStatusOrderByCreatedAtDesc(ELDER_ID, OpportunityStatus.PUBLISHED))
                 .thenReturn(List.of(food, craft));
         when(creatorProfileRepository.findByVerificationStatus(VerificationStatus.VERIFIED))
-                .thenReturn(List.of(nimal, ayesha, kasun, unrelated));
+                .thenReturn(List.of(nimal, ayesha, kasun, writer, noSkills));
         when(creatorApplicationRepository.findByUserIdIn(anyCollection())).thenReturn(List.of());
         List<Object[]> jobCounts = new ArrayList<>();
         jobCounts.add(new Object[] { nimal.getUser().getId(), 24L });
         when(jobRepository.countByStatusGroupedByCreator(JobStatus.COMPLETED)).thenReturn(jobCounts);
         when(opportunityApplicationRepository.findByOpportunityIdIn(anyCollection())).thenReturn(List.of());
         when(invitationRepository.findByOpportunityIdIn(anyCollection())).thenReturn(List.of());
+        when(cityRepository.findAll()).thenReturn(List.of(matara, kandy));
 
         List<OpportunityRecommendationsResponse> result = service.getMyRecommendations(ELDER_ID);
 
         assertThat(result).hasSize(2);
 
+        // Food, Matara: Nimal films + photographs, loves traditional food and lives there → best match.
         OpportunityRecommendationsResponse foodSection = result.get(0);
         assertThat(foodSection.getOpportunity().getOpportunityId()).isEqualTo(food.getId());
         assertThat(foodSection.getBestMatch().getName()).isEqualTo("Nimal Perera");
-        assertThat(foodSection.getBestMatch().getReasons()).contains("Has experience with Food work");
-        assertThat(foodSection.getOthers()).extracting("name").containsExactly("Ayesha Fernando");
-        assertThat(foodSection.getChosenCreator()).isNull();
+        assertThat(foodSection.getBestMatch().getMatchPercentage()).isGreaterThanOrEqualTo(CreatorMatchScorer.BEST_MATCH_MIN);
+        // Photographers far away can still do the job → recommended. The writer (only a helpful
+        // skill) and the creator with no skills at all are never shown.
+        assertThat(foodSection.getOthers()).extracting("name").containsExactly("Ayesha Fernando", "Kasun Silva");
+        assertThat(foodSection.getOthers()).allSatisfy(creator ->
+                assertThat(creator.getMatchPercentage()).isBetween(CreatorMatchScorer.RECOMMEND_MIN, CreatorMatchScorer.BEST_MATCH_MIN - 1));
 
+        // Craft, Kandy: several photographers can do it, but nobody fits strongly enough
+        // to be the best match — so there is none, and they are all plain recommendations.
         OpportunityRecommendationsResponse craftSection = result.get(1);
-        assertThat(craftSection.getBestMatch().getName()).isEqualTo("Kasun Silva");
-        assertThat(craftSection.getOthers()).isEmpty();
+        assertThat(craftSection.getBestMatch()).isNull();
+        assertThat(craftSection.getOthers()).extracting("name")
+                // Ayesha lives in Kandy (63%); Nimal and Kasun tie at 60% and the tie goes to Nimal's rating.
+                .containsExactly("Ayesha Fernando", "Nimal Perera", "Kasun Silva");
+        assertThat(craftSection.getOthers()).allSatisfy(creator ->
+                assertThat(creator.getMatchPercentage()).isGreaterThanOrEqualTo(CreatorMatchScorer.RECOMMEND_MIN));
     }
 
     @Test

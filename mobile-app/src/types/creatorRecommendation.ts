@@ -27,6 +27,12 @@ export interface RecommendedCreator {
   creatorId: string;
   name: string;
   avatarUrl: string | null;
+  /**
+   * How well this creator fits the opportunity, 0–100. Recommendations are
+   * always 45+ and a best match 75+ (see the backend's CreatorMatchScorer).
+   * Null only for an already-chosen creator who no longer ranks.
+   */
+  matchPercentage: number | null;
   /** 0–5, or null for a creator with no ratings yet. */
   rating: number | null;
   completedJobs: number;
@@ -42,7 +48,11 @@ export interface RecommendedCreator {
 
 export interface OpportunityRecommendations {
   opportunity: RecommendationOpportunitySummary;
-  /** Null when no creator matches this opportunity yet. */
+  /**
+   * Only set when the top creator is a strong fit (75%+ and can do a
+   * must-have task). Null when nobody is — `others` may still hold
+   * recommendations then, and they are the only ones shown.
+   */
   bestMatch: RecommendedCreator | null;
   others: RecommendedCreator[];
   /**

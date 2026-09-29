@@ -90,6 +90,8 @@ export interface CreateOpportunityRequest {
   offeredAmount: number;
   preservationGoal?: string;
   tasks?: string;
+  /** Comma separated "Required Skills" — used to match the right kind of creator to the opportunity. */
+  requiredSkills?: string;
   status: string;
   elderId?: string;
   elderName?: string;

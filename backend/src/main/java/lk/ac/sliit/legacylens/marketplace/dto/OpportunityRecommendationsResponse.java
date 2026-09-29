@@ -18,10 +18,17 @@ public class OpportunityRecommendationsResponse {
 
     private RecommendationOpportunitySummaryResponse opportunity;
 
-    /** The single highest-scoring creator, or null when nobody matches yet. */
+    /**
+     * The single top creator — only when they clear CreatorMatchScorer.BEST_MATCH_MIN
+     * and can do a must-have task. Null otherwise, even if others are listed.
+     */
     private RecommendedCreatorResponse bestMatch;
 
-    /** The next-best matches, highest score first. */
+    /**
+     * Other recommended creators, highest score first — every one at or above
+     * CreatorMatchScorer.RECOMMEND_MIN. When bestMatch is null these are the
+     * only recommendations.
+     */
     private List<RecommendedCreatorResponse> others;
 
     /**

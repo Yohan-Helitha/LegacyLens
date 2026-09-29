@@ -24,6 +24,8 @@ import lk.ac.sliit.legacylens.users.entity.AccountStatus;
 import lk.ac.sliit.legacylens.users.entity.CreatorProfile;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.entity.VerificationStatus;
+import lk.ac.sliit.legacylens.users.entity.City;
+import lk.ac.sliit.legacylens.users.repository.CityRepository;
 import lk.ac.sliit.legacylens.users.repository.CreatorProfileRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,13 +46,16 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
     /** How many matches are listed under "Other good matches" per opportunity, after the best match. */
     static final int MAX_OTHERS = 4;
 
+    /** How many recommendations are listed when no creator is strong enough to be the best match. */
+    static final int MAX_RECOMMENDATIONS_WITHOUT_BEST = 5;
+
     /** Application statuses that mean this creator has already been picked for the opportunity. */
     private static final Set<OpportunityApplicationStatus> CHOSEN_APPLICATION_STATUSES =
             Set.of(OpportunityApplicationStatus.APPROVED, OpportunityApplicationStatus.BOOKED);
 
     /** Highest score first; ties go to the better-rated, then more experienced, then alphabetical creator. */
     private static final Comparator<Match> RANKING = Comparator
-            .comparingInt(Match::score).reversed()
+            .comparingInt(Match::percentage).reversed()
             .thenComparing(match -> match.candidate().rating(), Comparator.nullsLast(Comparator.<BigDecimal>reverseOrder()))
             .thenComparing(match -> match.candidate().completedJobs(), Comparator.reverseOrder())
             .thenComparing(match -> match.candidate().user().getFullName(), Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
@@ -61,6 +66,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
     private final CreatorProfileRepository creatorProfileRepository;
     private final CreatorApplicationRepository creatorApplicationRepository;
     private final JobRepository jobRepository;
+    private final CityRepository cityRepository;
 
     public CreatorRecommendationServiceImpl(
             OpportunityRepository opportunityRepository,
@@ -68,7 +74,8 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
             OpportunityCreatorInvitationRepository invitationRepository,
             CreatorProfileRepository creatorProfileRepository,
             CreatorApplicationRepository creatorApplicationRepository,
-            JobRepository jobRepository) {
+            JobRepository jobRepository,
+            CityRepository cityRepository) {
 
         this.opportunityRepository = opportunityRepository;
         this.opportunityApplicationRepository = opportunityApplicationRepository;
@@ -76,6 +83,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
         this.creatorProfileRepository = creatorProfileRepository;
         this.creatorApplicationRepository = creatorApplicationRepository;
         this.jobRepository = jobRepository;
+        this.cityRepository = cityRepository;
     }
 
     @Override
@@ -99,10 +107,12 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
         Map<UUID, List<OpportunityCreatorInvitation>> invitationsByOpportunity = invitationRepository
                 .findByOpportunityIdIn(opportunityIds).stream()
                 .collect(Collectors.groupingBy(invitation -> invitation.getOpportunity().getId()));
+        List<City> cities = cityRepository.findAll();
 
         return opportunities.stream()
                 .map(opportunity -> buildSection(
                         opportunity,
+                        CreatorMatchScorer.analyse(opportunity, cities),
                         candidates,
                         candidatesById,
                         applicationsByOpportunity.getOrDefault(opportunity.getId(), List.of()),
@@ -191,6 +201,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
 
     private OpportunityRecommendationsResponse buildSection(
             Opportunity opportunity,
+            CreatorMatchScorer.OpportunityNeeds needs,
             List<CreatorCandidate> candidates,
             Map<UUID, CreatorCandidate> candidatesById,
             List<OpportunityApplication> applications,
@@ -203,17 +214,22 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
                 .map(application -> application.getCreator().getId())
                 .collect(Collectors.toSet());
 
+        // Creators who can't do any task this opportunity needs, or fall below the
+        // recommendation bar, are dropped here — never shown just to fill the page.
         List<Match> ranked = candidates.stream()
                 .map(candidate -> CreatorMatchScorer.score(
-                        opportunity, candidate, appliedCreatorIds.contains(candidate.user().getId())))
-                .filter(Match::relevant)
+                        needs, opportunity, candidate, appliedCreatorIds.contains(candidate.user().getId())))
+                .filter(Match::recommendable)
                 .sorted(RANKING)
                 .toList();
 
-        RecommendedCreatorResponse bestMatch = ranked.isEmpty() ? null : toResponse(ranked.get(0));
+        // The top creator is only the "Best match" if they clear the higher bar. If
+        // they don't, there is no best match — everyone is shown as a recommendation.
+        boolean hasBestMatch = !ranked.isEmpty() && ranked.get(0).bestMatchWorthy();
+        RecommendedCreatorResponse bestMatch = hasBestMatch ? toResponse(ranked.get(0)) : null;
         List<RecommendedCreatorResponse> others = ranked.stream()
-                .skip(1)
-                .limit(MAX_OTHERS)
+                .skip(hasBestMatch ? 1 : 0)
+                .limit(hasBestMatch ? MAX_OTHERS : MAX_RECOMMENDATIONS_WITHOUT_BEST)
                 .map(this::toResponse)
                 .toList();
 
@@ -264,7 +280,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
 
         CreatorCandidate candidate = candidatesById.get(chosenId);
         if (candidate != null) {
-            return toResponse(new Match(candidate, 0, false, List.of()));
+            return toUnscoredResponse(candidate);
         }
 
         // Chosen before they stopped being a verified/active creator — still show who it was.
@@ -277,12 +293,22 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
                         .filter(user -> user.getId().equals(chosenId))
                         .findFirst())
                 .orElse(null);
-        return chosenUser == null ? null : toResponse(new Match(
-                new CreatorCandidate(chosenUser, null, null, 0), 0, false, List.of()));
+        return chosenUser == null ? null : toUnscoredResponse(new CreatorCandidate(chosenUser, null, null, 0));
     }
 
     private RecommendedCreatorResponse toResponse(Match match) {
-        CreatorCandidate candidate = match.candidate();
+        return baseResponse(match.candidate())
+                .matchPercentage(match.percentage())
+                .reasons(match.reasons())
+                .build();
+    }
+
+    /** A creator shown without a score (a chosen creator who no longer ranks) — no made-up percentage or reasons. */
+    private RecommendedCreatorResponse toUnscoredResponse(CreatorCandidate candidate) {
+        return baseResponse(candidate).matchPercentage(null).reasons(List.of()).build();
+    }
+
+    private RecommendedCreatorResponse.RecommendedCreatorResponseBuilder baseResponse(CreatorCandidate candidate) {
         User user = candidate.user();
         List<String> skills = candidate.skills();
         return RecommendedCreatorResponse.builder()
@@ -293,9 +319,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
                 .completedJobs(candidate.completedJobs())
                 .specialty(skills.isEmpty() ? null : skills.get(0))
                 .languages(candidate.languages())
-                .about(candidate.about())
-                .reasons(match.reasons())
-                .build();
+                .about(candidate.about());
     }
 
     private static RecommendationOpportunitySummaryResponse toSummary(Opportunity opportunity) {

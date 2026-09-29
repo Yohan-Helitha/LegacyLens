@@ -164,6 +164,7 @@ public class AdminOpportunityServiceImpl implements AdminOpportunityService {
         opportunity.setOfferedAmount(request.getOfferedAmount());
         opportunity.setPreservationGoal(request.getPreservationGoal());
         opportunity.setTasks(request.getTasks());
+        opportunity.setRequiredSkills(request.getRequiredSkills());
 
         User elder = null;
         if (request.getElderId() != null) {
