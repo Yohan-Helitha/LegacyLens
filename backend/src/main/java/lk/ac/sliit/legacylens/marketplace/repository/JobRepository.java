@@ -26,6 +26,11 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
 
     long countByCreatorIdAndStatus(UUID creatorId, JobStatus status);
 
+    /** The creator's booking for an opportunity, if any — its date/time feed the chat's context card. */
+    Optional<Job> findFirstByOpportunityIdAndCreatorIdOrderByCreatedAtDesc(UUID opportunityId, UUID creatorId);
+
+    boolean existsByOpportunityIdAndCreatorId(UUID opportunityId, UUID creatorId);
+
     /**
      * Job counts in one status for every creator at once, as [creatorId, count]
      * rows — lets creator recommendations score all candidates in one query

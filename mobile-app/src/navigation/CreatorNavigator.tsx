@@ -4,8 +4,9 @@ import { OpportunityPage } from '../screens/marketplace/creator/OpportunityPage'
 import { OpportunityDetailPage } from '../screens/marketplace/creator/OpportunityDetailPage';
 import { BecomeCreatorApplication } from '../screens/marketplace/creator/BecomeCreatoApplication';
 import { CreatorVerificationUpdatePage } from '../screens/marketplace/creator/CreatorVerificationUpdatePage';
-import { InApp } from '../screens/marketplace/creator/InApp';
-import { InboxMessage } from '../screens/marketplace/creator/InboxMessage';
+import { InApp, InboxMessage } from '../screens/messaging';
+import { CreatorTopAppBar } from '../components/CreatorTopAppBar';
+import { BottomNavBar } from '../components/BottomNavBar';
 import { PaymentHistoryPage } from '../screens/marketplace/creator/PaymentHistoryPage';
 import { CreatorProfile } from '../screens/marketplace/creator/CreatorProfile';
 import { OpportunityApplicationForm } from '../screens/marketplace/creator/OpportunityApplicationForm';
@@ -190,6 +191,17 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   /** Called when "Back to Home" is pressed on the verification pending screen */
   const handleBackToHome = () => setScreen('dashboard');
 
+
+  /** The creator app bar (with its side menu) shown above the shared messaging screens. */
+  const creatorMenuBar = (
+    <CreatorTopAppBar
+      variant="menu"
+      onOpenMyWork={handleOpenMyWork}
+      onOpenSavedApplications={handleOpenSavedApplications}
+      onOpenRejectedWork={handleOpenRejectedWork}
+    />
+  );
+
   return (
     <>
       {screen === 'dashboard' && (
@@ -254,23 +266,22 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onOpenRejectedWork={handleOpenRejectedWork}
         />
       )}
+      {/* Shared messaging screens (also used by the elder side) — the creator side supplies its own app bar + tabs. */}
       {screen === 'inbox' && (
         <InApp
-          onNavigate={handleNavigate}
+          insetTop
+          header={creatorMenuBar}
+          footer={<BottomNavBar activeTab="inbox" onNavigate={handleNavigate} />}
           onOpenConversation={handleOpenConversation}
-          onOpenMyWork={handleOpenMyWork}
-          onOpenSavedApplications={handleOpenSavedApplications}
-          onOpenRejectedWork={handleOpenRejectedWork}
         />
       )}
-      {screen === 'conversation' && (
+      {screen === 'conversation' && selectedConversationId && (
         <InboxMessage
-          onNavigate={handleNavigate}
-          onBack={handleBackToInbox}
-          onOpenMyWork={handleOpenMyWork}
-          onOpenSavedApplications={handleOpenSavedApplications}
-          onOpenRejectedWork={handleOpenRejectedWork}
+          insetTop
           conversationId={selectedConversationId}
+          onBack={handleBackToInbox}
+          header={creatorMenuBar}
+          footer={<BottomNavBar activeTab="inbox" onNavigate={handleNavigate} />}
         />
       )}
       {screen === 'payment-history' && (

@@ -20,6 +20,7 @@ import lk.ac.sliit.legacylens.marketplace.repository.OpportunityCreatorInvitatio
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.CreatorCandidate;
 import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.Match;
+import lk.ac.sliit.legacylens.messaging.service.MessagingService;
 import lk.ac.sliit.legacylens.users.entity.AccountStatus;
 import lk.ac.sliit.legacylens.users.entity.CreatorProfile;
 import lk.ac.sliit.legacylens.users.entity.User;
@@ -67,6 +68,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
     private final CreatorApplicationRepository creatorApplicationRepository;
     private final JobRepository jobRepository;
     private final CityRepository cityRepository;
+    private final MessagingService messagingService;
 
     public CreatorRecommendationServiceImpl(
             OpportunityRepository opportunityRepository,
@@ -75,7 +77,8 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
             CreatorProfileRepository creatorProfileRepository,
             CreatorApplicationRepository creatorApplicationRepository,
             JobRepository jobRepository,
-            CityRepository cityRepository) {
+            CityRepository cityRepository,
+            MessagingService messagingService) {
 
         this.opportunityRepository = opportunityRepository;
         this.opportunityApplicationRepository = opportunityApplicationRepository;
@@ -84,6 +87,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
         this.creatorApplicationRepository = creatorApplicationRepository;
         this.jobRepository = jobRepository;
         this.cityRepository = cityRepository;
+        this.messagingService = messagingService;
     }
 
     @Override
@@ -157,6 +161,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
             // book it from their dashboard exactly as before.
             existing.setStatus(OpportunityApplicationStatus.APPROVED);
             opportunityApplicationRepository.save(existing);
+            messagingService.openConversation(elderId, creatorId, opportunityId);
             return;
         }
 
@@ -165,6 +170,9 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
         invitation.setCreator(profile.getUser());
         invitation.setStatus(CreatorInvitationStatus.INVITED);
         invitationRepository.save(invitation);
+
+        // Choosing someone opens a chat with them straight away, so the elder can say hello.
+        messagingService.openConversation(elderId, creatorId, opportunityId);
     }
 
     /** Verified, active creators (never the elder themselves) with everything scoring needs. */

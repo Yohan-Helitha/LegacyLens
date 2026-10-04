@@ -16,4 +16,15 @@ public interface MessagingChannelPort {
     UUID openConversation(UUID elderId, UUID creatorId);
 
     void sendMessage(UUID conversationId, MessageContent content);
+
+    /**
+     * Same as {@link #sendMessage(UUID, MessageContent)} but says who sent it,
+     * which real message storage needs (and uses to check the sender is part
+     * of the conversation). Callers that know the sender should prefer this.
+     * Defaults to the two-argument form so existing implementations — like
+     * the MessagingChannelPortImpl stub — keep working unchanged.
+     */
+    default void sendMessage(UUID conversationId, UUID senderId, MessageContent content) {
+        sendMessage(conversationId, content);
+    }
 }

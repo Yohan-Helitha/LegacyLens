@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Briefcase, ClipboardList, FileX, LogOut, X } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Typography, Spacing, Radii } from '../theme';
 import { useAuthStore } from '../store/authStore';
+import { ContentCaptureColors as E } from './module-specific/content-capture/tokens';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+
+/** Same width rule as ElderNavDrawer, so both sides of the app feel like one product. */
+const DRAWER_WIDTH = Math.min(Dimensions.get('window').width * 0.85, 360);
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -29,12 +35,37 @@ type CreatorTopAppBarProps =
 export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
+
+  // Slide-in/out like ElderNavDrawer: stay mounted until the close animation finishes.
+  const progress = useRef(new Animated.Value(0)).current;
+  const [menuMounted, setMenuMounted] = useState(false);
+
+  useEffect(() => {
+    if (menuOpen) {
+      setMenuMounted(true);
+      Animated.timing(progress, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    } else if (menuMounted) {
+      Animated.timing(progress, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => setMenuMounted(false));
+    }
+  }, [menuOpen]);
+
+  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [-DRAWER_WIDTH, 0] });
 
   const handleLogout = () => {
     setMenuOpen(false);
     useAuthStore.getState().clearSession();
     navigation.replace('Login');
   };
+
+  const menuItems: { label: string; icon: LucideIcon; onPress: () => void }[] =
+    props.variant === 'menu'
+      ? [
+          { label: 'My Work', icon: Briefcase, onPress: props.onOpenMyWork },
+          { label: 'My Applications', icon: ClipboardList, onPress: props.onOpenSavedApplications },
+          { label: 'Rejected Submissions', icon: FileX, onPress: props.onOpenRejectedWork },
+        ]
+      : [];
 
   return (
     <>
@@ -78,88 +109,62 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
         </Pressable>
       </View>
 
-      {props.variant === 'menu' && (
-        <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-          <View style={s.menuOverlay}>
-            <View style={s.menuPanel}>
-              <View style={s.menuHeader}>
-                <Text style={s.menuHeaderTitle}>Menu</Text>
+      {props.variant === 'menu' && menuMounted && (
+        <Modal visible transparent animationType="none" onRequestClose={() => setMenuOpen(false)} statusBarTranslucent>
+          <View style={StyleSheet.absoluteFill}>
+            <Animated.View style={[StyleSheet.absoluteFill, s.backdrop, { opacity: progress }]}>
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={() => setMenuOpen(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close menu"
+              />
+            </Animated.View>
+
+            <Animated.View
+              style={[s.drawer, { width: DRAWER_WIDTH, paddingTop: insets.top + Spacing.md, transform: [{ translateX }] }]}
+            >
+              <View style={s.drawerHeader}>
+                <Text style={s.drawerTitle}>Menu</Text>
                 <Pressable
                   onPress={() => setMenuOpen(false)}
-                  style={({ pressed }) => [s.menuCloseBtn, pressed && s.pressed]}
                   accessibilityRole="button"
                   accessibilityLabel="Close menu"
+                  style={({ pressed }) => [s.closeBtn, pressed && s.navItemPressed]}
+                  hitSlop={8}
                 >
-                  <Text style={s.menuCloseText}>{'✕'}</Text>
+                  <X size={26} color={E.onPrimaryContainer} strokeWidth={2} />
                 </Pressable>
               </View>
 
-              <View style={s.menuItems}>
-                <Pressable
-                  onPress={() => {
-                    setMenuOpen(false);
-                    props.onOpenMyWork();
-                  }}
-                  style={({ pressed }) => [s.menuItem, pressed && s.menuItemPressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel="My Work"
-                >
-                  <View style={s.menuItemIconChip}>
-                    <MaterialIcons name="work-outline" size={18} color={D.primary} />
-                  </View>
-                  <Text style={s.menuItemText}>My Work</Text>
-                  <MaterialIcons name="chevron-right" size={20} color={D.onSurfaceVariant} />
-                </Pressable>
-
-                <Pressable
-                  onPress={() => {
-                    setMenuOpen(false);
-                    props.onOpenSavedApplications();
-                  }}
-                  style={({ pressed }) => [s.menuItem, pressed && s.menuItemPressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel="My Applications"
-                >
-                  <View style={s.menuItemIconChip}>
-                    <MaterialIcons name="assignment" size={18} color={D.primary} />
-                  </View>
-                  <Text style={s.menuItemText}>My Applications</Text>
-                  <MaterialIcons name="chevron-right" size={20} color={D.onSurfaceVariant} />
-                </Pressable>
-
-                <Pressable
-                  onPress={() => {
-                    setMenuOpen(false);
-                    props.onOpenRejectedWork();
-                  }}
-                  style={({ pressed }) => [s.menuItem, pressed && s.menuItemPressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Rejected Submissions"
-                >
-                  <View style={[s.menuItemIconChip, s.menuItemIconChipDanger]}>
-                    <MaterialIcons name="report-problem" size={18} color={D.danger} />
-                  </View>
-                  <Text style={s.menuItemText}>Rejected Submissions</Text>
-                  <MaterialIcons name="chevron-right" size={20} color={D.onSurfaceVariant} />
-                </Pressable>
+              <View style={s.navList}>
+                {menuItems.map(({ label, icon: Icon, onPress }) => (
+                  <Pressable
+                    key={label}
+                    onPress={() => {
+                      setMenuOpen(false);
+                      onPress();
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={label}
+                    style={({ pressed }) => [s.navItem, pressed && s.navItemPressed]}
+                  >
+                    <Icon size={24} color={E.onPrimaryContainer} strokeWidth={2} />
+                    <Text style={s.navLabel}>{label}</Text>
+                  </Pressable>
+                ))}
               </View>
 
-              <View style={s.menuFooter}>
-                <View style={s.menuDivider} />
-                <Pressable
-                  onPress={handleLogout}
-                  style={({ pressed }) => [s.menuItem, pressed && s.menuItemPressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Log out"
-                >
-                  <View style={[s.menuItemIconChip, s.menuItemIconChipDanger]}>
-                    <MaterialIcons name="logout" size={18} color={D.danger} />
-                  </View>
-                  <Text style={[s.menuItemText, s.menuItemTextDanger]}>Log Out</Text>
-                </Pressable>
-              </View>
-            </View>
-            <Pressable style={s.menuCloseArea} onPress={() => setMenuOpen(false)} />
+              <Pressable
+                onPress={handleLogout}
+                accessibilityRole="button"
+                accessibilityLabel="Log out"
+                style={({ pressed }) => [s.logoutBtn, { paddingBottom: insets.bottom + Spacing.lg }, pressed && s.navItemPressed]}
+              >
+                <LogOut size={22} color="rgba(144,210,209,0.6)" strokeWidth={2} />
+                <Text style={s.logoutText}>Log Out</Text>
+              </Pressable>
+            </Animated.View>
           </View>
         </Modal>
       )}
@@ -176,11 +181,6 @@ const D = {
   surfaceContainerLowest: '#ffffff',
   surfaceVariant: '#c8dcdc',
   primary: '#0F5C5C',
-  primaryContainer: 'rgba(15, 92, 92, 0.12)',
-  onSurface: '#202428',
-  onSurfaceVariant: '#4a5568',
-  danger: '#C0392B',
-  dangerContainer: 'rgba(192, 57, 43, 0.10)',
 } as const;
 
 const s = StyleSheet.create({
@@ -216,46 +216,58 @@ const s = StyleSheet.create({
   bellClapper: { width: 5, height: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: D.primary },
   pressed: { opacity: 0.75 },
 
-  // ── Side menu ────────────────────────────────────────────────────────────
-  menuOverlay: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.45)' },
-  menuPanel: {
-    flex: 1,
-    width: 280,
-    maxWidth: '80%',
-    backgroundColor: D.surfaceContainerLowest,
-    paddingTop: 56,
-    paddingHorizontal: Spacing.md,
+  // ── Side menu — mirrors ElderNavDrawer's styling ─────────────────────────
+  backdrop: { backgroundColor: 'rgba(24,28,30,0.55)' },
+  drawer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: E.primaryContainer,
     shadowColor: '#000',
-    shadowOffset: { width: 2, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 16,
   },
-  menuCloseArea: { flex: 1 },
-  menuHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingBottom: Spacing.md, marginBottom: Spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: D.surfaceVariant,
-  },
-  menuHeaderTitle: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, color: D.primary },
-  menuCloseBtn: { width: 32, height: 32, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center' },
-  menuCloseText: { fontSize: 16, color: D.onSurfaceVariant },
 
-  menuItems: { flex: 1, gap: 2 },
-  menuItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 10, paddingHorizontal: 8, borderRadius: Radii.lg,
+  drawerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: Spacing.lg,
+    paddingRight: Spacing.sm,
+    paddingBottom: Spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(144,210,209,0.25)',
   },
-  menuItemPressed: { backgroundColor: D.surfaceVariant, opacity: 0.9 },
-  menuItemIconChip: {
-    width: 36, height: 36, borderRadius: Radii.lg,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: D.primaryContainer,
-  },
-  menuItemIconChipDanger: { backgroundColor: D.dangerContainer },
-  menuItemText: { flex: 1, fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurface },
-  menuItemTextDanger: { color: D.danger },
+  drawerTitle: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeXL, color: E.onPrimary },
+  closeBtn: { width: 40, height: 40, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center' },
 
-  menuFooter: { paddingBottom: Spacing.lg },
-  menuDivider: { height: StyleSheet.hairlineWidth, backgroundColor: D.surfaceVariant, marginBottom: Spacing.sm },
+  navList: { flex: 1, paddingHorizontal: Spacing.sm, paddingTop: Spacing.md, gap: 2 },
+  navItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 14,
+    borderRadius: Radii.lg,
+    borderLeftWidth: 3,
+    borderLeftColor: 'transparent',
+    minHeight: 52,
+  },
+  navItemPressed: { backgroundColor: 'rgba(255,255,255,0.06)' },
+  navLabel: { flex: 1, fontFamily: Typography.fontBody, fontSize: Typography.sizeMD, color: E.onPrimaryContainer },
+
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginHorizontal: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(144,210,209,0.2)',
+  },
+  logoutText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeMD, color: 'rgba(144,210,209,0.7)' },
 });

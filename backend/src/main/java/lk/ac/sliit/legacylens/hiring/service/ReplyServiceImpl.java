@@ -16,6 +16,7 @@ public class ReplyServiceImpl implements ReplyService {
     @Override
     public void replyWithVoice(UUID conversationId, UUID userId, String mediaUrl) {
         MessageContent content = new MessageContent(MessageContentType.VOICE_NOTE, mediaUrl);
-        messagingChannelPort.sendMessage(conversationId, content);
+        // Pass who's replying so real message storage can attribute (and authorise) it.
+        messagingChannelPort.sendMessage(conversationId, userId, content);
     }
 }
