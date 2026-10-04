@@ -18,7 +18,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Pattern;
+
+import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.containsStem;
+import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.hasText;
+import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.nullToEmpty;
+import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.splitTags;
 
 /**
  * Matches content creators to an elder's opportunity for the Content
@@ -27,12 +31,12 @@ import java.util.regex.Pattern;
  * <h2>1. What does the opportunity need?</h2>
  * Different opportunities need different creators — a dance performance needs
  * someone who films, a craft needs someone who photographs, an old story needs
- * someone who interviews and records. {@link #analyse} works this out:
+ * someone who interviews and records. {@link OpportunityNeedsAnalyser#analyse} works this out:
  * <ul>
  *   <li>The admin's own "Required Skills" (Opportunity.requiredSkills) win when
  *       set — they are exactly what the job needs.</li>
  *   <li>Otherwise the need is inferred from the category, title, description,
- *       preservation goal and tasks using the {@link Topic} table below.</li>
+ *       preservation goal and tasks using the {@link ContentTopic} table below.</li>
  *   <li>If nothing at all can be inferred, any recognised creator skill is
  *       accepted, but only for partial credit — so such a creator can be
  *       recommended, yet never becomes the best match on a guess.</li>
@@ -93,234 +97,6 @@ public final class CreatorMatchScorer {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Creator skills
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /** A kind of work a creator can do. Recognised from free-text skill tags via stems. */
-    public enum Skill {
-        VIDEOGRAPHY("videography", "video", "videograph", "film", "cinematograph", "camera operat", "drone", "youtube", "editing"),
-        PHOTOGRAPHY("photography", "photo", "camera", "portrait"),
-        AUDIO("audio recording", "audio", "sound", "podcast", "recording", "voice"),
-        WRITING("writing", "writ", "script", "transcri", "article", "blog", "journal", "documentation", "copy"),
-        INTERVIEWING("interviewing", "interview", "oral history", "storytell", "research", "reporter"),
-        TRANSLATION("translation", "translat", "interpret");
-
-        final String label;
-        private final List<String> stems;
-
-        Skill(String label, String... stems) {
-            this.label = label;
-            this.stems = List.of(stems);
-        }
-
-        boolean matches(String lowerText) {
-            return stems.stream().anyMatch(stem -> containsStem(lowerText, stem));
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // What an opportunity is about → which skills it needs
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Opportunity topics, each with the words that reveal it, the creator skills
-     * it MUST have, skills that merely help, and creator interests that show a
-     * real interest in the subject.
-     */
-    public enum Topic {
-        DANCE("dance performance",
-                List.of("dance", "dancing", "dancer", "kandyan", "performance", "drama", "theatre"),
-                EnumSet.of(Skill.VIDEOGRAPHY), EnumSet.of(Skill.PHOTOGRAPHY),
-                List.of("dance", "perform", "drama")),
-        MUSIC("music tradition",
-                List.of("music", "song", "singing", "singer", "drum", "instrument", "chant", "melody", "raban"),
-                EnumSet.of(Skill.VIDEOGRAPHY, Skill.AUDIO), EnumSet.of(Skill.PHOTOGRAPHY),
-                List.of("music", "song", "drum")),
-        FOOD("traditional food",
-                List.of("food", "recipe", "cook", "cuisine", "dish", "kitchen", "sweet", "kavum", "curry", "meal"),
-                EnumSet.of(Skill.VIDEOGRAPHY, Skill.PHOTOGRAPHY), EnumSet.of(Skill.WRITING),
-                List.of("food", "cook", "culinar", "recipe", "cuisine")),
-        RITUAL("ritual or festival",
-                // Not "tradition" — as a prefix it would also catch "traditional", which describes
-                // nearly every opportunity (the "Tradition" category is mapped in CATEGORY_TOPICS instead).
-                List.of("ritual", "festival", "perahera", "ceremony", "celebrat", "pooja", "puja", "new year",
-                        "avurudu", "wedding"),
-                EnumSet.of(Skill.VIDEOGRAPHY, Skill.PHOTOGRAPHY), EnumSet.of(Skill.INTERVIEWING),
-                List.of("ritual", "festival", "tradition", "culture", "heritage")),
-        CRAFT("traditional craft",
-                List.of("craft", "pottery", "potter", "weav", "mask", "carv", "handloom", "lacquer", "artisan",
-                        "batik", "brass", "jewell", "basket"),
-                EnumSet.of(Skill.PHOTOGRAPHY, Skill.VIDEOGRAPHY), EnumSet.of(Skill.WRITING),
-                List.of("craft", "art", "pottery", "weav", "mask")),
-        STORY("story or oral history",
-                List.of("story", "stories", "storytell", "oral history", "folklore", "folk", "legend", "memories",
-                        "veteran", "histor", "childhood"),
-                EnumSet.of(Skill.INTERVIEWING, Skill.VIDEOGRAPHY, Skill.AUDIO), EnumSet.of(Skill.WRITING),
-                List.of("histor", "folk", "story", "stories", "heritage", "legend")),
-        LANGUAGE("language or local words",
-                List.of("language", "word", "terms", "dialect", "vocabular", "proverb", "saying", "glossary"),
-                EnumSet.of(Skill.WRITING, Skill.TRANSLATION), EnumSet.of(Skill.AUDIO, Skill.VIDEOGRAPHY),
-                List.of("language", "linguist", "literature")),
-        LIVELIHOOD("fishing or farming tradition",
-                List.of("fish", "boat", "stilt", "agricultur", "farm", "paddy", "harvest", "cultivat", "tea estate",
-                        "tea plant"),
-                EnumSet.of(Skill.VIDEOGRAPHY, Skill.PHOTOGRAPHY), EnumSet.of(Skill.WRITING),
-                List.of("fish", "agricultur", "farm", "rural", "village"));
-
-        final String label;
-        private final List<String> signals;
-        final Set<Skill> mustHave;
-        final Set<Skill> helpful;
-        private final List<String> interestStems;
-
-        Topic(String label, List<String> signals, Set<Skill> mustHave, Set<Skill> helpful, List<String> interestStems) {
-            this.label = label;
-            this.signals = signals;
-            this.mustHave = mustHave;
-            this.helpful = helpful;
-            this.interestStems = interestStems;
-        }
-
-        boolean mentionedIn(String lowerText) {
-            return signals.stream().anyMatch(signal -> containsStem(lowerText, signal));
-        }
-
-        boolean interestedBy(String lowerInterest) {
-            return interestStems.stream().anyMatch(stem -> containsStem(lowerInterest, stem));
-        }
-    }
-
-    /**
-     * What one opportunity needs, worked out once and reused for every creator.
-     *
-     * @param mustHave    skills the job cannot be done without (at least one must be covered)
-     * @param helpful     skills that add value but can't carry the job alone
-     * @param topics      what the opportunity is about — drives the interest points
-     * @param fromAdmin   true when mustHave came from the admin's Required Skills
-     * @param unknownNeed true when nothing could be inferred — any skill earns partial credit only
-     * @param city        the opportunity's city, when its location names a known city
-     * @param remote      true for "Remote OK" opportunities — location stops mattering
-     */
-    public record OpportunityNeeds(
-            Set<Skill> mustHave,
-            Set<Skill> helpful,
-            List<Topic> topics,
-            boolean fromAdmin,
-            boolean unknownNeed,
-            City city,
-            boolean remote) {
-    }
-
-    /** The admin's "Preservation Category" chips (see CreateOpportunityScreen) → topic, when the words alone don't reveal it. */
-    private static final Map<String, Topic> CATEGORY_TOPICS = Map.of(
-            "craft", Topic.CRAFT,
-            "food", Topic.FOOD,
-            "language", Topic.LANGUAGE,
-            "tradition", Topic.RITUAL,
-            "music", Topic.MUSIC,
-            "dance", Topic.DANCE,
-            "agriculture", Topic.LIVELIHOOD,
-            "ritual", Topic.RITUAL,
-            "folk knowledge", Topic.STORY);
-
-    /** Admin "Required Skills" labels (see CreateOpportunityScreen) → creator skills. */
-    private static final Map<String, Skill> ADMIN_SKILLS = Map.of(
-            "photography", Skill.PHOTOGRAPHY,
-            "videography", Skill.VIDEOGRAPHY,
-            "documentation", Skill.WRITING,
-            "translation", Skill.TRANSLATION,
-            "interviews", Skill.INTERVIEWING);
-
-    /** Works out what the opportunity needs. {@code cities} resolves its location to a city/province. */
-    public static OpportunityNeeds analyse(Opportunity opportunity, List<City> cities) {
-        String text = String.join(" ",
-                nullToEmpty(opportunity.getCategory()),
-                nullToEmpty(opportunity.getTitle()),
-                nullToEmpty(opportunity.getDescription()),
-                nullToEmpty(opportunity.getPreservationGoal()),
-                nullToEmpty(opportunity.getTasks())).toLowerCase(Locale.ROOT);
-
-        // The admin's category is the most deliberate signal, so its topic leads (it also names the topic in reasons).
-        Set<Topic> found = new LinkedHashSet<>();
-        Topic categoryTopic = CATEGORY_TOPICS.get(nullToEmpty(opportunity.getCategory()).trim().toLowerCase(Locale.ROOT));
-        if (categoryTopic != null) {
-            found.add(categoryTopic);
-        }
-        for (Topic topic : Topic.values()) {
-            if (topic.mentionedIn(text)) {
-                found.add(topic);
-            }
-        }
-        List<Topic> topics = new ArrayList<>(found);
-
-        Set<Skill> mustHave = EnumSet.noneOf(Skill.class);
-        Set<Skill> helpful = EnumSet.noneOf(Skill.class);
-
-        Set<Skill> adminSkills = adminRequiredSkills(opportunity.getRequiredSkills());
-        boolean fromAdmin = !adminSkills.isEmpty();
-        if (fromAdmin) {
-            mustHave.addAll(adminSkills);
-            topics.forEach(topic -> helpful.addAll(topic.helpful));
-        } else {
-            topics.forEach(topic -> {
-                mustHave.addAll(topic.mustHave);
-                helpful.addAll(topic.helpful);
-            });
-            // An explicit ask in the opportunity's own words always makes that skill a must-have.
-            if (containsStem(text, "photograph") || containsStem(text, "photo")) mustHave.add(Skill.PHOTOGRAPHY);
-            if (containsStem(text, "video") || containsStem(text, "film")) mustHave.add(Skill.VIDEOGRAPHY);
-            if (containsStem(text, "interview")) mustHave.add(Skill.INTERVIEWING);
-            if (containsStem(text, "transcri") || containsStem(text, "article")) mustHave.add(Skill.WRITING);
-            if (containsStem(text, "translat")) mustHave.add(Skill.TRANSLATION);
-        }
-        helpful.removeAll(mustHave);
-
-        String locationType = nullToEmpty(opportunity.getLocationType()).toLowerCase(Locale.ROOT);
-        boolean remote = locationType.contains("remote");
-
-        return new OpportunityNeeds(
-                mustHave, helpful, List.copyOf(topics), fromAdmin, mustHave.isEmpty(),
-                resolveCity(opportunity.getLocation(), cities), remote);
-    }
-
-    private static Set<Skill> adminRequiredSkills(String requiredSkills) {
-        Set<Skill> skills = EnumSet.noneOf(Skill.class);
-        for (String tag : splitTags(requiredSkills)) {
-            String lower = tag.toLowerCase(Locale.ROOT);
-            ADMIN_SKILLS.entrySet().stream()
-                    .filter(entry -> lower.startsWith(entry.getKey()))
-                    .findFirst()
-                    .map(Map.Entry::getValue)
-                    .or(() -> matchSkill(lower))
-                    .ifPresent(skills::add);
-        }
-        return skills;
-    }
-
-    private static Optional<Skill> matchSkill(String lowerTag) {
-        for (Skill skill : Skill.values()) {
-            if (skill.matches(lowerTag)) {
-                return Optional.of(skill);
-            }
-        }
-        return Optional.empty();
-    }
-
-    /** The known city named in a free-text location — longest name first, so "Nuwara Eliya" beats "Eliya". */
-    static City resolveCity(String location, List<City> cities) {
-        if (location == null || location.isBlank() || cities == null) {
-            return null;
-        }
-        String lower = location.toLowerCase(Locale.ROOT);
-        return cities.stream()
-                .filter(city -> city.getName() != null && !city.getName().isBlank())
-                .sorted(Comparator.comparingInt((City city) -> city.getName().length()).reversed())
-                .filter(city -> containsStem(lower, city.getName().toLowerCase(Locale.ROOT)))
-                .findFirst()
-                .orElse(null);
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
     // Creators
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -331,7 +107,7 @@ public final class CreatorMatchScorer {
             CreatorApplication application,
             long completedJobs) {
 
-        /** Skill tags from the verified profile and the creator application, de-duplicated. */
+        /** CreatorSkill tags from the verified profile and the creator application, de-duplicated. */
         public List<String> skills() {
             Set<String> tags = new LinkedHashSet<>();
             if (profile != null) tags.addAll(splitTags(profile.getSkills()));
@@ -351,11 +127,11 @@ public final class CreatorMatchScorer {
          * that shows it — so reasons quote the creator's words ("Skilled in
          * Basic Video Editing"), not an internal label.
          */
-        Map<Skill, String> skillEvidence() {
-            Map<Skill, String> evidence = new LinkedHashMap<>();
+        Map<CreatorSkill, String> skillEvidence() {
+            Map<CreatorSkill, String> evidence = new LinkedHashMap<>();
             for (String tag : skills()) {
                 String lower = tag.toLowerCase(Locale.ROOT);
-                for (Skill skill : Skill.values()) {
+                for (CreatorSkill skill : CreatorSkill.values()) {
                     if (!evidence.containsKey(skill) && skill.matches(lower)) {
                         evidence.put(skill, tag);
                     }
@@ -432,7 +208,7 @@ public final class CreatorMatchScorer {
     public static Match score(OpportunityNeeds needs, Opportunity opportunity, CreatorCandidate candidate, boolean hasApplied) {
         int points = 0;
         List<String> reasons = new ArrayList<>();
-        Map<Skill, String> evidence = candidate.skillEvidence();
+        Map<CreatorSkill, String> evidence = candidate.skillEvidence();
 
         // ── Can they do the work? ─────────────────────────────────────────
         boolean canDoMustHave = false;
@@ -449,11 +225,11 @@ public final class CreatorMatchScorer {
             }
         } else {
             List<String> mustHaveTags = new ArrayList<>();
-            for (Skill skill : needs.mustHave()) {
+            for (CreatorSkill skill : needs.mustHave()) {
                 if (evidence.containsKey(skill)) mustHaveTags.add(evidence.get(skill));
             }
             List<String> helpfulTags = new ArrayList<>();
-            for (Skill skill : needs.helpful()) {
+            for (CreatorSkill skill : needs.helpful()) {
                 if (evidence.containsKey(skill)) helpfulTags.add(evidence.get(skill));
             }
 
@@ -476,7 +252,7 @@ public final class CreatorMatchScorer {
 
         // ── Do they care about the subject? ───────────────────────────────
         outer:
-        for (Topic topic : needs.topics()) {
+        for (ContentTopic topic : needs.topics()) {
             for (String interest : candidate.interests()) {
                 if (topic.interestedBy(interest.toLowerCase(Locale.ROOT))) {
                     points += TOPIC_POINTS;
@@ -556,34 +332,5 @@ public final class CreatorMatchScorer {
             return a.getId().equals(b.getId());
         }
         return a.getName() != null && a.getName().equalsIgnoreCase(b.getName());
-    }
-
-    /**
-     * True when {@code stem} starts a word in {@code lowerText} — "photo" matches
-     * "photography" and "Photo walk" but "art" does not match "party".
-     */
-    static boolean containsStem(String lowerText, String stem) {
-        return Pattern.compile("(?<![\\p{L}\\p{N}])" + Pattern.quote(stem)).matcher(lowerText).find();
-    }
-
-    static List<String> splitTags(String raw) {
-        if (!hasText(raw)) {
-            return List.of();
-        }
-        Set<String> tags = new LinkedHashSet<>();
-        for (String tag : raw.split(",")) {
-            if (!tag.isBlank()) {
-                tags.add(tag.trim());
-            }
-        }
-        return List.copyOf(tags);
-    }
-
-    private static boolean hasText(String value) {
-        return value != null && !value.isBlank();
-    }
-
-    private static String nullToEmpty(String value) {
-        return value == null ? "" : value;
     }
 }

@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Phone } from 'lucide-react-native';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { Avatar } from '../../components/common';
 import { useConversation } from '../../hooks/useConversation';
@@ -148,6 +151,13 @@ export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBa
   };
 
   const other = detail?.otherParticipant;
+
+  /** Hands the number to the phone's normal dialer — no in-app calling, the user presses call there. */
+  const callOther = () => {
+    if (!other?.phoneNumber) return;
+    Linking.openURL(`tel:${other.phoneNumber.replace(/[^\d+]/g, '')}`).catch(() =>
+      Alert.alert("Couldn't start the call", 'This device cannot place phone calls.'));
+  };
   const otherAvatar = messagingAvatarUri(other?.avatarUrl);
   const context = detail?.context;
 
@@ -179,6 +189,17 @@ export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBa
           <Text style={s.convName} numberOfLines={1}>{other?.name ?? ' '}</Text>
           {!!other?.roleLabel && <Text style={s.convRole} numberOfLines={1}>{other.roleLabel}</Text>}
         </View>
+
+        {!!other?.phoneNumber && (
+          <Pressable
+            onPress={callOther}
+            style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={`Call ${other.name}`}
+          >
+            <Phone size={22} color={D.primary} strokeWidth={2} />
+          </Pressable>
+        )}
       </View>
 
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

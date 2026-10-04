@@ -21,4 +21,11 @@ public class ParticipantResponse {
 
     /** Human label for the header, e.g. "Knowledge Holder" / "Content Creator". */
     private String roleLabel;
+
+    /**
+     * Their phone number, so the app can open the normal phone dialer. Only filled in
+     * on the single-conversation response (never the inbox list), and only ever shown
+     * to the other member of that conversation.
+     */
+    private String phoneNumber;
 }

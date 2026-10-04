@@ -17,10 +17,10 @@ import java.util.UUID;
  * "not found" so conversation ids cannot be probed.
  *
  * Other modules (marketplace bookings, creator recommendations, the hiring
- * module via MessagingChannelPort) open conversations through
- * {@link #openConversation} and never touch the repositories directly.
+ * module via MessagingChannelPort) open conversations through the narrower
+ * {@link ConversationOpener} and never touch the repositories directly.
  */
-public interface MessagingService {
+public interface MessagingService extends ConversationOpener {
 
     List<ConversationSummaryResponse> listConversations(UUID userId, ConversationFilter filter, String search);
 
@@ -47,11 +47,4 @@ public interface MessagingService {
      */
     ConversationDetailResponse openForOpportunity(UUID userId, UUID opportunityId, UUID participantId);
 
-    /**
-     * Internal entry point for other modules: opens (or returns) the one
-     * conversation between this elder and creator, pointing its context at
-     * {@code opportunityId} when given. No permission checks — callers have
-     * already established the relationship.
-     */
-    UUID openConversation(UUID elderId, UUID creatorId, UUID opportunityId);
 }

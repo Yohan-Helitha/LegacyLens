@@ -15,7 +15,7 @@ import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityCreatorInvitationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
-import lk.ac.sliit.legacylens.messaging.service.MessagingService;
+import lk.ac.sliit.legacylens.messaging.service.ConversationOpener;
 import lk.ac.sliit.legacylens.users.entity.AccountStatus;
 import lk.ac.sliit.legacylens.users.entity.City;
 import lk.ac.sliit.legacylens.users.entity.CreatorProfile;
@@ -56,15 +56,19 @@ class CreatorRecommendationServiceImplTest {
     @Mock private CreatorApplicationRepository creatorApplicationRepository;
     @Mock private JobRepository jobRepository;
     @Mock private CityRepository cityRepository;
-    @Mock private MessagingService messagingService;
+    @Mock private ConversationOpener conversationOpener;
 
     private CreatorRecommendationServiceImpl service;
+
+    private final RecommendationResponseMapper responseMapper = new RecommendationResponseMapper();
 
     @BeforeEach
     void setUp() {
         service = new CreatorRecommendationServiceImpl(
                 opportunityRepository, opportunityApplicationRepository, invitationRepository,
-                creatorProfileRepository, creatorApplicationRepository, jobRepository, cityRepository, messagingService);
+                creatorProfileRepository, cityRepository, conversationOpener,
+                new CreatorCandidateLoader(creatorProfileRepository, creatorApplicationRepository, jobRepository),
+                responseMapper, new ChosenCreatorResolver(responseMapper));
     }
 
     private static User user(UUID id, String name) {
@@ -229,7 +233,7 @@ class CreatorRecommendationServiceImplTest {
 
         assertThat(pending.getStatus()).isEqualTo(OpportunityApplicationStatus.APPROVED);
         verify(opportunityApplicationRepository).save(pending);
-        verify(messagingService).openConversation(ELDER_ID, nimal.getUser().getId(), opp.getId());
+        verify(conversationOpener).openConversation(ELDER_ID, nimal.getUser().getId(), opp.getId());
         verify(invitationRepository, never()).save(any());
     }
 
@@ -250,7 +254,7 @@ class CreatorRecommendationServiceImplTest {
         assertThat(saved.getValue().getOpportunity()).isSameAs(opp);
         assertThat(saved.getValue().getCreator()).isSameAs(nimal.getUser());
         assertThat(saved.getValue().getStatus()).isEqualTo(CreatorInvitationStatus.INVITED);
-        verify(messagingService).openConversation(ELDER_ID, nimal.getUser().getId(), opp.getId());
+        verify(conversationOpener).openConversation(ELDER_ID, nimal.getUser().getId(), opp.getId());
     }
 
     @Test

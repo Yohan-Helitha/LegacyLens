@@ -3,19 +3,12 @@ package lk.ac.sliit.legacylens.messaging.service;
 import lk.ac.sliit.legacylens.common.exception.ForbiddenOperationException;
 import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
-import lk.ac.sliit.legacylens.marketplace.entity.Job;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
-import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
-import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
-import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
-import lk.ac.sliit.legacylens.marketplace.repository.OpportunityCreatorInvitationRepository;
-import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
-import lk.ac.sliit.legacylens.messaging.dto.ConversationContextResponse;
 import lk.ac.sliit.legacylens.messaging.dto.ConversationDetailResponse;
 import lk.ac.sliit.legacylens.messaging.dto.ConversationSummaryResponse;
 import lk.ac.sliit.legacylens.messaging.dto.MessageResponse;
-import lk.ac.sliit.legacylens.messaging.dto.ParticipantResponse;
 import lk.ac.sliit.legacylens.messaging.entity.Conversation;
+import lk.ac.sliit.legacylens.messaging.mapper.ConversationMapper;
 import lk.ac.sliit.legacylens.messaging.entity.Message;
 import lk.ac.sliit.legacylens.messaging.entity.MessageType;
 import lk.ac.sliit.legacylens.messaging.repository.ConversationRepository;
@@ -40,11 +33,6 @@ public class MessagingServiceImpl implements MessagingService {
 
     static final int DEFAULT_PAGE_SIZE = 50;
     static final int MAX_PAGE_SIZE = 100;
-    static final int PREVIEW_LENGTH = 120;
-    static final String VOICE_NOTE_PREVIEW = "Voice message";
-
-    static final String ROLE_ELDER = "ELDER";
-    static final String ROLE_CREATOR = "CREATOR";
 
     /** Stand-in for "never read" in the unread-count query. */
     private static final LocalDateTime EPOCH = LocalDateTime.of(1970, 1, 1, 0, 0);
@@ -52,27 +40,21 @@ public class MessagingServiceImpl implements MessagingService {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
-    private final OpportunityRepository opportunityRepository;
-    private final OpportunityApplicationRepository opportunityApplicationRepository;
-    private final OpportunityCreatorInvitationRepository invitationRepository;
-    private final JobRepository jobRepository;
+    private final OpportunityAccess opportunityAccess;
+    private final ConversationMapper mapper;
 
     public MessagingServiceImpl(
             ConversationRepository conversationRepository,
             MessageRepository messageRepository,
             UserRepository userRepository,
-            OpportunityRepository opportunityRepository,
-            OpportunityApplicationRepository opportunityApplicationRepository,
-            OpportunityCreatorInvitationRepository invitationRepository,
-            JobRepository jobRepository) {
+            OpportunityAccess opportunityAccess,
+            ConversationMapper mapper) {
 
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
-        this.opportunityRepository = opportunityRepository;
-        this.opportunityApplicationRepository = opportunityApplicationRepository;
-        this.invitationRepository = invitationRepository;
-        this.jobRepository = jobRepository;
+        this.opportunityAccess = opportunityAccess;
+        this.mapper = mapper;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -102,7 +84,7 @@ public class MessagingServiceImpl implements MessagingService {
             if (effectiveFilter == ConversationFilter.UNREAD && unreadCount == 0) continue;
             if (effectiveFilter == ConversationFilter.COLLABORATIONS && conversation.getOpportunity() == null) continue;
 
-            ConversationSummaryResponse summary = toSummary(conversation, userId, unreadCount);
+            ConversationSummaryResponse summary = mapper.toSummary(conversation, userId, unreadCount);
             if (!query.isEmpty() && !matches(summary, query)) continue;
             result.add(summary);
         }
@@ -112,7 +94,7 @@ public class MessagingServiceImpl implements MessagingService {
     @Override
     @Transactional(readOnly = true)
     public ConversationDetailResponse getConversation(UUID userId, UUID conversationId) {
-        return toDetail(loadForParticipant(userId, conversationId), userId);
+        return mapper.toDetail(loadForParticipant(userId, conversationId), userId);
     }
 
     @Override
@@ -124,7 +106,7 @@ public class MessagingServiceImpl implements MessagingService {
 
         if (after != null) {
             return messageRepository.findByConversationIdAndCreatedAtAfterOrderByCreatedAtAsc(conversation.getId(), after)
-                    .stream().map(message -> toResponse(message, userId)).toList();
+                    .stream().map(message -> mapper.toMessage(message, userId)).toList();
         }
 
         List<Message> newestFirst = before != null
@@ -134,7 +116,7 @@ public class MessagingServiceImpl implements MessagingService {
 
         List<Message> readingOrder = new ArrayList<>(newestFirst);
         Collections.reverse(readingOrder);
-        return readingOrder.stream().map(message -> toResponse(message, userId)).toList();
+        return readingOrder.stream().map(message -> mapper.toMessage(message, userId)).toList();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -148,7 +130,7 @@ public class MessagingServiceImpl implements MessagingService {
             throw new InvalidRequestException("Message cannot be empty");
         }
         Conversation conversation = loadForParticipant(userId, conversationId);
-        return toResponse(store(conversation, userId, MessageType.TEXT, text.trim(), null), userId);
+        return mapper.toMessage(store(conversation, userId, MessageType.TEXT, text.trim(), null), userId);
     }
 
     @Override
@@ -158,25 +140,21 @@ public class MessagingServiceImpl implements MessagingService {
             throw new InvalidRequestException("A voice note needs a recording");
         }
         Conversation conversation = loadForParticipant(userId, conversationId);
-        return toResponse(store(conversation, userId, MessageType.VOICE_NOTE, null, mediaUrl), userId);
+        return mapper.toMessage(store(conversation, userId, MessageType.VOICE_NOTE, null, mediaUrl), userId);
     }
 
     @Override
     @Transactional
     public void markRead(UUID userId, UUID conversationId) {
         Conversation conversation = loadForParticipant(userId, conversationId);
-        if (conversation.isElder(userId)) {
-            conversation.setElderLastReadAt(LocalDateTime.now());
-        } else {
-            conversation.setCreatorLastReadAt(LocalDateTime.now());
-        }
+        conversation.markReadBy(userId, LocalDateTime.now());
         conversationRepository.save(conversation);
     }
 
     @Override
     @Transactional
     public ConversationDetailResponse openForOpportunity(UUID userId, UUID opportunityId, UUID participantId) {
-        Opportunity opportunity = opportunityRepository.findById(opportunityId)
+        Opportunity opportunity = opportunityAccess.findOpportunity(opportunityId)
                 .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
         User elder = opportunity.getElder();
         if (elder == null) {
@@ -193,7 +171,7 @@ public class MessagingServiceImpl implements MessagingService {
             creatorId = userId;
         }
 
-        if (!isConnectedThrough(opportunityId, creatorId)) {
+        if (!opportunityAccess.isCreatorConnected(opportunityId, creatorId)) {
             throw new ForbiddenOperationException("You can only message people you are working with on this opportunity.");
         }
 
@@ -220,7 +198,7 @@ public class MessagingServiceImpl implements MessagingService {
 
         // The chat's context card follows what they are working on most recently.
         if (opportunityId != null) {
-            opportunityRepository.findById(opportunityId).ifPresent(conversation::setOpportunity);
+            opportunityAccess.findOpportunity(opportunityId).ifPresent(conversation::setOpportunity);
         }
 
         return conversationRepository.save(conversation).getId();
@@ -237,18 +215,8 @@ public class MessagingServiceImpl implements MessagingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Conversation not found"));
     }
 
-    /** A creator is connected to an opportunity once they've applied, been invited or booked it. */
-    private boolean isConnectedThrough(UUID opportunityId, UUID creatorId) {
-        boolean applied = opportunityApplicationRepository.findByCreatorIdAndOpportunityId(creatorId, opportunityId)
-                .filter(application -> application.getStatus() != OpportunityApplicationStatus.SAVED)
-                .isPresent();
-        return applied
-                || invitationRepository.existsByOpportunityIdAndCreatorId(opportunityId, creatorId)
-                || jobRepository.existsByOpportunityIdAndCreatorId(opportunityId, creatorId);
-    }
-
     private Message store(Conversation conversation, UUID senderId, MessageType type, String body, String mediaUrl) {
-        User sender = conversation.isElder(senderId) ? conversation.getElder() : conversation.getCreator();
+        User sender = conversation.participant(senderId);
 
         Message message = new Message();
         message.setConversation(conversation);
@@ -259,24 +227,10 @@ public class MessagingServiceImpl implements MessagingService {
         // Flushed so createdAt is populated before it's copied onto the conversation.
         Message saved = messageRepository.saveAndFlush(message);
 
-        conversation.setLastMessageType(type);
-        conversation.setLastMessagePreview(type == MessageType.VOICE_NOTE ? VOICE_NOTE_PREVIEW : preview(body));
-        conversation.setLastMessageSenderId(senderId);
-        conversation.setLastMessageAt(saved.getCreatedAt());
-        // Your own message is never unread for you.
-        if (conversation.isElder(senderId)) {
-            conversation.setElderLastReadAt(saved.getCreatedAt());
-        } else {
-            conversation.setCreatorLastReadAt(saved.getCreatedAt());
-        }
+        conversation.recordMessage(type, MessagePreview.of(type, body), senderId, saved.getCreatedAt());
         conversationRepository.save(conversation);
 
         return saved;
-    }
-
-    static String preview(String text) {
-        String singleLine = text.replaceAll("\\s+", " ").trim();
-        return singleLine.length() <= PREVIEW_LENGTH ? singleLine : singleLine.substring(0, PREVIEW_LENGTH - 1) + "…";
     }
 
     private static boolean matches(ConversationSummaryResponse summary, String query) {
@@ -287,73 +241,5 @@ public class MessagingServiceImpl implements MessagingService {
 
     private static boolean contains(String value, String query) {
         return value != null && value.toLowerCase(Locale.ROOT).contains(query);
-    }
-
-    private ConversationSummaryResponse toSummary(Conversation conversation, UUID userId, long unreadCount) {
-        return ConversationSummaryResponse.builder()
-                .id(conversation.getId())
-                .otherParticipant(toParticipant(conversation, userId))
-                .context(toContext(conversation))
-                .lastMessagePreview(conversation.getLastMessagePreview())
-                .lastMessageType(conversation.getLastMessageType())
-                .lastMessageFromMe(userId.equals(conversation.getLastMessageSenderId()))
-                .lastMessageAt(conversation.getLastMessageAt())
-                .unreadCount(unreadCount)
-                .build();
-    }
-
-    private ConversationDetailResponse toDetail(Conversation conversation, UUID userId) {
-        return ConversationDetailResponse.builder()
-                .id(conversation.getId())
-                .myRole(conversation.isElder(userId) ? ROLE_ELDER : ROLE_CREATOR)
-                .otherParticipant(toParticipant(conversation, userId))
-                .context(toContext(conversation))
-                .build();
-    }
-
-    private static ParticipantResponse toParticipant(Conversation conversation, UUID userId) {
-        boolean otherIsElder = !conversation.isElder(userId);
-        User other = conversation.otherParticipant(userId);
-        return ParticipantResponse.builder()
-                .userId(other.getId())
-                .name(other.getFullName())
-                .avatarUrl(other.getProfilePhotoUrl())
-                .role(otherIsElder ? ROLE_ELDER : ROLE_CREATOR)
-                .roleLabel(otherIsElder ? "Knowledge Holder" : "Content Creator")
-                .build();
-    }
-
-    /** Booking details win over the opportunity's own schedule — they're what was actually agreed. */
-    private ConversationContextResponse toContext(Conversation conversation) {
-        Opportunity opportunity = conversation.getOpportunity();
-        if (opportunity == null) {
-            return null;
-        }
-        Job job = jobRepository
-                .findFirstByOpportunityIdAndCreatorIdOrderByCreatedAtDesc(opportunity.getId(), conversation.getCreator().getId())
-                .orElse(null);
-
-        return ConversationContextResponse.builder()
-                .opportunityId(opportunity.getId())
-                .title(opportunity.getTitle())
-                .subtitle(opportunity.getCategory())
-                .date(job != null && job.getScheduledAt() != null ? job.getScheduledAt().toLocalDate() : opportunity.getScheduledDate())
-                .timeWindowText(job != null && job.getTimeWindowText() != null ? job.getTimeWindowText() : opportunity.getTimeWindowText())
-                .location(job != null && job.getLocation() != null ? job.getLocation() : opportunity.getLocation())
-                .booked(job != null)
-                .build();
-    }
-
-    private static MessageResponse toResponse(Message message, UUID userId) {
-        return MessageResponse.builder()
-                .id(message.getId())
-                .conversationId(message.getConversation().getId())
-                .senderId(message.getSender().getId())
-                .fromMe(message.getSender().getId().equals(userId))
-                .type(message.getType())
-                .body(message.getBody())
-                .mediaUrl(message.getMediaUrl())
-                .createdAt(message.getCreatedAt())
-                .build();
     }
 }

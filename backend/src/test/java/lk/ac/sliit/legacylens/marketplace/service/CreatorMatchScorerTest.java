@@ -4,9 +4,6 @@ import lk.ac.sliit.legacylens.marketplace.entity.CreatorApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.CreatorCandidate;
 import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.Match;
-import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.OpportunityNeeds;
-import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.Skill;
-import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.Topic;
 import lk.ac.sliit.legacylens.users.entity.City;
 import lk.ac.sliit.legacylens.users.entity.CreatorProfile;
 import lk.ac.sliit.legacylens.users.entity.User;
@@ -65,37 +62,37 @@ class CreatorMatchScorerTest {
     }
 
     private static Match score(Opportunity opportunity, CreatorCandidate creator) {
-        return CreatorMatchScorer.score(CreatorMatchScorer.analyse(opportunity, CITIES), opportunity, creator, false);
+        return CreatorMatchScorer.score(OpportunityNeedsAnalyser.analyse(opportunity, CITIES), opportunity, creator, false);
     }
 
     // ── What the opportunity needs ──────────────────────────────────────────
 
     @Test
     void danceEvent_needsAVideographer() {
-        OpportunityNeeds needs = CreatorMatchScorer.analyse(
+        OpportunityNeeds needs = OpportunityNeedsAnalyser.analyse(
                 opportunity("Kandyan dance at the village temple", "Dance", "Kandy", null), CITIES);
 
-        assertThat(needs.topics()).first().isEqualTo(Topic.DANCE);
-        assertThat(needs.mustHave()).containsExactly(Skill.VIDEOGRAPHY);
-        assertThat(needs.helpful()).containsExactly(Skill.PHOTOGRAPHY);
+        assertThat(needs.topics()).first().isEqualTo(ContentTopic.DANCE);
+        assertThat(needs.mustHave()).containsExactly(CreatorSkill.VIDEOGRAPHY);
+        assertThat(needs.helpful()).containsExactly(CreatorSkill.PHOTOGRAPHY);
         assertThat(needs.city()).isSameAs(KANDY);
     }
 
     @Test
     void storytelling_needsSomeoneWhoInterviewsOrRecords() {
-        OpportunityNeeds needs = CreatorMatchScorer.analyse(
+        OpportunityNeeds needs = OpportunityNeedsAnalyser.analyse(
                 opportunity("Interviewing a war veteran about his memories", "Folk Knowledge", null, null), CITIES);
 
-        assertThat(needs.topics()).first().isEqualTo(Topic.STORY);
-        assertThat(needs.mustHave()).contains(Skill.INTERVIEWING, Skill.VIDEOGRAPHY, Skill.AUDIO);
+        assertThat(needs.topics()).first().isEqualTo(ContentTopic.STORY);
+        assertThat(needs.mustHave()).contains(CreatorSkill.INTERVIEWING, CreatorSkill.VIDEOGRAPHY, CreatorSkill.AUDIO);
     }
 
     @Test
     void theWordTraditional_doesNotTurnARecipeIntoARitual() {
-        OpportunityNeeds needs = CreatorMatchScorer.analyse(
+        OpportunityNeeds needs = OpportunityNeedsAnalyser.analyse(
                 opportunity("Traditional recipe documentation", "Food", "Matara", null), CITIES);
 
-        assertThat(needs.topics()).containsExactly(Topic.FOOD);
+        assertThat(needs.topics()).containsExactly(ContentTopic.FOOD);
     }
 
     @Test
@@ -103,10 +100,10 @@ class CreatorMatchScorerTest {
         Opportunity opp = opportunity("Kandyan dance at the village temple", "Dance", "Kandy", null);
         opp.setRequiredSkills("Photography,Translation (Sinhala/English)");
 
-        OpportunityNeeds needs = CreatorMatchScorer.analyse(opp, CITIES);
+        OpportunityNeeds needs = OpportunityNeedsAnalyser.analyse(opp, CITIES);
 
         assertThat(needs.fromAdmin()).isTrue();
-        assertThat(needs.mustHave()).containsExactlyInAnyOrder(Skill.PHOTOGRAPHY, Skill.TRANSLATION);
+        assertThat(needs.mustHave()).containsExactlyInAnyOrder(CreatorSkill.PHOTOGRAPHY, CreatorSkill.TRANSLATION);
     }
 
     // ── Different creators for different tasks ──────────────────────────────
@@ -226,9 +223,9 @@ class CreatorMatchScorerTest {
 
     @Test
     void stems_onlyMatchAtTheStartOfAWord() {
-        assertThat(CreatorMatchScorer.containsStem("photography walk", "photo")).isTrue();
-        assertThat(CreatorMatchScorer.containsStem("birthday party", "art")).isFalse();
-        assertThat(CreatorMatchScorer.containsStem("teaching children", "tea estate")).isFalse();
+        assertThat(TextMatching.containsStem("photography walk", "photo")).isTrue();
+        assertThat(TextMatching.containsStem("birthday party", "art")).isFalse();
+        assertThat(TextMatching.containsStem("teaching children", "tea estate")).isFalse();
     }
 
     @Test

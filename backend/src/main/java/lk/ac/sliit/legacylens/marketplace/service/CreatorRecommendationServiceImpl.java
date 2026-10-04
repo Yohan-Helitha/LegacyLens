@@ -3,27 +3,21 @@ package lk.ac.sliit.legacylens.marketplace.service;
 import lk.ac.sliit.legacylens.common.exception.InvalidApplicationStateException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityRecommendationsResponse;
-import lk.ac.sliit.legacylens.marketplace.dto.RecommendationOpportunitySummaryResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.RecommendedCreatorResponse;
-import lk.ac.sliit.legacylens.marketplace.entity.CreatorApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.CreatorInvitationStatus;
-import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityCreatorInvitation;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
-import lk.ac.sliit.legacylens.marketplace.repository.CreatorApplicationRepository;
-import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityCreatorInvitationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.CreatorCandidate;
 import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.Match;
-import lk.ac.sliit.legacylens.messaging.service.MessagingService;
+import lk.ac.sliit.legacylens.messaging.service.ConversationOpener;
 import lk.ac.sliit.legacylens.users.entity.AccountStatus;
 import lk.ac.sliit.legacylens.users.entity.CreatorProfile;
-import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.entity.VerificationStatus;
 import lk.ac.sliit.legacylens.users.entity.City;
 import lk.ac.sliit.legacylens.users.repository.CityRepository;
@@ -33,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,10 +43,6 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
     /** How many recommendations are listed when no creator is strong enough to be the best match. */
     static final int MAX_RECOMMENDATIONS_WITHOUT_BEST = 5;
 
-    /** Application statuses that mean this creator has already been picked for the opportunity. */
-    private static final Set<OpportunityApplicationStatus> CHOSEN_APPLICATION_STATUSES =
-            Set.of(OpportunityApplicationStatus.APPROVED, OpportunityApplicationStatus.BOOKED);
-
     /** Highest score first; ties go to the better-rated, then more experienced, then alphabetical creator. */
     private static final Comparator<Match> RANKING = Comparator
             .comparingInt(Match::percentage).reversed()
@@ -65,29 +54,32 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
     private final OpportunityApplicationRepository opportunityApplicationRepository;
     private final OpportunityCreatorInvitationRepository invitationRepository;
     private final CreatorProfileRepository creatorProfileRepository;
-    private final CreatorApplicationRepository creatorApplicationRepository;
-    private final JobRepository jobRepository;
     private final CityRepository cityRepository;
-    private final MessagingService messagingService;
+    private final ConversationOpener conversationOpener;
+    private final CreatorCandidateLoader candidateLoader;
+    private final RecommendationResponseMapper responseMapper;
+    private final ChosenCreatorResolver chosenCreatorResolver;
 
     public CreatorRecommendationServiceImpl(
             OpportunityRepository opportunityRepository,
             OpportunityApplicationRepository opportunityApplicationRepository,
             OpportunityCreatorInvitationRepository invitationRepository,
             CreatorProfileRepository creatorProfileRepository,
-            CreatorApplicationRepository creatorApplicationRepository,
-            JobRepository jobRepository,
             CityRepository cityRepository,
-            MessagingService messagingService) {
+            ConversationOpener conversationOpener,
+            CreatorCandidateLoader candidateLoader,
+            RecommendationResponseMapper responseMapper,
+            ChosenCreatorResolver chosenCreatorResolver) {
 
         this.opportunityRepository = opportunityRepository;
         this.opportunityApplicationRepository = opportunityApplicationRepository;
         this.invitationRepository = invitationRepository;
         this.creatorProfileRepository = creatorProfileRepository;
-        this.creatorApplicationRepository = creatorApplicationRepository;
-        this.jobRepository = jobRepository;
         this.cityRepository = cityRepository;
-        this.messagingService = messagingService;
+        this.conversationOpener = conversationOpener;
+        this.candidateLoader = candidateLoader;
+        this.responseMapper = responseMapper;
+        this.chosenCreatorResolver = chosenCreatorResolver;
     }
 
     @Override
@@ -100,7 +92,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
         }
 
         // Everything below is loaded once and reused for every opportunity.
-        List<CreatorCandidate> candidates = loadCandidates(elderId);
+        List<CreatorCandidate> candidates = candidateLoader.loadCandidates(elderId);
         Map<UUID, CreatorCandidate> candidatesById = candidates.stream()
                 .collect(Collectors.toMap(candidate -> candidate.user().getId(), Function.identity()));
 
@@ -116,7 +108,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
         return opportunities.stream()
                 .map(opportunity -> buildSection(
                         opportunity,
-                        CreatorMatchScorer.analyse(opportunity, cities),
+                        OpportunityNeedsAnalyser.analyse(opportunity, cities),
                         candidates,
                         candidatesById,
                         applicationsByOpportunity.getOrDefault(opportunity.getId(), List.of()),
@@ -137,7 +129,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
         }
 
         List<OpportunityApplication> applications = opportunityApplicationRepository.findByOpportunityId(opportunityId);
-        UUID alreadyChosen = chosenCreatorId(applications, invitationRepository.findByOpportunityId(opportunityId));
+        UUID alreadyChosen = chosenCreatorResolver.chosenCreatorId(applications, invitationRepository.findByOpportunityId(opportunityId));
         if (alreadyChosen != null) {
             if (alreadyChosen.equals(creatorId)) {
                 return; // same choice again (e.g. a retried tap) — nothing to do
@@ -161,7 +153,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
             // book it from their dashboard exactly as before.
             existing.setStatus(OpportunityApplicationStatus.APPROVED);
             opportunityApplicationRepository.save(existing);
-            messagingService.openConversation(elderId, creatorId, opportunityId);
+            conversationOpener.openConversation(elderId, creatorId, opportunityId);
             return;
         }
 
@@ -172,44 +164,12 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
         invitationRepository.save(invitation);
 
         // Choosing someone opens a chat with them straight away, so the elder can say hello.
-        messagingService.openConversation(elderId, creatorId, opportunityId);
-    }
-
-    /** Verified, active creators (never the elder themselves) with everything scoring needs. */
-    private List<CreatorCandidate> loadCandidates(UUID elderId) {
-        List<CreatorProfile> profiles = creatorProfileRepository.findByVerificationStatus(VerificationStatus.VERIFIED)
-                .stream()
-                .filter(profile -> profile.getUser().getAccountStatus() == AccountStatus.ACTIVE)
-                .filter(profile -> !profile.getUser().getId().equals(elderId))
-                .toList();
-        if (profiles.isEmpty()) {
-            return List.of();
-        }
-
-        List<UUID> userIds = profiles.stream().map(profile -> profile.getUser().getId()).toList();
-        Map<UUID, CreatorApplication> applicationsByUser = creatorApplicationRepository.findByUserIdIn(userIds).stream()
-                .collect(Collectors.toMap(application -> application.getUser().getId(), Function.identity(), (a, b) -> a));
-
-        Map<UUID, Long> completedJobs = new HashMap<>();
-        for (Object[] row : jobRepository.countByStatusGroupedByCreator(JobStatus.COMPLETED)) {
-            completedJobs.put((UUID) row[0], ((Number) row[1]).longValue());
-        }
-
-        return profiles.stream()
-                .map(profile -> {
-                    UUID userId = profile.getUser().getId();
-                    return new CreatorCandidate(
-                            profile.getUser(),
-                            profile,
-                            applicationsByUser.get(userId),
-                            completedJobs.getOrDefault(userId, 0L));
-                })
-                .toList();
+        conversationOpener.openConversation(elderId, creatorId, opportunityId);
     }
 
     private OpportunityRecommendationsResponse buildSection(
             Opportunity opportunity,
-            CreatorMatchScorer.OpportunityNeeds needs,
+            OpportunityNeeds needs,
             List<CreatorCandidate> candidates,
             Map<UUID, CreatorCandidate> candidatesById,
             List<OpportunityApplication> applications,
@@ -234,111 +194,18 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
         // The top creator is only the "Best match" if they clear the higher bar. If
         // they don't, there is no best match — everyone is shown as a recommendation.
         boolean hasBestMatch = !ranked.isEmpty() && ranked.get(0).bestMatchWorthy();
-        RecommendedCreatorResponse bestMatch = hasBestMatch ? toResponse(ranked.get(0)) : null;
+        RecommendedCreatorResponse bestMatch = hasBestMatch ? responseMapper.toResponse(ranked.get(0)) : null;
         List<RecommendedCreatorResponse> others = ranked.stream()
                 .skip(hasBestMatch ? 1 : 0)
                 .limit(hasBestMatch ? MAX_OTHERS : MAX_RECOMMENDATIONS_WITHOUT_BEST)
-                .map(this::toResponse)
+                .map(responseMapper::toResponse)
                 .toList();
 
         return OpportunityRecommendationsResponse.builder()
-                .opportunity(toSummary(opportunity))
+                .opportunity(responseMapper.toSummary(opportunity))
                 .bestMatch(bestMatch)
                 .others(others)
-                .chosenCreator(resolveChosenCreator(applications, invitations, candidatesById, ranked))
-                .build();
-    }
-
-    /**
-     * The creator already picked for this opportunity — an approved/booked
-     * application first (it's the stronger commitment), then an open
-     * invitation. Null while nobody has been chosen.
-     */
-    static UUID chosenCreatorId(List<OpportunityApplication> applications, List<OpportunityCreatorInvitation> invitations) {
-        return applications.stream()
-                .filter(application -> CHOSEN_APPLICATION_STATUSES.contains(application.getStatus()))
-                .map(application -> application.getCreator().getId())
-                .findFirst()
-                .or(() -> invitations.stream()
-                        .filter(invitation -> invitation.getStatus() != CreatorInvitationStatus.DECLINED)
-                        .map(invitation -> invitation.getCreator().getId())
-                        .findFirst())
-                .orElse(null);
-    }
-
-    private RecommendedCreatorResponse resolveChosenCreator(
-            List<OpportunityApplication> applications,
-            List<OpportunityCreatorInvitation> invitations,
-            Map<UUID, CreatorCandidate> candidatesById,
-            List<Match> ranked) {
-
-        UUID chosenId = chosenCreatorId(applications, invitations);
-        if (chosenId == null) {
-            return null;
-        }
-
-        // Reuse the ranked match (with its reasons) when the chosen creator was recommended.
-        Match match = ranked.stream()
-                .filter(m -> m.candidate().user().getId().equals(chosenId))
-                .findFirst()
-                .orElse(null);
-        if (match != null) {
-            return toResponse(match);
-        }
-
-        CreatorCandidate candidate = candidatesById.get(chosenId);
-        if (candidate != null) {
-            return toUnscoredResponse(candidate);
-        }
-
-        // Chosen before they stopped being a verified/active creator — still show who it was.
-        User chosenUser = applications.stream()
-                .map(OpportunityApplication::getCreator)
-                .filter(user -> user.getId().equals(chosenId))
-                .findFirst()
-                .or(() -> invitations.stream()
-                        .map(OpportunityCreatorInvitation::getCreator)
-                        .filter(user -> user.getId().equals(chosenId))
-                        .findFirst())
-                .orElse(null);
-        return chosenUser == null ? null : toUnscoredResponse(new CreatorCandidate(chosenUser, null, null, 0));
-    }
-
-    private RecommendedCreatorResponse toResponse(Match match) {
-        return baseResponse(match.candidate())
-                .matchPercentage(match.percentage())
-                .reasons(match.reasons())
-                .build();
-    }
-
-    /** A creator shown without a score (a chosen creator who no longer ranks) — no made-up percentage or reasons. */
-    private RecommendedCreatorResponse toUnscoredResponse(CreatorCandidate candidate) {
-        return baseResponse(candidate).matchPercentage(null).reasons(List.of()).build();
-    }
-
-    private RecommendedCreatorResponse.RecommendedCreatorResponseBuilder baseResponse(CreatorCandidate candidate) {
-        User user = candidate.user();
-        List<String> skills = candidate.skills();
-        return RecommendedCreatorResponse.builder()
-                .creatorId(user.getId())
-                .name(user.getFullName())
-                .avatarUrl(user.getProfilePhotoUrl())
-                .rating(candidate.rating())
-                .completedJobs(candidate.completedJobs())
-                .specialty(skills.isEmpty() ? null : skills.get(0))
-                .languages(candidate.languages())
-                .about(candidate.about());
-    }
-
-    private static RecommendationOpportunitySummaryResponse toSummary(Opportunity opportunity) {
-        return RecommendationOpportunitySummaryResponse.builder()
-                .opportunityId(opportunity.getId())
-                .title(opportunity.getTitle())
-                .heroImageUrl(opportunity.getHeroImageUrl())
-                .category(opportunity.getCategory())
-                .location(opportunity.getLocation())
-                .language(opportunity.getLanguage())
-                .scheduledDate(opportunity.getScheduledDate())
+                .chosenCreator(chosenCreatorResolver.resolve(applications, invitations, candidatesById, ranked))
                 .build();
     }
 }

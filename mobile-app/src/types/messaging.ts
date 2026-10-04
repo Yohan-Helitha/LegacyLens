@@ -20,6 +20,8 @@ export interface ConversationParticipant {
   role: ConversationRole;
   /** e.g. "Knowledge Holder" / "Content Creator". */
   roleLabel: string;
+  /** Only present on the single-conversation response — used for the call button. */
+  phoneNumber?: string | null;
 }
 
 /** What the two are working on — the context card at the top of a chat. */

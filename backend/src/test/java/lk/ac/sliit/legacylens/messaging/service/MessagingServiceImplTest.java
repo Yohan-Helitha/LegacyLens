@@ -3,18 +3,13 @@ package lk.ac.sliit.legacylens.messaging.service;
 import lk.ac.sliit.legacylens.common.exception.ForbiddenOperationException;
 import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
-import lk.ac.sliit.legacylens.marketplace.entity.Job;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
-import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
-import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
-import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
-import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
-import lk.ac.sliit.legacylens.marketplace.repository.OpportunityCreatorInvitationRepository;
-import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
+import lk.ac.sliit.legacylens.messaging.dto.ConversationContextResponse;
 import lk.ac.sliit.legacylens.messaging.dto.ConversationDetailResponse;
 import lk.ac.sliit.legacylens.messaging.dto.ConversationSummaryResponse;
 import lk.ac.sliit.legacylens.messaging.dto.MessageResponse;
 import lk.ac.sliit.legacylens.messaging.entity.Conversation;
+import lk.ac.sliit.legacylens.messaging.mapper.ConversationMapper;
 import lk.ac.sliit.legacylens.messaging.entity.Message;
 import lk.ac.sliit.legacylens.messaging.entity.MessageType;
 import lk.ac.sliit.legacylens.messaging.repository.ConversationRepository;
@@ -49,10 +44,8 @@ class MessagingServiceImplTest {
     @Mock private ConversationRepository conversationRepository;
     @Mock private MessageRepository messageRepository;
     @Mock private UserRepository userRepository;
-    @Mock private OpportunityRepository opportunityRepository;
-    @Mock private OpportunityApplicationRepository opportunityApplicationRepository;
-    @Mock private OpportunityCreatorInvitationRepository invitationRepository;
-    @Mock private JobRepository jobRepository;
+    @Mock private OpportunityAccess opportunityAccess;
+    @Mock private ConversationContextProvider contextProvider;
 
     private MessagingServiceImpl service;
 
@@ -63,7 +56,7 @@ class MessagingServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new MessagingServiceImpl(conversationRepository, messageRepository, userRepository,
-                opportunityRepository, opportunityApplicationRepository, invitationRepository, jobRepository);
+                opportunityAccess, new ConversationMapper(contextProvider));
 
         elder = user("Kamala Wijesinghe");
         creator = user("Nimal Perera");
@@ -78,6 +71,7 @@ class MessagingServiceImplTest {
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setFullName(name);
+        user.setPhoneNumber("+94771234567");
         return user;
     }
 
@@ -116,6 +110,17 @@ class MessagingServiceImplTest {
         assertThat(asCreator.getOtherParticipant().getRoleLabel()).isEqualTo("Knowledge Holder");
         assertThat(asElder.getMyRole()).isEqualTo("ELDER");
         assertThat(asElder.getOtherParticipant().getName()).isEqualTo("Nimal Perera");
+    }
+
+    @Test
+    void phoneNumber_isOnlyInTheSingleConversationResponse() {
+        when(conversationRepository.findById(conversation.getId())).thenReturn(Optional.of(conversation));
+        when(conversationRepository.findAllForUser(creator.getId())).thenReturn(List.of(conversation));
+
+        assertThat(service.getConversation(creator.getId(), conversation.getId())
+                .getOtherParticipant().getPhoneNumber()).isEqualTo("+94771234567");
+        assertThat(service.listConversations(creator.getId(), ConversationFilter.ALL, null))
+                .allSatisfy(row -> assertThat(row.getOtherParticipant().getPhoneNumber()).isNull());
     }
 
     // ── Sending ─────────────────────────────────────────────────────────────
@@ -168,10 +173,10 @@ class MessagingServiceImplTest {
 
     @Test
     void longMessages_arePreviewedOnOneShortLine() {
-        String preview = MessagingServiceImpl.preview("Line one\n\n" + "x".repeat(300));
+        String preview = MessagePreview.truncate("Line one\n\n" + "x".repeat(300));
 
         assertThat(preview).doesNotContain("\n").endsWith("…");
-        assertThat(preview).hasSize(MessagingServiceImpl.PREVIEW_LENGTH);
+        assertThat(preview).hasSize(MessagePreview.LENGTH);
     }
 
     @Test
@@ -202,7 +207,8 @@ class MessagingServiceImplTest {
         List<Object[]> unreadRows = new ArrayList<>();
         unreadRows.add(new Object[] { unreadAboutRecipe.getId(), 2L });
         when(messageRepository.countUnreadByConversation(anyCollection(), eq(creator.getId()), any())).thenReturn(unreadRows);
-        when(jobRepository.findFirstByOpportunityIdAndCreatorIdOrderByCreatedAtDesc(any(), any())).thenReturn(Optional.empty());
+        when(contextProvider.contextFor(unreadAboutRecipe)).thenReturn(
+                ConversationContextResponse.builder().title("Traditional recipe documentation").build());
 
         List<ConversationSummaryResponse> all = service.listConversations(creator.getId(), ConversationFilter.ALL, null);
         List<ConversationSummaryResponse> unread = service.listConversations(creator.getId(), ConversationFilter.UNREAD, null);
@@ -217,26 +223,6 @@ class MessagingServiceImplTest {
         assertThat(collaborations).extracting(ConversationSummaryResponse::getId).containsExactly(unreadAboutRecipe.getId());
         assertThat(searched).extracting(ConversationSummaryResponse::getId).containsExactly(readNoContext.getId());
         assertThat(searchedByContext).extracting(ConversationSummaryResponse::getId).containsExactly(unreadAboutRecipe.getId());
-    }
-
-    @Test
-    void contextCard_prefersTheBookedDateOverTheOpportunitySchedule() {
-        Opportunity opportunity = opportunity();
-        conversation.setOpportunity(opportunity);
-        Job job = new Job();
-        job.setScheduledAt(LocalDateTime.of(2026, 8, 25, 10, 0));
-        job.setTimeWindowText("10:00 AM - 1:00 PM");
-        when(conversationRepository.findById(conversation.getId())).thenReturn(Optional.of(conversation));
-        when(jobRepository.findFirstByOpportunityIdAndCreatorIdOrderByCreatedAtDesc(opportunity.getId(), creator.getId()))
-                .thenReturn(Optional.of(job));
-
-        ConversationDetailResponse detail = service.getConversation(creator.getId(), conversation.getId());
-
-        assertThat(detail.getContext().getTitle()).isEqualTo("Traditional recipe documentation");
-        assertThat(detail.getContext().getDate()).isEqualTo(LocalDate.of(2026, 8, 25));
-        assertThat(detail.getContext().getTimeWindowText()).isEqualTo("10:00 AM - 1:00 PM");
-        assertThat(detail.getContext().getLocation()).isEqualTo("Negombo");
-        assertThat(detail.getContext().isBooked()).isTrue();
     }
 
     // ── Opening ─────────────────────────────────────────────────────────────
@@ -261,24 +247,8 @@ class MessagingServiceImplTest {
     @Test
     void openForOpportunity_creatorWithNoConnection_isForbidden() {
         Opportunity opportunity = opportunity();
-        when(opportunityRepository.findById(opportunity.getId())).thenReturn(Optional.of(opportunity));
-        when(opportunityApplicationRepository.findByCreatorIdAndOpportunityId(creator.getId(), opportunity.getId()))
-                .thenReturn(Optional.empty());
-        when(invitationRepository.existsByOpportunityIdAndCreatorId(opportunity.getId(), creator.getId())).thenReturn(false);
-        when(jobRepository.existsByOpportunityIdAndCreatorId(opportunity.getId(), creator.getId())).thenReturn(false);
-
-        assertThrows(ForbiddenOperationException.class,
-                () -> service.openForOpportunity(creator.getId(), opportunity.getId(), null));
-    }
-
-    @Test
-    void openForOpportunity_aSavedDraftApplication_doesNotCountAsAConnection() {
-        Opportunity opportunity = opportunity();
-        OpportunityApplication draft = new OpportunityApplication();
-        draft.setStatus(OpportunityApplicationStatus.SAVED);
-        when(opportunityRepository.findById(opportunity.getId())).thenReturn(Optional.of(opportunity));
-        when(opportunityApplicationRepository.findByCreatorIdAndOpportunityId(creator.getId(), opportunity.getId()))
-                .thenReturn(Optional.of(draft));
+        when(opportunityAccess.findOpportunity(opportunity.getId())).thenReturn(Optional.of(opportunity));
+        when(opportunityAccess.isCreatorConnected(opportunity.getId(), creator.getId())).thenReturn(false);
 
         assertThrows(ForbiddenOperationException.class,
                 () -> service.openForOpportunity(creator.getId(), opportunity.getId(), null));
@@ -287,7 +257,7 @@ class MessagingServiceImplTest {
     @Test
     void openForOpportunity_elderMustSayWhichCreator() {
         Opportunity opportunity = opportunity();
-        when(opportunityRepository.findById(opportunity.getId())).thenReturn(Optional.of(opportunity));
+        when(opportunityAccess.findOpportunity(opportunity.getId())).thenReturn(Optional.of(opportunity));
 
         assertThrows(InvalidRequestException.class,
                 () -> service.openForOpportunity(elder.getId(), opportunity.getId(), null));

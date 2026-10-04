@@ -99,4 +99,27 @@ public class Conversation {
     public User otherParticipant(UUID userId) {
         return isElder(userId) ? creator : elder;
     }
+
+    /** The participant who is {@code userId} - the elder or the creator. */
+    public User participant(UUID userId) {
+        return isElder(userId) ? elder : creator;
+    }
+
+    /** {@code userId} has seen everything in this chat up to {@code at}. */
+    public void markReadBy(UUID userId, LocalDateTime at) {
+        if (isElder(userId)) {
+            elderLastReadAt = at;
+        } else {
+            creatorLastReadAt = at;
+        }
+    }
+
+    /** Keeps the inbox row in step with a newly sent message; the sender has, of course, read it. */
+    public void recordMessage(MessageType type, String preview, UUID senderId, LocalDateTime at) {
+        lastMessageType = type;
+        lastMessagePreview = preview;
+        lastMessageSenderId = senderId;
+        lastMessageAt = at;
+        markReadBy(senderId, at);
+    }
 }

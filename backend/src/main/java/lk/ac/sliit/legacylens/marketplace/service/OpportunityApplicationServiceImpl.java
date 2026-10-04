@@ -14,7 +14,7 @@ import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
-import lk.ac.sliit.legacylens.messaging.service.MessagingService;
+import lk.ac.sliit.legacylens.messaging.service.ConversationOpener;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -45,19 +45,19 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
     private final OpportunityRepository opportunityRepository;
     private final UserRepository userRepository;
     private final JobRepository jobRepository;
-    private final MessagingService messagingService;
+    private final ConversationOpener conversationOpener;
 
     public OpportunityApplicationServiceImpl(
             OpportunityApplicationRepository opportunityApplicationRepository,
             OpportunityRepository opportunityRepository,
             UserRepository userRepository,
             JobRepository jobRepository,
-            MessagingService messagingService) {
+            ConversationOpener conversationOpener) {
         this.opportunityApplicationRepository = opportunityApplicationRepository;
         this.opportunityRepository = opportunityRepository;
         this.userRepository = userRepository;
         this.jobRepository = jobRepository;
-        this.messagingService = messagingService;
+        this.conversationOpener = conversationOpener;
     }
 
     @Override
@@ -186,7 +186,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         jobRepository.save(job);
 
         // A booked job always gets a chat with the elder, so the two can plan the visit.
-        messagingService.openConversation(opportunity.getElder().getId(), application.getCreator().getId(), opportunity.getId());
+        conversationOpener.openConversation(opportunity.getElder().getId(), application.getCreator().getId(), opportunity.getId());
 
         application.setStatus(OpportunityApplicationStatus.BOOKED);
 
