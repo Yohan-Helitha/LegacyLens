@@ -2,6 +2,7 @@ package lk.ac.sliit.legacylens.config;
 
 import lk.ac.sliit.legacylens.auth.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -51,6 +52,15 @@ public class SecurityConfig {
                         // permitAll-ing any of those would leave them reachable by
                         // anyone with no login at all. See the merge commit message
                         // for the related admin-registration gap this also surfaced.
+                        // Creator verification documents (NIC photos etc.) are private:
+                        // the stored files are never served directly, only through the
+                        // owner's short-lived link (CreatorProofController). This rule
+                        // must come before the /uploads/** one below.
+                        .requestMatchers("/uploads/creator-proofs/**").denyAll()
+                        .requestMatchers(HttpMethod.GET, "/api/creator-proofs/*").permitAll()
+                        // Admin endpoints list every user's full NIC and phone number, so a
+                        // plain login is not enough - only accounts holding the ADMIN role.
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/cities/**",

@@ -26,6 +26,8 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
 
     long countByCreatorIdAndStatus(UUID creatorId, JobStatus status);
 
+    long countByCreatorIdAndStatusIn(UUID creatorId, java.util.Collection<JobStatus> statuses);
+
     /** The creator's booking for an opportunity, if any — its date/time feed the chat's context card. */
     Optional<Job> findFirstByOpportunityIdAndCreatorIdOrderByCreatedAtDesc(UUID opportunityId, UUID creatorId);
 

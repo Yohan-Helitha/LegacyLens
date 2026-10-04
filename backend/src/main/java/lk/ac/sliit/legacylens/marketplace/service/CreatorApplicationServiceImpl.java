@@ -114,7 +114,7 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
                 .interests(application.getInterests())
                 .experienceLevel(application.getExperienceLevel().name())
                 .experienceDescription(application.getExperienceDescription())
-                .proofDocumentUrl(application.getProofDocumentUrl())
+                .proofUploaded(application.getProofDocumentUrl() != null && !application.getProofDocumentUrl().isBlank())
                 .status(application.getStatus().name())
                 .submittedAt(application.getSubmittedAt())
                 .build();

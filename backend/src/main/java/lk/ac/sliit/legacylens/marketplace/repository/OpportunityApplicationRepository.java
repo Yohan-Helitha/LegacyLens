@@ -4,6 +4,7 @@ import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -25,4 +26,7 @@ public interface OpportunityApplicationRepository extends JpaRepository<Opportun
     List<OpportunityApplication> findByOpportunityIdIn(Collection<UUID> opportunityIds);
 
     List<OpportunityApplication> findByOpportunityId(UUID opportunityId);
+
+    /** How many of a creator's applications are in any of these states - backs the profile's "Approved" count. */
+    long countByCreatorIdAndStatusIn(UUID creatorId, Collection<OpportunityApplicationStatus> statuses);
 }

@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -14,10 +15,10 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
-import { profileApi } from '../../../services/api/profileApi';
-import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
-import { creatorApplicationApi } from '../../../services/api/creatorApplicationApi';
-import type { CreatorDashboardSummaryResponse } from '../../../types/creatorDashboard';
+import { resolveImageUrl } from '../../../constants/api';
+import { useCreatorProfile } from '../../../hooks/useCreatorProfile';
+import { experienceBullets, experienceLabel } from '../../../utils/creatorProfileText';
+import { ProofDocumentCard } from './ProofDocumentCard';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -42,67 +43,6 @@ const D = {
 
   gold: '#E8792E',
 } as const;
-
-// Same avatar already used for this creator across the app (CreatorDashboard's
-// greeting header, and the bottom-nav Profile tab) — reused here per instruction
-// so the profile picture is consistent everywhere, not a generic placeholder.
-const FALLBACK_AVATAR =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuBdmWxeiutm8VuCuwb8B-bcbY4uwLEOEIZpHad16sSCOnOCn176-8moOj3W6uDPAciix85yHVNmpAd1RTzDZNIib4AVMq68gwoQfyYec-CiNygpv3Rti52MfEWixskGSi9K2HzQJc1XhIg649C9xWHdmBqgXNA5LsR-CP4PfF7fUKsBLElU0twICuF7-ZcI9Vlnj9GgnzoL4Bqj9ilpxA4BZs3oFt_0h7PcPdk4HDm4JKWKr6S3bofO2g';
-
-const FALLBACK_NAME = 'Arani Inothma';
-
-// Personal details — real account fields (full name, city, phone, NIC) come
-// from /users/me, captured at registration; email only exists on the "Become
-// a Creator" application (the account itself never asks for one), so it's
-// pulled from /creator-applications/me instead. These fallbacks only show if
-// neither call has resolved yet or the creator hasn't applied at all.
-const FALLBACK_CITY = 'Colombo';
-const FALLBACK_EMAIL = 'inothma@gmail.com';
-const FALLBACK_PHONE = '071 111 1111';
-const FALLBACK_NIC = 'XXXXXXXXXXXXX';
-
-/** NIC numbers are sensitive — mask every character so the profile screen never displays it in full. */
-function maskNic(nic: string): string {
-  return 'X'.repeat(nic.length);
-}
-
-const FALLBACK_SUMMARY: CreatorDashboardSummaryResponse = {
-  rating: 4.8,
-  completedJobsCount: 24,
-  contributionsCount: 24,
-  collectedToday: null,
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Static profile content — not backed by a database field yet (bio, skills,
-// languages, cultural interests, experience). Kept here as the frontend-only
-// scope explicitly asked for; wiring these to real editable fields is a
-// separate backend task for later.
-// ─────────────────────────────────────────────────────────────────────────────
-const ABOUT_ME =
-  'I help knowledge holders document local stories. Traditional practices and cultural knowledge through photography, video and clear digital documentation.';
-
-const SKILLS = ['Photography', 'Video documentation', 'Content writing', 'Basic video editing'];
-
-const LANGUAGES = ['Sinhala', 'English'];
-
-const CULTURAL_INTERESTS = ['Traditional Dance', 'Local stories', 'Traditional Food', 'Cultural festival'];
-
-const EXPERIENCE_YEARS = 2;
-const EXPERIENCE_BULLETS = [
-  'Cultural event photography',
-  'Local-language transcription',
-  'Short-term heritage video production',
-];
-
-const APPROVED_COUNT = 18;
-const ACTIVE_COUNT = 6;
-
-type PreviousContribution = { id: string; title: string; approved: boolean };
-
-const PREVIOUS_CONTRIBUTIONS: PreviousContribution[] = [
-  { id: '1', title: 'Traditional recipe documentation', approved: true },
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small inline icons
@@ -163,38 +103,12 @@ export const CreatorProfile: React.FC<{
   onOpenSavedApplications: () => void;
   onOpenRejectedWork: () => void;
 }> = ({ onNavigate, onOpenMyWork, onOpenSavedApplications, onOpenRejectedWork }) => {
-  const [name, setName] = useState(FALLBACK_NAME);
-  const [avatarUri, setAvatarUri] = useState(FALLBACK_AVATAR);
-  const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
-  const [city, setCity] = useState(FALLBACK_CITY);
-  const [phoneNumber, setPhoneNumber] = useState(FALLBACK_PHONE);
-  const [nicNumber, setNicNumber] = useState(FALLBACK_NIC);
-  const [email, setEmail] = useState(FALLBACK_EMAIL);
+  const { profile, loading, loadError, reload } = useCreatorProfile();
 
-  useEffect(() => {
-    profileApi
-      .getMe()
-      .then((me) => {
-        if (me.fullName) setName(me.fullName);
-        if (me.profilePhotoUrl) setAvatarUri(me.profilePhotoUrl);
-        if (me.city?.name) setCity(me.city.name);
-        if (me.phoneNumber) setPhoneNumber(me.phoneNumber);
-        if (me.nicNumber) setNicNumber(maskNic(me.nicNumber));
-      })
-      .catch(() => {});
-
-    creatorDashboardApi.getSummary().then(setSummary).catch(() => {});
-
-    // Email isn't captured at registration — it only exists once the creator
-    // has submitted their "Become a Creator" application, so this 404s
-    // harmlessly (leaving the fallback) for anyone who hasn't applied yet.
-    creatorApplicationApi
-      .getMe()
-      .then((app) => {
-        if (app.email) setEmail(app.email);
-      })
-      .catch(() => {});
-  }, []);
+  const avatarUri = resolveImageUrl(profile?.avatarUrl) ?? undefined;
+  const rating = profile?.rating != null ? Number(profile.rating) : null;
+  const owner = profile?.ownerDetails ?? null;
+  const bullets = experienceBullets(profile?.experienceDescription);
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
@@ -219,116 +133,151 @@ export const CreatorProfile: React.FC<{
           </Pressable>
         </View>
 
-        {/* Identity block */}
-        <View style={s.identityBlock}>
-          <Image source={{ uri: avatarUri }} style={s.avatar} accessibilityLabel={`${name}'s profile photo`} />
-          <Text style={s.name}>{name}</Text>
-          <View style={s.identityMetaRow}>
-            <StarIcon />
-            <Text style={s.ratingText}>{summary.rating != null ? summary.rating.toFixed(1) : '—'}</Text>
-            <Text style={s.metaDot}>{'|'}</Text>
-            <CheckBadge />
-            <Text style={s.contribText}>{summary.contributionsCount} contributions</Text>
+        {loading && !profile ? (
+          <View style={s.stateBox}>
+            <ActivityIndicator size="large" color={D.primary} accessibilityLabel="Loading your profile" />
           </View>
-        </View>
-
-        {/* Personal details — real account data, not editable here */}
-        <View style={s.card}>
-          <DetailRow label="Full Name" value={name} />
-          <DetailRow label="City" value={city} />
-          <DetailRow label="Email" value={email} />
-          <DetailRow label="Phone Number" value={phoneNumber} />
-          <DetailRow label="NIC Number" value={nicNumber} isLast />
-        </View>
-
-        {/* About me */}
-        <SectionCard title="About me">
-          <Text style={s.aboutText}>{`"${ABOUT_ME}"`}</Text>
-        </SectionCard>
-
-        {/* My Skills */}
-        <SectionCard title="My Skills">
-          <View style={s.chipsRow}>
-            {SKILLS.map((skill) => (
-              <Chip key={skill} label={skill} wide />
-            ))}
+        ) : loadError && !profile ? (
+          <View style={s.stateBox}>
+            <Text style={s.stateTitle}>Couldn't load your profile</Text>
+            <Pressable onPress={reload} style={({ pressed }) => [s.retryBtn, pressed && s.pressed]} accessibilityRole="button">
+              <Text style={s.retryBtnText}>Try again</Text>
+            </Pressable>
           </View>
-        </SectionCard>
-
-        {/* Language */}
-        <SectionCard title="Language">
-          <View style={{ gap: 4 }}>
-            {LANGUAGES.map((lang) => (
-              <Text key={lang} style={s.languageText}>{lang}</Text>
-            ))}
-          </View>
-        </SectionCard>
-
-        {/* Cultural Interests */}
-        <SectionCard title="Cultural Interests">
-          <View style={s.chipsRow}>
-            {CULTURAL_INTERESTS.map((interest) => (
-              <Chip key={interest} label={interest} wide />
-            ))}
-          </View>
-        </SectionCard>
-
-        {/* Experience */}
-        <SectionCard
-          title="Experience"
-          rightSlot={<Text style={s.experienceYears}>{EXPERIENCE_YEARS} Years</Text>}
-        >
-          <View style={{ gap: 6 }}>
-            {EXPERIENCE_BULLETS.map((bullet) => (
-              <View key={bullet} style={s.bulletRow}>
-                <View style={s.bulletDot} />
-                <Text style={s.bulletText}>{bullet}</Text>
+        ) : profile ? (
+          <>
+            {/* Identity block */}
+            <View style={s.identityBlock}>
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={s.avatar} accessibilityLabel={`${profile.name}'s profile photo`} />
+              ) : (
+                <View style={[s.avatar, s.avatarEmpty]}>
+                  <Text style={s.avatarInitial}>{profile.name.trim().charAt(0).toUpperCase()}</Text>
+                </View>
+              )}
+              <Text style={s.name}>{profile.name}</Text>
+              <View style={s.identityMetaRow}>
+                <StarIcon />
+                <Text style={s.ratingText}>{rating != null ? rating.toFixed(1) : '—'}</Text>
+                <Text style={s.metaDot}>{'|'}</Text>
+                <CheckBadge />
+                <Text style={s.contribText}>{profile.contributionsCount} contributions</Text>
               </View>
-            ))}
-          </View>
-        </SectionCard>
+            </View>
 
-        {/* Contribution Summary */}
-        <View style={s.section}>
-          <Text style={s.sectionTitleStandalone}>Contribution Summary</Text>
-          <View style={s.statsRow}>
-            <View style={s.statBox}>
-              <Text style={s.statValue}>{summary.completedJobsCount}</Text>
-              <Text style={s.statLabel}>Completed</Text>
+            {/* Personal details — the full NIC and contact details are the owner's eyes only */}
+            <View style={s.card}>
+              <DetailRow label="Full Name" value={profile.name} isLast={!profile.city && !owner} />
+              {!!profile.city && <DetailRow label="City" value={profile.city} isLast={!owner} />}
+              {!!owner?.email && <DetailRow label="Email" value={owner.email} />}
+              {!!owner?.phoneNumber && <DetailRow label="Phone Number" value={owner.phoneNumber} />}
+              {!!owner?.nicNumber && <DetailRow label="NIC Number" value={owner.nicNumber} isLast />}
             </View>
-            <View style={s.statBox}>
-              <Text style={s.statValue}>{APPROVED_COUNT}</Text>
-              <Text style={s.statLabel}>Approved</Text>
-            </View>
-            <View style={s.statBox}>
-              <Text style={s.statValue}>{ACTIVE_COUNT}</Text>
-              <Text style={s.statLabel}>Active</Text>
-            </View>
-          </View>
-        </View>
 
-        {/* Previous Contribution */}
-        <View style={s.section}>
-          <Text style={s.sectionTitleStandalone}>Previous Contribution</Text>
-          <View style={{ gap: Spacing.sm }}>
-            {PREVIOUS_CONTRIBUTIONS.map((item) => (
-              <Pressable
-                key={item.id}
-                style={({ pressed }) => [s.contribCard, pressed && s.cardPressed]}
-                accessibilityRole="button"
-                accessibilityLabel={item.title}
+            {/* Saved verification document — owner only */}
+            {owner && (
+              <ProofDocumentCard
+                status={owner.applicationStatus}
+                proofUploaded={owner.proofUploaded}
+                contentType={owner.proofContentType}
+              />
+            )}
+
+            {/* About me */}
+            {!!profile.aboutYou && (
+              <SectionCard title="About me">
+                <Text style={s.aboutText}>{`"${profile.aboutYou}"`}</Text>
+              </SectionCard>
+            )}
+
+            {/* My Skills */}
+            {profile.skills.length > 0 && (
+              <SectionCard title="My Skills">
+                <View style={s.chipsRow}>
+                  {profile.skills.map((skill) => (
+                    <Chip key={skill} label={skill} wide />
+                  ))}
+                </View>
+              </SectionCard>
+            )}
+
+            {/* Language */}
+            {profile.languages.length > 0 && (
+              <SectionCard title="Language">
+                <View style={{ gap: 4 }}>
+                  {profile.languages.map((lang) => (
+                    <Text key={lang} style={s.languageText}>{lang}</Text>
+                  ))}
+                </View>
+              </SectionCard>
+            )}
+
+            {/* Cultural Interests */}
+            {profile.interests.length > 0 && (
+              <SectionCard title="Cultural Interests">
+                <View style={s.chipsRow}>
+                  {profile.interests.map((interest) => (
+                    <Chip key={interest} label={interest} wide />
+                  ))}
+                </View>
+              </SectionCard>
+            )}
+
+            {/* Experience */}
+            {(!!profile.experienceLevel || bullets.length > 0) && (
+              <SectionCard
+                title="Experience"
+                rightSlot={<Text style={s.experienceYears}>{experienceLabel(profile.experienceLevel)}</Text>}
               >
-                {item.approved && (
-                  <View style={s.approvedBadgeRow}>
-                    <CheckBadge size={13} />
-                    <Text style={s.approvedBadgeText}>Approved</Text>
-                  </View>
-                )}
-                <Text style={s.contribTitle}>{item.title}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+                <View style={{ gap: 6 }}>
+                  {bullets.map((bullet, index) => (
+                    <View key={`${index}-${bullet}`} style={s.bulletRow}>
+                      <View style={s.bulletDot} />
+                      <Text style={s.bulletText}>{bullet}</Text>
+                    </View>
+                  ))}
+                </View>
+              </SectionCard>
+            )}
+
+            {/* Contribution Summary */}
+            <View style={s.section}>
+              <Text style={s.sectionTitleStandalone}>Contribution Summary</Text>
+              <View style={s.statsRow}>
+                <View style={s.statBox}>
+                  <Text style={s.statValue}>{profile.completedCount}</Text>
+                  <Text style={s.statLabel}>Completed</Text>
+                </View>
+                <View style={s.statBox}>
+                  <Text style={s.statValue}>{profile.approvedCount}</Text>
+                  <Text style={s.statLabel}>Approved</Text>
+                </View>
+                <View style={s.statBox}>
+                  <Text style={s.statValue}>{profile.activeCount}</Text>
+                  <Text style={s.statLabel}>Active</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Previous Contribution */}
+            {profile.previousContributions.length > 0 && (
+              <View style={s.section}>
+                <Text style={s.sectionTitleStandalone}>Previous Contribution</Text>
+                <View style={{ gap: Spacing.sm }}>
+                  {profile.previousContributions.map((item) => (
+                    <View key={item.jobId} style={s.contribCard} accessible accessibilityLabel={`${item.title}, completed`}>
+                      <View style={s.approvedBadgeRow}>
+                        <CheckBadge size={13} />
+                        <Text style={s.approvedBadgeText}>Completed</Text>
+                      </View>
+                      <Text style={s.contribTitle}>{item.title}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+          </>
+        ) : null}
 
         <View style={{ height: 8 }} />
       </ScrollView>
@@ -400,6 +349,15 @@ const s = StyleSheet.create({
     backgroundColor: D.secondaryContainer,
   },
 
+  // ── Loading / error ──────────────────────────────────────────────────────
+  stateBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xl, gap: Spacing.sm },
+  stateTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: D.onSurface },
+  retryBtn: {
+    minHeight: 44, paddingHorizontal: 24, borderRadius: Radii.full,
+    backgroundColor: D.primary, alignItems: 'center', justifyContent: 'center',
+  },
+  retryBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onPrimary },
+
   // ── Identity block ───────────────────────────────────────────────────────
   identityBlock: { alignItems: 'center', paddingVertical: Spacing.sm, gap: 6 },
   avatar: {
@@ -409,6 +367,8 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12, shadowRadius: 6, elevation: 3,
   },
+  avatarEmpty: { alignItems: 'center', justifyContent: 'center', backgroundColor: D.primary },
+  avatarInitial: { fontFamily: Typography.fontBodySemi, fontSize: 40, color: D.onPrimary },
   name: {
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeLG,

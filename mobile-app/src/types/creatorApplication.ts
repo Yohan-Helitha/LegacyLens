@@ -22,7 +22,8 @@ export interface CreatorApplicationResponse {
   interests: string;
   experienceLevel: ExperienceLevel;
   experienceDescription: string;
-  proofDocumentUrl: string;
+  /** Whether a verification document is on file. The document itself is private. */
+  proofUploaded: boolean;
   status: CreatorApplicationStatus;
   submittedAt: string;
 }

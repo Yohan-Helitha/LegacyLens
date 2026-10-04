@@ -46,3 +46,9 @@ export function resolveUploadUrl(relativePath: string | null | undefined): strin
   const base = getApiBaseUrl().replace(/\/api\/?$/, '');
   return `${base}${relativePath}`;
 }
+
+/** A profile photo / image reference that is either a full URL or a backend "/uploads/..." path. */
+export function resolveImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return /^https?:\/\//i.test(url) ? url : resolveUploadUrl(url);
+}

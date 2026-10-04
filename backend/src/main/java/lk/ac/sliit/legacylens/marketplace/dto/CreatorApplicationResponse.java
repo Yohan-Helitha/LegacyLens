@@ -25,7 +25,8 @@ public class CreatorApplicationResponse {
     private String interests;
     private String experienceLevel;
     private String experienceDescription;
-    private String proofDocumentUrl;
+    /** Whether a verification document is on file. The document itself is private - see CreatorProofService. */
+    private boolean proofUploaded;
     private String status;
     private LocalDateTime submittedAt;
 }

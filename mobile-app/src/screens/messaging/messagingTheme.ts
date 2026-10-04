@@ -1,4 +1,4 @@
-import { resolveUploadUrl } from '../../constants/api';
+import { resolveImageUrl } from '../../constants/api';
 
 /**
  * Colours for the shared messaging screens — the same "Monsoon Coast" palette
@@ -25,6 +25,5 @@ export const MessagingColors = {
 
 /** Profile photos come back as "/uploads/..." paths or full URLs — turns either into something <Image> can load. */
 export function messagingAvatarUri(avatarUrl: string | null | undefined): string | null {
-  if (!avatarUrl) return null;
-  return /^https?:\/\//i.test(avatarUrl) ? avatarUrl : resolveUploadUrl(avatarUrl);
+  return resolveImageUrl(avatarUrl);
 }
