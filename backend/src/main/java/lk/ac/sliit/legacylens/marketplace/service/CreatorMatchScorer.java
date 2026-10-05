@@ -125,8 +125,17 @@ public final class CreatorMatchScorer {
             return evidence;
         }
 
-        /** Every known language mentioned anywhere in the creator's profile or application text. */
-        public List<String> languages() {
+        /**
+         * The languages the creator chose on their application, with how well they speak each. Creators
+         * who applied before the form asked fall back to the languages their own text mentions, level unknown.
+         */
+        public List<LanguageSkill> languageSkills() {
+            if (application != null) {
+                List<LanguageSkill> declared = LanguageSkills.deserialize(application.getLanguages());
+                if (!declared.isEmpty()) {
+                    return declared;
+                }
+            }
             StringBuilder text = new StringBuilder();
             skills().forEach(tag -> text.append(tag).append(','));
             interests().forEach(tag -> text.append(tag).append(','));
@@ -134,10 +143,12 @@ public final class CreatorMatchScorer {
                 text.append(nullToEmpty(application.getAboutYou())).append(',');
                 text.append(nullToEmpty(application.getExperienceDescription()));
             }
-            String haystack = text.toString().toLowerCase(Locale.ROOT);
-            return SupportedLanguages.ALL.stream()
-                    .filter(language -> haystack.contains(language.toLowerCase(Locale.ROOT)))
-                    .toList();
+            return LanguageSkills.detectInText(text.toString());
+        }
+
+        /** Just the names of {@link #languageSkills()}. */
+        public List<String> languages() {
+            return languageSkills().stream().map(LanguageSkill::language).toList();
         }
 
         public String about() {

@@ -34,7 +34,7 @@ public class CreatorProfileResponseMapper {
                 .contributionsCount(stats.contributions())
                 .aboutYou(creator.about())
                 .skills(creator.skills())
-                .languages(creator.languages())
+                .languages(LanguageSkills.toResponses(creator.languageSkills()))
                 .interests(creator.interests())
                 .experienceLevel(application != null && application.getExperienceLevel() != null
                         ? application.getExperienceLevel().name() : null)

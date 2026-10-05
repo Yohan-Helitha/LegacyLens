@@ -16,6 +16,15 @@ import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { profileApi } from '../../../services/api/profileApi';
+import {
+  LANGUAGE_OPTIONS,
+  PROFICIENCY_OPTIONS,
+  languageMissingLevel,
+  setLanguageLevel,
+  toggleLanguage,
+  toLanguageRequests,
+} from '../../../utils/creatorLanguages';
+import type { LanguageSelection } from '../../../utils/creatorLanguages';
 import { creatorApplicationApi } from '../../../services/api/creatorApplicationApi';
 import { ApiError } from '../../../services/api/client';
 import { useAuthStore } from '../../../store/authStore';
@@ -94,6 +103,7 @@ const FIELD_LABELS: Record<string, string> = {
   aboutYou: 'About You',
   skills: 'My Skill',
   interests: 'Interests',
+  languages: 'Languages',
   experienceLevel: 'Experience',
   experienceDescription: 'Experience description',
   proofDocument: 'Verification proof file',
@@ -248,6 +258,7 @@ export const BecomeCreatorApplication: React.FC<{
   const [aboutYou, setAboutYou] = useState('');
   const [skills, setSkills] = useState<Record<string, boolean>>({});
   const [interests, setInterests] = useState<Record<string, boolean>>({});
+  const [languages, setLanguages] = useState<LanguageSelection>({});
   const [experienceLevel, setExperienceLevel] = useState<ExperienceOptionKey | null>(null);
   const [experienceDetails, setExperienceDetails] = useState('');
   const [proofFile, setProofFile] = useState<CreatorApplicationProofFile | null>(null);
@@ -258,6 +269,9 @@ export const BecomeCreatorApplication: React.FC<{
 
   const toggleInterest = (interest: string) =>
     setInterests(prev => ({ ...prev, [interest]: !prev[interest] }));
+
+  const handleToggleLanguage = (language: string) =>
+    setLanguages(prev => toggleLanguage(prev, language));
 
   const handlePickProof = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -304,6 +318,15 @@ export const BecomeCreatorApplication: React.FC<{
       Alert.alert('Missing information', 'Please select at least one interest.');
       return;
     }
+    if (Object.keys(languages).length === 0) {
+      Alert.alert('Missing information', 'Please select at least one language.');
+      return;
+    }
+    const languageWithoutLevel = languageMissingLevel(languages);
+    if (languageWithoutLevel) {
+      Alert.alert('Missing information', `Please choose how well you speak ${languageWithoutLevel}.`);
+      return;
+    }
     if (!experienceLevel) {
       Alert.alert('Missing information', 'Please select your experience level.');
       return;
@@ -324,6 +347,7 @@ export const BecomeCreatorApplication: React.FC<{
         aboutYou: aboutYou.trim(),
         skills: selectedSkills,
         interests: selectedInterests,
+        languages: toLanguageRequests(languages),
         experienceLevel: EXPERIENCE_LEVEL_API[experienceLevel],
         experienceDescription: experienceDetails.trim(),
         proofDocument: proofFile,
@@ -417,7 +441,35 @@ export const BecomeCreatorApplication: React.FC<{
           ))}
         </FormSection>
 
-        {/* ── Section 5 — Experience ────────────────────────────────────── */}
+        {/* ── Section 5 — Languages ─────────────────────────────────────── */}
+        <FormSection title="Languages">
+          {LANGUAGE_OPTIONS.map(language => {
+            const checked = language in languages;
+            return (
+              <View key={language}>
+                <CheckboxRow
+                  label={language}
+                  checked={checked}
+                  onToggle={() => handleToggleLanguage(language)}
+                />
+                {checked && (
+                  <View style={s.levelGroup}>
+                    {PROFICIENCY_OPTIONS.map(option => (
+                      <RadioRow
+                        key={option.value}
+                        label={option.label}
+                        selected={languages[language] === option.value}
+                        onSelect={() => setLanguages(prev => setLanguageLevel(prev, language, option.value))}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </FormSection>
+
+        {/* ── Section 6 — Experience ────────────────────────────────────── */}
         <FormSection title="Experience">
           {EXPERIENCE_OPTIONS.map(opt => (
             <RadioRow
@@ -438,7 +490,7 @@ export const BecomeCreatorApplication: React.FC<{
           />
         </FormSection>
 
-        {/* ── Section 6 — Verification ─────────────────────────────────── */}
+        {/* ── Section 7 — Verification ─────────────────────────────────── */}
         <FormSection title="Verification">
           <Pressable
             onPress={handlePickProof}
@@ -657,6 +709,8 @@ const s = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   checkboxChecked: { backgroundColor: D.primary, borderColor: D.primary },
+  // Level choices sit under their language, indented past the checkbox.
+  levelGroup: { marginLeft: 36 },
   checkMark: { fontSize: 14, color: '#ffffff', fontWeight: '700', lineHeight: 16 },
   radio: {
     width: 22, height: 22, borderRadius: 11,

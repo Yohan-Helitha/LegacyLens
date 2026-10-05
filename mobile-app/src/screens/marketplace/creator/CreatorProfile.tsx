@@ -18,6 +18,7 @@ import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { resolveImageUrl } from '../../../constants/api';
 import { useCreatorProfile } from '../../../hooks/useCreatorProfile';
 import { experienceBullets, experienceLabel } from '../../../utils/creatorProfileText';
+import { proficiencyLabel } from '../../../utils/creatorLanguages';
 import { ProofDocumentCard } from './ProofDocumentCard';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -206,7 +207,9 @@ export const CreatorProfile: React.FC<{
               <SectionCard title="Language">
                 <View style={{ gap: 4 }}>
                   {profile.languages.map((lang) => (
-                    <Text key={lang} style={s.languageText}>{lang}</Text>
+                    <Text key={lang.language} style={s.languageText}>
+                      {lang.proficiency ? `${lang.language} — ${proficiencyLabel(lang.proficiency)}` : lang.language}
+                    </Text>
                   ))}
                 </View>
               </SectionCard>

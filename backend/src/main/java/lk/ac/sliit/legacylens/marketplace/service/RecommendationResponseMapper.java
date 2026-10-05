@@ -36,7 +36,7 @@ public class RecommendationResponseMapper {
                 .rating(candidate.rating())
                 .completedJobs(candidate.completedJobs())
                 .specialty(skills.isEmpty() ? null : skills.get(0))
-                .languages(candidate.languages())
+                .languages(LanguageSkills.toResponses(candidate.languageSkills()))
                 .about(candidate.about());
     }
 

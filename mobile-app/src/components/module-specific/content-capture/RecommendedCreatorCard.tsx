@@ -8,6 +8,7 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { HireActionButton } from './HireActionButton';
 import { RatingStars } from './RatingStars';
 import { ContentCaptureColors as D } from './tokens';
+import { languageWithLevel } from '../../../utils/creatorLanguages';
 
 interface RecommendedCreatorCardProps {
   creator: RecommendedCreator;
@@ -93,7 +94,7 @@ export const RecommendedCreatorCard: React.FC<RecommendedCreatorCardProps> = ({
           {creator.languages.length > 0 && (
             <View style={s.factRow}>
               <Languages size={20} color={D.primary} strokeWidth={2.25} />
-              <Text style={s.factText}>{t('recommend.speaks', { languages: creator.languages.join(', ') })}</Text>
+              <Text style={s.factText}>{t('recommend.speaks', { languages: creator.languages.map((entry) => languageWithLevel(entry, (level) => t(`recommend.level.${level}`))).join(', ') })}</Text>
             </View>
           )}
         </View>

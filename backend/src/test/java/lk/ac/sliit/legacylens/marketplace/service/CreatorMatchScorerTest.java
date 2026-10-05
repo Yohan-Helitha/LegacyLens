@@ -82,6 +82,12 @@ class CreatorMatchScorerTest {
         return new CreatorCandidate(user, profile, application, completedJobs, pastWork);
     }
 
+    /** Sets the languages the creator ticked on their application, e.g. "Sinhala:FLUENT,English:BASIC". */
+    private static CreatorCandidate speaking(CreatorCandidate creator, String languages) {
+        creator.application().setLanguages(languages);
+        return creator;
+    }
+
     private static List<PastWork> foodJobs(int count) {
         return java.util.stream.IntStream.range(0, count)
                 .mapToObj(i -> new PastWork("Recipe film " + i, "Filmed a traditional recipe", "Food"))
@@ -158,15 +164,15 @@ class CreatorMatchScorerTest {
 
     @Test
     void strongFit_isBestMatch_withEveryReasonExplained_strongestFirst() {
-        CreatorCandidate nimal = creator(MATARA, "Videography, Photography", "Traditional Foods",
-                "I speak Sinhala and English", "4.8", ExperienceLevel.EXPERIENCED, 24, foodJobs(3), null);
+        CreatorCandidate nimal = speaking(creator(MATARA, "Videography, Photography", "Traditional Foods",
+                null, "4.8", ExperienceLevel.EXPERIENCED, 24, foodJobs(3), null), "Sinhala:FLUENT,English:BASIC");
 
         Match match = score(food(), nimal);
 
         assertThat(match.reasons()).containsExactly(
                 "Has completed 3 similar jobs on LegacyLens",
                 "Skilled in Videography - needed for this traditional food",
-                "Speaks Sinhala",
+                "Speaks Sinhala (fluent)",
                 "Experienced content creator",
                 "Lives in Matara, where this takes place");
         // previous work 0.90x30 + skills 1.0x25 + language 1.0x20 + experience 1.0x15 + location 1.0x10 = 97
@@ -216,8 +222,8 @@ class CreatorMatchScorerTest {
         Opportunity dance = opportunity("Kandyan dance performance", "Dance", "Kandy", "Sinhala");
         List<PastWork> danceJobs = java.util.stream.IntStream.range(0, 3)
                 .mapToObj(i -> new PastWork("Dance show " + i, "Photographed a Kandyan dance", "Dance")).toList();
-        CreatorCandidate photographer = creator(KANDY, "Photography", null, "I speak Sinhala", "5.0",
-                ExperienceLevel.EXPERIENCED, 3, danceJobs, null);
+        CreatorCandidate photographer = speaking(creator(KANDY, "Photography", null, null, "5.0",
+                ExperienceLevel.EXPERIENCED, 3, danceJobs, null), "Sinhala:FLUENT");
 
         Match match = score(dance, photographer);
 
@@ -233,8 +239,8 @@ class CreatorMatchScorerTest {
     void unknownNeed_canBeRecommendedButNeverBestMatch() {
         Opportunity vague = opportunity("Help needed", null, "Matara", "Sinhala");
         vague.setLocationType("Remote OK");
-        CreatorCandidate everything = creator(MATARA, "Videography, Photography", "Traditional Foods",
-                "Sinhala", "5.0", null, 50, List.of(), null);
+        CreatorCandidate everything = speaking(creator(MATARA, "Videography, Photography", "Traditional Foods",
+                null, "5.0", null, 50, List.of(), null), "Sinhala:FLUENT");
 
         Match match = score(vague, everything);
 
@@ -340,17 +346,51 @@ class CreatorMatchScorerTest {
     // ── Language (20) ───────────────────────────────────────────────────────
 
     @Test
-    void language_mentionedIsFull_otherLanguagesOnlyIsNothing_noInformationIsHalf() {
+    void language_creditFollowsHowWellTheCreatorSpeaksIt() {
         LanguageFactor factor = new LanguageFactor();
         Opportunity sinhala = opportunity("Recipe", "Food", "Matara", "Sinhala");
 
-        double speaks = factor.evaluate(context(sinhala, creator(MATARA, "Videography", null, "I speak Sinhala", null), MID_TRUST)).fraction();
-        double otherOnly = factor.evaluate(context(sinhala, creator(MATARA, "Videography", null, "Fluent in English", null), MID_TRUST)).fraction();
-        double unknown = factor.evaluate(context(sinhala, creator(MATARA, "Videography", null, null, null), MID_TRUST)).fraction();
+        assertThat(languageFraction(factor, sinhala, "Sinhala:FLUENT")).isEqualTo(1.0);
+        assertThat(languageFraction(factor, sinhala, "Sinhala:INTERMEDIATE")).isEqualTo(0.7);
+        assertThat(languageFraction(factor, sinhala, "Sinhala:BASIC")).isEqualTo(0.4);
+    }
 
-        assertThat(speaks).isEqualTo(1.0);
-        assertThat(otherOnly).isZero();
-        assertThat(unknown).isEqualTo(0.5);
+    @Test
+    void language_aCreatorWhoListsOnlyOtherLanguages_getsNothing() {
+        Opportunity sinhala = opportunity("Recipe", "Food", "Matara", "Sinhala");
+
+        assertThat(languageFraction(new LanguageFactor(), sinhala, "English:FLUENT,Tamil:FLUENT")).isZero();
+    }
+
+    @Test
+    void language_whenSeveralAreAccepted_theBestOneCounts() {
+        Opportunity either = opportunity("Recipe", "Food", "Matara", "Sinhala / English");
+
+        assertThat(languageFraction(new LanguageFactor(), either, "Sinhala:BASIC,English:FLUENT")).isEqualTo(1.0);
+    }
+
+    @Test
+    void language_reasonSaysHowWellTheyWillSpeakIt() {
+        Opportunity sinhala = opportunity("Recipe", "Food", "Matara", "Sinhala");
+        CreatorCandidate creator = speaking(creator(MATARA, "Videography", null, null, null), "Sinhala:INTERMEDIATE");
+
+        FactorScore score = new LanguageFactor().evaluate(context(sinhala, creator, MID_TRUST));
+
+        assertThat(score.reason()).isEqualTo("Speaks Sinhala (intermediate)");
+    }
+
+    @Test
+    void language_creatorsWhoAppliedBeforeLevelsWereAsked_areNotMarkedDown() {
+        LanguageFactor factor = new LanguageFactor();
+        Opportunity sinhala = opportunity("Recipe", "Food", "Matara", "Sinhala");
+
+        // only mentions the language in their text: spoken, level unknown
+        double mentioned = factor.evaluate(context(sinhala, creator(MATARA, "Videography", null, "I speak Sinhala", null), MID_TRUST)).fraction();
+        // mentions no language anywhere: unknown, not unable
+        double nothing = factor.evaluate(context(sinhala, creator(MATARA, "Videography", null, null, null), MID_TRUST)).fraction();
+
+        assertThat(mentioned).isEqualTo(0.7);
+        assertThat(nothing).isEqualTo(0.5);
     }
 
     @Test
@@ -361,6 +401,11 @@ class CreatorMatchScorerTest {
                 .evaluate(context(anyLanguage, creator(MATARA, "Videography", null, null, null), MID_TRUST)).fraction();
 
         assertThat(fraction).isEqualTo(1.0);
+    }
+
+    private static double languageFraction(LanguageFactor factor, Opportunity opportunity, String languages) {
+        CreatorCandidate creator = speaking(creator(MATARA, "Videography", null, null, null), languages);
+        return factor.evaluate(context(opportunity, creator, MID_TRUST)).fraction();
     }
 
     // ── Experience (15) ─────────────────────────────────────────────────────

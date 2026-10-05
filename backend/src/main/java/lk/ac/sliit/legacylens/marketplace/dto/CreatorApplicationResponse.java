@@ -23,6 +23,7 @@ public class CreatorApplicationResponse {
     private String aboutYou;
     private String skills;
     private String interests;
+    private java.util.List<LanguageSkillResponse> languages;
     private String experienceLevel;
     private String experienceDescription;
     /** Whether a verification document is on file. The document itself is private - see CreatorProofService. */

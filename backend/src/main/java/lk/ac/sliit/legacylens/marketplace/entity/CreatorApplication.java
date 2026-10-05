@@ -69,6 +69,13 @@ public class CreatorApplication {
     @Column(columnDefinition = "TEXT")
     private String interests;
 
+    /**
+     * Languages the applicant speaks and how well, e.g. "Sinhala:FLUENT,English:BASIC".
+     * Null on applications made before the form asked for languages.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String languages;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "experience_level", nullable = false, length = 30)
     private ExperienceLevel experienceLevel;

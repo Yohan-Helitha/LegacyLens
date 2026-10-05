@@ -30,6 +30,7 @@ export const creatorApplicationApi = {
     form.append('aboutYou', request.aboutYou);
     request.skills.forEach((skill) => form.append('skills', skill));
     request.interests.forEach((interest) => form.append('interests', interest));
+    request.languages.forEach((entry) => form.append('languages', `${entry.language}:${entry.proficiency}`));
     form.append('experienceLevel', request.experienceLevel);
     form.append('experienceDescription', request.experienceDescription);
     form.append('proofDocument', {

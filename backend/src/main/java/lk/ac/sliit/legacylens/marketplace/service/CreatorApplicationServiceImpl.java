@@ -65,6 +65,9 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
                     "You already have a creator application on file.");
         }
 
+        // Checked before the file is stored, so a bad request never leaves an orphan upload behind.
+        List<LanguageSkill> languages = LanguageSkills.parseSubmitted(request.getLanguages());
+
         String proofDocumentUrl = fileStorageService.store(
                 request.getProofDocument(), PROOF_UPLOAD_SUBDIR, ALLOWED_PROOF_CONTENT_TYPES, MAX_PROOF_FILE_SIZE_BYTES);
 
@@ -80,6 +83,7 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
         application.setAboutYou(request.getAboutYou());
         application.setSkills(String.join(", ", request.getSkills()));
         application.setInterests(String.join(", ", request.getInterests()));
+        application.setLanguages(LanguageSkills.serialize(languages));
         application.setExperienceLevel(request.getExperienceLevel());
         application.setExperienceDescription(request.getExperienceDescription());
         application.setProofDocumentUrl(proofDocumentUrl);
@@ -112,6 +116,7 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
                 .aboutYou(application.getAboutYou())
                 .skills(application.getSkills())
                 .interests(application.getInterests())
+                .languages(LanguageSkills.toResponses(LanguageSkills.deserialize(application.getLanguages())))
                 .experienceLevel(application.getExperienceLevel().name())
                 .experienceDescription(application.getExperienceDescription())
                 .proofUploaded(application.getProofDocumentUrl() != null && !application.getProofDocumentUrl().isBlank())

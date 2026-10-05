@@ -4,6 +4,8 @@
  * the private document links under /api/creator-proofs/**.
  */
 
+import type { CreatorLanguage } from './creatorApplication';
+
 export type CreatorExperienceLevel = 'NEW_TO_DOCUMENTATION' | 'SOME_EXPERIENCE' | 'EXPERIENCED';
 
 export type CreatorApplicationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
@@ -37,7 +39,7 @@ export interface CreatorProfileData {
   contributionsCount: number;
   aboutYou: string | null;
   skills: string[];
-  languages: string[];
+  languages: CreatorLanguage[];
   interests: string[];
   experienceLevel: CreatorExperienceLevel | null;
   experienceDescription: string | null;

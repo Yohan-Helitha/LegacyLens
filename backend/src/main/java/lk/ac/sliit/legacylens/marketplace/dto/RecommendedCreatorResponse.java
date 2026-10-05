@@ -33,7 +33,7 @@ public class RecommendedCreatorResponse {
     private String specialty;
 
     /** Languages mentioned in the creator's profile/application, e.g. ["Sinhala", "English"]. */
-    private List<String> languages;
+    private List<LanguageSkillResponse> languages;
 
     /** The creator's own "about you" text from their creator application. */
     private String about;

@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -73,6 +74,7 @@ class CreatorProfileViewServiceImplTest {
         application.setEmail("arani@example.com");
         application.setAboutYou("I document local stories in Sinhala and English.");
         application.setSkills("Photography, Content writing");
+        application.setLanguages("Sinhala:FLUENT,English:BASIC");
         application.setInterests("Traditional Dance");
         application.setExperienceLevel(ExperienceLevel.SOME_EXPERIENCE);
         application.setExperienceDescription("Cultural event photography");
@@ -127,7 +129,8 @@ class CreatorProfileViewServiceImplTest {
         assertThat(view.getAboutYou()).startsWith("I document local stories");
         assertThat(view.getSkills()).containsExactly("Photography", "Content writing");
         assertThat(view.getInterests()).containsExactly("Traditional Dance");
-        assertThat(view.getLanguages()).containsExactlyInAnyOrder("Sinhala", "English");
+        assertThat(view.getLanguages()).extracting("language", "proficiency")
+                .containsExactly(tuple("Sinhala", "FLUENT"), tuple("English", "BASIC"));
         assertThat(view.getExperienceLevel()).isEqualTo("SOME_EXPERIENCE");
         assertThat(view.getCompletedCount()).isEqualTo(3);
         assertThat(view.getApprovedCount()).isEqualTo(18);

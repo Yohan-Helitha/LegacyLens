@@ -31,7 +31,7 @@ public class CreatorProfileResponse {
 
     private String aboutYou;
     private List<String> skills;
-    private List<String> languages;
+    private List<LanguageSkillResponse> languages;
     private List<String> interests;
 
     /** NEW_TO_DOCUMENTATION, SOME_EXPERIENCE or EXPERIENCED - null when no application is on file. */

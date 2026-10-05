@@ -1,3 +1,4 @@
+import type { CreatorLanguage } from './creatorApplication';
 /**
  * Creator recommendations for the elder's own opportunities — mirrors
  * GET /api/opportunities/mine/recommended-creators.
@@ -39,7 +40,7 @@ export interface RecommendedCreator {
   /** e.g. "Video documentation". */
   specialty: string | null;
   /** e.g. ["Sinhala", "English"]. */
-  languages: string[];
+  languages: CreatorLanguage[];
   /** The creator's own short description of their experience. */
   about: string | null;
   /** Plain-language reasons this creator matches the opportunity, strongest first. */

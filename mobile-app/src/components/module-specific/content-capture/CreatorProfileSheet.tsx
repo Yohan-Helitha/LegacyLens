@@ -9,6 +9,7 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { HireActionButton } from './HireActionButton';
 import { RatingStars } from './RatingStars';
 import { ContentCaptureColors as D } from './tokens';
+import { languageWithLevel } from '../../../utils/creatorLanguages';
 
 interface CreatorProfileSheetProps {
   /** The creator to show; the sheet is hidden while this is null. */
@@ -81,7 +82,9 @@ export const CreatorProfileSheet: React.FC<CreatorProfileSheetProps> = ({ creato
               {creator.languages.length > 0 && (
                 <View style={s.section}>
                   <Text style={s.sectionTitle}>{t('recommend.profile.languages')}</Text>
-                  <Text style={s.body}>{creator.languages.join(', ')}</Text>
+                  <Text style={s.body}>
+                    {creator.languages.map((entry) => languageWithLevel(entry, (level) => t(`recommend.level.${level}`))).join(', ')}
+                  </Text>
                 </View>
               )}
 

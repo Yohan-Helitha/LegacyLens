@@ -7,6 +7,20 @@
 
 export type ExperienceLevel = 'NEW_TO_DOCUMENTATION' | 'SOME_EXPERIENCE' | 'EXPERIENCED';
 
+export type LanguageProficiency = 'BASIC' | 'INTERMEDIATE' | 'FLUENT';
+
+/** A language the applicant ticked on the form, with the level they chose. */
+export interface LanguageChoice {
+  language: string;
+  proficiency: LanguageProficiency;
+}
+
+/** A language the creator speaks and how well - `proficiency` is null on applications made before levels were asked. */
+export interface CreatorLanguage {
+  language: string;
+  proficiency: LanguageProficiency | null;
+}
+
 export type CreatorApplicationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
 
 export interface CreatorApplicationResponse {
@@ -20,6 +34,7 @@ export interface CreatorApplicationResponse {
   aboutYou: string;
   skills: string;
   interests: string;
+  languages: CreatorLanguage[];
   experienceLevel: ExperienceLevel;
   experienceDescription: string;
   /** Whether a verification document is on file. The document itself is private. */
@@ -45,6 +60,8 @@ export interface SubmitCreatorApplicationRequest {
   aboutYou: string;
   skills: string[];
   interests: string[];
+  /** Every language the applicant speaks, each with a level. */
+  languages: LanguageChoice[];
   experienceLevel: ExperienceLevel;
   experienceDescription: string;
   proofDocument: CreatorApplicationProofFile;
