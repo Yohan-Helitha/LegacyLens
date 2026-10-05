@@ -6,20 +6,20 @@ import java.util.Locale;
 /**
  * 20% - can the creator talk with the elder in the opportunity's language?
  *
- * Creators say how well they speak each language on their application, and
- * the credit follows that: fluent 1.0, intermediate 0.7, basic 0.4. A creator
- * who lists languages but not this one gets 0. When the opportunity accepts
- * several languages the creator's best one counts.
+ * Only what the creator declared on their application counts, and the credit
+ * follows how well they said they speak it: fluent 1.0, intermediate 0.7,
+ * basic 0.4. A creator who did not list the language - or listed no languages
+ * at all - gets 0: someone may be fluent in Tamil and use it every day, so
+ * nothing is assumed about a language they did not mention. When the
+ * opportunity accepts several languages the creator's best one counts.
  *
- * Two cases where we do not know the level, so we do not guess low: a creator
- * who applied before levels were asked for and only mentions the language in
- * their text gets 0.7, and a creator who mentions no language at all gets 0.5.
+ * An opportunity that names no language we can check (the elder did not say, or
+ * it is not one of the three supported) puts no requirement on anyone, so
+ * every creator gets full marks rather than losing points for nothing.
  */
 final class LanguageFactor implements MatchFactor {
 
     static final int WEIGHT = 20;
-    static final double LEVEL_UNKNOWN = 0.7;
-    static final double NO_LANGUAGE_INFORMATION = 0.5;
 
     @Override
     public int weight() {
@@ -37,27 +37,20 @@ final class LanguageFactor implements MatchFactor {
                 .filter(language -> lowerRequired.contains(language.toLowerCase(Locale.ROOT)))
                 .toList();
         if (requiredKnown.isEmpty()) {
-            return FactorScore.of(1.0, null); // a language we cannot check - never hold it against anyone
+            return FactorScore.of(1.0, null);
         }
 
-        List<LanguageSkill> spoken = context.candidate().languageSkills();
         LanguageSkill best = null;
-        double bestCredit = -1;
-        for (LanguageSkill skill : spoken) {
-            if (!requiredKnown.contains(skill.language())) {
-                continue;
-            }
-            double credit = skill.proficiency() == null ? LEVEL_UNKNOWN : skill.proficiency().credit();
-            if (credit > bestCredit) {
+        for (LanguageSkill skill : context.candidate().languageSkills()) {
+            if (requiredKnown.contains(skill.language())
+                    && (best == null || skill.proficiency().credit() > best.proficiency().credit())) {
                 best = skill;
-                bestCredit = credit;
             }
         }
-
-        if (best != null) {
-            String level = best.proficiency() == null ? "" : " (" + best.proficiency().name().toLowerCase(Locale.ROOT) + ")";
-            return FactorScore.of(bestCredit, "Speaks " + best.language() + level);
+        if (best == null) {
+            return FactorScore.of(0.0, null);
         }
-        return FactorScore.of(spoken.isEmpty() ? NO_LANGUAGE_INFORMATION : 0.0, null);
+        return FactorScore.of(best.proficiency().credit(),
+                "Speaks " + best.language() + " (" + best.proficiency().name().toLowerCase(Locale.ROOT) + ")");
     }
 }

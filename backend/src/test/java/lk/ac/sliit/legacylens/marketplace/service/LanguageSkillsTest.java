@@ -61,7 +61,8 @@ class LanguageSkillsTest {
     }
 
     @Test
-    void aStoredLanguageWithAnUnreadableLevel_keepsTheLanguage() {
-        assertThat(LanguageSkills.deserialize("Sinhala:???")).containsExactly(new LanguageSkill("Sinhala", null));
+    void aStoredLanguageWithoutAReadableLevel_isNotCounted() {
+        assertThat(LanguageSkills.deserialize("Sinhala:???,Tamil,English:BASIC"))
+                .containsExactly(new LanguageSkill("English", LanguageProficiency.BASIC));
     }
 }

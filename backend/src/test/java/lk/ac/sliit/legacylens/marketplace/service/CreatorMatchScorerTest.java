@@ -182,13 +182,13 @@ class CreatorMatchScorerTest {
 
     @Test
     void newcomerFarAway_withNoHistory_isStillRecommended_butNotBestMatch() {
-        CreatorCandidate newcomer = creator(KANDY, "Videography", null, null, null);
+        CreatorCandidate newcomer = speaking(creator(KANDY, "Videography", null, null, null), "Sinhala:INTERMEDIATE");
 
         Match match = score(food(), newcomer);
 
-        // previous work 0.10x30 = 3, skills (1.0 + 0.7 close)/2 x25 = 21.25, language unknown 0.5x20 = 10,
-        // experience new creator at middling trust 0.6x15 = 9, location ~150 km 0.2x10 = 2  ->  45.25
-        assertThat(match.percentage()).isEqualTo(45);
+        // previous work 0.10x30 = 3, skills (1.0 + 0.7 close)/2 x25 = 21.25, intermediate Sinhala 0.7x20 = 14,
+        // experience new creator at middling trust 0.6x15 = 9, location ~150 km 0.2x10 = 2  ->  49.25
+        assertThat(match.percentage()).isEqualTo(49);
         assertThat(match.recommendable()).isTrue();
         assertThat(match.bestMatchWorthy()).isFalse();
     }
@@ -252,7 +252,7 @@ class CreatorMatchScorerTest {
 
     @Test
     void anElderWithTrust_makesNewcomersMoreCompetitive() {
-        CreatorCandidate newcomer = creator(MATARA, "Videography, Photography", null, "Sinhala", null);
+        CreatorCandidate newcomer = speaking(creator(MATARA, "Videography, Photography", null, null, null), "Sinhala:FLUENT");
 
         int trusted = score(food(), newcomer, 1.0).percentage();
         int untrusted = score(food(), newcomer, 0.0).percentage();
@@ -380,17 +380,17 @@ class CreatorMatchScorerTest {
     }
 
     @Test
-    void language_creatorsWhoAppliedBeforeLevelsWereAsked_areNotMarkedDown() {
+    void language_nothingIsAssumed_aLanguageOnlyMentionedInTextOrNeverDeclaredScoresZero() {
         LanguageFactor factor = new LanguageFactor();
         Opportunity sinhala = opportunity("Recipe", "Food", "Matara", "Sinhala");
 
-        // only mentions the language in their text: spoken, level unknown
+        // writes about speaking Sinhala in their free text but never declared it
         double mentioned = factor.evaluate(context(sinhala, creator(MATARA, "Videography", null, "I speak Sinhala", null), MID_TRUST)).fraction();
-        // mentions no language anywhere: unknown, not unable
+        // applied before languages were asked: nothing declared at all
         double nothing = factor.evaluate(context(sinhala, creator(MATARA, "Videography", null, null, null), MID_TRUST)).fraction();
 
-        assertThat(mentioned).isEqualTo(0.7);
-        assertThat(nothing).isEqualTo(0.5);
+        assertThat(mentioned).isZero();
+        assertThat(nothing).isZero();
     }
 
     @Test
@@ -521,9 +521,12 @@ class CreatorMatchScorerTest {
     }
 
     @Test
-    void languagesAreDetectedFromFreeText_caseInsensitively() {
-        CreatorCandidate creator = creator(null, "Translation", "Tamil folklore", "Fluent in ENGLISH", null);
+    void creatorLanguages_comeOnlyFromWhatTheyDeclared() {
+        CreatorCandidate declared = speaking(creator(null, "Translation", "Tamil folklore", "Fluent in ENGLISH", null),
+                "Tamil:FLUENT,English:BASIC");
+        CreatorCandidate onlyWrittenAbout = creator(null, "Translation", "Tamil folklore", "Fluent in ENGLISH", null);
 
-        assertThat(creator.languages()).containsExactly("Tamil", "English");
+        assertThat(declared.languages()).containsExactly("Tamil", "English");
+        assertThat(onlyWrittenAbout.languages()).isEmpty();
     }
 }

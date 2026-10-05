@@ -22,7 +22,7 @@ const C = {
   divider: '#c8dcdc',
 } as const;
 
-/** What the picker starts with: the languages the creator already has (a language with no level yet must be chosen). */
+/** What the picker starts with: the languages the creator already declared, each with its level. */
 function selectionFrom(languages: CreatorLanguage[]): LanguageSelection {
   const selection: LanguageSelection = {};
   for (const entry of languages) {

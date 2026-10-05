@@ -15,10 +15,10 @@ export interface LanguageChoice {
   proficiency: LanguageProficiency;
 }
 
-/** A language the creator speaks and how well - `proficiency` is null on applications made before levels were asked. */
+/** A language the creator says they speak, and how well. */
 export interface CreatorLanguage {
   language: string;
-  proficiency: LanguageProficiency | null;
+  proficiency: LanguageProficiency;
 }
 
 export type CreatorApplicationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';

@@ -58,7 +58,11 @@ final class LanguageSkills {
                 .orElse("");
     }
 
-    /** What is stored; empty for an application made before languages were asked for. */
+    /**
+     * What is stored. Empty for an application made before languages were asked
+     * for - those creators have said nothing, and nothing is assumed for them.
+     * An entry without a readable level is skipped for the same reason.
+     */
     static List<LanguageSkill> deserialize(String stored) {
         if (stored == null || stored.isBlank()) {
             return List.of();
@@ -67,38 +71,25 @@ final class LanguageSkills {
         for (String entry : stored.split(",")) {
             String[] parts = entry.split(":", 2);
             String language = canonical(parts[0]);
-            if (language == null) {
+            if (language == null || parts.length != 2) {
                 continue;
             }
-            LanguageProficiency level = null;
-            if (parts.length == 2) {
-                try {
-                    level = LanguageProficiency.valueOf(parts[1].trim().toUpperCase(Locale.ROOT));
-                } catch (IllegalArgumentException ignored) {
-                    // keep the language, level unknown
-                }
+            try {
+                skills.add(new LanguageSkill(language, LanguageProficiency.valueOf(parts[1].trim().toUpperCase(Locale.ROOT))));
+            } catch (IllegalArgumentException ignored) {
+                // no readable level - not counted
             }
-            skills.add(new LanguageSkill(language, level));
         }
         return List.copyOf(skills);
     }
 
-    /** The languages as shown to the app: name and level (level null when unknown). */
+    /** The languages as shown to the app: name and level. */
     static List<LanguageSkillResponse> toResponses(List<LanguageSkill> skills) {
         return skills.stream()
                 .map(skill -> LanguageSkillResponse.builder()
                         .language(skill.language())
-                        .proficiency(skill.proficiency() == null ? null : skill.proficiency().name())
+                        .proficiency(skill.proficiency().name())
                         .build())
-                .toList();
-    }
-
-    /** Languages merely mentioned in free text, level unknown - the fallback for creators who never picked any. */
-    static List<LanguageSkill> detectInText(String text) {
-        String haystack = text == null ? "" : text.toLowerCase(Locale.ROOT);
-        return SupportedLanguages.ALL.stream()
-                .filter(language -> haystack.contains(language.toLowerCase(Locale.ROOT)))
-                .map(language -> new LanguageSkill(language, null))
                 .toList();
     }
 

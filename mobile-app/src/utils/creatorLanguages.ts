@@ -51,14 +51,14 @@ export function toLanguageRequests(selection: LanguageSelection): LanguageChoice
 }
 
 /**
- * "Sinhala (Fluent)" for display; just "Sinhala" when the level is not known.
- * `levelText` turns a level into its words in the reader's own language.
+ * "Sinhala (Fluent)" for display. `levelText` turns a level into its words in
+ * the reader's own language.
  */
 export function languageWithLevel(
   entry: CreatorLanguage,
   levelText: (level: LanguageProficiency) => string,
 ): string {
-  return entry.proficiency ? `${entry.language} (${levelText(entry.proficiency)})` : entry.language;
+  return `${entry.language} (${levelText(entry.proficiency)})`;
 }
 
 /** How the server expects languages: one "Language:LEVEL" text per language, e.g. "Sinhala:FLUENT". */

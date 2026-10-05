@@ -126,24 +126,11 @@ public final class CreatorMatchScorer {
         }
 
         /**
-         * The languages the creator chose on their application, with how well they speak each. Creators
-         * who applied before the form asked fall back to the languages their own text mentions, level unknown.
+         * The languages the creator said they speak on their application, each with how well. Nothing
+         * is assumed for a creator who has not said - a language mentioned in their free text proves nothing.
          */
         public List<LanguageSkill> languageSkills() {
-            if (application != null) {
-                List<LanguageSkill> declared = LanguageSkills.deserialize(application.getLanguages());
-                if (!declared.isEmpty()) {
-                    return declared;
-                }
-            }
-            StringBuilder text = new StringBuilder();
-            skills().forEach(tag -> text.append(tag).append(','));
-            interests().forEach(tag -> text.append(tag).append(','));
-            if (application != null) {
-                text.append(nullToEmpty(application.getAboutYou())).append(',');
-                text.append(nullToEmpty(application.getExperienceDescription()));
-            }
-            return LanguageSkills.detectInText(text.toString());
+            return application == null ? List.of() : LanguageSkills.deserialize(application.getLanguages());
         }
 
         /** Just the names of {@link #languageSkills()}. */

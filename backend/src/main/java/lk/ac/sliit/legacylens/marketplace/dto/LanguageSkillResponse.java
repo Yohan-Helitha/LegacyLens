@@ -12,6 +12,6 @@ public class LanguageSkillResponse {
 
     private String language;
 
-    /** BASIC, INTERMEDIATE or FLUENT - null when only the language is known (older applications). */
+    /** BASIC, INTERMEDIATE or FLUENT. */
     private String proficiency;
 }

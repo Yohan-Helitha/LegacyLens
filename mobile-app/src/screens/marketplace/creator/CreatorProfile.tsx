@@ -222,12 +222,12 @@ export const CreatorProfile: React.FC<{
                 <View style={{ gap: 4 }}>
                   {profile.languages.map((lang) => (
                     <Text key={lang.language} style={s.languageText}>
-                      {lang.proficiency ? `${lang.language} — ${proficiencyLabel(lang.proficiency)}` : lang.language}
+                      {`${lang.language} — ${proficiencyLabel(lang.proficiency)}`}
                     </Text>
                   ))}
-                  {owner && (profile.languages.length === 0 || profile.languages.some((lang) => !lang.proficiency)) && (
+                  {owner && profile.languages.length === 0 && (
                     <Text style={s.languageHint}>
-                      Tell elders which languages you speak and how well - it helps them choose the right creator.
+                      Add the languages you speak and how well. Until you do, elders can't see them and recommendations won't count a language for you.
                     </Text>
                   )}
                 </View>
