@@ -1,6 +1,8 @@
-import { apiClient, apiGet } from './client';
+import { apiClient, apiGet, apiPut } from './client';
+import { toWireFormat } from '../../utils/creatorLanguages';
 import {
   CreatorApplicationResponse,
+  LanguageChoice,
   SubmitCreatorApplicationRequest,
 } from '../../types/creatorApplication';
 
@@ -22,6 +24,12 @@ interface ApiEnvelope<T> {
 export const creatorApplicationApi = {
   getMe: () => apiGet<CreatorApplicationResponse>('/creator-applications/me'),
 
+  /** Replaces the languages on the creator's own application - no new review needed. */
+  updateLanguages: (languages: LanguageChoice[]) =>
+    apiPut<CreatorApplicationResponse, { languages: string[] }>('/creator-applications/me/languages', {
+      languages: toWireFormat(languages),
+    }),
+
   submit: async (
     request: SubmitCreatorApplicationRequest,
   ): Promise<CreatorApplicationResponse> => {
@@ -30,7 +38,7 @@ export const creatorApplicationApi = {
     form.append('aboutYou', request.aboutYou);
     request.skills.forEach((skill) => form.append('skills', skill));
     request.interests.forEach((interest) => form.append('interests', interest));
-    request.languages.forEach((entry) => form.append('languages', `${entry.language}:${entry.proficiency}`));
+    toWireFormat(request.languages).forEach((entry) => form.append('languages', entry));
     form.append('experienceLevel', request.experienceLevel);
     form.append('experienceDescription', request.experienceDescription);
     form.append('proofDocument', {

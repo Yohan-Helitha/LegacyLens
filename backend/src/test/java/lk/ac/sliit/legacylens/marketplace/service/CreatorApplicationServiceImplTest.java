@@ -52,8 +52,8 @@ class CreatorApplicationServiceImplTest {
         user.setPhoneNumber("0741344117");
         user.setNicNumber("199812345678");
 
-        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
-        when(creatorApplicationRepository.findByUserId(user.getId())).thenReturn(Optional.empty());
+        lenient().when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        lenient().when(creatorApplicationRepository.findByUserId(user.getId())).thenReturn(Optional.empty());
         lenient().when(fileStorageService.store(any(), anyString(), anyList(), anyLong())).thenReturn("/uploads/creator-proofs/p.png");
         lenient().when(creatorApplicationRepository.save(any(CreatorApplication.class))).thenAnswer(inv -> inv.getArgument(0));
     }
@@ -96,5 +96,49 @@ class CreatorApplicationServiceImplTest {
     void submit_withAnUnsupportedLanguage_isRejected() {
         assertThrows(InvalidRequestException.class,
                 () -> service.submitApplication(user.getId(), request(List.of("French:FLUENT"))));
+    }
+
+    // ── Changing languages later ────────────────────────────────────────────
+
+    private CreatorApplication existingApplication(String languages) {
+        CreatorApplication application = new CreatorApplication();
+        application.setUser(user);
+        application.setLanguages(languages);
+        application.setExperienceLevel(ExperienceLevel.SOME_EXPERIENCE);
+        application.setStatus(lk.ac.sliit.legacylens.users.entity.VerificationStatus.VERIFIED);
+        when(creatorApplicationRepository.findByUserId(user.getId())).thenReturn(Optional.of(application));
+        return application;
+    }
+
+    @Test
+    void updateLanguages_replacesTheOldOnes_withoutSendingTheApplicationBackForReview() {
+        CreatorApplication application = existingApplication(null);
+
+        CreatorApplicationResponse response = service.updateMyLanguages(user.getId(),
+                List.of("Sinhala:FLUENT", "Tamil:INTERMEDIATE"));
+
+        assertThat(application.getLanguages()).isEqualTo("Sinhala:FLUENT,Tamil:INTERMEDIATE");
+        assertThat(application.getStatus()).isEqualTo(lk.ac.sliit.legacylens.users.entity.VerificationStatus.VERIFIED);
+        assertThat(response.getLanguages()).extracting("language", "proficiency")
+                .containsExactly(org.assertj.core.api.Assertions.tuple("Sinhala", "FLUENT"),
+                        org.assertj.core.api.Assertions.tuple("Tamil", "INTERMEDIATE"));
+        verify(creatorApplicationRepository).save(application);
+    }
+
+    @Test
+    void updateLanguages_withAnInvalidList_changesNothing() {
+        CreatorApplication application = existingApplication("English:BASIC");
+
+        assertThrows(InvalidRequestException.class, () -> service.updateMyLanguages(user.getId(), List.of("Sinhala")));
+        assertThrows(InvalidRequestException.class, () -> service.updateMyLanguages(user.getId(), List.of()));
+
+        assertThat(application.getLanguages()).isEqualTo("English:BASIC");
+        verify(creatorApplicationRepository, never()).save(any());
+    }
+
+    @Test
+    void updateLanguages_forSomeoneWhoNeverApplied_isNotFound() {
+        assertThrows(lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException.class,
+                () -> service.updateMyLanguages(user.getId(), List.of("Sinhala:FLUENT")));
     }
 }

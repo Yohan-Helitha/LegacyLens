@@ -4,6 +4,7 @@ import {
   setLanguageLevel,
   toggleLanguage,
   toLanguageRequests,
+  toWireFormat,
 } from '../../src/utils/creatorLanguages';
 
 describe('creatorLanguages', () => {
@@ -33,6 +34,13 @@ describe('creatorLanguages', () => {
       { language: 'Sinhala', proficiency: 'FLUENT' },
       { language: 'English', proficiency: 'BASIC' },
     ]);
+  });
+
+  it('writes each language the way the server reads it', () => {
+    expect(toWireFormat([
+      { language: 'Sinhala', proficiency: 'FLUENT' },
+      { language: 'English', proficiency: 'BASIC' },
+    ])).toEqual(['Sinhala:FLUENT', 'English:BASIC']);
   });
 
   it('has a readable label for every level', () => {

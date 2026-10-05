@@ -8,6 +8,9 @@ import lk.ac.sliit.legacylens.marketplace.dto.CreatorApplicationResponse;
 import lk.ac.sliit.legacylens.marketplace.service.CreatorApplicationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import lk.ac.sliit.legacylens.marketplace.dto.UpdateLanguagesRequest;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,6 +42,18 @@ public class CreatorApplicationController {
                 principal.getUser().getId(), request);
 
         return ResponseEntity.ok(ApiResponse.ok("Application submitted for review", response));
+    }
+
+    /** Lets a creator who already applied change the languages they speak. */
+    @PutMapping("/me/languages")
+    public ResponseEntity<ApiResponse<CreatorApplicationResponse>> updateMyLanguages(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @Valid @RequestBody UpdateLanguagesRequest request) {
+
+        CreatorApplicationResponse response = creatorApplicationService.updateMyLanguages(
+                principal.getUser().getId(), request.getLanguages());
+
+        return ResponseEntity.ok(ApiResponse.ok("Languages updated", response));
     }
 
     /** Backs the verification-pending screen — lets the app poll the current review status. */

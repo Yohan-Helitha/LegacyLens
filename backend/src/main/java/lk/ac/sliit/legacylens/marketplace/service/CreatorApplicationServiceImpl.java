@@ -104,6 +104,17 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
         return mapToResponse(application);
     }
 
+    @Override
+    @Transactional
+    public CreatorApplicationResponse updateMyLanguages(UUID userId, List<String> languages) {
+        CreatorApplication application = creatorApplicationRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("No creator application found"));
+
+        application.setLanguages(LanguageSkills.serialize(LanguageSkills.parseSubmitted(languages)));
+
+        return mapToResponse(creatorApplicationRepository.save(application));
+    }
+
     private CreatorApplicationResponse mapToResponse(CreatorApplication application) {
         return CreatorApplicationResponse.builder()
                 .id(application.getId())

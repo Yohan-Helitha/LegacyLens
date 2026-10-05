@@ -15,15 +15,10 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
+import { CheckboxRow, RadioRow } from '../../../components/module-specific/marketplace/OptionRows';
+import { LanguagePicker } from '../../../components/module-specific/marketplace/LanguagePicker';
 import { profileApi } from '../../../services/api/profileApi';
-import {
-  LANGUAGE_OPTIONS,
-  PROFICIENCY_OPTIONS,
-  languageMissingLevel,
-  setLanguageLevel,
-  toggleLanguage,
-  toLanguageRequests,
-} from '../../../utils/creatorLanguages';
+import { languageMissingLevel, toLanguageRequests } from '../../../utils/creatorLanguages';
 import type { LanguageSelection } from '../../../utils/creatorLanguages';
 import { creatorApplicationApi } from '../../../services/api/creatorApplicationApi';
 import { ApiError } from '../../../services/api/client';
@@ -176,50 +171,6 @@ const ReadOnlyField: React.FC<{
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CheckboxRow — 44pt touch target selectable row
-// ─────────────────────────────────────────────────────────────────────────────
-const CheckboxRow: React.FC<{
-  label: string;
-  checked: boolean;
-  onToggle: () => void;
-}> = ({ label, checked, onToggle }) => (
-  <Pressable
-    onPress={onToggle}
-    style={({ pressed }) => [s.optionRow, pressed && s.pressed]}
-    accessibilityRole="checkbox"
-    accessibilityState={{ checked }}
-    accessibilityLabel={label}
-  >
-    <View style={[s.checkbox, checked && s.checkboxChecked]}>
-      {checked && <Text style={s.checkMark}>{'✓'}</Text>}
-    </View>
-    <Text style={s.optionText}>{label}</Text>
-  </Pressable>
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RadioRow — 44pt touch target selectable row
-// ─────────────────────────────────────────────────────────────────────────────
-const RadioRow: React.FC<{
-  label: string;
-  selected: boolean;
-  onSelect: () => void;
-}> = ({ label, selected, onSelect }) => (
-  <Pressable
-    onPress={onSelect}
-    style={({ pressed }) => [s.optionRow, pressed && s.pressed]}
-    accessibilityRole="radio"
-    accessibilityState={{ checked: selected }}
-    accessibilityLabel={label}
-  >
-    <View style={[s.radio, selected && s.radioSelected]}>
-      {selected && <View style={s.radioDot} />}
-    </View>
-    <Text style={s.optionText}>{label}</Text>
-  </Pressable>
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
 export const BecomeCreatorApplication: React.FC<{
@@ -269,9 +220,6 @@ export const BecomeCreatorApplication: React.FC<{
 
   const toggleInterest = (interest: string) =>
     setInterests(prev => ({ ...prev, [interest]: !prev[interest] }));
-
-  const handleToggleLanguage = (language: string) =>
-    setLanguages(prev => toggleLanguage(prev, language));
 
   const handlePickProof = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -443,30 +391,7 @@ export const BecomeCreatorApplication: React.FC<{
 
         {/* ── Section 5 — Languages ─────────────────────────────────────── */}
         <FormSection title="Languages">
-          {LANGUAGE_OPTIONS.map(language => {
-            const checked = language in languages;
-            return (
-              <View key={language}>
-                <CheckboxRow
-                  label={language}
-                  checked={checked}
-                  onToggle={() => handleToggleLanguage(language)}
-                />
-                {checked && (
-                  <View style={s.levelGroup}>
-                    {PROFICIENCY_OPTIONS.map(option => (
-                      <RadioRow
-                        key={option.value}
-                        label={option.label}
-                        selected={languages[language] === option.value}
-                        onSelect={() => setLanguages(prev => setLanguageLevel(prev, language, option.value))}
-                      />
-                    ))}
-                  </View>
-                )}
-              </View>
-            );
-          })}
+          <LanguagePicker value={languages} onChange={setLanguages} />
         </FormSection>
 
         {/* ── Section 6 — Experience ────────────────────────────────────── */}
@@ -686,40 +611,6 @@ const s = StyleSheet.create({
     color: D.onSurface,
   },
   experienceTextArea: { minHeight: 100 },
-
-  // ── Checkbox / Radio option rows ──────────────────────────────────────────
-  optionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    minHeight: 44,                    // 44pt touch target
-    paddingHorizontal: Spacing.xs,
-    borderRadius: Radii.md,
-  },
-  optionText: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeSM,      // 14sp
-    color: D.onSurface,
-    flexShrink: 1,
-  },
-  checkbox: {
-    width: 22, height: 22, borderRadius: 6,
-    borderWidth: 1.5, borderColor: D.outline,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  checkboxChecked: { backgroundColor: D.primary, borderColor: D.primary },
-  // Level choices sit under their language, indented past the checkbox.
-  levelGroup: { marginLeft: 36 },
-  checkMark: { fontSize: 14, color: '#ffffff', fontWeight: '700', lineHeight: 16 },
-  radio: {
-    width: 22, height: 22, borderRadius: 11,
-    borderWidth: 1.5, borderColor: D.outline,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  radioSelected: { borderColor: D.primary },
-  radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: D.primary },
 
   // ── Verification upload box ───────────────────────────────────────────────
   uploadBox: {

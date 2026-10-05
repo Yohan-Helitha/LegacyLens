@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -20,6 +20,7 @@ import { useCreatorProfile } from '../../../hooks/useCreatorProfile';
 import { experienceBullets, experienceLabel } from '../../../utils/creatorProfileText';
 import { proficiencyLabel } from '../../../utils/creatorLanguages';
 import { ProofDocumentCard } from './ProofDocumentCard';
+import { EditLanguagesSheet } from './EditLanguagesSheet';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -105,6 +106,7 @@ export const CreatorProfile: React.FC<{
   onOpenRejectedWork: () => void;
 }> = ({ onNavigate, onOpenMyWork, onOpenSavedApplications, onOpenRejectedWork }) => {
   const { profile, loading, loadError, reload } = useCreatorProfile();
+  const [editingLanguages, setEditingLanguages] = useState(false);
 
   const avatarUri = resolveImageUrl(profile?.avatarUrl) ?? undefined;
   const rating = profile?.rating != null ? Number(profile.rating) : null;
@@ -202,15 +204,32 @@ export const CreatorProfile: React.FC<{
               </SectionCard>
             )}
 
-            {/* Language */}
-            {profile.languages.length > 0 && (
-              <SectionCard title="Language">
+            {/* Language - the owner can add or change them; levels are what elders rely on */}
+            {(profile.languages.length > 0 || owner) && (
+              <SectionCard
+                title="Language"
+                rightSlot={owner ? (
+                  <Pressable
+                    onPress={() => setEditingLanguages(true)}
+                    style={({ pressed }) => [s.inlineEdit, pressed && s.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Edit languages"
+                  >
+                    <Text style={s.inlineEditText}>{profile.languages.length > 0 ? 'Edit' : 'Add'}</Text>
+                  </Pressable>
+                ) : undefined}
+              >
                 <View style={{ gap: 4 }}>
                   {profile.languages.map((lang) => (
                     <Text key={lang.language} style={s.languageText}>
                       {lang.proficiency ? `${lang.language} — ${proficiencyLabel(lang.proficiency)}` : lang.language}
                     </Text>
                   ))}
+                  {owner && (profile.languages.length === 0 || profile.languages.some((lang) => !lang.proficiency)) && (
+                    <Text style={s.languageHint}>
+                      Tell elders which languages you speak and how well - it helps them choose the right creator.
+                    </Text>
+                  )}
                 </View>
               </SectionCard>
             )}
@@ -284,6 +303,18 @@ export const CreatorProfile: React.FC<{
 
         <View style={{ height: 8 }} />
       </ScrollView>
+
+      {profile && (
+        <EditLanguagesSheet
+          visible={editingLanguages}
+          current={profile.languages}
+          onClose={() => setEditingLanguages(false)}
+          onSaved={() => {
+            setEditingLanguages(false);
+            reload();
+          }}
+        />
+      )}
 
       <BottomNavBar activeTab="profile" onNavigate={onNavigate} profileAvatarUri={avatarUri} />
     </SafeAreaView>
@@ -407,6 +438,9 @@ const s = StyleSheet.create({
     color: D.onSurfaceVariant,
     fontStyle: 'italic',
   },
+  inlineEdit: { minHeight: 36, justifyContent: 'center', paddingHorizontal: Spacing.sm },
+  inlineEditText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
+  languageHint: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, lineHeight: 18, color: D.onSurfaceVariant, marginTop: 4 },
   languageText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.secondary },
   experienceYears: {
     fontFamily: Typography.fontBodySemi,

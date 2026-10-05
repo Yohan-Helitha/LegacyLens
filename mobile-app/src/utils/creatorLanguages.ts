@@ -60,3 +60,8 @@ export function languageWithLevel(
 ): string {
   return entry.proficiency ? `${entry.language} (${levelText(entry.proficiency)})` : entry.language;
 }
+
+/** How the server expects languages: one "Language:LEVEL" text per language, e.g. "Sinhala:FLUENT". */
+export function toWireFormat(choices: LanguageChoice[]): string[] {
+  return choices.map((choice) => `${choice.language}:${choice.proficiency}`);
+}
