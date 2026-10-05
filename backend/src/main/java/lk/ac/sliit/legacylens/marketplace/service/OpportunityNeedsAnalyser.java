@@ -52,17 +52,7 @@ public final class OpportunityNeedsAnalyser {
                 nullToEmpty(opportunity.getPreservationGoal()),
                 nullToEmpty(opportunity.getTasks())).toLowerCase(Locale.ROOT);
 
-        // The admin's category is the most deliberate signal, so its topic leads (it also names the topic in reasons).
-        Set<ContentTopic> found = new LinkedHashSet<>();
-        ContentTopic categoryTopic = CATEGORY_TOPICS.get(nullToEmpty(opportunity.getCategory()).trim().toLowerCase(Locale.ROOT));
-        if (categoryTopic != null) {
-            found.add(categoryTopic);
-        }
-        for (ContentTopic topic : ContentTopic.values()) {
-            if (topic.mentionedIn(text)) {
-                found.add(topic);
-            }
-        }
+        Set<ContentTopic> found = topicsOf(opportunity.getCategory(), text);
         List<ContentTopic> topics = new ArrayList<>(found);
 
         Set<CreatorSkill> mustHave = EnumSet.noneOf(CreatorSkill.class);
@@ -93,6 +83,25 @@ public final class OpportunityNeedsAnalyser {
         return new OpportunityNeeds(
                 mustHave, helpful, List.copyOf(topics), fromAdmin, mustHave.isEmpty(),
                 resolveCity(opportunity.getLocation(), cities), remote);
+    }
+
+    /**
+     * What a piece of work is about: the topic its category names (the most
+     * deliberate signal, so it leads) followed by every topic its words mention.
+     * {@code lowerText} must already be lower case.
+     */
+    static Set<ContentTopic> topicsOf(String category, String lowerText) {
+        Set<ContentTopic> found = new LinkedHashSet<>();
+        ContentTopic categoryTopic = CATEGORY_TOPICS.get(nullToEmpty(category).trim().toLowerCase(Locale.ROOT));
+        if (categoryTopic != null) {
+            found.add(categoryTopic);
+        }
+        for (ContentTopic topic : ContentTopic.values()) {
+            if (topic.mentionedIn(lowerText)) {
+                found.add(topic);
+            }
+        }
+        return found;
     }
 
     private static Set<CreatorSkill> adminRequiredSkills(String requiredSkills) {

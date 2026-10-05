@@ -4,6 +4,7 @@ import lk.ac.sliit.legacylens.common.exception.InvalidApplicationStateException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityRecommendationsResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.CreatorInvitationStatus;
+import lk.ac.sliit.legacylens.marketplace.entity.Job;
 import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
@@ -40,6 +41,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -57,6 +60,7 @@ class CreatorRecommendationServiceImplTest {
     @Mock private JobRepository jobRepository;
     @Mock private CityRepository cityRepository;
     @Mock private ConversationOpener conversationOpener;
+    @Mock private ElderTrustLookup elderTrustLookup;
 
     private CreatorRecommendationServiceImpl service;
 
@@ -67,8 +71,9 @@ class CreatorRecommendationServiceImplTest {
         service = new CreatorRecommendationServiceImpl(
                 opportunityRepository, opportunityApplicationRepository, invitationRepository,
                 creatorProfileRepository, cityRepository, conversationOpener,
-                new CreatorCandidateLoader(creatorProfileRepository, creatorApplicationRepository, jobRepository),
-                responseMapper, new ChosenCreatorResolver(responseMapper));
+                new CreatorCandidateLoader(creatorProfileRepository, creatorApplicationRepository, jobRepository, opportunityRepository),
+                responseMapper, new ChosenCreatorResolver(responseMapper), elderTrustLookup);
+        lenient().when(elderTrustLookup.trustOf(ELDER_ID)).thenReturn(0.5);
     }
 
     private static User user(UUID id, String name) {
@@ -122,6 +127,15 @@ class CreatorRecommendationServiceImplTest {
         return application;
     }
 
+    private static Job completedJob(User creator, String title) {
+        Job job = new Job();
+        job.setId(UUID.randomUUID());
+        job.setCreator(creator);
+        job.setTitle(title);
+        job.setStatus(JobStatus.COMPLETED);
+        return job;
+    }
+
     // ── getMyRecommendations ────────────────────────────────────────────────
 
     @Test
@@ -164,9 +178,11 @@ class CreatorRecommendationServiceImplTest {
         when(creatorProfileRepository.findByVerificationStatus(VerificationStatus.VERIFIED))
                 .thenReturn(List.of(nimal, ayesha, kasun, writer, noSkills));
         when(creatorApplicationRepository.findByUserIdIn(anyCollection())).thenReturn(List.of());
-        List<Object[]> jobCounts = new ArrayList<>();
-        jobCounts.add(new Object[] { nimal.getUser().getId(), 24L });
-        when(jobRepository.countByStatusGroupedByCreator(JobStatus.COMPLETED)).thenReturn(jobCounts);
+        when(jobRepository.findByCreatorIdInAndStatus(anyCollection(), eq(JobStatus.COMPLETED)))
+                .thenReturn(List.of(
+                        completedJob(nimal.getUser(), "Traditional recipe video 1"),
+                        completedJob(nimal.getUser(), "Traditional recipe video 2"),
+                        completedJob(nimal.getUser(), "Traditional recipe video 3")));
         when(opportunityApplicationRepository.findByOpportunityIdIn(anyCollection())).thenReturn(List.of());
         when(invitationRepository.findByOpportunityIdIn(anyCollection())).thenReturn(List.of());
         when(cityRepository.findAll()).thenReturn(List.of(matara, kandy));
@@ -175,24 +191,28 @@ class CreatorRecommendationServiceImplTest {
 
         assertThat(result).hasSize(2);
 
-        // Food, Matara: Nimal films + photographs, loves traditional food and lives there → best match.
+        // Food, Matara: Nimal films + photographs, has finished three recipe jobs and lives there
+        // (0.9x30 + 25 + 20 + 0.8x15 + 10 = 94) → best match.
         OpportunityRecommendationsResponse foodSection = result.get(0);
         assertThat(foodSection.getOpportunity().getOpportunityId()).isEqualTo(food.getId());
         assertThat(foodSection.getBestMatch().getName()).isEqualTo("Nimal Perera");
         assertThat(foodSection.getBestMatch().getMatchPercentage()).isGreaterThanOrEqualTo(CreatorMatchScorer.BEST_MATCH_MIN);
-        // Photographers far away can still do the job → recommended. The writer (only a helpful
+        // Photographers far away can still do the job (a photographer covers photographing exactly
+        // and filming closely: 3 + 21.25 + 20 + 9 + 2 = 55) → recommended. The writer (no needed
         // skill) and the creator with no skills at all are never shown.
         assertThat(foodSection.getOthers()).extracting("name").containsExactly("Ayesha Fernando", "Kasun Silva");
         assertThat(foodSection.getOthers()).allSatisfy(creator ->
                 assertThat(creator.getMatchPercentage()).isBetween(CreatorMatchScorer.RECOMMEND_MIN, CreatorMatchScorer.BEST_MATCH_MIN - 1));
 
         // Craft, Kandy: several photographers can do it, but nobody fits strongly enough
-        // to be the best match — so there is none, and they are all plain recommendations.
+        // to be the best match (Nimal is the strongest at 70: his recipe videos are only related
+        // work and he lives ~150 km away) — so there is none, and they are all plain recommendations.
         OpportunityRecommendationsResponse craftSection = result.get(1);
         assertThat(craftSection.getBestMatch()).isNull();
         assertThat(craftSection.getOthers()).extracting("name")
-                // Ayesha lives in Kandy (63%); Nimal and Kasun tie at 60% and the tie goes to Nimal's rating.
-                .containsExactly("Ayesha Fernando", "Nimal Perera", "Kasun Silva");
+                // Nimal 70% (skills, a proven filmmaker); Ayesha and Kasun tie at 63% (they live in Kandy,
+                // but have no history) and the tie goes to Ayesha's rating.
+                .containsExactly("Nimal Perera", "Ayesha Fernando", "Kasun Silva");
         assertThat(craftSection.getOthers()).allSatisfy(creator ->
                 assertThat(creator.getMatchPercentage()).isGreaterThanOrEqualTo(CreatorMatchScorer.RECOMMEND_MIN));
     }

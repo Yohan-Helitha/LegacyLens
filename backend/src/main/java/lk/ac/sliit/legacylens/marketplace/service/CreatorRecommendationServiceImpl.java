@@ -59,6 +59,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
     private final CreatorCandidateLoader candidateLoader;
     private final RecommendationResponseMapper responseMapper;
     private final ChosenCreatorResolver chosenCreatorResolver;
+    private final ElderTrustLookup elderTrustLookup;
 
     public CreatorRecommendationServiceImpl(
             OpportunityRepository opportunityRepository,
@@ -69,7 +70,8 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
             ConversationOpener conversationOpener,
             CreatorCandidateLoader candidateLoader,
             RecommendationResponseMapper responseMapper,
-            ChosenCreatorResolver chosenCreatorResolver) {
+            ChosenCreatorResolver chosenCreatorResolver,
+            ElderTrustLookup elderTrustLookup) {
 
         this.opportunityRepository = opportunityRepository;
         this.opportunityApplicationRepository = opportunityApplicationRepository;
@@ -80,6 +82,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
         this.candidateLoader = candidateLoader;
         this.responseMapper = responseMapper;
         this.chosenCreatorResolver = chosenCreatorResolver;
+        this.elderTrustLookup = elderTrustLookup;
     }
 
     @Override
@@ -104,6 +107,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
                 .findByOpportunityIdIn(opportunityIds).stream()
                 .collect(Collectors.groupingBy(invitation -> invitation.getOpportunity().getId()));
         List<City> cities = cityRepository.findAll();
+        Double elderTrust = elderTrustLookup.trustOf(elderId);
 
         return opportunities.stream()
                 .map(opportunity -> buildSection(
@@ -111,6 +115,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
                         OpportunityNeedsAnalyser.analyse(opportunity, cities),
                         candidates,
                         candidatesById,
+                        elderTrust,
                         applicationsByOpportunity.getOrDefault(opportunity.getId(), List.of()),
                         invitationsByOpportunity.getOrDefault(opportunity.getId(), List.of())))
                 .toList();
@@ -172,6 +177,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
             OpportunityNeeds needs,
             List<CreatorCandidate> candidates,
             Map<UUID, CreatorCandidate> candidatesById,
+            Double elderTrust,
             List<OpportunityApplication> applications,
             List<OpportunityCreatorInvitation> invitations) {
 
@@ -186,7 +192,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
         // recommendation bar, are dropped here — never shown just to fill the page.
         List<Match> ranked = candidates.stream()
                 .map(candidate -> CreatorMatchScorer.score(
-                        needs, opportunity, candidate, appliedCreatorIds.contains(candidate.user().getId())))
+                        needs, opportunity, candidate, appliedCreatorIds.contains(candidate.user().getId()), elderTrust))
                 .filter(Match::recommendable)
                 .sorted(RANKING)
                 .toList();
