@@ -162,6 +162,17 @@ const FilterBar: React.FC<{
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MatchBadgeInline - the "55% MATCH" pill for cards that have no big photo to sit on
+// ─────────────────────────────────────────────────────────────────────────────
+const MatchBadgeInline: React.FC<{ item: OpportunityCardResponse }> = ({ item }) =>
+  showsMatchBadge(item.matchPercentage, item.matchLevel) ? (
+    <View style={s.matchBadgeInline}>
+      <Text style={s.matchStar}>{'★'}</Text>
+      <Text style={s.matchText}>{item.matchPercentage}% MATCH</Text>
+    </View>
+  ) : null;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // RecommendedCard
 // ─────────────────────────────────────────────────────────────────────────────
 const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void }> = ({
@@ -236,6 +247,9 @@ const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () 
         <Text style={s.urgentTitle} numberOfLines={2}>
           {item.title}
         </Text>
+        <View style={s.urgentBadgeSlot}>
+          <MatchBadgeInline item={item} />
+        </View>
         <View style={s.urgentMeta}>
           <View style={s.urgentMetaItem}>
             <Text style={s.metaIcon}>{'\uD83C\uDF99'}</Text>
@@ -300,6 +314,7 @@ const RecentOpportunityCard: React.FC<{
     </View>
 
     <View style={s.recentContent}>
+      <MatchBadgeInline item={item} />
       <Text style={s.cardTitle}>{item.title}</Text>
       <Text style={s.recentDesc} numberOfLines={2}>
         {item.description}
@@ -662,6 +677,13 @@ const s = StyleSheet.create({
     borderRadius: Radii.full,
     paddingHorizontal: 10, paddingVertical: 4,
   },
+  matchBadgeInline: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(20,20,20,0.55)',
+    borderRadius: Radii.full,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
   matchStar: { fontSize: 12, color: '#FFD166' },
   matchText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.5 },
   recommendedBody: { padding: 16, gap: Spacing.sm },
@@ -723,6 +745,7 @@ const s = StyleSheet.create({
   urgentThumb:    { width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: Radii.xl, flexShrink: 0 },
   urgentBody:     { flex: 1, justifyContent: 'space-between', paddingVertical: 4 },
   urgentTitle:    { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 24, color: D.onSurface },
+  urgentBadgeSlot: { marginTop: 4 },
   urgentMeta:     { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs },
   urgentMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaIcon:       { fontSize: 14, lineHeight: 20 },
