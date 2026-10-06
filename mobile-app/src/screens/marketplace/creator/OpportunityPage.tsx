@@ -18,7 +18,7 @@ import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import type { OpportunityCardResponse } from '../../../types/opportunity';
 import { resolveOpportunityImage, resolveAvatarImage } from '../../../utils/opportunityImages';
-import { matchLevelLabel, showsMatchBadge } from '../../../utils/matchLevel';
+import { showsMatchBadge } from '../../../utils/matchLevel';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -195,19 +195,6 @@ const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: (
           <Text style={s.cardTitle}>{item.title}</Text>
           <Text style={s.cardMeta}>{joinMeta(item.location, item.category)}</Text>
         </View>
-        {!!item.matchReasons?.length && showsMatchBadge(item.matchPercentage, item.matchLevel) && (
-          <View style={s.reasonBox} accessibilityLabel="Why this matches you">
-            <Text style={s.reasonTitle}>
-              {matchLevelLabel(item.matchLevel) || 'Why this matches you'}
-            </Text>
-            {item.matchReasons.slice(0, 3).map((reason) => (
-              <View key={reason} style={s.reasonRow}>
-                <Text style={s.reasonCheck}>{'✓'}</Text>
-                <Text style={s.reasonText}>{reason}</Text>
-              </View>
-            ))}
-          </View>
-        )}
         <View style={s.cardCta}>
           <Pressable
             onPress={onViewDetail}
@@ -676,11 +663,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4,
   },
   matchStar: { fontSize: 12, color: '#FFD166' },
-  reasonBox: { gap: 4, backgroundColor: D.surfaceContainerHigh, borderRadius: Radii.lg, padding: Spacing.sm },
-  reasonTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.primary },
-  reasonRow: { flexDirection: 'row', gap: 6, alignItems: 'flex-start' },
-  reasonCheck: { fontSize: 13, color: D.primary, lineHeight: 19 },
-  reasonText: { flex: 1, fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, lineHeight: 19, color: D.onSurfaceVariant },
   matchText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.5 },
   recommendedBody: { padding: 16, gap: Spacing.sm },
   cardCta: {
