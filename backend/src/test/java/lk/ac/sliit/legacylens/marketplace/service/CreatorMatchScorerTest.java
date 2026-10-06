@@ -150,14 +150,17 @@ class CreatorMatchScorerTest {
     // ── The five weights ────────────────────────────────────────────────────
 
     @Test
-    void theFiveWeights_addUpToOneHundred() {
-        assertThat(PreviousWorkFactor.WEIGHT + SkillsFactor.WEIGHT + LanguageFactor.WEIGHT
-                + ExperienceFactor.WEIGHT + LocationFactor.WEIGHT).isEqualTo(100);
-        assertThat(PreviousWorkFactor.WEIGHT).isEqualTo(30);
-        assertThat(SkillsFactor.WEIGHT).isEqualTo(25);
-        assertThat(LanguageFactor.WEIGHT).isEqualTo(20);
-        assertThat(ExperienceFactor.WEIGHT).isEqualTo(15);
-        assertThat(LocationFactor.WEIGHT).isEqualTo(10);
+    void bothProfiles_useTheSameFiveFactorsWithDifferentWeights() {
+        assertThat(ScoringProfiles.FOR_ELDER.factors()).extracting(MatchFactor::weight).containsExactly(30, 25, 20, 15, 10);
+        assertThat(ScoringProfiles.FOR_CREATOR.factors()).extracting(MatchFactor::weight).containsExactly(35, 25, 20, 10, 10);
+        assertThat(ScoringProfiles.FOR_ELDER.factors().stream().mapToInt(MatchFactor::weight).sum()).isEqualTo(100);
+        assertThat(ScoringProfiles.FOR_CREATOR.factors().stream().mapToInt(MatchFactor::weight).sum()).isEqualTo(100);
+    }
+
+    @Test
+    void weightsThatDoNotAddUpToOneHundred_areRejected() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> new ScoringProfile(Audience.ELDER, List.of(new SkillsFactor(60), new LanguageFactor(60))));
     }
 
     // ── Whole-score examples (worked out by hand) ───────────────────────────
@@ -265,7 +268,7 @@ class CreatorMatchScorerTest {
 
     @Test
     void previousWork_growsWithEachSimilarJob_butNoHistoryIsNotZero() {
-        PreviousWorkFactor factor = new PreviousWorkFactor();
+        PreviousWorkFactor factor = new PreviousWorkFactor(30);
         Opportunity food = food();
 
         double none = factor.evaluate(context(food, creator(MATARA, "Videography", null, null, null), MID_TRUST)).fraction();
@@ -285,7 +288,7 @@ class CreatorMatchScorerTest {
     void previousWork_inAnotherSubject_butUsingTheSameSkill_isSomewhatRelated() {
         List<PastWork> danceFilms = List.of(new PastWork("Temple dance", "Video of a dance", "Dance"));
 
-        double fraction = new PreviousWorkFactor()
+        double fraction = new PreviousWorkFactor(30)
                 .evaluate(context(food(), withJobs(danceFilms), MID_TRUST)).fraction();
 
         assertThat(fraction).isCloseTo(0.35, within(1e-9));
@@ -295,7 +298,7 @@ class CreatorMatchScorerTest {
     void previousWork_unrelatedToTheOpportunity_countsForLittle() {
         List<PastWork> unrelated = List.of(new PastWork("Bank leaflet", "Printed brochure", "Corporate"));
 
-        double fraction = new PreviousWorkFactor()
+        double fraction = new PreviousWorkFactor(30)
                 .evaluate(context(food(), withJobs(unrelated), MID_TRUST)).fraction();
 
         assertThat(fraction).isCloseTo(0.10, within(1e-9));
@@ -306,7 +309,7 @@ class CreatorMatchScorerTest {
         CreatorCandidate writer = creator(MATARA, "Videography", null, null, null, null, 0, List.of(),
                 "Filmed traditional recipes for a village cooking club");
 
-        double fraction = new PreviousWorkFactor().evaluate(context(food(), writer, MID_TRUST)).fraction();
+        double fraction = new PreviousWorkFactor(30).evaluate(context(food(), writer, MID_TRUST)).fraction();
 
         assertThat(fraction).isCloseTo(0.35, within(1e-9));
     }
@@ -321,7 +324,7 @@ class CreatorMatchScorerTest {
     void skills_exactCountsInFull_closeSeventyPercent_somewhatFortyPercent_unrelatedNothing() {
         Opportunity translation = opportunity("Translate old letters", "Language", "Kandy", null);
         translation.setRequiredSkills("Translation");
-        SkillsFactor factor = new SkillsFactor();
+        SkillsFactor factor = new SkillsFactor(25);
 
         double exact = factor.evaluate(context(translation, creator(KANDY, "Translation", null, null, null), MID_TRUST)).fraction();
         double close = factor.evaluate(context(translation, creator(KANDY, "Script Writing", null, null, null), MID_TRUST)).fraction();
@@ -337,7 +340,7 @@ class CreatorMatchScorerTest {
     @Test
     void skills_areAveragedOverEveryNeededSkill() {
         // Food needs both filming and photographing: a photographer has one exactly and the other closely.
-        double fraction = new SkillsFactor()
+        double fraction = new SkillsFactor(25)
                 .evaluate(context(food(), creator(KANDY, "Photography", null, null, null), MID_TRUST)).fraction();
 
         assertThat(fraction).isCloseTo(0.85, within(1e-9));
@@ -347,7 +350,7 @@ class CreatorMatchScorerTest {
 
     @Test
     void language_creditFollowsHowWellTheCreatorSpeaksIt() {
-        LanguageFactor factor = new LanguageFactor();
+        LanguageFactor factor = new LanguageFactor(20);
         Opportunity sinhala = opportunity("Recipe", "Food", "Matara", "Sinhala");
 
         assertThat(languageFraction(factor, sinhala, "Sinhala:FLUENT")).isEqualTo(1.0);
@@ -359,14 +362,14 @@ class CreatorMatchScorerTest {
     void language_aCreatorWhoListsOnlyOtherLanguages_getsNothing() {
         Opportunity sinhala = opportunity("Recipe", "Food", "Matara", "Sinhala");
 
-        assertThat(languageFraction(new LanguageFactor(), sinhala, "English:FLUENT,Tamil:FLUENT")).isZero();
+        assertThat(languageFraction(new LanguageFactor(20), sinhala, "English:FLUENT,Tamil:FLUENT")).isZero();
     }
 
     @Test
     void language_whenSeveralAreAccepted_theBestOneCounts() {
         Opportunity either = opportunity("Recipe", "Food", "Matara", "Sinhala / English");
 
-        assertThat(languageFraction(new LanguageFactor(), either, "Sinhala:BASIC,English:FLUENT")).isEqualTo(1.0);
+        assertThat(languageFraction(new LanguageFactor(20), either, "Sinhala:BASIC,English:FLUENT")).isEqualTo(1.0);
     }
 
     @Test
@@ -374,14 +377,14 @@ class CreatorMatchScorerTest {
         Opportunity sinhala = opportunity("Recipe", "Food", "Matara", "Sinhala");
         CreatorCandidate creator = speaking(creator(MATARA, "Videography", null, null, null), "Sinhala:INTERMEDIATE");
 
-        FactorScore score = new LanguageFactor().evaluate(context(sinhala, creator, MID_TRUST));
+        FactorScore score = new LanguageFactor(20).evaluate(context(sinhala, creator, MID_TRUST));
 
         assertThat(score.reason()).isEqualTo("Speaks Sinhala (intermediate)");
     }
 
     @Test
     void language_nothingIsAssumed_aLanguageOnlyMentionedInTextOrNeverDeclaredScoresZero() {
-        LanguageFactor factor = new LanguageFactor();
+        LanguageFactor factor = new LanguageFactor(20);
         Opportunity sinhala = opportunity("Recipe", "Food", "Matara", "Sinhala");
 
         // writes about speaking Sinhala in their free text but never declared it
@@ -397,7 +400,7 @@ class CreatorMatchScorerTest {
     void language_noRequirement_costsNobodyAnything() {
         Opportunity anyLanguage = opportunity("Recipe", "Food", "Matara", null);
 
-        double fraction = new LanguageFactor()
+        double fraction = new LanguageFactor(20)
                 .evaluate(context(anyLanguage, creator(MATARA, "Videography", null, null, null), MID_TRUST)).fraction();
 
         assertThat(fraction).isEqualTo(1.0);
@@ -412,7 +415,7 @@ class CreatorMatchScorerTest {
 
     @Test
     void experience_slidesWithTheEldersTrust() {
-        ExperienceFactor factor = new ExperienceFactor();
+        ExperienceFactor factor = new ExperienceFactor(15);
         Opportunity food = food();
         CreatorCandidate newcomer = creator(MATARA, "Videography", null, null, null, ExperienceLevel.NEW_TO_DOCUMENTATION, 0, List.of(), null);
         CreatorCandidate some = creator(MATARA, "Videography", null, null, null, ExperienceLevel.SOME_EXPERIENCE, 0, List.of(), null);
@@ -430,14 +433,14 @@ class CreatorMatchScorerTest {
     void experience_whenTheElderIsUnknown_assumesMiddlingTrust() {
         CreatorCandidate newcomer = creator(MATARA, "Videography", null, null, null, ExperienceLevel.NEW_TO_DOCUMENTATION, 0, List.of(), null);
 
-        double fraction = new ExperienceFactor().evaluate(context(food(), newcomer, null)).fraction();
+        double fraction = new ExperienceFactor(15).evaluate(context(food(), newcomer, null)).fraction();
 
         assertThat(fraction).isCloseTo(0.6, within(1e-9));
     }
 
     @Test
     void experience_isRaisedByWorkActuallyCompletedHere() {
-        ExperienceFactor factor = new ExperienceFactor();
+        ExperienceFactor factor = new ExperienceFactor(15);
         CreatorCandidate declaredNew = creator(MATARA, "Videography", null, null, null, ExperienceLevel.NEW_TO_DOCUMENTATION, 5, List.of(), null);
         CreatorCandidate oneJob = creator(MATARA, "Videography", null, null, null, ExperienceLevel.NEW_TO_DOCUMENTATION, 1, List.of(), null);
 
@@ -449,7 +452,7 @@ class CreatorMatchScorerTest {
 
     @Test
     void location_isJudgedByDistance_notJustSameCityOrNot() {
-        LocationFactor factor = new LocationFactor();
+        LocationFactor factor = new LocationFactor(10);
         Opportunity inKandy = opportunity("Mask carving", "Craft", "Kandy", null);
 
         assertThat(fractionIn(factor, inKandy, KANDY)).isEqualTo(1.0);          // same city
@@ -464,7 +467,7 @@ class CreatorMatchScorerTest {
     void location_nearbyCreatorGetsADistanceReason() {
         Opportunity food = opportunity("Recipe", "Food", "Matara", null);
 
-        FactorScore score = new LocationFactor().evaluate(context(food, creator(GALLE, "Videography", null, null, null), MID_TRUST));
+        FactorScore score = new LocationFactor(10).evaluate(context(food, creator(GALLE, "Videography", null, null, null), MID_TRUST));
 
         assertThat(score.reason()).matches("Lives about \\d+ km away in Galle");
     }
@@ -474,7 +477,7 @@ class CreatorMatchScorerTest {
         Opportunity words = opportunity("Old fishing terms and sayings", "Language", "Matara", null);
         words.setLocationType("Remote OK");
 
-        FactorScore score = new LocationFactor().evaluate(context(words, creator(KANDY, "Transcription", null, null, null), MID_TRUST));
+        FactorScore score = new LocationFactor(10).evaluate(context(words, creator(KANDY, "Transcription", null, null, null), MID_TRUST));
 
         assertThat(score.fraction()).isEqualTo(1.0);
         assertThat(score.reason()).isEqualTo("Can work on this remotely");
@@ -482,7 +485,7 @@ class CreatorMatchScorerTest {
 
     @Test
     void location_unknownTownsFallBackToTheProvince_andUnknownLocationsAreCautious() {
-        LocationFactor factor = new LocationFactor();
+        LocationFactor factor = new LocationFactor(10);
         City unlistedSouth = city(8, "Tiny Southern Village", "Southern");
         City unlistedElsewhere = city(9, "Other Hamlet", "Uva");
         Opportunity food = opportunity("Recipe", "Food", "Matara", null);
@@ -509,6 +512,97 @@ class CreatorMatchScorerTest {
         // straight-line, not by road
         assertThat(CityDistance.kilometres("Nuwara Eliya", "Kandy").orElseThrow()).isBetween(38.0, 45.0);
         assertThat(CityDistance.kilometres("Unknown Place", "Kandy")).isEmpty();
+    }
+
+    // ── Creator -> opportunity ──────────────────────────────────────────────
+
+    private static Match scoreForCreator(Opportunity opportunity, CreatorCandidate creator, Double trust) {
+        return CreatorMatchScorer.scoreForCreator(OpportunityNeedsAnalyser.analyse(opportunity, CITIES), opportunity, creator, trust);
+    }
+
+    @Test
+    void forTheCreator_pastWorkCountsMost_andTheReasonsSpeakToTheCreator() {
+        CreatorCandidate nimal = speaking(creator(MATARA, "Videography, Photography", "Traditional Foods",
+                null, "4.8", ExperienceLevel.EXPERIENCED, 24, foodJobs(2), null), "Sinhala:FLUENT");
+
+        Match match = scoreForCreator(food(), nimal, MID_TRUST);
+
+        // previous work 0.75x35 = 26.25, skills 1.0x25, language 1.0x20, location 1.0x10, experience 1.0x10 = 91.25
+        assertThat(match.percentage()).isEqualTo(91);
+        assertThat(match.level()).isEqualTo(MatchLevel.EXCELLENT);
+        assertThat(match.reasons()).containsExactly(
+                "Similar to 2 jobs you completed before",
+                "You have all 2 skills this needs",
+                "You speak Sinhala (fluent)",
+                "This takes place in your city, Matara",
+                "Your experience suits this opportunity");
+    }
+
+    @Test
+    void forTheCreator_aDifferentSubjectWithTheSameSkills_isAModerateMatch() {
+        // Past work is recipe filming; the opportunity is a dance performance in Kandy.
+        Opportunity dance = opportunity("Kandyan dance performance", "Dance", "Kandy", "Sinhala");
+        CreatorCandidate filmmaker = speaking(creator(MATARA, "Videography, Photography", null,
+                null, "4.8", ExperienceLevel.EXPERIENCED, 3, foodJobs(3), null), "Sinhala:FLUENT");
+
+        Match match = scoreForCreator(dance, filmmaker, MID_TRUST);
+
+        // previous work only related 0.35x35 = 12.25, skills 25, language 20, ~150 km 0.2x10 = 2, experience 10 = 69.25
+        assertThat(match.percentage()).isEqualTo(69);
+        assertThat(match.level()).isEqualTo(MatchLevel.GOOD_POTENTIAL);
+        assertThat(match.recommendableToCreator()).isTrue();
+    }
+
+    @Test
+    void forTheCreator_noSkillForTheWork_isNeverRecommended() {
+        Opportunity words = opportunity("Old village words and proverbs", "Language", "Matara", "Sinhala");
+        CreatorCandidate photographer = speaking(creator(MATARA, "Photography", null, null, "5.0",
+                ExperienceLevel.EXPERIENCED, 9, List.of(), null), "Sinhala:FLUENT");
+
+        Match match = scoreForCreator(words, photographer, MID_TRUST);
+
+        assertThat(match.percentage()).isZero();
+        assertThat(match.level()).isEqualTo(MatchLevel.NOT_RECOMMENDED);
+        assertThat(match.recommendableToCreator()).isFalse();
+    }
+
+    @Test
+    void forTheCreator_aWeakButRealMatchIsStillListed_belowThirtyIsNot() {
+        // Newcomer with the filming skill but no language declared, far from Matara.
+        CreatorCandidate newcomer = creator(KANDY, "Videography", null, null, null);
+
+        Match match = scoreForCreator(food(), newcomer, MID_TRUST);
+
+        // previous work 0.10x35 = 3.5, skills 0.85x25 = 21.25, language 0, ~150 km 0.2x10 = 2, new creator 0.6x10 = 6 -> 32.75
+        assertThat(match.percentage()).isEqualTo(33);
+        assertThat(match.level()).isEqualTo(MatchLevel.WEAK);
+        assertThat(match.recommendableToCreator()).isTrue();
+    }
+
+    @Test
+    void theSameCreatorAndOpportunity_scoreDifferentlyForTheTwoAudiences() {
+        CreatorCandidate nimal = speaking(creator(MATARA, "Videography, Photography", null,
+                null, null, ExperienceLevel.EXPERIENCED, 24, foodJobs(2), null), "Sinhala:FLUENT");
+
+        int forElder = score(food(), nimal).percentage();       // 22.5 + 25 + 20 + 15 + 10 = 92.5 -> 93
+        int forCreator = scoreForCreator(food(), nimal, MID_TRUST).percentage();  // 26.25 + 25 + 20 + 10 + 10 = 91.25 -> 91
+
+        assertThat(forElder).isEqualTo(93);
+        assertThat(forCreator).isEqualTo(91);
+    }
+
+    @Test
+    void matchLevels_followTheBands() {
+        assertThat(MatchLevel.of(0)).isEqualTo(MatchLevel.NOT_RECOMMENDED);
+        assertThat(MatchLevel.of(29)).isEqualTo(MatchLevel.NOT_RECOMMENDED);
+        assertThat(MatchLevel.of(30)).isEqualTo(MatchLevel.WEAK);
+        assertThat(MatchLevel.of(49)).isEqualTo(MatchLevel.WEAK);
+        assertThat(MatchLevel.of(50)).isEqualTo(MatchLevel.GOOD_POTENTIAL);
+        assertThat(MatchLevel.of(69)).isEqualTo(MatchLevel.GOOD_POTENTIAL);
+        assertThat(MatchLevel.of(70)).isEqualTo(MatchLevel.STRONG);
+        assertThat(MatchLevel.of(84)).isEqualTo(MatchLevel.STRONG);
+        assertThat(MatchLevel.of(85)).isEqualTo(MatchLevel.EXCELLENT);
+        assertThat(MatchLevel.of(100)).isEqualTo(MatchLevel.EXCELLENT);
     }
 
     // ── Keyword matching ────────────────────────────────────────────────────

@@ -4,7 +4,8 @@ import lk.ac.sliit.legacylens.marketplace.entity.CreatorApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.ExperienceLevel;
 
 /**
- * 15% - how experienced is the creator, judged against the elder's own track record.
+ * How experienced is the creator, judged against the elder's own track record -
+ * that is, how well the creator's experience suits the elder who owns the opportunity.
  *
  * An elder who has earned a lot of trust on the platform is a safe place for a
  * newer creator to start, so for them a newcomer scores almost as well as a
@@ -23,15 +24,20 @@ import lk.ac.sliit.legacylens.marketplace.entity.ExperienceLevel;
  */
 final class ExperienceFactor implements MatchFactor {
 
-    static final int WEIGHT = 15;
     static final long JOBS_FOR_SOME_EXPERIENCE = 1;
     static final long JOBS_FOR_EXPERIENCED = 5;
     /** Used when the opportunity has no elder, or the elder's trust cannot be read. */
     static final double MIDDLE_TRUST = 0.5;
 
+    private final int weight;
+
+    ExperienceFactor(int weight) {
+        this.weight = weight;
+    }
+
     @Override
     public int weight() {
-        return WEIGHT;
+        return weight;
     }
 
     @Override
@@ -43,9 +49,20 @@ final class ExperienceFactor implements MatchFactor {
         double high;
         String reason;
         switch (level) {
-            case EXPERIENCED -> { low = 1.0; high = 1.0; reason = "Experienced content creator"; }
-            case SOME_EXPERIENCE -> { low = 0.7; high = 0.9; reason = "Has some documentation experience"; }
-            default -> { low = 0.3; high = 0.9; reason = trust >= 0.75 ? "Newer creator - a good fit to start with you" : null; }
+            case EXPERIENCED -> {
+                low = 1.0; high = 1.0;
+                reason = context.say("Experienced content creator", "Your experience suits this opportunity");
+            }
+            case SOME_EXPERIENCE -> {
+                low = 0.7; high = 0.9;
+                reason = context.say("Has some documentation experience", "Suits your experience level");
+            }
+            default -> {
+                low = 0.3; high = 0.9;
+                reason = trust >= 0.75
+                        ? context.say("Newer creator - a good fit to start with you", "A good place for a newer creator to start")
+                        : null;
+            }
         }
         return FactorScore.of(low + (high - low) * trust, reason);
     }

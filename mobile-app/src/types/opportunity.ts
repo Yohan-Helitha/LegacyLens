@@ -1,3 +1,6 @@
+/** How well an opportunity fits the signed-in creator - NOT_RECOMMENDED is below 30%. */
+export type MatchLevel = 'NOT_RECOMMENDED' | 'WEAK' | 'GOOD_POTENTIAL' | 'STRONG' | 'EXCELLENT';
+
 export interface OpportunityCardResponse {
   id: string;
   title: string;
@@ -6,7 +9,11 @@ export interface OpportunityCardResponse {
   location: string | null;
   category: string | null;
   locationType: string | null;
+  /** 0-100 from the creator -> opportunity algorithm; null when the user is not a creator. */
   matchPercentage: number | null;
+  matchLevel?: MatchLevel | null;
+  /** "Why this matches you", strongest first. */
+  matchReasons?: string[] | null;
   urgent: boolean;
   dueAt: string | null;
   elderName: string;
@@ -31,6 +38,9 @@ export interface OpportunityDetailResponse {
   language: string | null;
   preservationGoal: string | null;
   tasks: string[];
+  matchPercentage?: number | null;
+  matchLevel?: MatchLevel | null;
+  matchReasons?: string[] | null;
 }
 
 export interface AdminOpportunityResponse {

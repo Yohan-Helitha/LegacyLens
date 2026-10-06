@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 20% - can the creator talk with the elder in the opportunity's language?
+ * Can the creator talk with the elder in the opportunity's language?
  *
  * Only what the creator declared on their application counts, and the credit
  * follows how well they said they speak it: fluent 1.0, intermediate 0.7,
@@ -19,11 +19,15 @@ import java.util.Locale;
  */
 final class LanguageFactor implements MatchFactor {
 
-    static final int WEIGHT = 20;
+    private final int weight;
+
+    LanguageFactor(int weight) {
+        this.weight = weight;
+    }
 
     @Override
     public int weight() {
-        return WEIGHT;
+        return weight;
     }
 
     @Override
@@ -50,7 +54,8 @@ final class LanguageFactor implements MatchFactor {
         if (best == null) {
             return FactorScore.of(0.0, null);
         }
+        String level = " (" + best.proficiency().name().toLowerCase(Locale.ROOT) + ")";
         return FactorScore.of(best.proficiency().credit(),
-                "Speaks " + best.language() + " (" + best.proficiency().name().toLowerCase(Locale.ROOT) + ")");
+                context.say("Speaks " + best.language() + level, "You speak " + best.language() + level));
     }
 }

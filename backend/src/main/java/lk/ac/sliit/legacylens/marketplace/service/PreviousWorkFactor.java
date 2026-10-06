@@ -6,17 +6,23 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * 30% - has the creator already done work like this? Counts the finished jobs
- * whose subject matches what this opportunity is about. Having none is not
- * zero: a newcomer can still fit through skills, language and location.
+ * Has the creator already done work like this? Counts the finished jobs whose
+ * subject matches what the opportunity is about. Having none is not zero: a
+ * newcomer can still fit through skills, language and location.
+ *
+ * <pre>3+ similar jobs 0.90 | 2 -> 0.75 | 1 -> 0.55 | only related work 0.35 | none 0.10</pre>
  */
 final class PreviousWorkFactor implements MatchFactor {
 
-    static final int WEIGHT = 30;
+    private final int weight;
+
+    PreviousWorkFactor(int weight) {
+        this.weight = weight;
+    }
 
     @Override
     public int weight() {
-        return WEIGHT;
+        return weight;
     }
 
     @Override
@@ -45,10 +51,24 @@ final class PreviousWorkFactor implements MatchFactor {
             related++;
         }
 
-        if (similar >= 3) return FactorScore.of(0.90, "Has completed " + similar + " similar jobs on LegacyLens");
-        if (similar == 2) return FactorScore.of(0.75, "Has completed 2 similar jobs on LegacyLens");
-        if (similar == 1) return FactorScore.of(0.55, "Has completed a similar job on LegacyLens");
-        if (related > 0) return FactorScore.of(0.35, "Has related experience");
+        if (similar >= 3) {
+            return FactorScore.of(0.90, context.say(
+                    "Has completed " + similar + " similar jobs on LegacyLens",
+                    "Similar to the " + similar + " jobs you completed before"));
+        }
+        if (similar == 2) {
+            return FactorScore.of(0.75, context.say(
+                    "Has completed 2 similar jobs on LegacyLens",
+                    "Similar to 2 jobs you completed before"));
+        }
+        if (similar == 1) {
+            return FactorScore.of(0.55, context.say(
+                    "Has completed a similar job on LegacyLens",
+                    "Similar to a job you completed before"));
+        }
+        if (related > 0) {
+            return FactorScore.of(0.35, context.say("Has related experience", "Related to your earlier experience"));
+        }
         return FactorScore.of(0.10, null);
     }
 

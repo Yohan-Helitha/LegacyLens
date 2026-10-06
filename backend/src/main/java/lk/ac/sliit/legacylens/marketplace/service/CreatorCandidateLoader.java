@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -50,6 +51,19 @@ public class CreatorCandidateLoader {
                 .filter(profile -> profile.getUser().getAccountStatus() == AccountStatus.ACTIVE)
                 .filter(profile -> !profile.getUser().getId().equals(elderId))
                 .toList();
+        return candidatesFor(profiles);
+    }
+
+    /**
+     * One creator's own candidate, for scoring opportunities against them. Empty when the user has no
+     * creator profile; whether they are verified and active is left to the caller's eligibility rules.
+     */
+    public Optional<CreatorCandidate> loadCandidate(UUID userId) {
+        return creatorProfileRepository.findByUserId(userId)
+                .flatMap(profile -> candidatesFor(List.of(profile)).stream().findFirst());
+    }
+
+    private List<CreatorCandidate> candidatesFor(List<CreatorProfile> profiles) {
         if (profiles.isEmpty()) {
             return List.of();
         }

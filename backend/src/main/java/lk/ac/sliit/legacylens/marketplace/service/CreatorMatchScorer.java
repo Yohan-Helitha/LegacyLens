@@ -64,13 +64,8 @@ public final class CreatorMatchScorer {
     /** Minimum score to be highlighted as the single best match. */
     public static final int BEST_MATCH_MIN = 75;
 
-    /** The five factors. Their weights add up to 100. */
-    private static final List<MatchFactor> FACTORS = List.of(
-            new PreviousWorkFactor(),
-            new SkillsFactor(),
-            new LanguageFactor(),
-            new ExperienceFactor(),
-            new LocationFactor());
+    /** Minimum score for an opportunity to be recommended to a creator (below this it is simply not a fit). */
+    public static final int CREATOR_RECOMMEND_MIN = 30;
 
     private CreatorMatchScorer() {
     }
@@ -183,22 +178,43 @@ public final class CreatorMatchScorer {
         public boolean bestMatchWorthy() {
             return canDoMustHave && percentage >= BEST_MATCH_MIN;
         }
+
+        /** Worth showing an opportunity to this creator: they can do some of the work and it is at least a weak match. */
+        public boolean recommendableToCreator() {
+            return canDoTheWork && percentage >= CREATOR_RECOMMEND_MIN;
+        }
+
+        public MatchLevel level() {
+            return MatchLevel.of(percentage);
+        }
+    }
+
+    /** Scores one creator for an elder looking at creators - the elder -> creator weighting. */
+    public static Match score(OpportunityNeeds needs, Opportunity opportunity, CreatorCandidate candidate,
+                              boolean hasApplied, Double elderTrust) {
+        return score(ScoringProfiles.FOR_ELDER, needs, opportunity, candidate, hasApplied, elderTrust);
+    }
+
+    /** Scores one opportunity for a creator looking at opportunities - the creator -> opportunity weighting. */
+    public static Match scoreForCreator(OpportunityNeeds needs, Opportunity opportunity, CreatorCandidate candidate,
+                                        Double elderTrust) {
+        return score(ScoringProfiles.FOR_CREATOR, needs, opportunity, candidate, false, elderTrust);
     }
 
     /**
      * @param hasApplied  whether this creator has submitted an application to this opportunity
      * @param elderTrust  the elder's trust from 0 to 1, or null when unknown (see {@link ElderTrustLookup})
      */
-    public static Match score(OpportunityNeeds needs, Opportunity opportunity, CreatorCandidate candidate,
-                              boolean hasApplied, Double elderTrust) {
-        MatchContext context = new MatchContext(needs, opportunity, candidate, elderTrust);
+    static Match score(ScoringProfile profile, OpportunityNeeds needs, Opportunity opportunity,
+                       CreatorCandidate candidate, boolean hasApplied, Double elderTrust) {
+        MatchContext context = new MatchContext(needs, opportunity, candidate, elderTrust, profile.audience());
 
         double points = 0;
         boolean qualifies = true;
         boolean strong = true;
         List<ScoredReason> scored = new ArrayList<>();
 
-        for (MatchFactor factor : FACTORS) {
+        for (MatchFactor factor : profile.factors()) {
             FactorScore result = factor.evaluate(context);
             double contribution = factor.weight() * Math.max(0, Math.min(1, result.fraction()));
             points += contribution;
@@ -209,7 +225,7 @@ public final class CreatorMatchScorer {
             }
         }
 
-        // Strongest reason first, so the elder reads the most convincing one at the top.
+        // Strongest reason first, so the reader sees the most convincing one at the top.
         scored.sort(Comparator.comparingDouble(ScoredReason::contribution).reversed());
         List<String> reasons = new ArrayList<>();
         if (hasApplied) {

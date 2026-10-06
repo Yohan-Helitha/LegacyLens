@@ -9,11 +9,11 @@ import java.util.UUID;
 public interface OpportunityService {
 
     /**
-     * Published opportunities with the highest match score first.
-     *
-     * @param creatorId the logged-in creator, used to personalise each card's
-     *                  matchPercentage; pass null to fall back to the static
-     *                  seeded value.
+     * Opportunities recommended to this creator, best match first. Only opportunities the
+     * creator can realistically take are considered (open, not past its deadline, not already
+     * applied for or booked, no clash with an existing job), and only those scoring at least
+     * {@value lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer#CREATOR_RECOMMEND_MIN}%.
+     * Empty when the user is not an active, verified creator.
      */
     List<OpportunityCardResponse> getRecommended(int limit, UUID creatorId);
 
@@ -23,8 +23,8 @@ public interface OpportunityService {
     /** Published opportunities, newest first. */
     List<OpportunityCardResponse> getRecent(int limit, UUID creatorId);
 
-    /** One published opportunity's full detail. */
-    OpportunityDetailResponse getById(UUID id);
+    /** One published opportunity's full detail, with how well it fits the signed-in creator. */
+    OpportunityDetailResponse getById(UUID id, UUID creatorId);
 
     /**
      * Backs the filter chips. category is matched case-insensitively as a

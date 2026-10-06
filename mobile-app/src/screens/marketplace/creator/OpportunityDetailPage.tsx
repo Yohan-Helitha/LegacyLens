@@ -18,6 +18,7 @@ import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import type { OpportunityDetailResponse } from '../../../types/opportunity';
 import { resolveOpportunityImage, resolveAvatarImage } from '../../../utils/opportunityImages';
+import { matchLevelLabel, showsMatchBadge } from '../../../utils/matchLevel';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens (HTML Tailwind colour system)
@@ -268,6 +269,23 @@ export const OpportunityDetailPage: React.FC<{
           </View>
         )}
 
+        {/* Why this matches the signed-in creator - from the creator -> opportunity algorithm */}
+        {showsMatchBadge(detail.matchPercentage, detail.matchLevel) && !!detail.matchReasons?.length && (
+          <View style={s.matchCard}>
+            <View style={s.matchHeaderRow}>
+              <Text style={s.matchPercent}>{detail.matchPercentage}% match</Text>
+              <Text style={s.matchLevelText}>{matchLevelLabel(detail.matchLevel)}</Text>
+            </View>
+            <Text style={s.matchTitle}>Why this matches you</Text>
+            {detail.matchReasons.map((reason) => (
+              <View key={reason} style={s.matchReasonRow}>
+                <Text style={s.matchCheck}>{'✓'}</Text>
+                <Text style={s.matchReasonText}>{reason}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* Preservation Goal quote card */}
         {detail.preservationGoal && (
           <View style={s.quoteCard}>
@@ -314,6 +332,21 @@ export default OpportunityDetailPage;
 // ─────────────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
+
+  // ── Match ──────────────────────────────────────────────────────────────────
+  matchCard: {
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.lg,
+    padding: Spacing.md,
+    gap: 6,
+  },
+  matchHeaderRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  matchPercent: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: D.primary },
+  matchLevelText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
+  matchTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
+  matchReasonRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  matchCheck: { fontSize: 14, color: D.primary, lineHeight: 20 },
+  matchReasonText: { flex: 1, fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 20, color: D.onSurfaceVariant },
 
   // ── App Bar ────────────────────────────────────────────────────────────────
   appBar: {

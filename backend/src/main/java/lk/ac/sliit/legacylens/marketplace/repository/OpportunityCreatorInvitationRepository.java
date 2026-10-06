@@ -17,4 +17,7 @@ public interface OpportunityCreatorInvitationRepository extends JpaRepository<Op
     List<OpportunityCreatorInvitation> findByOpportunityId(UUID opportunityId);
 
     boolean existsByOpportunityIdAndCreatorId(UUID opportunityId, UUID creatorId);
+
+    /** Everything a creator has been invited to - those opportunities are not recommended to them again. */
+    List<OpportunityCreatorInvitation> findByCreatorId(UUID creatorId);
 }

@@ -69,7 +69,9 @@ public class OpportunityController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<OpportunityDetailResponse>> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.ok(opportunityService.getById(id)));
+    public ResponseEntity<ApiResponse<OpportunityDetailResponse>> getById(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(opportunityService.getById(id, principal.getUser().getId())));
     }
 }
