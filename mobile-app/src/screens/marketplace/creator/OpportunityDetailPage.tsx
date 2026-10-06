@@ -339,6 +339,7 @@ const s = StyleSheet.create({
     borderRadius: Radii.lg,
     padding: Spacing.md,
     gap: 6,
+    marginBottom: Spacing.md,
   },
   matchHeaderRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   matchPercent: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: D.primary },
