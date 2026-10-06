@@ -5,12 +5,15 @@ import lk.ac.sliit.legacylens.marketplace.dto.OpportunityCardResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityDetailResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
+import lk.ac.sliit.legacylens.marketplace.matching.CreatorMatchScorer.Match;
+import lk.ac.sliit.legacylens.marketplace.matching.OpportunityMatcher;
+import lk.ac.sliit.legacylens.marketplace.matching.OpportunityMatcher.CreatorMatching;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
-import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.Match;
-import lk.ac.sliit.legacylens.marketplace.service.OpportunityMatcher.CreatorMatching;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.repository.KnowledgeHolderProfileRepository;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +36,12 @@ import java.util.stream.Collectors;
 @Service
 public class OpportunityServiceImpl implements OpportunityService {
 
-    /** How many published opportunities are looked at when picking recommendations. */
+    private static final Logger log = LoggerFactory.getLogger(OpportunityServiceImpl.class);
+
+    /**
+     * How many published opportunities are looked at when picking recommendations. Scoring happens
+     * in memory, so this keeps one request bounded; a warning is logged whenever it is reached.
+     */
     private static final int RECOMMENDATION_POOL = 500;
 
     private final OpportunityRepository opportunityRepository;
@@ -63,9 +71,13 @@ public class OpportunityServiceImpl implements OpportunityService {
         // 1. Eligibility - leave out whatever cannot realistically be taken.
         // 2. Score the rest and keep the ones worth recommending.
         // 3. Rank by score, best first.
-        return opportunityRepository
-                .findByStatusOrderByCreatedAtDesc(OpportunityStatus.PUBLISHED, PageRequest.of(0, RECOMMENDATION_POOL))
-                .stream()
+        List<Opportunity> pool = opportunityRepository
+                .findByStatusOrderByCreatedAtDesc(OpportunityStatus.PUBLISHED, PageRequest.of(0, RECOMMENDATION_POOL));
+        if (pool.size() >= RECOMMENDATION_POOL) {
+            log.warn("Recommendations only looked at the newest {} published opportunities; older ones were not considered",
+                    RECOMMENDATION_POOL);
+        }
+        return pool.stream()
                 .filter(matching::isEligible)
                 .map(opportunity -> new Scored(opportunity, matching.score(opportunity)))
                 .filter(scored -> scored.match().recommendableToCreator())

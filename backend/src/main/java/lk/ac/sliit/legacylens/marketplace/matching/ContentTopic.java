@@ -1,10 +1,10 @@
-package lk.ac.sliit.legacylens.marketplace.service;
+package lk.ac.sliit.legacylens.marketplace.matching;
 
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
-import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.containsStem;
+import static lk.ac.sliit.legacylens.marketplace.matching.TextMatching.containsStem;
 
 /**
  * Opportunity topics, each with the words that reveal it, the creator skills

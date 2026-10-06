@@ -3,8 +3,9 @@ package lk.ac.sliit.legacylens.marketplace.service;
 import lk.ac.sliit.legacylens.marketplace.dto.RecommendationOpportunitySummaryResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.RecommendedCreatorResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
-import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.CreatorCandidate;
-import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.Match;
+import lk.ac.sliit.legacylens.marketplace.matching.CreatorMatchScorer.CreatorCandidate;
+import lk.ac.sliit.legacylens.marketplace.matching.CreatorMatchScorer.Match;
+import lk.ac.sliit.legacylens.marketplace.matching.LanguageSkills;
 import lk.ac.sliit.legacylens.users.entity.User;
 import org.springframework.stereotype.Component;
 

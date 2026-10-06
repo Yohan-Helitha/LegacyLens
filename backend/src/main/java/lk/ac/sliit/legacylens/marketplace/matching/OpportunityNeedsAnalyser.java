@@ -1,4 +1,4 @@
-package lk.ac.sliit.legacylens.marketplace.service;
+package lk.ac.sliit.legacylens.marketplace.matching;
 
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.users.entity.City;
@@ -13,9 +13,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.containsStem;
-import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.nullToEmpty;
-import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.splitTags;
+import static lk.ac.sliit.legacylens.marketplace.matching.TextMatching.containsStem;
+import static lk.ac.sliit.legacylens.marketplace.matching.TextMatching.nullToEmpty;
+import static lk.ac.sliit.legacylens.marketplace.matching.TextMatching.splitTags;
 
 /** Reads an opportunity (category, title, tasks, admin Required Skills, location) and works out what it needs. */
 public final class OpportunityNeedsAnalyser {

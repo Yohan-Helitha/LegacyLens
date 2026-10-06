@@ -1,4 +1,4 @@
-package lk.ac.sliit.legacylens.marketplace.service;
+package lk.ac.sliit.legacylens.marketplace.matching;
 
 import lk.ac.sliit.legacylens.marketplace.entity.Job;
 import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
@@ -10,16 +10,14 @@ import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityCreatorInvitationRepository;
-import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.CreatorCandidate;
+import lk.ac.sliit.legacylens.marketplace.matching.CreatorMatchScorer.CreatorCandidate;
 import lk.ac.sliit.legacylens.users.entity.AccountStatus;
 import lk.ac.sliit.legacylens.users.entity.VerificationStatus;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -40,7 +38,6 @@ import java.util.function.Predicate;
 public class OpportunityEligibility {
 
     private static final Set<JobStatus> COMMITTED_JOB_STATUSES = Set.of(JobStatus.UPCOMING, JobStatus.ACTIVE);
-    private static final int MAX_JOBS_CHECKED = 200;
 
     private final OpportunityApplicationRepository applicationRepository;
     private final OpportunityCreatorInvitationRepository invitationRepository;
@@ -85,15 +82,13 @@ public class OpportunityEligibility {
         }
 
         Set<LocalDate> busyDays = new HashSet<>();
-        for (JobStatus status : COMMITTED_JOB_STATUSES) {
-            List<Job> jobs = jobRepository.findByCreatorIdAndStatus(creatorId, status, PageRequest.of(0, MAX_JOBS_CHECKED));
-            for (Job job : jobs) {
-                if (job.getOpportunityId() != null) {
-                    alreadyInvolved.add(job.getOpportunityId());
-                }
-                if (job.getScheduledAt() != null) {
-                    busyDays.add(job.getScheduledAt().toLocalDate());
-                }
+        // All of the creator's committed jobs, not a page of them: a missed one would hide a clash.
+        for (Job job : jobRepository.findByCreatorIdAndStatusIn(creatorId, COMMITTED_JOB_STATUSES)) {
+            if (job.getOpportunityId() != null) {
+                alreadyInvolved.add(job.getOpportunityId());
+            }
+            if (job.getScheduledAt() != null) {
+                busyDays.add(job.getScheduledAt().toLocalDate());
             }
         }
 

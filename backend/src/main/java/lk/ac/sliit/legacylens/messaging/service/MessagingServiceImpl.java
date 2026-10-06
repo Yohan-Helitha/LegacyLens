@@ -78,17 +78,15 @@ public class MessagingServiceImpl implements MessagingService {
         String query = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
         ConversationFilter effectiveFilter = filter == null ? ConversationFilter.ALL : filter;
 
-        List<ConversationSummaryResponse> result = new ArrayList<>();
+        // Filter first, so the rows that are dropped never cost a lookup.
+        List<Conversation> shown = new ArrayList<>();
         for (Conversation conversation : conversations) {
-            long unreadCount = unread.getOrDefault(conversation.getId(), 0L);
-            if (effectiveFilter == ConversationFilter.UNREAD && unreadCount == 0) continue;
+            if (effectiveFilter == ConversationFilter.UNREAD && unread.getOrDefault(conversation.getId(), 0L) == 0) continue;
             if (effectiveFilter == ConversationFilter.COLLABORATIONS && conversation.getOpportunity() == null) continue;
-
-            ConversationSummaryResponse summary = mapper.toSummary(conversation, userId, unreadCount);
-            if (!query.isEmpty() && !matches(summary, query)) continue;
-            result.add(summary);
+            if (!query.isEmpty() && !matches(conversation, userId, query)) continue;
+            shown.add(conversation);
         }
-        return result;
+        return mapper.toSummaries(shown, userId, unread);
     }
 
     @Override
@@ -233,10 +231,11 @@ public class MessagingServiceImpl implements MessagingService {
         return saved;
     }
 
-    private static boolean matches(ConversationSummaryResponse summary, String query) {
-        return contains(summary.getOtherParticipant().getName(), query)
-                || contains(summary.getLastMessagePreview(), query)
-                || (summary.getContext() != null && contains(summary.getContext().getTitle(), query));
+    /** Search looks at the other person's name, the last message and the opportunity title. */
+    private static boolean matches(Conversation conversation, UUID userId, String query) {
+        return contains(conversation.otherParticipant(userId).getFullName(), query)
+                || contains(conversation.getLastMessagePreview(), query)
+                || (conversation.getOpportunity() != null && contains(conversation.getOpportunity().getTitle(), query));
     }
 
     private static boolean contains(String value, String query) {

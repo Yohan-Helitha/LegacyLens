@@ -5,7 +5,8 @@ import lk.ac.sliit.legacylens.marketplace.dto.CreatorOwnerDetailsResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.CreatorProfileResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.CreatorApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.Job;
-import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.CreatorCandidate;
+import lk.ac.sliit.legacylens.marketplace.matching.CreatorMatchScorer.CreatorCandidate;
+import lk.ac.sliit.legacylens.marketplace.matching.LanguageSkills;
 import lk.ac.sliit.legacylens.users.entity.User;
 import org.springframework.stereotype.Component;
 

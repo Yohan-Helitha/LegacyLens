@@ -10,6 +10,10 @@ import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityCreatorInvitation;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
+import lk.ac.sliit.legacylens.marketplace.matching.CreatorCandidateLoader;
+import lk.ac.sliit.legacylens.marketplace.matching.ElderTrustLookup;
+import lk.ac.sliit.legacylens.marketplace.matching.OpportunityEligibility;
+import lk.ac.sliit.legacylens.marketplace.matching.OpportunityMatcher;
 import lk.ac.sliit.legacylens.marketplace.repository.CreatorApplicationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
@@ -111,7 +115,7 @@ class OpportunityServiceImplTest {
         lenient().when(elderTrustLookup.trustOf(any())).thenReturn(0.5);
         lenient().when(applicationRepository.findByCreatorIdOrderBySavedAtDesc(nimal.getId())).thenReturn(List.of());
         lenient().when(invitationRepository.findByCreatorId(nimal.getId())).thenReturn(List.of());
-        lenient().when(jobRepository.findByCreatorIdAndStatus(eq(nimal.getId()), any(), any())).thenReturn(List.of());
+        lenient().when(jobRepository.findByCreatorIdAndStatusIn(eq(nimal.getId()), any())).thenReturn(List.of());
     }
 
     private Job completedJob(String title) {
@@ -229,7 +233,7 @@ class OpportunityServiceImplTest {
         booked.setScheduledAt(LocalDate.now().plusDays(5).atTime(9, 0));
         booked.setStatus(JobStatus.UPCOMING);
         published(recipe);
-        lenient().when(jobRepository.findByCreatorIdAndStatus(eq(nimal.getId()), eq(JobStatus.UPCOMING), any()))
+        lenient().when(jobRepository.findByCreatorIdAndStatusIn(eq(nimal.getId()), any()))
                 .thenReturn(List.of(booked));
 
         assertThat(service.getRecommended(10, nimal.getId())).isEmpty();

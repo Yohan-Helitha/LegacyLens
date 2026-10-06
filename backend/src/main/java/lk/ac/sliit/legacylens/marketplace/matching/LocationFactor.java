@@ -1,12 +1,12 @@
-package lk.ac.sliit.legacylens.marketplace.service;
+package lk.ac.sliit.legacylens.marketplace.matching;
 
 import lk.ac.sliit.legacylens.users.entity.City;
 
 import java.util.Locale;
 import java.util.OptionalDouble;
 
-import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.containsStem;
-import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.hasText;
+import static lk.ac.sliit.legacylens.marketplace.matching.TextMatching.containsStem;
+import static lk.ac.sliit.legacylens.marketplace.matching.TextMatching.hasText;
 
 /**
  * How close is the creator to where the work happens? Distance, not "same city

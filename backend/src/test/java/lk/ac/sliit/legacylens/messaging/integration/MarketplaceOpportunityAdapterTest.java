@@ -19,10 +19,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -134,5 +140,52 @@ class MarketplaceOpportunityAdapterTest {
 
         assertThat(context.getDate()).isEqualTo(LocalDate.of(2026, 8, 20));
         assertThat(context.isBooked()).isFalse();
+    }
+
+    @Test
+    void contextsForAnInbox_useOneBookingQuery_andPickTheNewestBookingPerConversation() {
+        UUID otherCreatorId = UUID.randomUUID();
+        Opportunity opportunity = opportunity();
+
+        Job newest = jobFor(opportunityId, creatorId, LocalDateTime.of(2026, 8, 25, 10, 0));
+        Job older = jobFor(opportunityId, creatorId, LocalDateTime.of(2026, 8, 22, 9, 0));
+        when(jobRepository.findByOpportunityIdInAndCreatorIdInOrderByCreatedAtDesc(anyCollection(), anyCollection()))
+                .thenReturn(List.of(newest, older));
+
+        Conversation booked = conversationAbout(opportunity);
+        booked.setId(UUID.randomUUID());
+        Conversation notBooked = conversationAbout(opportunity);
+        notBooked.setId(UUID.randomUUID());
+        notBooked.getCreator().setId(otherCreatorId);
+        Conversation plain = conversationAbout(null);
+        plain.setId(UUID.randomUUID());
+
+        Map<UUID, ConversationContextResponse> contexts = adapter.contextsFor(List.of(booked, notBooked, plain));
+
+        assertThat(contexts).containsOnlyKeys(booked.getId(), notBooked.getId());
+        assertThat(contexts.get(booked.getId()).isBooked()).isTrue();
+        assertThat(contexts.get(booked.getId()).getDate()).isEqualTo(LocalDate.of(2026, 8, 25));
+        assertThat(contexts.get(notBooked.getId()).isBooked()).isFalse();
+        assertThat(contexts.get(notBooked.getId()).getDate()).isEqualTo(LocalDate.of(2026, 8, 20));
+        verify(jobRepository, times(1)).findByOpportunityIdInAndCreatorIdInOrderByCreatedAtDesc(anyCollection(), anyCollection());
+    }
+
+    @Test
+    void contextsForAnInboxWithNoOpportunities_doesNotTouchTheDatabase() {
+        Conversation plain = conversationAbout(null);
+        plain.setId(UUID.randomUUID());
+
+        assertThat(adapter.contextsFor(List.of(plain))).isEmpty();
+        verifyNoInteractions(jobRepository);
+    }
+
+    private static Job jobFor(UUID opportunityId, UUID creatorId, LocalDateTime scheduledAt) {
+        User creator = new User();
+        creator.setId(creatorId);
+        Job job = new Job();
+        job.setOpportunityId(opportunityId);
+        job.setCreator(creator);
+        job.setScheduledAt(scheduledAt);
+        return job;
     }
 }

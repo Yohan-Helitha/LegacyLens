@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.messaging.mapper;
 
+import lk.ac.sliit.legacylens.messaging.dto.ConversationContextResponse;
 import lk.ac.sliit.legacylens.messaging.dto.ConversationDetailResponse;
 import lk.ac.sliit.legacylens.messaging.dto.ConversationSummaryResponse;
 import lk.ac.sliit.legacylens.messaging.dto.MessageResponse;
@@ -10,6 +11,8 @@ import lk.ac.sliit.legacylens.messaging.service.ConversationContextProvider;
 import lk.ac.sliit.legacylens.users.entity.User;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** Turns conversations and messages into the responses each caller sees, from that caller's point of view. */
@@ -25,11 +28,22 @@ public class ConversationMapper {
         this.contextProvider = contextProvider;
     }
 
-    public ConversationSummaryResponse toSummary(Conversation conversation, UUID userId, long unreadCount) {
+    /** Inbox rows for these conversations, in the order given; every context card is fetched in one go. */
+    public List<ConversationSummaryResponse> toSummaries(List<Conversation> conversations, UUID userId,
+                                                         Map<UUID, Long> unreadCounts) {
+        Map<UUID, ConversationContextResponse> contexts = contextProvider.contextsFor(conversations);
+        return conversations.stream()
+                .map(conversation -> toSummary(conversation, userId,
+                        unreadCounts.getOrDefault(conversation.getId(), 0L), contexts.get(conversation.getId())))
+                .toList();
+    }
+
+    private ConversationSummaryResponse toSummary(Conversation conversation, UUID userId, long unreadCount,
+                                                  ConversationContextResponse context) {
         return ConversationSummaryResponse.builder()
                 .id(conversation.getId())
                 .otherParticipant(toParticipant(conversation, userId, false))
-                .context(contextProvider.contextFor(conversation))
+                .context(context)
                 .lastMessagePreview(conversation.getLastMessagePreview())
                 .lastMessageType(conversation.getLastMessageType())
                 .lastMessageFromMe(userId.equals(conversation.getLastMessageSenderId()))

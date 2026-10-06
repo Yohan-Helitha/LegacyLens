@@ -25,7 +25,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -207,8 +209,12 @@ class MessagingServiceImplTest {
         List<Object[]> unreadRows = new ArrayList<>();
         unreadRows.add(new Object[] { unreadAboutRecipe.getId(), 2L });
         when(messageRepository.countUnreadByConversation(anyCollection(), eq(creator.getId()), any())).thenReturn(unreadRows);
-        when(contextProvider.contextFor(unreadAboutRecipe)).thenReturn(
-                ConversationContextResponse.builder().title("Traditional recipe documentation").build());
+        when(contextProvider.contextsFor(anyCollection())).thenAnswer(invocation -> {
+            Collection<Conversation> asked = invocation.getArgument(0);
+            return asked.contains(unreadAboutRecipe)
+                    ? Map.of(unreadAboutRecipe.getId(), ConversationContextResponse.builder().title("Traditional recipe documentation").build())
+                    : Map.of();
+        });
 
         List<ConversationSummaryResponse> all = service.listConversations(creator.getId(), ConversationFilter.ALL, null);
         List<ConversationSummaryResponse> unread = service.listConversations(creator.getId(), ConversationFilter.UNREAD, null);
@@ -223,6 +229,29 @@ class MessagingServiceImplTest {
         assertThat(collaborations).extracting(ConversationSummaryResponse::getId).containsExactly(unreadAboutRecipe.getId());
         assertThat(searched).extracting(ConversationSummaryResponse::getId).containsExactly(readNoContext.getId());
         assertThat(searchedByContext).extracting(ConversationSummaryResponse::getId).containsExactly(unreadAboutRecipe.getId());
+    }
+
+    @Test
+    void listConversations_fetchesTheContextCardsOnceAndOnlyForTheRowsShown() {
+        Conversation about = conversation;
+        about.setOpportunity(opportunity());
+        Conversation other = new Conversation();
+        other.setId(UUID.randomUUID());
+        other.setElder(user("Sunil Perera"));
+        other.setCreator(creator);
+        other.setOpportunity(opportunity());
+
+        when(conversationRepository.findAllForUser(creator.getId())).thenReturn(List.of(about, other));
+        when(messageRepository.countUnreadByConversation(anyCollection(), eq(creator.getId()), any())).thenReturn(List.of());
+        when(contextProvider.contextsFor(anyCollection())).thenReturn(Map.of());
+
+        service.listConversations(creator.getId(), ConversationFilter.ALL, "sunil");
+
+        // Only Sunil's row survives the search, and its card is requested in a single call.
+        org.mockito.ArgumentCaptor<Collection<Conversation>> asked = org.mockito.ArgumentCaptor.forClass(Collection.class);
+        verify(contextProvider, org.mockito.Mockito.times(1)).contextsFor(asked.capture());
+        assertThat(asked.getValue()).containsExactly(other);
+        verify(contextProvider, never()).contextFor(any());
     }
 
     // ── Opening ─────────────────────────────────────────────────────────────

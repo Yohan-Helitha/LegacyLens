@@ -1,8 +1,8 @@
-package lk.ac.sliit.legacylens.marketplace.service;
+package lk.ac.sliit.legacylens.marketplace.matching;
 
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
-import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.CreatorCandidate;
-import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.Match;
+import lk.ac.sliit.legacylens.marketplace.matching.CreatorMatchScorer.CreatorCandidate;
+import lk.ac.sliit.legacylens.marketplace.matching.CreatorMatchScorer.Match;
 import lk.ac.sliit.legacylens.users.entity.City;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.repository.CityRepository;

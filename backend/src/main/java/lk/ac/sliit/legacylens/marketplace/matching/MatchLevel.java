@@ -1,4 +1,4 @@
-package lk.ac.sliit.legacylens.marketplace.service;
+package lk.ac.sliit.legacylens.marketplace.matching;
 
 /**
  * How to describe a match percentage. Below 30% an opportunity is simply not

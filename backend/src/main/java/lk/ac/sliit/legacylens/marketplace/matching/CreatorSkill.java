@@ -1,8 +1,8 @@
-package lk.ac.sliit.legacylens.marketplace.service;
+package lk.ac.sliit.legacylens.marketplace.matching;
 
 import java.util.List;
 
-import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.containsStem;
+import static lk.ac.sliit.legacylens.marketplace.matching.TextMatching.containsStem;
 
 /** A kind of work a creator can do. Recognised from free-text skill tags via stems. */
 public enum CreatorSkill {

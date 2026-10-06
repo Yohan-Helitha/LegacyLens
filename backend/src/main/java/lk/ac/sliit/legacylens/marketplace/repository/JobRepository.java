@@ -21,6 +21,9 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
      * caller supplies sort order and page size via Pageable. */
     List<Job> findByCreatorIdAndStatus(UUID creatorId, JobStatus status, Pageable pageable);
 
+    /** Every job of one creator in any of the given statuses - no page limit, so nothing is silently left out. */
+    List<Job> findByCreatorIdAndStatusIn(UUID creatorId, java.util.Collection<JobStatus> statuses);
+
     /** Ownership-scoped lookup for logging a payment against a job — a creator may only pick their own jobs. */
     Optional<Job> findByIdAndCreatorId(UUID id, UUID creatorId);
 
@@ -33,6 +36,10 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
 
     /** The creator's booking for an opportunity, if any — its date/time feed the chat's context card. */
     Optional<Job> findFirstByOpportunityIdAndCreatorIdOrderByCreatedAtDesc(UUID opportunityId, UUID creatorId);
+
+    /** Bookings for a whole inbox at once, newest first - the caller keeps the first one per opportunity and creator. */
+    List<Job> findByOpportunityIdInAndCreatorIdInOrderByCreatedAtDesc(
+            java.util.Collection<UUID> opportunityIds, java.util.Collection<UUID> creatorIds);
 
     boolean existsByOpportunityIdAndCreatorId(UUID opportunityId, UUID creatorId);
 

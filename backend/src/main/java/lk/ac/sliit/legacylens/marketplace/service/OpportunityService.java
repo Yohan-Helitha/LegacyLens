@@ -12,7 +12,7 @@ public interface OpportunityService {
      * Opportunities recommended to this creator, best match first. Only opportunities the
      * creator can realistically take are considered (open, not past its deadline, not already
      * applied for or booked, no clash with an existing job), and only those scoring at least
-     * {@value lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer#CREATOR_RECOMMEND_MIN}%.
+     * {@value lk.ac.sliit.legacylens.marketplace.matching.CreatorMatchScorer#CREATOR_RECOMMEND_MIN}%.
      * Empty when the user is not an active, verified creator.
      */
     List<OpportunityCardResponse> getRecommended(int limit, UUID creatorId);

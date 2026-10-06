@@ -6,6 +6,8 @@ import lk.ac.sliit.legacylens.common.storage.FileStorageService;
 import lk.ac.sliit.legacylens.marketplace.dto.CreatorApplicationRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.CreatorApplicationResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.CreatorApplication;
+import lk.ac.sliit.legacylens.marketplace.matching.LanguageSkill;
+import lk.ac.sliit.legacylens.marketplace.matching.LanguageSkills;
 import lk.ac.sliit.legacylens.marketplace.repository.CreatorApplicationRepository;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.entity.VerificationStatus;

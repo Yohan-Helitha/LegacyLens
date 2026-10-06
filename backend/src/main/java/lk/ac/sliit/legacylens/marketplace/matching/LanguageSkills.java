@@ -1,4 +1,4 @@
-package lk.ac.sliit.legacylens.marketplace.service;
+package lk.ac.sliit.legacylens.marketplace.matching;
 
 import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
 import lk.ac.sliit.legacylens.marketplace.dto.LanguageSkillResponse;
@@ -16,13 +16,13 @@ import java.util.Set;
  * On the wire and in the database a language is written "Sinhala:FLUENT";
  * several are joined with commas ("Sinhala:FLUENT,English:BASIC").
  */
-final class LanguageSkills {
+public final class LanguageSkills {
 
     private LanguageSkills() {
     }
 
     /** The entries submitted on the form, checked: known language, known level, no language twice, at least one. */
-    static List<LanguageSkill> parseSubmitted(List<String> entries) {
+    public static List<LanguageSkill> parseSubmitted(List<String> entries) {
         if (entries == null || entries.isEmpty()) {
             throw new InvalidRequestException("Select at least one language");
         }
@@ -51,7 +51,7 @@ final class LanguageSkills {
         return List.copyOf(skills);
     }
 
-    static String serialize(List<LanguageSkill> skills) {
+    public static String serialize(List<LanguageSkill> skills) {
         return skills.stream()
                 .map(skill -> skill.language() + ":" + skill.proficiency().name())
                 .reduce((a, b) -> a + "," + b)
@@ -63,7 +63,7 @@ final class LanguageSkills {
      * for - those creators have said nothing, and nothing is assumed for them.
      * An entry without a readable level is skipped for the same reason.
      */
-    static List<LanguageSkill> deserialize(String stored) {
+    public static List<LanguageSkill> deserialize(String stored) {
         if (stored == null || stored.isBlank()) {
             return List.of();
         }
@@ -84,7 +84,7 @@ final class LanguageSkills {
     }
 
     /** The languages as shown to the app: name and level. */
-    static List<LanguageSkillResponse> toResponses(List<LanguageSkill> skills) {
+    public static List<LanguageSkillResponse> toResponses(List<LanguageSkill> skills) {
         return skills.stream()
                 .map(skill -> LanguageSkillResponse.builder()
                         .language(skill.language())

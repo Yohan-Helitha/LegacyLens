@@ -5,8 +5,8 @@ import lk.ac.sliit.legacylens.marketplace.entity.CreatorInvitationStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityCreatorInvitation;
-import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.CreatorCandidate;
-import lk.ac.sliit.legacylens.marketplace.service.CreatorMatchScorer.Match;
+import lk.ac.sliit.legacylens.marketplace.matching.CreatorMatchScorer.CreatorCandidate;
+import lk.ac.sliit.legacylens.marketplace.matching.CreatorMatchScorer.Match;
 import lk.ac.sliit.legacylens.users.entity.User;
 import org.springframework.stereotype.Component;
 

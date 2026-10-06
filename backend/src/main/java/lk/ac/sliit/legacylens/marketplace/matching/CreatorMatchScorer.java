@@ -1,4 +1,4 @@
-package lk.ac.sliit.legacylens.marketplace.service;
+package lk.ac.sliit.legacylens.marketplace.matching;
 
 import lk.ac.sliit.legacylens.marketplace.entity.CreatorApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
@@ -19,10 +19,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.containsStem;
-import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.hasText;
-import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.nullToEmpty;
-import static lk.ac.sliit.legacylens.marketplace.service.TextMatching.splitTags;
+import static lk.ac.sliit.legacylens.marketplace.matching.TextMatching.containsStem;
+import static lk.ac.sliit.legacylens.marketplace.matching.TextMatching.hasText;
+import static lk.ac.sliit.legacylens.marketplace.matching.TextMatching.nullToEmpty;
+import static lk.ac.sliit.legacylens.marketplace.matching.TextMatching.splitTags;
 
 /**
  * Matches content creators to an elder's opportunity for the Content
