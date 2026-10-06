@@ -18,6 +18,7 @@ public class OpportunityDetailResponse {
     private UUID id;
     private String title;
     private String description;
+    private String category;
     private String heroImageUrl;
     private String elderName;
     private String elderAvatarUrl;

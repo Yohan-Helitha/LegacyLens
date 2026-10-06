@@ -26,6 +26,7 @@ export interface OpportunityDetailResponse {
   id: string;
   title: string;
   description: string;
+  category?: string | null;
   heroImageUrl: string | null;
   elderName: string;
   elderAvatarUrl: string | null;

@@ -156,6 +156,7 @@ public class OpportunityServiceImpl implements OpportunityService {
                 .id(opportunity.getId())
                 .title(opportunity.getTitle())
                 .description(opportunity.getDescription())
+                .category(opportunity.getCategory())
                 .heroImageUrl(opportunity.getHeroImageUrl())
                 .elderName(elder != null ? elder.getFullName() : null)
                 .elderAvatarUrl(elder != null ? elder.getProfilePhotoUrl() : null)

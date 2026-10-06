@@ -51,6 +51,9 @@ const D = {
   outline:          '#718096',
 } as const;
 
+/** Shown when an opportunity has no picture of its own, or its picture cannot be loaded (same one My Work uses). */
+const GENERIC_HERO_IMAGE = require('../../../../assets/images/work/traditional-rice-menu.jpg');
+
 /** Shown for an elder with no uploaded profile photo. */
 const PLACEHOLDER_AVATAR =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuBdukQOb20lmYsNjgSC79bwk6nR11u86Bj87jNIlc_ZQzQ97BxLNMhydins5gSF08W2CSQyNGsh4guyGBVX0htKvkNTzRAY76Yfv8jK-W-9Z-cW30fTc-tVqTE_3MXVnOr3daWdokTEReYQUt-ciXqQB8LF7qkH10d4SgSRvnxi4hdlzLG5RUNcZvLxKkHwfHK5wXsfSfaNkQJdZelcgow41KGgsq77Fkd9zgLSrunJwEJsg3U5ZQcTdg';
@@ -162,8 +165,10 @@ export const OpportunityDetailPage: React.FC<{
   const [detail, setDetail] = useState<OpportunityDetailResponse | null>(
     opportunityId ? null : FALLBACK_DETAIL,
   );
+  const [heroFailed, setHeroFailed] = useState(false);
 
   useEffect(() => {
+    setHeroFailed(false);
     if (!opportunityId) {
       setDetail(FALLBACK_DETAIL);
       return;
@@ -190,19 +195,26 @@ export const OpportunityDetailPage: React.FC<{
     );
   }
 
-  const chips: { key: string; icon: React.ReactNode; value: string }[] = [];
-  if (detail.location) chips.push({ key: 'location', icon: <PinIcon />, value: detail.location });
-  if (detail.durationText) chips.push({ key: 'duration', icon: <ClockIcon />, value: detail.durationText });
-  chips.push({
+  const facts: { key: string; icon: React.ReactNode; label: string; value: string }[] = [];
+  if (detail.location) facts.push({ key: 'location', icon: <PinIcon />, label: 'Location', value: detail.location });
+  if (detail.scheduledDate) {
+    facts.push({ key: 'date', icon: <CalendarIcon />, label: 'Date', value: formatScheduledDate(detail.scheduledDate) });
+  }
+  if (detail.durationText) facts.push({ key: 'duration', icon: <ClockIcon />, label: 'Duration', value: detail.durationText });
+  if (detail.timeWindowText) facts.push({ key: 'time', icon: <ClockIcon />, label: 'Time', value: detail.timeWindowText });
+  facts.push({
     key: 'offered',
     icon: <CardIcon />,
+    label: 'Payment',
     value: `LKR ${Math.round(detail.offeredAmount).toLocaleString('en-US')}`,
   });
-  if (detail.scheduledDate) {
-    chips.push({ key: 'date', icon: <CalendarIcon />, value: formatScheduledDate(detail.scheduledDate) });
-  }
-  if (detail.timeWindowText) chips.push({ key: 'time', icon: <ClockIcon />, value: detail.timeWindowText });
-  if (detail.language) chips.push({ key: 'language', icon: <LanguageIcon />, value: detail.language });
+  if (detail.language) facts.push({ key: 'language', icon: <LanguageIcon />, label: 'Language', value: detail.language });
+
+  const heroSource = (heroFailed ? undefined : resolveOpportunityImage(detail.heroImageUrl)) ?? GENERIC_HERO_IMAGE;
+  const preserveParagraphs = (detail.preservationGoal ?? '')
+    .split(/\n\s*\n|\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
@@ -216,21 +228,68 @@ export const OpportunityDetailPage: React.FC<{
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Page heading */}
-        <Text style={s.breadcrumb}>Opportunity Details.....</Text>
-        <Text style={s.pageHeading}>{detail.title}</Text>
-
-        {/* Hero image */}
+        {/* Hero image - full width, always shown */}
         <View style={s.heroWrapper}>
           <Image
-            source={resolveOpportunityImage(detail.heroImageUrl)}
+            source={heroSource}
             style={s.heroImage}
             accessibilityLabel={detail.title}
             resizeMode="cover"
+            onError={() => setHeroFailed(true)}
           />
         </View>
 
-        {/* Knowledge Holder card */}
+        {/* Details start on a sheet with rounded top corners, overlapping the picture's bottom edge */}
+        <View style={s.sheet}>
+        {/* Header: badge + category, title, short description */}
+        {(detail.elderVerified || !!detail.category) && (
+          <View style={s.tagRow}>
+            {detail.elderVerified && (
+              <View style={s.verifiedPill}>
+                <Text style={s.verifiedPillStar}>{'✦'}</Text>
+                <Text style={s.verifiedPillText}>Verified Heritage</Text>
+              </View>
+            )}
+            {!!detail.category && <Text style={s.categoryText}>{detail.category}</Text>}
+          </View>
+        )}
+        <Text style={s.pageHeading}>{detail.title}</Text>
+        {!!detail.description && <Text style={s.pageSubtitle}>{detail.description}</Text>}
+
+        {/* Key facts */}
+        {facts.length > 0 && (
+          <View style={s.factsCard}>
+            {facts.map((fact) => (
+              <View key={fact.key} style={s.factCell}>
+                <View style={s.factLabelRow}>
+                  {fact.icon}
+                  <Text style={s.factLabel}>{fact.label}</Text>
+                </View>
+                <Text style={s.factValue}>{fact.value}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Why this matches the signed-in creator - from the creator -> opportunity algorithm */}
+        {showsMatchBadge(detail.matchPercentage, detail.matchLevel) && !!detail.matchReasons?.length && (
+          <View style={s.matchCard}>
+            <View style={s.matchHeaderRow}>
+              <Text style={s.matchPercent}>{detail.matchPercentage}% match</Text>
+              <Text style={s.matchLevelText}>{matchLevelLabel(detail.matchLevel)}</Text>
+            </View>
+            <Text style={s.matchTitle}>Why this matches you</Text>
+            {detail.matchReasons.map((reason) => (
+              <View key={reason} style={s.matchReasonRow}>
+                <Text style={s.matchCheck}>{'✓'}</Text>
+                <Text style={s.matchReasonText}>{reason}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Knowledge Holder */}
+        <Text style={s.sectionHeading}>Knowledge Holder</Text>
         <Pressable
           style={({ pressed }) => [s.holderCard, pressed && s.cardPressed]}
           accessibilityRole="button"
@@ -257,54 +316,26 @@ export const OpportunityDetailPage: React.FC<{
           </View>
         </Pressable>
 
-        {/* Key info — compact pill chips, not big bento boxes */}
-        {chips.length > 0 && (
-          <View style={s.infoChipsRow}>
-            {chips.map((c) => (
-              <View key={c.key} style={s.infoChip}>
-                <View style={s.infoChipIconBox}>{c.icon}</View>
-                <Text style={s.infoChipText} numberOfLines={1}>{c.value}</Text>
-              </View>
+        {/* Preservation goal */}
+        {preserveParagraphs.length > 0 && (
+          <View style={s.section}>
+            <Text style={s.sectionHeading}>What they want to preserve?</Text>
+            {preserveParagraphs.map((paragraph, index) => (
+              <Text key={index} style={s.bodyText}>{paragraph}</Text>
             ))}
-          </View>
-        )}
-
-        {/* Why this matches the signed-in creator - from the creator -> opportunity algorithm */}
-        {showsMatchBadge(detail.matchPercentage, detail.matchLevel) && !!detail.matchReasons?.length && (
-          <View style={s.matchCard}>
-            <View style={s.matchHeaderRow}>
-              <Text style={s.matchPercent}>{detail.matchPercentage}% match</Text>
-              <Text style={s.matchLevelText}>{matchLevelLabel(detail.matchLevel)}</Text>
-            </View>
-            <Text style={s.matchTitle}>Why this matches you</Text>
-            {detail.matchReasons.map((reason) => (
-              <View key={reason} style={s.matchReasonRow}>
-                <Text style={s.matchCheck}>{'✓'}</Text>
-                <Text style={s.matchReasonText}>{reason}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Preservation Goal quote card */}
-        {detail.preservationGoal && (
-          <View style={s.quoteCard}>
-            <Text style={s.quoteLargeDecor}>{'“'}</Text>
-
-            <Text style={s.quoteCardTitle}>What they want to preserve?</Text>
-            <Text style={s.quoteCardText}>{`“${detail.preservationGoal}”`}</Text>
           </View>
         )}
 
         {/* Tasks: What you'll do — numbered stepper */}
         {detail.tasks.length > 0 && (
           <View style={s.tasksSection}>
-            <Text style={s.tasksSectionTitle}>{'What you\'ll do'}</Text>
+            <Text style={s.sectionHeading}>{'What you\'ll do'}</Text>
             {detail.tasks.map((task, index) => (
               <TaskStep key={index} index={index} text={task} isLast={index === detail.tasks.length - 1} />
             ))}
           </View>
         )}
+        </View>
       </ScrollView>
 
       {/* Fixed Apply button (above nav bar) */}
@@ -387,42 +418,79 @@ const s = StyleSheet.create({
 
   scroll:        { flex: 1 },
   scrollContent: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.md,
     paddingBottom: Spacing.md,
+  },
+  sheet: {
+    marginTop: -28,
+    backgroundColor: D.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.lg,
   },
 
   // ── Page heading ───────────────────────────────────────────────────────────
-  breadcrumb: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeXS,
-    color: D.onSurfaceVariant,
-    marginBottom: 4,
-    letterSpacing: 0.3,
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
+  verifiedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E3F1E6',
+    borderRadius: Radii.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#B9D9C0',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  verifiedPillStar: { fontSize: 12, color: '#2F6B3F' },
+  verifiedPillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#2F6B3F' },
+  categoryText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.secondary },
   pageHeading: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeXL,      // 24sp — h1
-    lineHeight: 30,
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.size2XL,
+    lineHeight: 40,
     color: D.onSurface,
-    marginBottom: Spacing.md,
-    letterSpacing: -0.2,
+    marginBottom: Spacing.sm,
+    letterSpacing: -0.4,
+  },
+  pageSubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeMD,
+    lineHeight: 24,
+    color: D.onSurfaceVariant,
+    marginBottom: Spacing.lg,
   },
 
   // ── Hero image ─────────────────────────────────────────────────────────────
   heroWrapper: {
     width: '100%',
-    aspectRatio: 4 / 3,
-    borderRadius: Radii.xl,
-    overflow: 'hidden',
-    marginBottom: Spacing.md,
-    shadowColor: D.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 20,
-    elevation: 2,
+    height: 360,
+    backgroundColor: D.surfaceContainerHigh,
   },
   heroImage: { width: '100%', height: '100%' },
+
+  // ── Section headings and body copy ─────────────────────────────────────────
+  section: { marginBottom: Spacing.lg },
+  sectionHeading: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: 20,
+    lineHeight: 28,
+    color: D.onSurface,
+    marginBottom: Spacing.sm,
+  },
+  bodyText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeMD,
+    lineHeight: 26,
+    color: D.onSurfaceVariant,
+    marginBottom: Spacing.md,
+  },
 
   // ── Knowledge Holder card ──────────────────────────────────────────────────
   holderCard: {
@@ -432,7 +500,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
     shadowColor: D.primary,
@@ -459,84 +527,29 @@ const s = StyleSheet.create({
   chevronText: { fontSize: 18, color: '#ffffff', lineHeight: 22, fontFamily: Typography.fontBodySemi },
   cardPressed: { opacity: 0.9 },
 
-  // ── Info chips (compact — not big boxes) ───────────────────────────────────
-  infoChipsRow: {
+  // ── Key facts card ─────────────────────────────────────────────────────────
+  factsCard: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  infoChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    rowGap: Spacing.lg,
     backgroundColor: D.surfaceContainerLowest,
-    borderRadius: Radii.full,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: D.surfaceVariant,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-  },
-  infoChipIconBox: {
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: 'rgba(232, 121, 46, 0.12)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  infoChipText: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeSM,      // 14sp
-    color: D.onSurface,
-  },
-
-  // ── Preservation Quote card ────────────────────────────────────────────────
-  quoteCard: {
-    backgroundColor: D.surfaceContainerLow,
     borderRadius: Radii.xl,
     padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: D.primary,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
+    marginBottom: Spacing.lg,
+    shadowColor: D.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 20,
     elevation: 1,
   },
-  quoteLargeDecor: {
-    position: 'absolute',
-    top: -16,
-    right: -8,
-    fontSize: 120,
-    lineHeight: 120,
-    color: D.surfaceVariant,
-    opacity: 0.3,
-    fontFamily: Typography.fontDisplay,
-  },
-  quoteCardTitle: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeMD,      // 16sp
-    color: '#0F5C5C',                 // teal heading (30% rule)
-    marginBottom: Spacing.sm,
-    lineHeight: 24,
-  },
-  quoteCardText: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeMD,      // 16sp — body
-    lineHeight: 26,
-    color: D.onSurfaceVariant,
-    fontStyle: 'italic',
-  },
+  factCell: { width: '50%', gap: 4, paddingRight: Spacing.sm },
+  factLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  factLabel: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
+  factValue: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 22, color: D.onSurface },
 
   // ── Tasks — numbered stepper ───────────────────────────────────────────────
-  tasksSection:      { gap: 0 },
-  tasksSectionTitle: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeLG,      // 18sp — section heading
-    color: D.onSurface,
-    lineHeight: 28,
-    marginBottom: Spacing.sm,
-  },
+  tasksSection:      { gap: 0, marginBottom: Spacing.md },
+
   taskStepRow:    { flexDirection: 'row', gap: Spacing.sm },
   taskStepBadgeCol: { alignItems: 'center', width: 28 },
   taskStepBadge: {
