@@ -10,7 +10,9 @@ import lk.ac.sliit.legacylens.marketplace.entity.Job;
 import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.PaymentRecord;
 import lk.ac.sliit.legacylens.marketplace.entity.Review;
+import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
+import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.PaymentRecordRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.ReviewRepository;
 import lk.ac.sliit.legacylens.users.entity.CreatorProfile;
@@ -30,7 +32,10 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -46,6 +51,7 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
     private static final int TAB_LIST_MAX = 100;
 
     private final JobRepository jobRepository;
+    private final OpportunityRepository opportunityRepository;
     private final ReviewRepository reviewRepository;
     private final CreatorProfileRepository creatorProfileRepository;
     private final PaymentRecordRepository paymentRecordRepository;
@@ -57,6 +63,7 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
 
     public CreatorDashboardServiceImpl(
             JobRepository jobRepository,
+            OpportunityRepository opportunityRepository,
             ReviewRepository reviewRepository,
             CreatorProfileRepository creatorProfileRepository,
             PaymentRecordRepository paymentRecordRepository,
@@ -64,6 +71,7 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
             FileStorageService fileStorageService) {
 
         this.jobRepository = jobRepository;
+        this.opportunityRepository = opportunityRepository;
         this.reviewRepository = reviewRepository;
         this.creatorProfileRepository = creatorProfileRepository;
         this.paymentRecordRepository = paymentRecordRepository;
@@ -112,9 +120,7 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
 
         Pageable pageable = PageRequest.of(0, TAB_LIST_MAX, sort);
 
-        return jobRepository.findByCreatorIdAndStatus(creatorId, status, pageable).stream()
-                .map(this::mapJob)
-                .collect(Collectors.toList());
+        return mapJobs(jobRepository.findByCreatorIdAndStatus(creatorId, status, pageable));
     }
 
     @Override
@@ -122,9 +128,7 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
     public List<JobResponse> getRecentWork(UUID creatorId, int limit) {
         Pageable pageable = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "completedAt"));
 
-        return jobRepository.findByCreatorIdAndStatus(creatorId, JobStatus.COMPLETED, pageable).stream()
-                .map(this::mapJob)
-                .collect(Collectors.toList());
+        return mapJobs(jobRepository.findByCreatorIdAndStatus(creatorId, JobStatus.COMPLETED, pageable));
     }
 
     @Override
@@ -209,7 +213,27 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
                 .build();
     }
 
-    private JobResponse mapJob(Job job) {
+    /** Maps a list of jobs, looking up the categories of their opportunities in one query. */
+    private List<JobResponse> mapJobs(List<Job> jobs) {
+        List<UUID> opportunityIds = jobs.stream()
+                .map(Job::getOpportunityId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<UUID, String> categoryByOpportunity = new HashMap<>();
+        if (!opportunityIds.isEmpty()) {
+            for (Opportunity opportunity : opportunityRepository.findAllById(opportunityIds)) {
+                categoryByOpportunity.put(opportunity.getId(), opportunity.getCategory());
+            }
+        }
+
+        return jobs.stream()
+                .map(job -> mapJob(job, categoryByOpportunity.get(job.getOpportunityId())))
+                .collect(Collectors.toList());
+    }
+
+    private JobResponse mapJob(Job job, String category) {
         return JobResponse.builder()
                 .id(job.getId())
                 .title(job.getTitle())
@@ -222,6 +246,7 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
                 .scheduledAt(job.getScheduledAt())
                 .timeWindowText(job.getTimeWindowText())
                 .completedAt(job.getCompletedAt())
+                .category(category)
                 .build();
     }
 

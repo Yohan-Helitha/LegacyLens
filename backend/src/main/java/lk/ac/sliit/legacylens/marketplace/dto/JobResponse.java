@@ -26,4 +26,6 @@ public class JobResponse {
     /** Display text for the confirmed time range, e.g. "10:00 AM - 2:00 PM" — set only for Jobs created via booking. */
     private String timeWindowText;
     private LocalDateTime completedAt;
+    /** The linked opportunity's category (e.g. "Oral History"); null for jobs with no opportunity behind them. */
+    private String category;
 }

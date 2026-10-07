@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -13,6 +13,7 @@ import type { JobResponse } from '../../../types/creatorDashboard';
 import { ApiError } from '../../../services/api/client';
 import { WorkProgressResponse, stepsForStage } from '../../../types/workProgress';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
+import { groupCompletedByMonth } from '../../../utils/completedWork';
 
 // Only for jobs with no photo of their own and no linked opportunity either
 // (directly-seeded rows) — see resolveOpportunityImage/Job.heroImageUrl.
@@ -50,6 +51,15 @@ function formatDueText(iso: string | null): string | null {
   return 'Overdue';
 }
 
+function formatDoneDate(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatLkr(amount: number): string {
+  return `LKR ${Math.round(amount).toLocaleString('en-US')}`;
+}
+
 type WorkTab = 'active' | 'submitted' | 'completed';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,6 +71,13 @@ const PersonIcon: React.FC<IconProps> = ({ size = 14, color = D.secondary }) => 
   <Svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none">
     <Circle cx="12" cy="8" r="4" />
     <Path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+  </Svg>
+);
+
+const PinIcon: React.FC<IconProps> = ({ size = 14, color = D.onSurfaceVariant }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z" />
+    <Circle cx="12" cy="10" r="3" />
   </Svg>
 );
 
@@ -137,10 +154,9 @@ const WorkCard: React.FC<{
   materialsCount: number;
   progressPercentage: number;
   completedSteps: number;
-  variant: 'continue' | 'submitted' | 'completed';
+  variant: 'continue' | 'submitted';
   onContinue: () => void;
-  onView: () => void;
-}> = ({ job, heroImageUrl, materialsCount, progressPercentage, completedSteps, variant, onContinue, onView }) => {
+}> = ({ job, heroImageUrl, materialsCount, progressPercentage, completedSteps, variant, onContinue }) => {
   const dueText = formatDueText(job.scheduledAt);
 
   return (
@@ -192,11 +208,60 @@ const WorkCard: React.FC<{
           <Text style={s.awaitingPillText}>Awaiting Review</Text>
         </View>
       )}
-      {variant === 'completed' && (
-        <Pressable onPress={onView} style={({ pressed }) => [s.viewBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel={`View ${job.title}`}>
-          <Text style={s.viewBtnText}>View</Text>
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CompletedCard - a finished job: what it was, for whom, when, and what it earned.
+// (No progress bar or stepper - those only mean something while work is under way.)
+// ─────────────────────────────────────────────────────────────────────────────
+const CompletedCard: React.FC<{ job: JobResponse; onView: () => void }> = ({ job, onView }) => {
+  const doneOn = formatDoneDate(job.completedAt);
+
+  return (
+    <View style={s.doneCard}>
+      <View style={s.doneTopRow}>
+        <View style={s.donePill}>
+          <View style={s.doneCheck}>
+            <CheckIcon size={9} />
+          </View>
+          <Text style={s.donePillText}>Completed</Text>
+        </View>
+        {doneOn && <Text style={s.doneDate}>{doneOn}</Text>}
+      </View>
+
+      <View style={s.doneBody}>
+        <Image source={GENERIC_HERO_IMAGE} style={s.doneThumb} resizeMode="cover" accessibilityLabel={job.title} />
+        <View style={s.doneInfo}>
+          <Text style={s.cardTitle} numberOfLines={2}>{job.title}</Text>
+          <View style={s.contributorRow}>
+            <PersonIcon />
+            <Text style={s.contributorText} numberOfLines={1}>{job.elderName}</Text>
+          </View>
+          {!!job.location && (
+            <View style={s.contributorRow}>
+              <PinIcon />
+              <Text style={s.contributorText} numberOfLines={1}>{job.location}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      <View style={s.doneFooter}>
+        <View>
+          <Text style={s.doneEarnedLabel}>Earned</Text>
+          <Text style={s.doneEarnedValue}>{formatLkr(job.offeredAmount)}</Text>
+        </View>
+        <Pressable
+          onPress={onView}
+          style={({ pressed }) => [s.doneViewBtn, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${job.title}`}
+        >
+          <Text style={s.doneViewBtnText}>{'View  →'}</Text>
         </Pressable>
-      )}
+      </View>
     </View>
   );
 };
@@ -275,14 +340,10 @@ export const MyWorkList: React.FC<{
     [workJobs, progressByJobId],
   );
 
+  const completedByMonth = useMemo(() => groupCompletedByMonth(completedJobs), [completedJobs]);
+
   const stillInProgress = activeWithProgress.filter((x) => !x.submitted);
   const submitted = activeWithProgress.filter((x) => x.submitted);
-
-  const handleView = (title: string) => {
-    // No per-job detail screen exists yet — same stopgap as the Dashboard's
-    // own "View Details" affordance and the Schedule page's "View".
-    Alert.alert(title, 'Full work details aren’t available yet.');
-  };
 
   // Held back until every fetch above settles — real data only, no
   // fallback/mock content, and a genuine failure shows as an error state.
@@ -346,7 +407,6 @@ export const MyWorkList: React.FC<{
                 completedSteps={steps}
                 variant="continue"
                 onContinue={() => onContinueWork(job.id, job.title, job.elderName, job.location)}
-                onView={() => handleView(job.title)}
               />
             ))
           )
@@ -366,7 +426,6 @@ export const MyWorkList: React.FC<{
                 completedSteps={steps}
                 variant="submitted"
                 onContinue={() => {}}
-                onView={onViewSubmittedWork}
               />
             ))
           )
@@ -376,19 +435,36 @@ export const MyWorkList: React.FC<{
           completedJobs.length === 0 ? (
             <View style={s.emptyState}><Text style={s.emptyStateText}>No completed work yet.</Text></View>
           ) : (
-            completedJobs.map((job) => (
-              <WorkCard
-                key={job.id}
-                job={job}
-                heroImageUrl={null}
-                materialsCount={0}
-                progressPercentage={100}
-                completedSteps={4}
-                variant="completed"
-                onContinue={() => {}}
-                onView={onViewSubmittedWork}
-              />
-            ))
+            <>
+              <View style={s.doneSummary}>
+                <Text style={s.doneSummaryText}>
+                  {`${completedJobs.length} completed ${completedJobs.length === 1 ? 'job' : 'jobs'}`}
+                </Text>
+                <Text style={s.doneSummaryTotal}>
+                  {`${formatLkr(completedJobs.reduce((sum, job) => sum + job.offeredAmount, 0))} earned`}
+                </Text>
+              </View>
+              {completedByMonth.map((month) => (
+                <View key={month.key} style={s.monthSection}>
+                  <View style={s.monthHeader}>
+                    <Text style={s.monthLabel}>{month.label}</Text>
+                    <Text style={s.monthStats}>
+                      {`${month.jobs.length} ${month.jobs.length === 1 ? 'job' : 'jobs'} · ${formatLkr(month.total)}`}
+                    </Text>
+                  </View>
+                  <View style={s.kindRow}>
+                    {month.kinds.map((kind) => (
+                      <View key={kind.name} style={s.kindChip}>
+                        <Text style={s.kindChipText}>{`${kind.name} × ${kind.count}`}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  {month.jobs.map((job) => (
+                    <CompletedCard key={job.id} job={job} onView={onViewSubmittedWork} />
+                  ))}
+                </View>
+              ))}
+            </>
           )
         )}
 
@@ -548,16 +624,71 @@ const s = StyleSheet.create({
     paddingVertical: 11, alignItems: 'center', justifyContent: 'center', minHeight: 44,
   },
   continueBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff', letterSpacing: 0.3 },
-  viewBtn: {
-    backgroundColor: D.surfaceContainerLowest, borderRadius: Radii.full, borderWidth: 1.5, borderColor: D.secondary,
-    marginTop: Spacing.md, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', minHeight: 44,
-  },
-  viewBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
   awaitingPill: {
     backgroundColor: '#f0f5f5', borderRadius: Radii.full, borderWidth: 1, borderColor: D.surfaceVariant,
     marginTop: Spacing.md, paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
   },
   awaitingPillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, letterSpacing: 0.3 },
+
+  // ── Completed tab ────────────────────────────────────────────────────────
+  doneSummary: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
+    paddingHorizontal: 4,
+  },
+  doneSummaryText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+  doneSummaryTotal: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.primary },
+  monthSection: { gap: Spacing.sm },
+  monthHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
+    paddingHorizontal: 4, marginTop: Spacing.sm,
+  },
+  monthLabel: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, color: D.onSurface },
+  monthStats: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.primary },
+  kindRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 4 },
+  kindChip: {
+    backgroundColor: D.surfaceContainer, borderRadius: Radii.full,
+    paddingVertical: 4, paddingHorizontal: 10,
+  },
+  kindChipText: { fontFamily: Typography.fontBodyMed, fontSize: 11, color: D.onSurfaceVariant },
+  doneCard: {
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.xl,
+    padding: Spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    shadowColor: D.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+    gap: Spacing.md,
+  },
+  doneTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  donePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#E3F1E6', borderRadius: Radii.full,
+    paddingVertical: 4, paddingLeft: 6, paddingRight: 10,
+  },
+  doneCheck: {
+    width: 16, height: 16, borderRadius: 8, backgroundColor: '#2F6B3F',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  donePillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#2F6B3F' },
+  doneDate: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
+  doneBody: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
+  doneThumb: { width: 76, height: 76, borderRadius: Radii.lg, backgroundColor: D.surfaceContainer },
+  doneInfo: { flex: 1 },
+  doneFooter: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant, paddingTop: Spacing.sm,
+  },
+  doneEarnedLabel: { fontFamily: Typography.fontBody, fontSize: 11, color: D.onSurfaceVariant },
+  doneEarnedValue: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: D.primary },
+  doneViewBtn: {
+    borderRadius: Radii.full, borderWidth: 1.5, borderColor: D.secondary,
+    paddingVertical: 8, paddingHorizontal: 18, minHeight: 40, alignItems: 'center', justifyContent: 'center',
+  },
+  doneViewBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
 
   // ── Press feedback ───────────────────────────────────────────────────────
   pressed: { opacity: 0.75 },

@@ -37,6 +37,8 @@ export interface JobResponse {
   /** Display text for the confirmed time range, e.g. "10:00 AM - 2:00 PM" — set only for Jobs created via booking. */
   timeWindowText: string | null;
   completedAt: string | null;
+  /** The linked opportunity's category, e.g. "Oral History"; null for jobs with no opportunity behind them. */
+  category?: string | null;
 }
 
 export interface ReviewResponse {
