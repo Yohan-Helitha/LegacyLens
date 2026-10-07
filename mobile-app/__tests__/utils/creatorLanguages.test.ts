@@ -1,5 +1,6 @@
 import {
   languageMissingLevel,
+  selectionFromLanguages,
   proficiencyLabel,
   setLanguageLevel,
   toggleLanguage,
@@ -48,5 +49,16 @@ describe('creatorLanguages', () => {
     expect(proficiencyLabel('INTERMEDIATE')).toBe('Intermediate');
     expect(proficiencyLabel('FLUENT')).toBe('Fluent');
     expect(proficiencyLabel(null)).toBe('');
+  });
+
+  it('turns saved languages back into the picker state, and back to the wire format unchanged', () => {
+    const selection = selectionFromLanguages([
+      { language: 'Sinhala', proficiency: 'FLUENT' },
+      { language: 'English', proficiency: 'BASIC' },
+    ]);
+
+    expect(selection).toEqual({ Sinhala: 'FLUENT', English: 'BASIC' });
+    expect(toWireFormat(toLanguageRequests(selection))).toEqual(['Sinhala:FLUENT', 'English:BASIC']);
+    expect(selectionFromLanguages([])).toEqual({});
   });
 });

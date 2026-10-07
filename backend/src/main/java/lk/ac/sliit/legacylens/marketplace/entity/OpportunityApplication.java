@@ -73,6 +73,13 @@ public class OpportunityApplication {
     @Column(name = "availability_confirmed", nullable = false)
     private boolean availabilityConfirmed = false;
 
+    /**
+     * The languages the creator says they can work in for this opportunity, as "Language:LEVEL"
+     * pairs (e.g. "Sinhala:FLUENT,English:BASIC"). Null/empty for drafts made before this was asked.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String languages;
+
     /** Comma separated tags selected from the "Equipment" checkbox list. */
     @Column(columnDefinition = "TEXT")
     private String equipment;

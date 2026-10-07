@@ -4,6 +4,8 @@
  * under /api/opportunity-applications/**.
  */
 
+import type { CreatorLanguage } from './creatorApplication';
+
 export type OpportunityApplicationStatus = 'SAVED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'BOOKED';
 
 export interface OpportunityApplicationResponse {
@@ -21,6 +23,8 @@ export interface OpportunityApplicationResponse {
   approachText: string | null;
   availabilityConfirmed: boolean;
   equipment: string[];
+  /** The languages the creator offered for this opportunity; empty for older drafts. */
+  languages?: CreatorLanguage[];
   status: OpportunityApplicationStatus;
   savedAt: string;
   submittedAt: string | null;
@@ -44,4 +48,6 @@ export interface SaveOpportunityApplicationRequest {
   approachText: string;
   availabilityConfirmed: boolean;
   equipment: string[];
+  /** One "Language:LEVEL" text per language, e.g. "Sinhala:FLUENT". */
+  languages: string[];
 }

@@ -38,6 +38,15 @@ export function languageMissingLevel(selection: LanguageSelection): string | nul
   return LANGUAGE_OPTIONS.find((language) => language in selection && selection[language] == null) ?? null;
 }
 
+/** The picker's state for languages already on record, so a saved choice can be shown and edited. */
+export function selectionFromLanguages(languages: CreatorLanguage[]): LanguageSelection {
+  const selection: LanguageSelection = {};
+  for (const entry of languages) {
+    selection[entry.language] = entry.proficiency;
+  }
+  return selection;
+}
+
 /** What is sent to the server, in the order the form lists the languages. Languages without a level are left out. */
 export function toLanguageRequests(selection: LanguageSelection): LanguageChoice[] {
   const result: LanguageChoice[] = [];

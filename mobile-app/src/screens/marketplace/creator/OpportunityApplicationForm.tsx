@@ -20,11 +20,23 @@ import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import { profileApi } from '../../../services/api/profileApi';
 import { cityApi } from '../../../services/api/cityApi';
+import { creatorProfileApi } from '../../../services/api/creatorProfileApi';
 import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
 import { ApiError } from '../../../services/api/client';
 import type { OpportunityDetailResponse } from '../../../types/opportunity';
 import type { City } from '../../../types/city';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
+import { LanguagePicker } from '../../../components/module-specific/marketplace/LanguagePicker';
+import {
+  languageMissingLevel,
+  selectionFromLanguages,
+  toLanguageRequests,
+  toWireFormat,
+} from '../../../utils/creatorLanguages';
+import type { LanguageSelection } from '../../../utils/creatorLanguages';
+
+// Shown when an opportunity has no picture of its own, or its picture cannot be loaded.
+const GENERIC_HERO_IMAGE = require('../../../../assets/images/work/traditional-rice-menu.jpg');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -147,6 +159,28 @@ const Checkbox: React.FC<{ label: string; checked: boolean; onToggle: () => void
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Chip - a pick-any option that reads as one tappable pill (skills, equipment)
+// ─────────────────────────────────────────────────────────────────────────────
+const Chip: React.FC<{ label: string; selected: boolean; onToggle: () => void }> = ({ label, selected, onToggle }) => (
+  <Pressable
+    onPress={onToggle}
+    style={({ pressed }) => [s.chip, selected && s.chipSelected, pressed && s.pressed]}
+    accessibilityRole="checkbox"
+    accessibilityState={{ checked: selected }}
+    accessibilityLabel={label}
+  >
+    {selected && <CheckMark />}
+    <Text style={[s.chipText, selected && s.chipTextSelected]}>{label}</Text>
+  </Pressable>
+);
+
+const SectionHeader: React.FC<{ title: string; hint?: string }> = ({ title, hint }) => (
+  <View style={s.sectionHeaderRow}>
+    <Text style={s.sectionTitle}>{title}</Text>
+    {!!hint && <Text style={s.sectionHint}>{hint}</Text>}
+  </View>
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -169,6 +203,8 @@ export const OpportunityApplicationForm: React.FC<{
   const [approachText, setApproachText] = useState('');
   const [availabilityConfirmed, setAvailabilityConfirmed] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Record<string, boolean>>({});
+  const [languages, setLanguages] = useState<LanguageSelection>({});
+  const [heroFailed, setHeroFailed] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // "Edit Your Details" — full name + city only. Phone/NIC stay on their own
@@ -182,6 +218,7 @@ export const OpportunityApplicationForm: React.FC<{
   const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
+    setHeroFailed(false);
     if (!opportunityId) {
       setLoadError('No opportunity was selected.');
       return;
@@ -197,13 +234,24 @@ export const OpportunityApplicationForm: React.FC<{
     // (null data, no throw) simply means they're starting fresh.
     opportunityApplicationApi
       .getByOpportunity(opportunityId)
-      .then((existing) => {
-        if (!existing) return;
-        setSelectedSkills(Object.fromEntries(existing.skills.map((k) => [k, true])));
-        setExperienceText(existing.experienceText ?? '');
-        setApproachText(existing.approachText ?? '');
-        setAvailabilityConfirmed(existing.availabilityConfirmed);
-        setSelectedEquipment(Object.fromEntries(existing.equipment.map((k) => [k, true])));
+      .then(async (existing) => {
+        if (existing) {
+          setSelectedSkills(Object.fromEntries(existing.skills.map((k) => [k, true])));
+          setExperienceText(existing.experienceText ?? '');
+          setApproachText(existing.approachText ?? '');
+          setAvailabilityConfirmed(existing.availabilityConfirmed);
+          setSelectedEquipment(Object.fromEntries(existing.equipment.map((k) => [k, true])));
+          if (existing.languages?.length) {
+            setLanguages(selectionFromLanguages(existing.languages));
+            return;
+          }
+        }
+        // Nothing saved for this opportunity yet: start from the languages already on the
+        // creator's own profile, so they only have to adjust them.
+        const profile = await creatorProfileApi.getMine().catch(() => null);
+        if (profile?.languages?.length) {
+          setLanguages(selectionFromLanguages(profile.languages));
+        }
       })
       .catch(() => {});
   }, [opportunityId]);
@@ -261,6 +309,12 @@ export const OpportunityApplicationForm: React.FC<{
       return;
     }
 
+    const missingLevel = languageMissingLevel(languages);
+    if (missingLevel) {
+      Alert.alert('Language level needed', `Choose how well you speak ${missingLevel}, or untick it.`);
+      return;
+    }
+
     setSaving(true);
     try {
       await opportunityApplicationApi.saveDraft({
@@ -270,6 +324,7 @@ export const OpportunityApplicationForm: React.FC<{
         approachText,
         availabilityConfirmed,
         equipment: Object.keys(selectedEquipment).filter((k) => selectedEquipment[k]),
+        languages: toWireFormat(toLanguageRequests(languages)),
       });
       Alert.alert('Application saved', 'Your application draft has been saved.', [
         { text: 'OK', onPress: onSave },
@@ -326,30 +381,31 @@ export const OpportunityApplicationForm: React.FC<{
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.pageHeading}>Apply to Opportunity</Text>
+        <View style={s.headingBlock}>
+          <Text style={s.pageHeading}>Apply to Opportunity</Text>
+          <Text style={s.pageSubtitle}>Tell the knowledge holder why you are the right person for this work.</Text>
+        </View>
 
         {/* Opportunity summary card */}
         <View style={s.card}>
           <View style={s.summaryRow}>
             <Image
-              source={resolveOpportunityImage(detail.heroImageUrl)}
+              source={(heroFailed ? undefined : resolveOpportunityImage(detail.heroImageUrl)) ?? GENERIC_HERO_IMAGE}
               style={s.thumbnail}
               accessibilityLabel={detail.title}
               resizeMode="cover"
+              onError={() => setHeroFailed(true)}
             />
-            <View style={{ flex: 1 }}>
-              <Text style={s.summaryTitle} numberOfLines={2}>{detail.title}</Text>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={s.summaryTitle} numberOfLines={3}>{detail.title}</Text>
+              <Text style={s.elderName}>{detail.elderName}</Text>
+              {detail.location && (
+                <View style={s.metaInline}>
+                  <PinIcon />
+                  <Text style={s.metaInlineText}>{detail.location}</Text>
+                </View>
+              )}
             </View>
-          </View>
-
-          <View style={s.summaryMetaRow}>
-            <Text style={s.elderName}>{detail.elderName}</Text>
-            {detail.location && (
-              <View style={s.metaInline}>
-                <PinIcon />
-                <Text style={s.metaInlineText}>{detail.location}</Text>
-              </View>
-            )}
           </View>
 
           <View style={s.dateStipendStrip}>
@@ -380,7 +436,7 @@ export const OpportunityApplicationForm: React.FC<{
             <Text style={s.cardTitle}>Your Details</Text>
             <Pressable
               onPress={openEditDetails}
-              style={({ pressed }) => pressed && s.pressed}
+              style={({ pressed }) => [s.editProfilePill, pressed && s.pressed]}
               accessibilityRole="button"
               accessibilityLabel="Edit your details"
             >
@@ -394,22 +450,28 @@ export const OpportunityApplicationForm: React.FC<{
 
         {/* Relevant Skill */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Relevant Skill</Text>
-          <View style={s.card}>
+          <SectionHeader
+            title="Relevant Skill"
+            hint={`${Object.values(selectedSkills).filter(Boolean).length} selected`}
+          />
+          <View style={s.chipWrap}>
             {RELEVANT_SKILLS.map((skill) => (
-              <Checkbox
-                key={skill}
-                label={skill}
-                checked={!!selectedSkills[skill]}
-                onToggle={() => toggleSkill(skill)}
-              />
+              <Chip key={skill} label={skill} selected={!!selectedSkills[skill]} onToggle={() => toggleSkill(skill)} />
             ))}
+          </View>
+        </View>
+
+        {/* Languages - the same picker the "Become a Content Creator" form uses */}
+        <View style={s.section}>
+          <SectionHeader title="Languages" hint="Which can you work in?" />
+          <View style={s.card}>
+            <LanguagePicker value={languages} onChange={setLanguages} />
           </View>
         </View>
 
         {/* Relevant Experience */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Relevant Experience</Text>
+          <SectionHeader title="Relevant Experience" />
           <View style={s.textAreaCard}>
             <TextInput
               style={s.textArea}
@@ -426,7 +488,7 @@ export const OpportunityApplicationForm: React.FC<{
 
         {/* Approach */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Approach</Text>
+          <SectionHeader title="Approach" />
           <View style={s.textAreaCard}>
             <TextInput
               style={s.textArea}
@@ -443,7 +505,7 @@ export const OpportunityApplicationForm: React.FC<{
 
         {/* Availability */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Availability</Text>
+          <SectionHeader title="Availability" />
           <View style={s.card}>
             <View style={s.availabilityRow}>
               <View style={s.availabilityBadge}>
@@ -461,15 +523,13 @@ export const OpportunityApplicationForm: React.FC<{
 
         {/* Equipment */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Equipment</Text>
-          <View style={s.card}>
+          <SectionHeader
+            title="Equipment"
+            hint={`${Object.values(selectedEquipment).filter(Boolean).length} selected`}
+          />
+          <View style={s.chipWrap}>
             {EQUIPMENT_ITEMS.map((item) => (
-              <Checkbox
-                key={item}
-                label={item}
-                checked={!!selectedEquipment[item]}
-                onToggle={() => toggleEquipment(item)}
-              />
+              <Chip key={item} label={item} selected={!!selectedEquipment[item]} onToggle={() => toggleEquipment(item)} />
             ))}
           </View>
         </View>
@@ -628,10 +688,19 @@ const s = StyleSheet.create({
     gap: Spacing.md,
   },
 
+  headingBlock: { gap: 4 },
   pageHeading: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeMD,
-    color: D.onSurface,
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeXL,
+    lineHeight: 32,
+    color: D.primary,
+    letterSpacing: -0.3,
+  },
+  pageSubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    lineHeight: 20,
+    color: D.onSurfaceVariant,
   },
 
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -652,16 +721,30 @@ const s = StyleSheet.create({
     elevation: 1,
   },
   section: { gap: Spacing.sm },
-  sectionTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 2 },
+  sectionTitle: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeMD, color: D.onSurface },
+  sectionHint: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
+
+  // ── Chips (skills, equipment) ────────────────────────────────────────────
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    minHeight: 40, paddingVertical: 8, paddingHorizontal: 14,
+    borderRadius: Radii.full, borderWidth: 1.5, borderColor: D.surfaceVariant,
+    backgroundColor: D.surfaceContainerLowest,
+  },
+  chipSelected: { backgroundColor: D.primary, borderColor: D.primary },
+  chipText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurface },
+  chipTextSelected: { color: '#ffffff' },
 
   // ── Opportunity summary ──────────────────────────────────────────────────
   summaryRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
   thumbnail: {
-    width: 84, height: 68, borderRadius: Radii.lg,
+    width: 92, height: 92, borderRadius: Radii.lg,
     backgroundColor: D.surfaceContainerLow,
     borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
   },
-  summaryTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, lineHeight: 20, color: D.onSurface },
+  summaryTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 22, color: D.onSurface },
   summaryMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   elderName: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurface },
   metaInline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -678,8 +761,12 @@ const s = StyleSheet.create({
 
   // ── Your Details ─────────────────────────────────────────────────────────
   cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
-  editProfileText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
+  cardTitle: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeMD, color: D.onSurface },
+  editProfilePill: {
+    borderRadius: Radii.full, borderWidth: 1, borderColor: D.secondary,
+    paddingVertical: 4, paddingHorizontal: 12,
+  },
+  editProfileText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.secondary },
   detailsName: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
   detailsMuted: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
 
@@ -711,7 +798,10 @@ const s = StyleSheet.create({
   checkboxLabel: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurface },
 
   // ── Availability ─────────────────────────────────────────────────────────
-  availabilityRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  availabilityRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: D.surfaceContainerLow, borderRadius: Radii.lg, padding: Spacing.sm,
+  },
   availabilityBadge: {
     width: 24, height: 24, borderRadius: 12,
     backgroundColor: D.secondary,

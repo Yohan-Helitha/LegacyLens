@@ -11,6 +11,7 @@ import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
+import lk.ac.sliit.legacylens.marketplace.matching.LanguageSkills;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
@@ -78,6 +79,12 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
             throw new InvalidApplicationStateException(
                     "This application has already been submitted and can no longer be edited.");
         }
+
+        // Checked before anything is stored: a language without a level is a mistake, not a draft.
+        List<String> languages = request.getLanguages();
+        application.setLanguages(languages == null || languages.isEmpty()
+                ? ""
+                : LanguageSkills.serialize(LanguageSkills.parseSubmitted(languages)));
 
         application.setCreator(creator);
         application.setOpportunity(opportunity);
@@ -225,6 +232,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
                 .approachText(application.getApproachText())
                 .availabilityConfirmed(application.isAvailabilityConfirmed())
                 .equipment(splitCsv(application.getEquipment()))
+                .languages(LanguageSkills.toResponses(LanguageSkills.deserialize(application.getLanguages())))
                 .status(application.getStatus().name())
                 .savedAt(application.getSavedAt())
                 .submittedAt(application.getSubmittedAt())

@@ -37,6 +37,7 @@ public class OpportunityApplicationResponse {
     private String approachText;
     private boolean availabilityConfirmed;
     private List<String> equipment;
+    private List<LanguageSkillResponse> languages;
 
     private String status;
     private LocalDateTime savedAt;
