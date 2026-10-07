@@ -449,15 +449,8 @@ export const MyWorkList: React.FC<{
                   <View style={s.monthHeader}>
                     <Text style={s.monthLabel}>{month.label}</Text>
                     <Text style={s.monthStats}>
-                      {`${month.jobs.length} ${month.jobs.length === 1 ? 'job' : 'jobs'} · ${formatLkr(month.total)}`}
+                      {`${month.jobs.length} ${month.jobs.length === 1 ? 'job' : 'jobs'} · ${formatLkr(month.total)} earned for this month`}
                     </Text>
-                  </View>
-                  <View style={s.kindRow}>
-                    {month.kinds.map((kind) => (
-                      <View key={kind.name} style={s.kindChip}>
-                        <Text style={s.kindChipText}>{`${kind.name} × ${kind.count}`}</Text>
-                      </View>
-                    ))}
                   </View>
                   {month.jobs.map((job) => (
                     <CompletedCard key={job.id} job={job} onView={onViewSubmittedWork} />
@@ -638,18 +631,9 @@ const s = StyleSheet.create({
   doneSummaryText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
   doneSummaryTotal: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.primary },
   monthSection: { gap: Spacing.sm },
-  monthHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
-    paddingHorizontal: 4, marginTop: Spacing.sm,
-  },
+  monthHeader: { paddingHorizontal: 4, marginTop: Spacing.sm, marginBottom: Spacing.sm, gap: 2 },
   monthLabel: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, color: D.onSurface },
   monthStats: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.primary },
-  kindRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 4 },
-  kindChip: {
-    backgroundColor: D.surfaceContainer, borderRadius: Radii.full,
-    paddingVertical: 4, paddingHorizontal: 10,
-  },
-  kindChipText: { fontFamily: Typography.fontBodyMed, fontSize: 11, color: D.onSurfaceVariant },
   doneCard: {
     backgroundColor: D.surfaceContainerLowest,
     borderRadius: Radii.xl,
