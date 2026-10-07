@@ -247,9 +247,6 @@ const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () 
         <Text style={s.urgentTitle} numberOfLines={2}>
           {item.title}
         </Text>
-        <View style={s.urgentBadgeSlot}>
-          <MatchBadgeInline item={item} />
-        </View>
         <View style={s.urgentMeta}>
           <View style={s.urgentMetaItem}>
             <Text style={s.metaIcon}>{'\uD83C\uDF99'}</Text>
@@ -259,6 +256,9 @@ const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () 
             <LocationPinIcon size={14} />
             <Text style={s.urgentMetaText}>{item.location}</Text>
           </View>
+        </View>
+        <View style={s.urgentBadgeSlot}>
+          <MatchBadgeInline item={item} />
         </View>
         <View style={s.urgentCtaRow}>
           <Pressable
@@ -299,22 +299,24 @@ const RecentOpportunityCard: React.FC<{
           <Text style={s.authorLocation}>{item.elderLocation}</Text>
         </View>
       </View>
-      <View style={s.tagsRow}>
-        {item.category && (
-          <View style={s.tagSecondary}>
-            <Text style={s.tagSecondaryText}>{item.category}</Text>
-          </View>
-        )}
-        {item.locationType && (
-          <View style={s.tagNeutral}>
-            <Text style={s.tagNeutralText}>{item.locationType}</Text>
-          </View>
-        )}
-      </View>
+      <MatchBadgeInline item={item} />
     </View>
 
     <View style={s.recentContent}>
-      <MatchBadgeInline item={item} />
+      {(item.category || item.locationType) && (
+        <View style={s.tagsRow}>
+          {item.category && (
+            <View style={s.tagSecondary}>
+              <Text style={s.tagSecondaryText}>{item.category}</Text>
+            </View>
+          )}
+          {item.locationType && (
+            <View style={s.tagNeutral}>
+              <Text style={s.tagNeutralText}>{item.locationType}</Text>
+            </View>
+          )}
+        </View>
+      )}
       <Text style={s.cardTitle}>{item.title}</Text>
       <Text style={s.recentDesc} numberOfLines={2}>
         {item.description}
