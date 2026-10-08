@@ -142,8 +142,16 @@
                       </div>
                     </div>
                     <div class="form-group">
-                      <label class="form-label">Audio URL (Optional)</label>
-                      <input type="text" class="form-control" formControlName="audioUrl" placeholder="https://...">
+                      <label class="form-label">Audio File (Optional)</label>
+                      <input type="file" class="form-control" accept="audio/*" (change)="onAudioFileSelected($event)">
+                      <div *ngIf="isUploadingAudio" class="text-[12px] text-blue-500 mt-1">Uploading...</div>
+                      <div *ngIf="contentForm.get('audioUrl')?.value as audioUrl" class="mt-2 flex items-center gap-2">
+                        <audio controls [src]="getAudioPreviewUrl(audioUrl)" class="h-8 w-full max-w-[300px]"></audio>
+                        <button type="button" class="btn-icon-small delete" (click)="removeAudio()" title="Remove">
+                          <span class="material-symbols-outlined text-[16px]">close</span>
+                        </button>
+                      </div>
+                      <input type="hidden" formControlName="audioUrl">
                     </div>
                   </ng-container>
 

@@ -213,9 +213,42 @@ export class LessonFormComponent implements OnInit {
   cancelEdit() {
     this.editingContentId = undefined;
     if (this.lessonType === 'FLASHCARDS') {
-      this.contentForm.reset();
+      this.contentForm.reset({ word: '', meaning: '', audioUrl: '' });
     } else {
       this.contentForm.reset({ correctOption: 'A' });
     }
+  }
+
+  isUploadingAudio = false;
+
+  getAudioPreviewUrl(path: string | null | undefined): string {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    // We import environment at the top or assume a relative path works if the frontend and backend are on same origin
+    // but here we can just use the backend url
+    return `http://localhost:8081${path.startsWith('/') ? path : '/' + path}`; 
+  }
+
+  onAudioFileSelected(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      this.isUploadingAudio = true;
+      this.learningService.uploadAudio(file).subscribe({
+        next: (res) => {
+          this.contentForm.patchValue({ audioUrl: res.audioUrl });
+          this.isUploadingAudio = false;
+        },
+        error: (err) => {
+          console.error('Upload Error:', err);
+          const errorMsg = err.error?.message || err.message || 'An unknown error occurred';
+          alert('Audio upload failed: ' + errorMsg);
+          this.isUploadingAudio = false;
+        }
+      });
+    }
+  }
+
+  removeAudio() {
+    this.contentForm.patchValue({ audioUrl: '' });
   }
 }

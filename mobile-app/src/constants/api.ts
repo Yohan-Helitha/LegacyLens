@@ -31,7 +31,21 @@ export function getApiOrigin(): string {
   return base.replace(/\/+$/, '');
 }
 
-/** Resolves a root-relative media path (e.g. "/uploads/stories/xxx.m4a") into a full playable URL. */
-export function getMediaUrl(relativePath: string): string {
-  return `${getApiOrigin()}${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
+/** Resolves a media path (e.g. "/uploads/stories/xxx.m4a" or "file:///stories/...") into a full playable URL. */
+export function getMediaUrl(relativePath: string | undefined | null): string | undefined {
+  if (!relativePath) return undefined;
+
+  // Already a valid network URL
+  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+    return relativePath;
+  }
+
+  const origin = getApiOrigin();
+  
+  // Fix for invalid local file URIs generated with relative paths like 'file:///stories/...'
+  if (relativePath.startsWith('file:///')) {
+    return `${origin}/${relativePath.replace('file:///', '')}`;
+  }
+
+  return `${origin}${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
 }

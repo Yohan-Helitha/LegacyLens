@@ -121,6 +121,21 @@ export class LearningService {
     return this.http.delete<void>(`${this.apiUrl}/flashcards/${id}`, { headers: this.getHeaders() });
   }
 
+  uploadAudio(file: File): Observable<{ audioUrl: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // We shouldn't set Content-Type header manually when uploading FormData
+    // The browser will automatically set it to multipart/form-data with the correct boundary
+    const token = this.authService.getToken();
+    let headers = new HttpHeaders();
+    if (token) {
+      headers = headers.set('Authorization', `Bearer ${token}`);
+    }
+    
+    return this.http.post<{ audioUrl: string }>(`${this.apiUrl}/flashcards/upload-audio`, formData, { headers });
+  }
+
   // --- Quiz Questions ---
   getQuizQuestionsByLesson(lessonId: number): Observable<QuizQuestion[]> {
     return this.http.get<QuizQuestion[]>(`${this.apiUrl}/lessons/${lessonId}/questions`, { headers: this.getHeaders() });

@@ -6,13 +6,14 @@ import { styles } from './VideoCard.styles';
 import { FeedCardActions } from './FeedCardActions';
 import { VideoLoader } from './VideoLoader';
 import { homeApi } from '../../services/api/homeApi';
+import { getMediaUrl } from '../../constants/api';
 
 export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModalVisible, onNavigate, loadedVideoIds }: any) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isReady, setIsReady] = useState(() => loadedVideoIds?.has?.(v.id) ?? false);
   const [showLoader, setShowLoader] = useState(false);
 
-  const source = { uri: v.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4' };
+  const source = { uri: getMediaUrl(v.videoUrl) || 'https://www.w3schools.com/html/mov_bbb.mp4' };
   const player = useVideoPlayer(source, (p) => {
     p.loop = true;
     p.muted = isMuted;

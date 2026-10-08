@@ -12,9 +12,11 @@ import java.util.List;
 public class FlashcardController {
 
     private final FlashcardService flashcardService;
+    private final lk.ac.sliit.legacylens.common.storage.FileStorageService fileStorageService;
 
-    public FlashcardController(FlashcardService flashcardService) {
+    public FlashcardController(FlashcardService flashcardService, lk.ac.sliit.legacylens.common.storage.FileStorageService fileStorageService) {
         this.flashcardService = flashcardService;
+        this.fileStorageService = fileStorageService;
     }
 
     @GetMapping("/lessons/{lessonId}/flashcards")
@@ -56,6 +58,34 @@ public class FlashcardController {
     public ResponseEntity<Void> deleteFlashcard(@PathVariable Long id) {
         flashcardService.deleteFlashcard(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/flashcards/upload-audio")
+    public ResponseEntity<?> uploadAudio(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        try {
+            // Store in "audios" subfolder, max size 10MB, allowed audio types
+            String path = fileStorageService.store(file, "audios", 
+                java.util.Arrays.asList(
+                    "audio/mpeg", 
+                    "audio/mp4", 
+                    "video/mp4", 
+                    "audio/ogg", 
+                    "audio/wav", 
+                    "audio/x-wav", 
+                    "audio/x-m4a", 
+                    "audio/aac"
+                ), 
+                10 * 1024 * 1024);
+            
+            java.util.Map<String, String> response = new java.util.HashMap<>();
+            response.put("audioUrl", path);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            java.util.Map<String, String> error = new java.util.HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 
     @PostMapping("/flashcards/{id}/evaluate-pronunciation")

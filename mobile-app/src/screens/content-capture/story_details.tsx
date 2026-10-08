@@ -11,6 +11,7 @@ import { RecordingActionButtons, ContentCaptureColors as D } from '../../compone
 import { ApiError } from '../../services/api/client';
 import { Typography, Spacing, Radii } from '../../theme';
 import type { RecordedClip } from './record_capture';
+import { getMediaUrl } from '../../constants/api';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -67,8 +68,8 @@ export const StoryDetails: React.FC<StoryDetailsProps> = ({
   const [discardVisible, setDiscardVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const audioPlayer = useAudioPlayer(clip?.kind === 'audio' ? { uri: clip.uri } : null);
-  const videoPlayer = useVideoPlayer(clip?.kind === 'video' ? { uri: clip.uri } : null, player => {
+  const audioPlayer = useAudioPlayer(clip?.kind === 'audio' ? { uri: getMediaUrl(clip.uri)! } : null);
+  const videoPlayer = useVideoPlayer(clip?.kind === 'video' ? { uri: getMediaUrl(clip.uri)! } : null, player => {
     player.loop = false;
   });
 

@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { apiGet, apiPut } from '../../services/api/client';
+import { getMediaUrl } from '../../constants/api';
 import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { RefreshCcw } from 'lucide-react-native';
 
@@ -51,6 +52,8 @@ export default function FlashcardScreen() {
   const [index, setIndex] = useState(0);
   
 
+  const [isFlipped, setIsFlipped] = useState(false);
+
   const flipValue = useSharedValue(0);
 
   useEffect(() => {
@@ -68,7 +71,7 @@ export default function FlashcardScreen() {
   }, [route.params.lessonId]);
 
   const card = cards[index];
-  const player = useAudioPlayer(card?.audioUrl ? { uri: card.audioUrl } : null);
+  const player = useAudioPlayer(card?.audioUrl ? { uri: getMediaUrl(card.audioUrl) } : null);
 
   const safePause = () => {
     try { player.pause(); } catch (e) {}
@@ -80,7 +83,7 @@ export default function FlashcardScreen() {
 
   useEffect(() => {
     safePause();
-    if (card?.audioUrl) player.replace({ uri: card.audioUrl });
+    if (card?.audioUrl) player.replace({ uri: getMediaUrl(card.audioUrl) });
   }, [card?.audioUrl]);
 
   useEffect(() => {
@@ -98,6 +101,7 @@ export default function FlashcardScreen() {
 
 
   const goNext = () => {
+    setIsFlipped(false);
     flipValue.value = withTiming(0, { duration: 300 });
     setTimeout(() => {
       setIndex((prev) => Math.min(prev + 1, cards.length - 1));
@@ -105,6 +109,7 @@ export default function FlashcardScreen() {
   };
 
   const goPrev = () => {
+    setIsFlipped(false);
     flipValue.value = withTiming(0, { duration: 300 });
     setTimeout(() => {
       setIndex((prev) => Math.max(prev - 1, 0));
@@ -112,6 +117,7 @@ export default function FlashcardScreen() {
   };
 
   const toggleFlip = () => {
+    setIsFlipped(prev => !prev);
     flipValue.value = withSpring(flipValue.value === 0 ? 1 : 0, { damping: 15, stiffness: 100 });
   };
 
@@ -174,7 +180,11 @@ export default function FlashcardScreen() {
 
       <View style={styles.cardContainer}>
         {/* Front of Card */}
-        <AnimatedPressable style={[styles.card, styles.cardFront, frontAnimatedStyle]} onPress={toggleFlip}>
+        <AnimatedPressable 
+          style={[styles.card, styles.cardFront, frontAnimatedStyle]} 
+          onPress={toggleFlip}
+          pointerEvents={isFlipped ? 'none' : 'auto'}
+        >
           <View style={styles.flipHint}>
             <RefreshCcw size={16} color={Colors.textMuted} />
           </View>
@@ -190,7 +200,11 @@ export default function FlashcardScreen() {
         </AnimatedPressable>
 
         {/* Back of Card */}
-        <AnimatedPressable style={[styles.card, styles.cardBack, backAnimatedStyle]} onPress={toggleFlip}>
+        <AnimatedPressable 
+          style={[styles.card, styles.cardBack, backAnimatedStyle]} 
+          onPress={toggleFlip}
+          pointerEvents={isFlipped ? 'auto' : 'none'}
+        >
           <View style={styles.flipHint}>
             <RefreshCcw size={16} color={Colors.white} />
           </View>
@@ -249,9 +263,12 @@ const styles = StyleSheet.create({
   cardContainer: {
     height: 420,
     marginBottom: Spacing.xl,
+    transform: [{ perspective: 1000 }],
   },
   card: {
     position: 'absolute',
+    width: '100%',
+    height: '100%',
     top: 0,
     left: 0,
     right: 0,
