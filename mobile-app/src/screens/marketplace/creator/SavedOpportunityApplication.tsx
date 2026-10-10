@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
@@ -76,6 +76,19 @@ const CardIcon: React.FC<IconProps> = ({ size = 13, color = D.secondary }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <Rect x="2" y="5" width="20" height="14" rx="2" />
     <Line x1="2" y1="10" x2="22" y2="10" />
+  </Svg>
+);
+
+const BookmarkIcon: React.FC<IconProps> = ({ size = 18, color = D.primary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+  </Svg>
+);
+
+const SendIcon: React.FC<IconProps> = ({ size = 18, color = D.secondary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M22 2L11 13" />
+    <Path d="M22 2l-7 20-4-9-9-4 20-7z" />
   </Svg>
 );
 
@@ -179,15 +192,22 @@ const ApplicationSummary: React.FC<{
   );
 };
 
-const SectionHeader: React.FC<{ title: string; count: number; subtitle?: string }> = ({ title, count, subtitle }) => (
+const SectionHeader: React.FC<{
+  title: string;
+  count: number;
+  subtitle: string;
+  icon: React.ReactNode;
+  tone: 'teal' | 'orange';
+}> = ({ title, count, subtitle, icon, tone }) => (
   <View style={s.sectionHeader}>
     <View style={s.sectionHeaderRow}>
+      <View style={[s.sectionIcon, tone === 'orange' ? s.sectionIconOrange : s.sectionIconTeal]}>{icon}</View>
       <Text style={s.sectionTitle}>{title}</Text>
-      <View style={s.countPill}>
+      <View style={[s.countPill, tone === 'orange' && s.countPillOrange]}>
         <Text style={s.countPillText}>{count}</Text>
       </View>
     </View>
-    {!!subtitle && <Text style={s.sectionSubtitle}>{subtitle}</Text>}
+    <Text style={s.sectionSubtitle}>{subtitle}</Text>
   </View>
 );
 
@@ -201,10 +221,29 @@ export const SavedOpportunityApplication: React.FC<{
   onViewOpportunity: (opportunityId: string) => void;
 }> = ({ onNavigate, onBack, onEditDraft, onViewOpportunity }) => {
   const [applications, setApplications] = useState<OpportunityApplicationResponse[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
+  // Every status shown here comes straight from the server. A failed load says so - it must never
+  // look like "nothing saved" - and the list can be pulled down to refresh (e.g. after a decision).
   const loadApplications = useCallback(() => {
-    opportunityApplicationApi.getMyApplications().then(setApplications).catch(() => {});
+    return opportunityApplicationApi
+      .getMyApplications()
+      .then((list) => {
+        setApplications(list);
+        setLoadError(null);
+      })
+      .catch((err) => {
+        setLoadError(err instanceof ApiError ? err.message : 'Could not load your applications.');
+      })
+      .finally(() => setLoaded(true));
   }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadApplications().finally(() => setRefreshing(false));
+  };
 
   useEffect(() => {
     loadApplications();
@@ -296,12 +335,33 @@ export const SavedOpportunityApplication: React.FC<{
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={D.primary} colors={[D.primary]} />}
       >
+        {loadError && (
+          <View style={s.errorBox}>
+            <Text style={s.errorText}>{loadError}</Text>
+            <Pressable
+              onPress={handleRefresh}
+              style={({ pressed }) => [s.retryBtn, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Try loading your applications again"
+            >
+              <Text style={s.retryBtnText}>Try again</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Saved Application */}
         <View style={s.section}>
-          <SectionHeader title="Saved Application" count={saved.length} subtitle="Drafts you can still edit." />
+          <SectionHeader
+            title="Saved Application"
+            count={saved.length}
+            subtitle="Drafts you can still edit."
+            icon={<BookmarkIcon />}
+            tone="teal"
+          />
 
-          {saved.length === 0 ? (
+          {!loaded || loadError ? null : saved.length === 0 ? (
             <View style={s.emptyState}>
               <Text style={s.emptyStateText}>No saved drafts yet.</Text>
             </View>
@@ -337,9 +397,11 @@ export const SavedOpportunityApplication: React.FC<{
             title="Submitted Application"
             count={submitted.length}
             subtitle="Application already you have sent to the knowledge holder."
+            icon={<SendIcon />}
+            tone="orange"
           />
 
-          {submitted.length === 0 ? (
+          {!loaded || loadError ? null : submitted.length === 0 ? (
             <View style={s.emptyState}>
               <Text style={s.emptyStateText}>Nothing submitted yet.</Text>
             </View>
@@ -422,20 +484,25 @@ const s = StyleSheet.create({
     gap: Spacing.lg,
   },
 
-  section: { gap: Spacing.sm },
-  sectionHeader: { gap: 2, paddingHorizontal: 2 },
+  section: { gap: Spacing.md },
+  sectionHeader: { gap: 6, paddingHorizontal: 2 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  sectionTitle: { fontFamily: Typography.fontDisplay, fontSize: 16, color: D.onSurface },
+  sectionIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  sectionIconTeal: { backgroundColor: '#E3F1F0' },
+  sectionIconOrange: { backgroundColor: '#FFF0E0' },
+  sectionTitle: { flex: 1, fontFamily: Typography.fontDisplay, fontSize: 18, color: D.primary },
   countPill: {
-    minWidth: 24, height: 22, paddingHorizontal: 8, borderRadius: 11,
+    minWidth: 28, height: 24, paddingHorizontal: 9, borderRadius: 12,
     backgroundColor: D.primary, alignItems: 'center', justifyContent: 'center',
   },
-  countPillText: { fontFamily: Typography.fontBodySemi, fontSize: 11, color: '#ffffff' },
+  countPillOrange: { backgroundColor: D.secondary },
+  countPillText: { fontFamily: Typography.fontBodySemi, fontSize: 12, color: '#ffffff' },
   sectionSubtitle: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeXS,
-    color: D.onSurfaceVariant,
-    lineHeight: 16,
+    fontFamily: Typography.fontBodyMed,
+    fontSize: 12.5,
+    color: '#5B7A7A',
+    lineHeight: 18,
+    paddingLeft: 2,
   },
 
   emptyState: {
@@ -506,6 +573,17 @@ const s = StyleSheet.create({
   },
   dangerBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS + 1, color: '#C0392B' },
   trashBtn: { padding: 6 },
+
+  // ── Load error ───────────────────────────────────────────────────────────
+  errorBox: {
+    backgroundColor: '#FDECEA', borderRadius: Radii.xl, padding: Spacing.md, gap: Spacing.sm, alignItems: 'center',
+  },
+  errorText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: '#B3261E', textAlign: 'center' },
+  retryBtn: {
+    paddingVertical: 8, paddingHorizontal: 20, minHeight: 44, borderRadius: Radii.full,
+    borderWidth: 1.5, borderColor: '#B3261E', alignItems: 'center', justifyContent: 'center',
+  },
+  retryBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#B3261E' },
 
   // ── Press feedback ───────────────────────────────────────────────────────
   pressed: { opacity: 0.75 },
