@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import { pushDeviceApi } from './api/pushDeviceApi';
 
 /**
@@ -13,13 +14,38 @@ import { pushDeviceApi } from './api/pushDeviceApi';
 type NotificationsModule = typeof import('expo-notifications');
 type DeviceModule = typeof import('expo-device');
 
+/**
+ * Whether this build of the app contains the native code for notifications. Asked of the native
+ * side directly - without loading the notification packages - because in a development build a
+ * package that fails to load is reported as a fatal red-screen error before any try/catch can
+ * catch it. Only when this says yes are the packages loaded at all.
+ */
+function nativeSupportPresent(): boolean {
+  try {
+    return (
+      requireOptionalNativeModule('ExpoPushTokenManager') != null &&
+      requireOptionalNativeModule('ExpoDevice') != null
+    );
+  } catch {
+    return false;
+  }
+}
+
+let cachedNative: { Notifications: NotificationsModule; Device: DeviceModule } | null | undefined;
+
 function loadNative(): { Notifications: NotificationsModule; Device: DeviceModule } | null {
+  if (cachedNative !== undefined) return cachedNative;
+  if (!nativeSupportPresent()) {
+    cachedNative = null;
+    return cachedNative;
+  }
   try {
     // Required here, not imported at the top, so a build without the native module cannot crash at start-up.
-    return { Notifications: require('expo-notifications'), Device: require('expo-device') };
+    cachedNative = { Notifications: require('expo-notifications'), Device: require('expo-device') };
   } catch {
-    return null;
+    cachedNative = null;
   }
+  return cachedNative;
 }
 
 /** Asks permission, gets this phone's push token and tells the server about it. Returns the token, or null if it could not be set up. */
