@@ -4,8 +4,10 @@ import lk.ac.sliit.legacylens.common.exception.InvalidApplicationStateException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityApplicationResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
+import lk.ac.sliit.legacylens.marketplace.event.ApplicationDecidedEvent;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,12 +27,15 @@ public class ElderApplicationReviewServiceImpl implements ElderApplicationReview
 
     private final OpportunityApplicationRepository applicationRepository;
     private final OpportunityApplicationResponseMapper responseMapper;
+    private final ApplicationEventPublisher events;
 
     public ElderApplicationReviewServiceImpl(
             OpportunityApplicationRepository applicationRepository,
-            OpportunityApplicationResponseMapper responseMapper) {
+            OpportunityApplicationResponseMapper responseMapper,
+            ApplicationEventPublisher events) {
         this.applicationRepository = applicationRepository;
         this.responseMapper = responseMapper;
+        this.events = events;
     }
 
     @Override
@@ -70,6 +75,11 @@ public class ElderApplicationReviewServiceImpl implements ElderApplicationReview
         }
 
         application.setStatus(decision);
-        return responseMapper.toResponse(applicationRepository.save(application));
+        OpportunityApplication saved = applicationRepository.save(application);
+
+        // The creator is told on their phone once this is committed; that can never undo the decision.
+        events.publishEvent(new ApplicationDecidedEvent(
+                saved.getCreator().getId(), saved.getId(), saved.getOpportunity().getTitle(), decision));
+        return responseMapper.toResponse(saved);
     }
 }

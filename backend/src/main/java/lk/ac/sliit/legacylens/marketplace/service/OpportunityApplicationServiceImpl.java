@@ -11,6 +11,7 @@ import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
+import lk.ac.sliit.legacylens.marketplace.event.ApplicationDecidedEvent;
 import lk.ac.sliit.legacylens.marketplace.matching.LanguageSkills;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
@@ -18,6 +19,7 @@ import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.messaging.service.ConversationOpener;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +49,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
     private final JobRepository jobRepository;
     private final ConversationOpener conversationOpener;
     private final OpportunityApplicationResponseMapper responseMapper;
+    private final ApplicationEventPublisher events;
 
     public OpportunityApplicationServiceImpl(
             OpportunityApplicationRepository opportunityApplicationRepository,
@@ -54,13 +57,15 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
             UserRepository userRepository,
             JobRepository jobRepository,
             ConversationOpener conversationOpener,
-            OpportunityApplicationResponseMapper responseMapper) {
+            OpportunityApplicationResponseMapper responseMapper,
+            ApplicationEventPublisher events) {
         this.opportunityApplicationRepository = opportunityApplicationRepository;
         this.opportunityRepository = opportunityRepository;
         this.userRepository = userRepository;
         this.jobRepository = jobRepository;
         this.conversationOpener = conversationOpener;
         this.responseMapper = responseMapper;
+        this.events = events;
     }
 
     @Override
@@ -146,7 +151,9 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
 
         application.setStatus(OpportunityApplicationStatus.APPROVED);
 
-        return responseMapper.toResponse(opportunityApplicationRepository.save(application));
+        OpportunityApplicationResponse response = responseMapper.toResponse(opportunityApplicationRepository.save(application));
+        announceDecision(application, OpportunityApplicationStatus.APPROVED);
+        return response;
     }
 
     @Override
@@ -162,7 +169,9 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
 
         application.setStatus(OpportunityApplicationStatus.REJECTED);
 
-        return responseMapper.toResponse(opportunityApplicationRepository.save(application));
+        OpportunityApplicationResponse response = responseMapper.toResponse(opportunityApplicationRepository.save(application));
+        announceDecision(application, OpportunityApplicationStatus.REJECTED);
+        return response;
     }
 
     @Override
@@ -200,6 +209,12 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         application.setStatus(OpportunityApplicationStatus.BOOKED);
 
         return responseMapper.toResponse(opportunityApplicationRepository.save(application));
+    }
+
+    /** Same phone notification the knowledge holder's real decision sends, so the temporary test buttons exercise it too. */
+    private void announceDecision(OpportunityApplication application, OpportunityApplicationStatus decision) {
+        events.publishEvent(new ApplicationDecidedEvent(
+                application.getCreator().getId(), application.getId(), application.getOpportunity().getTitle(), decision));
     }
 
     private static String formatTimeWindow(LocalTime start, LocalTime end) {

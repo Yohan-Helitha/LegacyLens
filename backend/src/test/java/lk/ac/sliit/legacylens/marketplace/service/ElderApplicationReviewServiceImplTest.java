@@ -6,13 +6,17 @@ import lk.ac.sliit.legacylens.marketplace.dto.OpportunityApplicationResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
+import lk.ac.sliit.legacylens.marketplace.event.ApplicationDecidedEvent;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
 import lk.ac.sliit.legacylens.users.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +35,7 @@ import static org.mockito.Mockito.when;
 class ElderApplicationReviewServiceImplTest {
 
     @Mock private OpportunityApplicationRepository applicationRepository;
+    @Mock private ApplicationEventPublisher events;
 
     private ElderApplicationReviewServiceImpl service;
 
@@ -40,7 +45,7 @@ class ElderApplicationReviewServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new ElderApplicationReviewServiceImpl(applicationRepository, new OpportunityApplicationResponseMapper());
+        service = new ElderApplicationReviewServiceImpl(applicationRepository, new OpportunityApplicationResponseMapper(), events);
 
         elder = new User();
         elder.setId(UUID.randomUUID());
@@ -76,6 +81,29 @@ class ElderApplicationReviewServiceImplTest {
         assertThat(response.getStatus()).isEqualTo("APPROVED");
         assertThat(response.getCreatorName()).isEqualTo("Nimal Perera");
         assertThat(application.getStatus()).isEqualTo(OpportunityApplicationStatus.APPROVED);
+    }
+
+    @Test
+    void aDecision_tellsTheCreator_throughAnEvent() {
+        owns(elder.getId());
+        when(applicationRepository.save(any(OpportunityApplication.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.reject(elder.getId(), application.getId());
+
+        ArgumentCaptor<ApplicationDecidedEvent> sent = ArgumentCaptor.forClass(ApplicationDecidedEvent.class);
+        verify(events).publishEvent(sent.capture());
+        assertThat(sent.getValue().creatorId()).isEqualTo(creator.getId());
+        assertThat(sent.getValue().decision()).isEqualTo(OpportunityApplicationStatus.REJECTED);
+        assertThat(sent.getValue().opportunityTitle()).isEqualTo("Traditional recipe documentation");
+    }
+
+    @Test
+    void aDecisionThatIsNotAllowed_tellsNobody() {
+        application.setStatus(OpportunityApplicationStatus.APPROVED);
+        owns(elder.getId());
+
+        assertThrows(InvalidApplicationStateException.class, () -> service.reject(elder.getId(), application.getId()));
+        verify(events, never()).publishEvent(any(Object.class));
     }
 
     @Test

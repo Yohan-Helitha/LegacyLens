@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { CreatorDashboard } from '../screens/marketplace/creator/CreatorDashboard';
 import { OpportunityPage } from '../screens/marketplace/creator/OpportunityPage';
 import { OpportunityDetailPage } from '../screens/marketplace/creator/OpportunityDetailPage';
@@ -18,6 +18,16 @@ import { SavedCompletedWorkPage } from '../screens/marketplace/creator/SavedComp
 import { SubmittedWorkDetailPage } from '../screens/marketplace/creator/SubmittedWorkDetailPage';
 import { LogPaymentPage } from '../screens/marketplace/creator/LogPaymentPage';
 import { RejectedWorkPage } from '../screens/marketplace/creator/RejectedWorkPage';
+import { RejectedApplicationsPage } from '../screens/marketplace/creator/RejectedApplicationsPage';
+import { CreatorMenuContext } from './CreatorMenuContext';
+import { useMyApplications } from '../hooks/useMyApplications';
+import { groupApplications } from '../utils/applicationGroups';
+import { creatorScreenForNotification } from '../utils/notificationRouting';
+import {
+  onNotificationReceived,
+  onNotificationTapped,
+  registerForPushNotifications,
+} from '../services/pushNotifications';
 import type { NavTab } from '../components/BottomNavBar';
 
 export type CreatorScreen =
@@ -38,7 +48,8 @@ export type CreatorScreen =
   | 'saved-completed-work'
   | 'submitted-work'
   | 'log-payment'
-  | 'rejected-work';
+  | 'rejected-work'
+  | 'rejected-applications';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -66,6 +77,30 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const [selectedJobTitle, setSelectedJobTitle] = useState<string | null>(null);
   const [selectedJobElderName, setSelectedJobElderName] = useState<string | null>(null);
   const [selectedJobLocation, setSelectedJobLocation] = useState<string | null>(null);
+
+  // The red number on the side menu: how many applications have been rejected. Asked of the server
+  // again whenever the creator moves to another screen, so a fresh rejection shows up promptly.
+  const { applications: myApplications, reload: reloadApplications } = useMyApplications();
+  const rejectedApplicationsCount = groupApplications(myApplications).rejected.length;
+  useEffect(() => {
+    reloadApplications();
+  }, [screen, reloadApplications]);
+
+  // Phone notifications: register this phone, open the right screen when a notification is tapped,
+  // and refresh the red number when one arrives while the app is open. All of it is optional - on a
+  // build without notification support these do nothing.
+  useEffect(() => {
+    registerForPushNotifications();
+    const stopTap = onNotificationTapped((data) => {
+      const target = creatorScreenForNotification(data);
+      if (target) setScreen(target);
+    });
+    const stopReceive = onNotificationReceived(() => reloadApplications());
+    return () => {
+      stopTap();
+      stopReceive();
+    };
+  }, [reloadApplications]);
 
   /**
    * Shared navigation handler passed to all screens.
@@ -135,6 +170,9 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   /** Called when "Rejected Submissions" is pressed in the side menu */
   const handleOpenRejectedWork = () => setScreen('rejected-work');
 
+  /** Called when "Rejected Applications" is pressed in the side menu, or the rejected link on My Applications */
+  const handleOpenRejectedApplications = () => setScreen('rejected-applications');
+
   /** Called when "View & Edit" is pressed on a card in RejectedWorkPage */
   const handleEditRejectedWork = (jobId: string, title: string, elderName: string, location: string | null) => {
     setSelectedJobId(jobId);
@@ -202,8 +240,13 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
     />
   );
 
+  const menuValue = useMemo(
+    () => ({ rejectedApplicationsCount, onOpenRejectedApplications: handleOpenRejectedApplications }),
+    [rejectedApplicationsCount],
+  );
+
   return (
-    <>
+    <CreatorMenuContext.Provider value={menuValue}>
       {screen === 'dashboard' && (
         <CreatorDashboard
           onNavigate={handleNavigate}
@@ -245,6 +288,14 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onNavigate={handleNavigate}
           onBack={handleBack}
           onEditDraft={handleEditDraft}
+          onViewOpportunity={handleViewOpportunityFromApplication}
+          onOpenRejectedApplications={handleOpenRejectedApplications}
+        />
+      )}
+      {screen === 'rejected-applications' && (
+        <RejectedApplicationsPage
+          onNavigate={handleNavigate}
+          onBack={handleOpenSavedApplications}
           onViewOpportunity={handleViewOpportunityFromApplication}
         />
       )}
@@ -341,7 +392,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
       {screen === 'submitted-work' && (
         <SubmittedWorkDetailPage onNavigate={handleNavigate} onBack={handleBackToMyWork} />
       )}
-    </>
+    </CreatorMenuContext.Provider>
   );
 };
 

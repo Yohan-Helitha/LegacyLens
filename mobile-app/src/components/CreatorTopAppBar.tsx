@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Briefcase, ClipboardList, FileX, LogOut, X } from 'lucide-react-native';
+import { Briefcase, CircleX, ClipboardList, FileX, LogOut, X } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,6 +9,8 @@ import { Typography, Spacing, Radii } from '../theme';
 import { useAuthStore } from '../store/authStore';
 import { ContentCaptureColors as E } from './module-specific/content-capture/tokens';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { useCreatorMenu } from '../navigation/CreatorMenuContext';
+import { badgeText } from '../utils/applicationGroups';
 
 /** Same width rule as ElderNavDrawer, so both sides of the app feel like one product. */
 const DRAWER_WIDTH = Math.min(Dimensions.get('window').width * 0.85, 360);
@@ -36,6 +38,7 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
+  const { rejectedApplicationsCount, onOpenRejectedApplications } = useCreatorMenu();
 
   // Slide-in/out like ElderNavDrawer: stay mounted until the close animation finishes.
   const progress = useRef(new Animated.Value(0)).current;
@@ -58,11 +61,20 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
     navigation.replace('Login');
   };
 
-  const menuItems: { label: string; icon: LucideIcon; onPress: () => void }[] =
+  const menuItems: { label: string; icon: LucideIcon; onPress: () => void; badge?: number }[] =
     props.variant === 'menu'
       ? [
           { label: 'My Work', icon: Briefcase, onPress: props.onOpenMyWork },
           { label: 'My Applications', icon: ClipboardList, onPress: props.onOpenSavedApplications },
+          // Only offered where the creator navigator supplies it; the red number is how many were rejected.
+          ...(onOpenRejectedApplications
+            ? [{
+                label: 'Rejected Applications',
+                icon: CircleX,
+                onPress: onOpenRejectedApplications,
+                badge: rejectedApplicationsCount,
+              }]
+            : []),
           { label: 'Rejected Submissions', icon: FileX, onPress: props.onOpenRejectedWork },
         ]
       : [];
@@ -82,6 +94,7 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
               <View style={s.hamburgerLine} />
               <View style={s.hamburgerLine} />
             </View>
+            {rejectedApplicationsCount > 0 && <View style={s.hamburgerDot} />}
           </Pressable>
         ) : (
           <Pressable
@@ -138,7 +151,7 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
               </View>
 
               <View style={s.navList}>
-                {menuItems.map(({ label, icon: Icon, onPress }) => (
+                {menuItems.map(({ label, icon: Icon, onPress, badge }) => (
                   <Pressable
                     key={label}
                     onPress={() => {
@@ -151,6 +164,11 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
                   >
                     <Icon size={24} color={E.onPrimaryContainer} strokeWidth={2} />
                     <Text style={s.navLabel}>{label}</Text>
+                    {!!badge && badge > 0 && (
+                      <View style={s.navBadge} accessibilityLabel={`${badge} rejected`}>
+                        <Text style={s.navBadgeText}>{badgeText(badge)}</Text>
+                      </View>
+                    )}
                   </Pressable>
                 ))}
               </View>
@@ -210,6 +228,10 @@ const s = StyleSheet.create({
   backArrow: { fontSize: 20, color: D.primary, lineHeight: 24 },
   hamburger: { gap: 4 },
   hamburgerLine: { width: 18, height: 2, borderRadius: 1, backgroundColor: D.primary },
+  hamburgerDot: {
+    position: 'absolute', top: 8, right: 8, width: 10, height: 10, borderRadius: 5,
+    backgroundColor: '#E53935', borderWidth: 1.5, borderColor: D.surfaceContainerLowest,
+  },
   bellWrapper: { alignItems: 'center' },
   bellTop: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: D.primary, marginBottom: 1 },
   bellBody: { width: 14, height: 13, borderWidth: 1.5, borderColor: D.primary, borderRadius: 7, borderBottomWidth: 0 },
@@ -258,6 +280,11 @@ const s = StyleSheet.create({
   },
   navItemPressed: { backgroundColor: 'rgba(255,255,255,0.06)' },
   navLabel: { flex: 1, fontFamily: Typography.fontBody, fontSize: Typography.sizeMD, color: E.onPrimaryContainer },
+  navBadge: {
+    minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12,
+    backgroundColor: '#E53935', alignItems: 'center', justifyContent: 'center',
+  },
+  navBadgeText: { fontFamily: Typography.fontBodySemi, fontSize: 12, color: '#ffffff' },
 
   logoutBtn: {
     flexDirection: 'row',

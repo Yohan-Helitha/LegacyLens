@@ -37,6 +37,7 @@ class OpportunityApplicationServiceImplTest {
     @Mock private UserRepository userRepository;
     @Mock private JobRepository jobRepository;
     @Mock private ConversationOpener conversationOpener;
+    @Mock private org.springframework.context.ApplicationEventPublisher events;
 
     private OpportunityApplicationServiceImpl service;
 
@@ -47,7 +48,7 @@ class OpportunityApplicationServiceImplTest {
     void setUp() {
         service = new OpportunityApplicationServiceImpl(
                 applicationRepository, opportunityRepository, userRepository, jobRepository, conversationOpener,
-                new OpportunityApplicationResponseMapper());
+                new OpportunityApplicationResponseMapper(), events);
 
         User creator = new User();
         creator.setId(creatorId);
