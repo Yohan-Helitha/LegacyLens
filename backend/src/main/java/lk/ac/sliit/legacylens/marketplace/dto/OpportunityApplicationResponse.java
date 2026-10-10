@@ -24,6 +24,11 @@ public class OpportunityApplicationResponse {
     private UUID id;
     private UUID opportunityId;
 
+    /** Who applied - what an elder reviewing the application needs to see. */
+    private UUID creatorId;
+    private String creatorName;
+    private String creatorPhotoUrl;
+
     private String title;
     private String elderName;
     private String location;

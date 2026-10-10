@@ -11,6 +11,10 @@ export type OpportunityApplicationStatus = 'SAVED' | 'PENDING' | 'APPROVED' | 'R
 export interface OpportunityApplicationResponse {
   id: string;
   opportunityId: string;
+  /** Who applied - what a knowledge holder reviewing the application sees. */
+  creatorId?: string;
+  creatorName?: string;
+  creatorPhotoUrl?: string | null;
   title: string;
   elderName: string;
   location: string | null;

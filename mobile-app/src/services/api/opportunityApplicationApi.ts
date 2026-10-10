@@ -45,3 +45,18 @@ export const opportunityApplicationApi = {
 
   remove: (id: string) => apiDelete<void>(`/opportunity-applications/${id}`),
 };
+
+/**
+ * The knowledge holder's side - /api/elder/opportunity-applications. Only the elder who owns the
+ * opportunity can see or decide an application to it; anyone else gets "not found".
+ */
+export const elderApplicationReviewApi = {
+  /** Submitted, approved, rejected and booked applications to the signed-in elder's opportunities. */
+  list: () => apiGet<OpportunityApplicationResponse[]>('/elder/opportunity-applications'),
+
+  approve: (id: string) =>
+    apiPost<OpportunityApplicationResponse, undefined>(`/elder/opportunity-applications/${id}/approve`, undefined),
+
+  reject: (id: string) =>
+    apiPost<OpportunityApplicationResponse, undefined>(`/elder/opportunity-applications/${id}/reject`, undefined),
+};

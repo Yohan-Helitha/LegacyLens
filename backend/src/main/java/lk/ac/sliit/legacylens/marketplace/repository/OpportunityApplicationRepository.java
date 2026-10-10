@@ -27,6 +27,13 @@ public interface OpportunityApplicationRepository extends JpaRepository<Opportun
 
     List<OpportunityApplication> findByOpportunityId(UUID opportunityId);
 
+    /** What an elder reviews: applications to their own opportunities, newest first. Drafts are never included. */
+    List<OpportunityApplication> findByOpportunityElderIdAndStatusInOrderBySubmittedAtDesc(
+            UUID elderId, Collection<OpportunityApplicationStatus> statuses);
+
+    /** Ownership-scoped lookup for the elder decision - only the elder who owns the opportunity can find the application. */
+    Optional<OpportunityApplication> findByIdAndOpportunityElderId(UUID id, UUID elderId);
+
     /** How many of a creator's applications are in any of these states - backs the profile's "Approved" count. */
     long countByCreatorIdAndStatusIn(UUID creatorId, Collection<OpportunityApplicationStatus> statuses);
 }

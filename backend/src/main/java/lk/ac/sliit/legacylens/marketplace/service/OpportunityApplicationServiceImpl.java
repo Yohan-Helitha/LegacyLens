@@ -24,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -47,18 +46,21 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
     private final UserRepository userRepository;
     private final JobRepository jobRepository;
     private final ConversationOpener conversationOpener;
+    private final OpportunityApplicationResponseMapper responseMapper;
 
     public OpportunityApplicationServiceImpl(
             OpportunityApplicationRepository opportunityApplicationRepository,
             OpportunityRepository opportunityRepository,
             UserRepository userRepository,
             JobRepository jobRepository,
-            ConversationOpener conversationOpener) {
+            ConversationOpener conversationOpener,
+            OpportunityApplicationResponseMapper responseMapper) {
         this.opportunityApplicationRepository = opportunityApplicationRepository;
         this.opportunityRepository = opportunityRepository;
         this.userRepository = userRepository;
         this.jobRepository = jobRepository;
         this.conversationOpener = conversationOpener;
+        this.responseMapper = responseMapper;
     }
 
     @Override
@@ -96,14 +98,14 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         application.setStatus(OpportunityApplicationStatus.SAVED);
 
         OpportunityApplication saved = opportunityApplicationRepository.save(application);
-        return mapToResponse(saved);
+        return responseMapper.toResponse(saved);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OpportunityApplicationResponse> getMyApplications(UUID creatorId) {
         return opportunityApplicationRepository.findByCreatorIdOrderBySavedAtDesc(creatorId).stream()
-                .map(this::mapToResponse)
+                .map(responseMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
@@ -111,7 +113,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
     @Transactional(readOnly = true)
     public Optional<OpportunityApplicationResponse> getByOpportunity(UUID creatorId, UUID opportunityId) {
         return opportunityApplicationRepository.findByCreatorIdAndOpportunityId(creatorId, opportunityId)
-                .map(this::mapToResponse);
+                .map(responseMapper::toResponse);
     }
 
     @Override
@@ -128,7 +130,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         application.setStatus(OpportunityApplicationStatus.PENDING);
         application.setSubmittedAt(LocalDateTime.now());
 
-        return mapToResponse(opportunityApplicationRepository.save(application));
+        return responseMapper.toResponse(opportunityApplicationRepository.save(application));
     }
 
     @Override
@@ -144,7 +146,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
 
         application.setStatus(OpportunityApplicationStatus.APPROVED);
 
-        return mapToResponse(opportunityApplicationRepository.save(application));
+        return responseMapper.toResponse(opportunityApplicationRepository.save(application));
     }
 
     @Override
@@ -160,7 +162,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
 
         application.setStatus(OpportunityApplicationStatus.REJECTED);
 
-        return mapToResponse(opportunityApplicationRepository.save(application));
+        return responseMapper.toResponse(opportunityApplicationRepository.save(application));
     }
 
     @Override
@@ -197,7 +199,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
 
         application.setStatus(OpportunityApplicationStatus.BOOKED);
 
-        return mapToResponse(opportunityApplicationRepository.save(application));
+        return responseMapper.toResponse(opportunityApplicationRepository.save(application));
     }
 
     private static String formatTimeWindow(LocalTime start, LocalTime end) {
@@ -212,41 +214,6 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
 
         opportunityApplicationRepository.delete(application);
-    }
-
-    private OpportunityApplicationResponse mapToResponse(OpportunityApplication application) {
-        Opportunity opportunity = application.getOpportunity();
-
-        return OpportunityApplicationResponse.builder()
-                .id(application.getId())
-                .opportunityId(opportunity.getId())
-                .title(opportunity.getTitle())
-                .elderName(opportunity.getElder().getFullName())
-                .location(opportunity.getLocation())
-                .heroImageUrl(opportunity.getHeroImageUrl())
-                .scheduledDate(opportunity.getScheduledDate())
-                .timeWindowText(opportunity.getTimeWindowText())
-                .offeredAmount(opportunity.getOfferedAmount())
-                .skills(splitCsv(application.getSkills()))
-                .experienceText(application.getExperienceText())
-                .approachText(application.getApproachText())
-                .availabilityConfirmed(application.isAvailabilityConfirmed())
-                .equipment(splitCsv(application.getEquipment()))
-                .languages(LanguageSkills.toResponses(LanguageSkills.deserialize(application.getLanguages())))
-                .status(application.getStatus().name())
-                .savedAt(application.getSavedAt())
-                .submittedAt(application.getSubmittedAt())
-                .build();
-    }
-
-    private static List<String> splitCsv(String value) {
-        if (value == null || value.isBlank()) {
-            return List.of();
-        }
-        return Arrays.stream(value.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toList());
     }
 
     private static String joinOrEmpty(List<String> items) {

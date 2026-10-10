@@ -46,7 +46,8 @@ class OpportunityApplicationServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new OpportunityApplicationServiceImpl(
-                applicationRepository, opportunityRepository, userRepository, jobRepository, conversationOpener);
+                applicationRepository, opportunityRepository, userRepository, jobRepository, conversationOpener,
+                new OpportunityApplicationResponseMapper());
 
         User creator = new User();
         creator.setId(creatorId);
