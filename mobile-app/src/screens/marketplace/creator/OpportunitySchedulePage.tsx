@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -81,6 +82,8 @@ interface ScheduleItem {
   urgent: boolean;
   /** Mirrors the same status pill shown on the Opportunity/Submitted Application cards. */
   statusLabel: string;
+  /** The amount agreed for the work - the same figure the opportunity's detail page shows. */
+  offeredAmount: number;
   opportunityId?: string;
 }
 
@@ -102,6 +105,7 @@ function jobToScheduleItem(job: JobResponse): ScheduleItem | null {
     urgent: job.urgent,
     // Any Job that reached the schedule page came from a confirmed booking.
     statusLabel: 'Booked',
+    offeredAmount: job.offeredAmount,
   };
 }
 
@@ -289,7 +293,10 @@ const ScheduledJobCard: React.FC<{
           </View>
         )}
         <Text style={s.jobTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={s.jobClient}>{item.elderName}</Text>
+        <View style={s.jobClientRow}>
+          <Text style={s.jobClient}>{item.elderName}</Text>
+          <Text style={s.jobPrice}>LKR {Math.round(item.offeredAmount).toLocaleString('en-US')}</Text>
+        </View>
       </View>
       <View style={{ alignItems: 'flex-end', gap: 8 }}>
         <View style={s.scheduleStatusBadge}>
@@ -340,6 +347,9 @@ export const OpportunitySchedulePage: React.FC<{
   onViewOpportunity?: (opportunityId: string) => void;
 }> = ({ onNavigate, onBack, onViewOpportunity }) => {
   const [jobs, setJobs] = useState<JobResponse[]>([]);
+  // Nothing is drawn until the bookings arrive, so the calendar opens straight on the first booking's month
+  // instead of flashing today's date first.
+  const [loaded, setLoaded] = useState(false);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [visibleMonth, setVisibleMonth] = useState<Date>(startOfMonth(new Date()));
   const [selectedKey, setSelectedKey] = useState<string>(dateKey(new Date()));
@@ -356,7 +366,8 @@ export const OpportunitySchedulePage: React.FC<{
           setSelectedKey(dateKey(first));
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoaded(true));
   }, []);
 
   const scheduleItems = useMemo(() => {
@@ -423,6 +434,10 @@ export const OpportunitySchedulePage: React.FC<{
           <Text style={s.pageSubtitle}>Confirmed bookings and upcoming sessions</Text>
         </View>
 
+        {!loaded ? (
+          <ActivityIndicator color={D.primary} style={{ marginTop: Spacing.lg }} />
+        ) : (
+        <>
         <Calendar
           visibleMonth={visibleMonth}
           selectedKey={selectedKey}
@@ -473,6 +488,9 @@ export const OpportunitySchedulePage: React.FC<{
               <ScheduledJobCard key={item.id} item={item} onView={() => handleView(item)} onRemove={() => handleRemove(item.id)} />
             ))}
           </View>
+        )}
+
+        </>
         )}
 
         <View style={{ height: 8 }} />
@@ -661,6 +679,8 @@ const s = StyleSheet.create({
     fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSecondaryContainer, letterSpacing: 0.8,
   },
   trashBtn: { padding: 2 },
+  jobClientRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: Spacing.md },
+  jobPrice: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.secondary },
   jobMetaRow: {
     flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md,
     paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant,
