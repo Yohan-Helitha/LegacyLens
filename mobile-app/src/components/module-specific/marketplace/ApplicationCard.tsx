@@ -7,6 +7,7 @@ import { opportunityApplicationApi } from '../../../services/api/opportunityAppl
 import { ApiError } from '../../../services/api/client';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
 import { formatStamp } from '../../../utils/applicationDates';
+import { proficiencyLabel } from '../../../utils/creatorLanguages';
 
 // Shown when an opportunity has no picture of its own, or its picture cannot be loaded.
 const GENERIC_HERO_IMAGE = require('../../../../assets/images/work/traditional-rice-menu.jpg');
@@ -143,6 +144,67 @@ const Thumb: React.FC<{ heroImageUrl: string | null; title: string }> = ({ heroI
   );
 };
 
+const ChipRow: React.FC<{ label: string; items: string[] }> = ({ label, items }) => {
+  if (items.length === 0) return null;
+  return (
+    <View style={s.answerBlock}>
+      <Text style={s.answerLabel}>{label}</Text>
+      <View style={s.chipWrap}>
+        {items.map((item) => (
+          <View key={item} style={s.chip}>
+            <Text style={s.chipText}>{item}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+};
+
+const TextAnswer: React.FC<{ label: string; value: string | null }> = ({ label, value }) => {
+  if (!value?.trim()) return null;
+  return (
+    <View style={s.answerBlock}>
+      <Text style={s.answerLabel}>{label}</Text>
+      <Text style={s.answerText}>{value}</Text>
+    </View>
+  );
+};
+
+/**
+ * What the creator filled in on the application form - skills, equipment, languages, experience,
+ * approach and availability - so an edit can be seen on the card. Drafts open it by default.
+ */
+const YourAnswers: React.FC<{ record: OpportunityApplicationResponse }> = ({ record }) => {
+  const [open, setOpen] = useState(record.status === 'SAVED');
+  const languages = (record.languages ?? []).map((l) => `${l.language} · ${proficiencyLabel(l.proficiency)}`);
+
+  return (
+    <View style={s.answers}>
+      <Pressable
+        onPress={() => setOpen((v) => !v)}
+        style={s.answersHeader}
+        accessibilityRole="button"
+        accessibilityLabel={open ? 'Hide your application details' : 'Show your application details'}
+      >
+        <Text style={s.answersTitle}>Your application</Text>
+        <Text style={s.answersToggle}>{open ? 'Hide ▴' : 'Show ▾'}</Text>
+      </Pressable>
+      {open && (
+        <View style={{ gap: Spacing.sm }}>
+          <ChipRow label="Relevant skills" items={record.skills} />
+          <ChipRow label="Equipment" items={record.equipment} />
+          <ChipRow label="Languages" items={languages} />
+          <TextAnswer label="Relevant experience" value={record.experienceText} />
+          <TextAnswer label="My approach" value={record.approachText} />
+          <Text style={s.availability}>
+            {record.availabilityConfirmed ? '✓ Available at the scheduled time' : 'Availability not confirmed'}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
 /**
  * One application, laid out like the opportunity card on the Apply screen: picture, title, elder
  * and place, then a date / payment strip - plus when it was saved or submitted.
@@ -195,6 +257,8 @@ export const ApplicationSummary: React.FC<{
         )}
       </View>
 
+      <YourAnswers record={record} />
+
       {!!stamp && (
         <View style={s.stampRow}>
           <ClockIcon size={12} color={D.onSurfaceVariant} />
@@ -244,6 +308,20 @@ const s = StyleSheet.create({
   stripText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurface },
   stampRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 2 },
   stampText: { fontFamily: Typography.fontBodyMed, fontSize: 11, color: D.onSurfaceVariant },
+  answers: {
+    borderRadius: Radii.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+    padding: 10, gap: Spacing.sm,
+  },
+  answersHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32 },
+  answersTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.primary },
+  answersToggle: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.secondary },
+  answerBlock: { gap: 4 },
+  answerLabel: { fontFamily: Typography.fontBodySemi, fontSize: 11, color: D.onSurfaceVariant, letterSpacing: 0.3 },
+  answerText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, lineHeight: 18, color: D.onSurface },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip: { borderRadius: Radii.full, backgroundColor: D.surfaceContainerLow, paddingHorizontal: 10, paddingVertical: 4 },
+  chipText: { fontFamily: Typography.fontBodyMed, fontSize: 11.5, color: D.primary },
+  availability: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
   trashBtn: { padding: 6 },
   pressed: { opacity: 0.75 },
 });
