@@ -364,6 +364,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         return WorkProgressResponse.builder()
                 .jobId(job.getId())
                 .heroImageUrl(resolveHeroImageUrl(job))
+                .offeredAmount(job.getOfferedAmount())
                 .progressPercentage(percentage)
                 .currentStage(currentStageFor(checklist))
                 .introduction(progress.getIntroduction())

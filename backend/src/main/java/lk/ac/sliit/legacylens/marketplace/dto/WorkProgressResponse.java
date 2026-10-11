@@ -26,6 +26,9 @@ public class WorkProgressResponse {
     /** The linked Opportunity's hero image, if this job was created via a real booking. Null otherwise. */
     private String heroImageUrl;
 
+    /** What the opportunity pays - the same figure the opportunity page showed. */
+    private java.math.BigDecimal offeredAmount;
+
     /** completedChecklistItems / totalChecklistItems * 100, rounded. 0 when there are no checklist items yet. */
     private int progressPercentage;
 

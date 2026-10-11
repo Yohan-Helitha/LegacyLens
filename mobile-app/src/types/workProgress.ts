@@ -80,6 +80,8 @@ export interface WorkProgressResponse {
   jobId: string;
   /** The linked Opportunity's photo, present only when this job came from a real booking — see resolveOpportunityImage. */
   heroImageUrl: string | null;
+  /** What the opportunity pays, in LKR. */
+  offeredAmount: number;
   progressPercentage: number;
   currentStage: WorkStage;
   /** The two "Note & Written Content" sub-sections — kept as separate fields, not one combined note. */
