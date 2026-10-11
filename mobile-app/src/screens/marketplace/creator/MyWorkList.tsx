@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
@@ -56,6 +56,11 @@ function formatDoneDate(iso: string | null): string | null {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function formatScheduleDate(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 function formatLkr(amount: number): string {
   return `LKR ${Math.round(amount).toLocaleString('en-US')}`;
 }
@@ -78,6 +83,29 @@ const PinIcon: React.FC<IconProps> = ({ size = 14, color = D.onSurfaceVariant })
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z" />
     <Circle cx="12" cy="10" r="3" />
+  </Svg>
+);
+
+const CalendarIcon: React.FC<IconProps> = ({ size = 14, color = D.secondary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="3" y="5" width="18" height="16" rx="2" />
+    <Line x1="16" y1="3" x2="16" y2="7" />
+    <Line x1="8" y1="3" x2="8" y2="7" />
+    <Line x1="3" y1="10" x2="21" y2="10" />
+  </Svg>
+);
+
+const ClockIcon: React.FC<IconProps> = ({ size = 14, color = D.secondary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="12" cy="12" r="9" />
+    <Path d="M12 7v5l3.5 2" />
+  </Svg>
+);
+
+const CardIcon: React.FC<IconProps> = ({ size = 14, color = D.secondary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="2" y="5" width="20" height="14" rx="2" />
+    <Line x1="2" y1="10" x2="22" y2="10" />
   </Svg>
 );
 
@@ -158,13 +186,15 @@ const WorkCard: React.FC<{
   onContinue: () => void;
 }> = ({ job, heroImageUrl, materialsCount, progressPercentage, completedSteps, variant, onContinue }) => {
   const dueText = formatDueText(job.scheduledAt);
+  const overdue = dueText === 'Overdue';
+  const scheduledOn = formatScheduleDate(job.scheduledAt);
 
   return (
     <View style={s.card}>
       {dueText && (
         <View style={s.chipsRow}>
-          <View style={s.dueChip}>
-            <Text style={s.dueChipText}>{dueText}</Text>
+          <View style={[s.dueChip, overdue && s.dueChipOverdue]}>
+            <Text style={[s.dueChipText, overdue && s.dueChipTextOverdue]}>{dueText}</Text>
           </View>
         </View>
       )}
@@ -173,6 +203,34 @@ const WorkCard: React.FC<{
       <View style={s.contributorRow}>
         <PersonIcon />
         <Text style={s.contributorText}>{job.elderName}</Text>
+      </View>
+
+      {/* Where, when and how much - the same details the opportunity page showed. */}
+      <View style={s.factsStrip}>
+        <View style={s.factsRow}>
+          {!!scheduledOn && (
+            <View style={s.factItem}>
+              <CalendarIcon />
+              <Text style={s.factText}>{scheduledOn}</Text>
+            </View>
+          )}
+          <View style={s.factItem}>
+            <CardIcon />
+            <Text style={s.factText}>{formatLkr(job.offeredAmount)}</Text>
+          </View>
+        </View>
+        {!!job.timeWindowText && (
+          <View style={s.factItem}>
+            <ClockIcon />
+            <Text style={s.factText}>{job.timeWindowText}</Text>
+          </View>
+        )}
+        {!!job.location && (
+          <View style={s.factItem}>
+            <PinIcon color={D.secondary} />
+            <Text style={s.factText} numberOfLines={1}>{job.location}</Text>
+          </View>
+        )}
       </View>
 
       <View style={s.progressCard}>
@@ -566,13 +624,26 @@ const s = StyleSheet.create({
     backgroundColor: D.secondaryContainer, borderRadius: Radii.full,
     paddingHorizontal: 10, paddingVertical: 3,
   },
+  dueChipOverdue: { backgroundColor: '#FDECEA' },
+  dueChipTextOverdue: { color: '#B3261E' },
   dueChipText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: D.onSecondaryContainer, letterSpacing: 0.3 },
+
+  // ── Where / when / how much ──────────────────────────────────────────────
+  factsStrip: {
+    marginTop: Spacing.sm, backgroundColor: '#f0f5f5', borderRadius: Radii.lg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+    paddingVertical: 8, paddingHorizontal: 12, gap: 6,
+  },
+  factsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  factItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  factText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurface },
 
   // ── Progress card ────────────────────────────────────────────────────────
   progressCard: {
     alignSelf: 'stretch', width: '100%',
-    backgroundColor: D.surface, borderRadius: Radii.lg, padding: Spacing.sm,
-    marginTop: Spacing.md, gap: Spacing.sm,
+    backgroundColor: '#ffffff', borderRadius: Radii.lg, padding: Spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+    marginTop: Spacing.sm, gap: Spacing.sm,
   },
   progressHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   progressLabel: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
@@ -600,8 +671,8 @@ const s = StyleSheet.create({
   // ── Card photo ───────────────────────────────────────────────────────────
   cardPhotoWrapper: {
     alignSelf: 'stretch', width: '100%',
-    marginTop: Spacing.md, borderRadius: Radii.lg, overflow: 'hidden',
-    aspectRatio: 16 / 9,
+    marginTop: Spacing.sm, borderRadius: Radii.lg, overflow: 'hidden',
+    aspectRatio: 2.3,
   },
   cardPhoto: { width: '100%', height: '100%', resizeMode: 'cover' },
   materialsBadge: {
