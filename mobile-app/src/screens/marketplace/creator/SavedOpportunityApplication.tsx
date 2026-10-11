@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -44,6 +44,12 @@ const BookmarkIcon: React.FC<IconProps> = ({ size = 18, color = D.primary }) => 
   </Svg>
 );
 
+const CheckIcon: React.FC<IconProps> = ({ size = 18, color = '#2E8B57' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M5 12.5l4.5 4.5L19 7.5" />
+  </Svg>
+);
+
 const SendIcon: React.FC<IconProps> = ({ size = 18, color = D.secondary }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <Path d="M22 2L11 13" />
@@ -56,13 +62,13 @@ const SectionHeader: React.FC<{
   count: number;
   subtitle: string;
   icon: React.ReactNode;
-  tone: 'teal' | 'orange';
+  tone: 'teal' | 'orange' | 'green';
 }> = ({ title, count, subtitle, icon, tone }) => (
   <View style={s.sectionHeader}>
     <View style={s.sectionHeaderRow}>
-      <View style={[s.sectionIcon, tone === 'orange' ? s.sectionIconOrange : s.sectionIconTeal]}>{icon}</View>
+      <View style={[s.sectionIcon, tone === 'orange' ? s.sectionIconOrange : tone === 'green' ? s.sectionIconGreen : s.sectionIconTeal]}>{icon}</View>
       <Text style={s.sectionTitle}>{title}</Text>
-      <View style={[s.countPill, tone === 'orange' && s.countPillOrange]}>
+      <View style={[s.countPill, tone === 'orange' && s.countPillOrange, tone === 'green' && s.countPillGreen]}>
         <Text style={s.countPillText}>{count}</Text>
       </View>
     </View>
@@ -79,7 +85,9 @@ export const SavedOpportunityApplication: React.FC<{
   onEditDraft: (opportunityId: string) => void;
   onViewOpportunity: (opportunityId: string) => void;
   onOpenRejectedApplications: () => void;
-}> = ({ onNavigate, onBack, onEditDraft, onViewOpportunity, onOpenRejectedApplications }) => {
+  /** Called once the approvals have been marked as seen, so the menu's number can update. */
+  onSeen: () => void;
+}> = ({ onNavigate, onBack, onEditDraft, onViewOpportunity, onOpenRejectedApplications, onSeen }) => {
   const { applications, loaded, error: loadError, reload } = useMyApplications();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -93,7 +101,21 @@ export const SavedOpportunityApplication: React.FC<{
   // A rejected application is still one that was sent, so it counts under "Submitted" - but it is
   // listed on its own Rejected Applications page, so this page only lists what is still waiting.
   // APPROVED is excluded: once approved it moves to the dashboard's Upcoming Booking tab.
-  const { saved, waiting, rejected, sentCount } = groupApplications(applications);
+  const { approved, unseenApproved, saved, waiting, rejected, sentCount } = groupApplications(applications);
+
+  // Which approvals were new when the creator arrived - they wear a "New" tag for this visit even
+  // though they are marked as seen straight away.
+  const [newApprovalIds, setNewApprovalIds] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    if (!loaded || loadError || newApprovalIds !== null) return;
+    setNewApprovalIds(new Set(unseenApproved.map((a) => a.id)));
+    if (unseenApproved.length > 0) {
+      opportunityApplicationApi
+        .markApprovedSeen()
+        .then(onSeen)
+        .catch(() => {});
+    }
+  }, [loaded, loadError, newApprovalIds, unseenApproved, onSeen]);
 
   const handleSubmit = async (record: OpportunityApplicationResponse) => {
     try {
@@ -155,6 +177,41 @@ export const SavedOpportunityApplication: React.FC<{
             >
               <Text style={s.retryBtnText}>Try again</Text>
             </Pressable>
+          </View>
+        )}
+
+        {/* Approved - accepted by the knowledge holder, ready to be booked */}
+        {loaded && !loadError && approved.length > 0 && (
+          <View style={s.section}>
+            <SectionHeader
+              title="Approved"
+              count={approved.length}
+              subtitle="Accepted by the knowledge holder. Confirm your booking from Upcoming Booking on Home."
+              icon={<CheckIcon />}
+              tone="green"
+            />
+            {approved.map((record) => (
+              <ApplicationSummary
+                key={record.id}
+                record={record}
+                trailing={
+                  newApprovalIds?.has(record.id) ? (
+                    <View style={s.newPill}>
+                      <Text style={s.newPillText}>New</Text>
+                    </View>
+                  ) : undefined
+                }
+              >
+                <Pressable
+                  onPress={() => onNavigate('home')}
+                  style={({ pressed }) => [s.fillBtn, s.viewBtnFull, pressed && s.pressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Go to booking for ${record.title}`}
+                >
+                  <Text style={s.fillBtnText}>Go to booking</Text>
+                </Pressable>
+              </ApplicationSummary>
+            ))}
           </View>
         )}
 
@@ -308,12 +365,16 @@ const s = StyleSheet.create({
   sectionIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   sectionIconTeal: { backgroundColor: '#E3F1F0' },
   sectionIconOrange: { backgroundColor: '#FFF0E0' },
+  sectionIconGreen: { backgroundColor: '#E3F4EA' },
   sectionTitle: { flex: 1, fontFamily: Typography.fontDisplay, fontSize: 18, color: D.primary },
   countPill: {
     minWidth: 28, height: 24, paddingHorizontal: 9, borderRadius: 12,
     backgroundColor: D.primary, alignItems: 'center', justifyContent: 'center',
   },
   countPillOrange: { backgroundColor: D.secondary },
+  countPillGreen: { backgroundColor: '#2E8B57' },
+  newPill: { borderRadius: Radii.full, backgroundColor: '#2E8B57', paddingHorizontal: 10, paddingVertical: 3 },
+  newPillText: { fontFamily: Typography.fontBodySemi, fontSize: 11, color: '#ffffff' },
   countPillText: { fontFamily: Typography.fontBodySemi, fontSize: 12, color: '#ffffff' },
   sectionSubtitle: {
     fontFamily: Typography.fontBodyMed,

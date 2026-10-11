@@ -49,7 +49,8 @@ class ApplicationDecisionNotifierTest {
         ArgumentCaptor<PushMessage> sent = ArgumentCaptor.forClass(PushMessage.class);
         verify(pushNotificationService).sendToUser(eq(creatorId), sent.capture());
         assertThat(sent.getValue().data()).containsEntry("type", "application-approved");
-        assertThat(sent.getValue().body()).contains("accepted");
+        assertThat(sent.getValue().title()).isEqualTo("Application approved");
+        assertThat(sent.getValue().body()).contains("approved");
     }
 
     @Test

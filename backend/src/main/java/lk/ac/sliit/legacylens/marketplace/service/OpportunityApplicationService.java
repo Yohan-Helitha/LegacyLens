@@ -50,6 +50,9 @@ public interface OpportunityApplicationService {
     /** Marks every rejected application the creator had not looked at as seen, clearing the red number on the menu. */
     void markRejectedSeen(UUID creatorId);
 
+    /** The creator has opened My Applications - their approvals stop counting as new. */
+    void markApprovedSeen(UUID creatorId);
+
     /** Removes a draft or submitted application — the Delete/Cancel action on either list. */
     void deleteApplication(UUID creatorId, UUID applicationId);
 }

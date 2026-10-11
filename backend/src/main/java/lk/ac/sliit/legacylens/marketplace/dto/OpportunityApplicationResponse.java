@@ -51,4 +51,5 @@ public class OpportunityApplicationResponse {
     private LocalDateTime submittedAt;
     /** Null while a rejection has not been looked at yet. */
     private LocalDateTime rejectionSeenAt;
+    private LocalDateTime approvalSeenAt;
 }

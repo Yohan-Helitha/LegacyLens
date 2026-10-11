@@ -5,8 +5,8 @@ describe('creatorScreenForNotification', () => {
     expect(creatorScreenForNotification({ type: 'application-rejected' })).toBe('rejected-applications');
   });
 
-  it('opens the dashboard, where it is booked, for an approval', () => {
-    expect(creatorScreenForNotification({ type: 'application-approved' })).toBe('dashboard');
+  it('opens My Applications, where the approval is listed, for an approval', () => {
+    expect(creatorScreenForNotification({ type: 'application-approved' })).toBe('saved-applications');
   });
 
   it('just opens the app for anything else', () => {

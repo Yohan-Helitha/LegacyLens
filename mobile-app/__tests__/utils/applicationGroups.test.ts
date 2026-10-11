@@ -20,7 +20,7 @@ describe('groupApplications', () => {
     expect(groups.sentCount).toBe(3);
   });
 
-  it('leaves approved and booked applications out - they have moved on to booking', () => {
+  it('leaves approved and booked applications out of the sent count - they have moved on to booking', () => {
     const groups = groupApplications([application('APPROVED'), application('BOOKED'), application('PENDING')]);
 
     expect(groups.sentCount).toBe(1);
@@ -51,6 +51,20 @@ describe('unseen rejections', () => {
     const seen = { ...application('REJECTED'), rejectionSeenAt: '2026-10-10T20:00:00' };
 
     expect(groupApplications([seen, application('PENDING'), application('SAVED')]).unseenRejected).toHaveLength(0);
+  });
+});
+
+describe('unseen approvals', () => {
+  it('counts only the approved applications not looked at yet', () => {
+    const seen = { ...application('APPROVED'), approvalSeenAt: '2026-10-10T20:00:00' };
+    const groups = groupApplications([seen, application('APPROVED'), application('PENDING')]);
+
+    expect(groups.approved).toHaveLength(2);
+    expect(groups.unseenApproved).toHaveLength(1);
+  });
+
+  it('stops counting an approval once it has been booked', () => {
+    expect(groupApplications([application('BOOKED')]).unseenApproved).toHaveLength(0);
   });
 });
 

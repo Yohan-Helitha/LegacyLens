@@ -78,7 +78,10 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   // again whenever the creator moves to another screen, so a fresh rejection shows up promptly.
   const { applications: myApplications, reload: reloadApplications } = useMyApplications();
   // Only rejections the creator has not looked at yet - opening Rejected Applications clears them.
-  const rejectedApplicationsCount = groupApplications(myApplications).unseenRejected.length;
+  const groupedApplications = groupApplications(myApplications);
+  const rejectedApplicationsCount = groupedApplications.unseenRejected.length;
+  // Likewise for approvals - opening My Applications clears them.
+  const approvedApplicationsCount = groupedApplications.unseenApproved.length;
   useEffect(() => {
     reloadApplications();
   }, [screen, reloadApplications]);
@@ -231,8 +234,8 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   );
 
   const menuValue = useMemo(
-    () => ({ rejectedApplicationsCount, onOpenRejectedApplications: handleOpenRejectedApplications }),
-    [rejectedApplicationsCount],
+    () => ({ rejectedApplicationsCount, approvedApplicationsCount, onOpenRejectedApplications: handleOpenRejectedApplications }),
+    [rejectedApplicationsCount, approvedApplicationsCount],
   );
 
   return (
@@ -280,6 +283,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onEditDraft={handleEditDraft}
           onViewOpportunity={handleViewOpportunityFromApplication}
           onOpenRejectedApplications={handleOpenRejectedApplications}
+          onSeen={reloadApplications}
         />
       )}
       {screen === 'rejected-applications' && (

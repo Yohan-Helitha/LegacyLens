@@ -141,4 +141,17 @@ class OpportunityApplicationServiceImplTest {
 
         verify(applicationRepository).saveAll(List.of());
     }
+
+    @Test
+    void markApprovedSeen_stampsOnlyTheApprovedApplicationsNotLookedAtYet() {
+        OpportunityApplication unseen = new OpportunityApplication();
+        when(applicationRepository.findByCreatorIdAndStatusAndApprovalSeenAtIsNull(
+                creatorId, lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus.APPROVED))
+                .thenReturn(List.of(unseen));
+
+        service.markApprovedSeen(creatorId);
+
+        assertThat(unseen.getApprovalSeenAt()).isNotNull();
+        verify(applicationRepository).saveAll(List.of(unseen));
+    }
 }

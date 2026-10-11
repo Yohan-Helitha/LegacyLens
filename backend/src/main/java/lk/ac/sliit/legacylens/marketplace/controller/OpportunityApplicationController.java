@@ -143,6 +143,13 @@ public class OpportunityApplicationController {
         return ResponseEntity.ok(ApiResponse.ok("Rejected applications marked as seen", null));
     }
 
+    /** The creator has opened My Applications - their approvals no longer count as new. */
+    @PostMapping("/approved/seen")
+    public ResponseEntity<ApiResponse<Void>> markApprovedSeen(@AuthenticationPrincipal CustomUserDetails principal) {
+        opportunityApplicationService.markApprovedSeen(principal.getUser().getId());
+        return ResponseEntity.ok(ApiResponse.ok("Approved applications marked as seen", null));
+    }
+
     /** Deletes a draft or a submitted application — the Delete/Cancel action. */
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(

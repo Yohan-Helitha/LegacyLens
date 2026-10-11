@@ -38,7 +38,7 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const { rejectedApplicationsCount, onOpenRejectedApplications } = useCreatorMenu();
+  const { rejectedApplicationsCount, approvedApplicationsCount, onOpenRejectedApplications } = useCreatorMenu();
 
   // Slide-in/out like ElderNavDrawer: stay mounted until the close animation finishes.
   const progress = useRef(new Animated.Value(0)).current;
@@ -61,11 +61,11 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
     navigation.replace('Login');
   };
 
-  const menuItems: { label: string; icon: LucideIcon; onPress: () => void; badge?: number }[] =
+  const menuItems: { label: string; icon: LucideIcon; onPress: () => void; badge?: number; badgeKind?: 'approved' | 'rejected' }[] =
     props.variant === 'menu'
       ? [
           { label: 'My Work', icon: Briefcase, onPress: props.onOpenMyWork },
-          { label: 'My Applications', icon: ClipboardList, onPress: props.onOpenSavedApplications },
+          { label: 'My Applications', icon: ClipboardList, onPress: props.onOpenSavedApplications, badge: approvedApplicationsCount, badgeKind: 'approved' },
           // Only offered where the creator navigator supplies it; the red number is how many were rejected.
           ...(onOpenRejectedApplications
             ? [{
@@ -73,6 +73,7 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
                 icon: CircleX,
                 onPress: onOpenRejectedApplications,
                 badge: rejectedApplicationsCount,
+                badgeKind: 'rejected' as const,
               }]
             : []),
           { label: 'Rejected Submissions', icon: FileX, onPress: props.onOpenRejectedWork },
@@ -94,7 +95,7 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
               <View style={s.hamburgerLine} />
               <View style={s.hamburgerLine} />
             </View>
-            {rejectedApplicationsCount > 0 && <View style={s.hamburgerDot} />}
+            {rejectedApplicationsCount + approvedApplicationsCount > 0 && <View style={s.hamburgerDot} />}
           </Pressable>
         ) : (
           <Pressable
@@ -151,7 +152,7 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
               </View>
 
               <View style={s.navList}>
-                {menuItems.map(({ label, icon: Icon, onPress, badge }) => (
+                {menuItems.map(({ label, icon: Icon, onPress, badge, badgeKind }) => (
                   <Pressable
                     key={label}
                     onPress={() => {
@@ -165,7 +166,7 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
                     <Icon size={24} color={E.onPrimaryContainer} strokeWidth={2} />
                     <Text style={s.navLabel}>{label}</Text>
                     {!!badge && badge > 0 && (
-                      <View style={s.navBadge} accessibilityLabel={`${badge} rejected`}>
+                      <View style={[s.navBadge, badgeKind === 'approved' && s.navBadgeApproved]} accessibilityLabel={`${badge} ${badgeKind === 'approved' ? 'approved' : 'rejected'}`}>
                         <Text style={s.navBadgeText}>{badgeText(badge)}</Text>
                       </View>
                     )}
@@ -284,6 +285,7 @@ const s = StyleSheet.create({
     minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12,
     backgroundColor: '#E53935', alignItems: 'center', justifyContent: 'center',
   },
+  navBadgeApproved: { backgroundColor: '#2E8B57' },
   navBadgeText: { fontFamily: Typography.fontBodySemi, fontSize: 12, color: '#ffffff' },
 
   logoutBtn: {
