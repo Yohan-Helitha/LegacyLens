@@ -19,6 +19,9 @@ import java.util.Optional;
 @Component
 public class ApplicationDecisionNotifier {
 
+    /** An urgent opportunity's approval is headed differently so it stands out on the phone. */
+    static final String URGENT_APPROVED_TITLE = "\uD83D\uDCC4 Urgent Approved";
+
     private static final Logger log = LoggerFactory.getLogger(ApplicationDecisionNotifier.class);
 
     private final PushNotificationService pushNotificationService;
@@ -54,7 +57,7 @@ public class ApplicationDecisionNotifier {
         }
         if (event.decision() == OpportunityApplicationStatus.APPROVED) {
             return Optional.of(new PushMessage(
-                    "Approved",
+                    event.urgent() ? URGENT_APPROVED_TITLE : "Approved",
                     "\"" + title + "\" with " + event.elderName() + " was approved. Confirm your booking.",
                     withType(data, "application-approved")));
         }

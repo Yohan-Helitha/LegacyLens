@@ -215,7 +215,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
     private void announceDecision(OpportunityApplication application, OpportunityApplicationStatus decision) {
         events.publishEvent(new ApplicationDecidedEvent(
                 application.getCreator().getId(), application.getId(), application.getOpportunity().getTitle(),
-                application.getOpportunity().getElder().getFullName(), decision));
+                application.getOpportunity().getElder().getFullName(), application.getOpportunity().isUrgent(), decision));
     }
 
     private static String formatTimeWindow(LocalTime start, LocalTime end) {

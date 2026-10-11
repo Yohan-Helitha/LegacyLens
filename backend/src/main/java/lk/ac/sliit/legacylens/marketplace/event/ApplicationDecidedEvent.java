@@ -10,5 +10,6 @@ public record ApplicationDecidedEvent(
         UUID applicationId,
         String opportunityTitle,
         String elderName,
+        boolean urgent,
         OpportunityApplicationStatus decision) {
 }

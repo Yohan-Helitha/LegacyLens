@@ -9,6 +9,10 @@ describe('creatorScreenForNotification', () => {
     expect(creatorScreenForNotification({ type: 'application-approved' })).toBe('dashboard');
   });
 
+  it('opens the opportunities for an urgent opportunity alert', () => {
+    expect(creatorScreenForNotification({ type: 'urgent-opportunity' })).toBe('market');
+  });
+
   it('just opens the app for anything else', () => {
     expect(creatorScreenForNotification({ type: 'something-new' })).toBeNull();
     expect(creatorScreenForNotification({})).toBeNull();
