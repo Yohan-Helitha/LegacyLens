@@ -221,19 +221,19 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
                 .distinct()
                 .toList();
 
-        Map<UUID, String> categoryByOpportunity = new HashMap<>();
+        Map<UUID, Opportunity> opportunityById = new HashMap<>();
         if (!opportunityIds.isEmpty()) {
             for (Opportunity opportunity : opportunityRepository.findAllById(opportunityIds)) {
-                categoryByOpportunity.put(opportunity.getId(), opportunity.getCategory());
+                opportunityById.put(opportunity.getId(), opportunity);
             }
         }
 
         return jobs.stream()
-                .map(job -> mapJob(job, categoryByOpportunity.get(job.getOpportunityId())))
+                .map(job -> mapJob(job, opportunityById.get(job.getOpportunityId())))
                 .collect(Collectors.toList());
     }
 
-    private JobResponse mapJob(Job job, String category) {
+    private JobResponse mapJob(Job job, Opportunity opportunity) {
         return JobResponse.builder()
                 .id(job.getId())
                 .title(job.getTitle())
@@ -246,7 +246,8 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
                 .scheduledAt(job.getScheduledAt())
                 .timeWindowText(job.getTimeWindowText())
                 .completedAt(job.getCompletedAt())
-                .category(category)
+                .category(opportunity == null ? null : opportunity.getCategory())
+                .language(opportunity == null ? null : opportunity.getLanguage())
                 .build();
     }
 

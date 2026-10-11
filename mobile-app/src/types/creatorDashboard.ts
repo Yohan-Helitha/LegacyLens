@@ -39,6 +39,8 @@ export interface JobResponse {
   completedAt: string | null;
   /** The linked opportunity's category, e.g. "Oral History"; null for jobs with no opportunity behind them. */
   category?: string | null;
+  /** The linked opportunity's language, e.g. "Sinhala". */
+  language?: string | null;
 }
 
 export interface ReviewResponse {

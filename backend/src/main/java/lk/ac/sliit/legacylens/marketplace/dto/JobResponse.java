@@ -28,4 +28,6 @@ public class JobResponse {
     private LocalDateTime completedAt;
     /** The linked opportunity's category (e.g. "Oral History"); null for jobs with no opportunity behind them. */
     private String category;
+    /** The linked opportunity's language, as the opportunity detail page shows it; null when there is none. */
+    private String language;
 }
