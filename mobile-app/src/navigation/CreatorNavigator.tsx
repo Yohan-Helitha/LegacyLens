@@ -15,7 +15,8 @@ import { SavedOpportunityApplication } from '../screens/marketplace/creator/Save
 import { MyWorkList } from '../screens/marketplace/creator/MyWorkList';
 import { ContinueMyWorkPage } from '../screens/marketplace/creator/ContinueMyWorkPage';
 import { SavedCompletedWorkPage } from '../screens/marketplace/creator/SavedCompletedWorkPage';
-import { SubmittedWorkDetailPage } from '../screens/marketplace/creator/SubmittedWorkDetailPage';
+import { PublicationPreviewPage } from '../screens/marketplace/creator/PublicationPreviewPage';
+import type { JobResponse } from '../types/creatorDashboard';
 import { LogPaymentPage } from '../screens/marketplace/creator/LogPaymentPage';
 import { RejectedWorkPage } from '../screens/marketplace/creator/RejectedWorkPage';
 import { RejectedApplicationsPage } from '../screens/marketplace/creator/RejectedApplicationsPage';
@@ -42,7 +43,7 @@ export type CreatorScreen =
   | 'my-work'
   | 'continue-work'
   | 'saved-completed-work'
-  | 'submitted-work'
+  | 'publication-preview'
   | 'log-payment'
   | 'rejected-work'
   | 'rejected-applications';
@@ -70,6 +71,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [previewJob, setPreviewJob] = useState<JobResponse | null>(null);
   const [selectedJobTitle, setSelectedJobTitle] = useState<string | null>(null);
   const [selectedJobElderName, setSelectedJobElderName] = useState<string | null>(null);
   const [selectedJobLocation, setSelectedJobLocation] = useState<string | null>(null);
@@ -196,8 +198,11 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
     setScreen('continue-work');
   };
 
-  /** Called when "View" is pressed on a Submitted/Completed card in MyWorkList */
-  const handleOpenSubmittedWork = () => setScreen('submitted-work');
+  /** Called when "View Publication" is pressed on a completed job in MyWorkList */
+  const handleOpenPublicationPreview = (job: JobResponse) => {
+    setPreviewJob(job);
+    setScreen('publication-preview');
+  };
 
   /** Called when back arrow is pressed on PaymentHistoryPage */
   const handleBackToDashboard = () => setScreen('dashboard');
@@ -352,7 +357,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onNavigate={handleNavigate}
           onBack={handleBackToDashboard}
           onContinueWork={handleContinueWork}
-          onViewSubmittedWork={handleOpenSubmittedWork}
+          onViewPublication={handleOpenPublicationPreview}
         />
       )}
       {screen === 'continue-work' && (
@@ -380,8 +385,8 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onEditWork={handleEditRejectedWork}
         />
       )}
-      {screen === 'submitted-work' && (
-        <SubmittedWorkDetailPage onNavigate={handleNavigate} onBack={handleBackToMyWork} />
+      {screen === 'publication-preview' && previewJob && (
+        <PublicationPreviewPage job={previewJob} onNavigate={handleNavigate} onBack={handleBackToMyWork} />
       )}
     </CreatorMenuContext.Provider>
   );

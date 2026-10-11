@@ -341,8 +341,8 @@ export const MyWorkList: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
   onContinueWork: (jobId: string, title: string, elderName: string, location: string | null) => void;
-  onViewSubmittedWork: () => void;
-}> = ({ onNavigate, onBack, onContinueWork, onViewSubmittedWork }) => {
+  onViewPublication: (job: JobResponse) => void;
+}> = ({ onNavigate, onBack, onContinueWork, onViewPublication }) => {
   const [workJobs, setWorkJobs] = useState<JobResponse[]>([]);
   const [completedJobs, setCompletedJobs] = useState<JobResponse[]>([]);
   const [progressByJobId, setProgressByJobId] = useState<Record<string, WorkProgressResponse>>({});
@@ -531,7 +531,7 @@ export const MyWorkList: React.FC<{
                     </Text>
                   </View>
                   {month.jobs.map((job) => (
-                    <CompletedCard key={job.id} job={job} heroImageUrl={completedPictures[job.id] ?? null} onView={onViewSubmittedWork} />
+                    <CompletedCard key={job.id} job={job} heroImageUrl={completedPictures[job.id] ?? null} onView={() => onViewPublication(job)} />
                   ))}
                 </View>
               ))}

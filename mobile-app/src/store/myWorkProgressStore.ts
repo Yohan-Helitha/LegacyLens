@@ -47,7 +47,7 @@ interface MyWorkProgressState {
   noteByJobId: Record<string, string>;
   /** Job ids explicitly saved as a draft from ContinueMyWorkPage's "Save As a Draft" — shown on SavedCompletedWorkPage. */
   savedDraftJobIds: string[];
-  /** ISO timestamp of the first moment a job's steps reached TOTAL_WORK_STEPS — shown on SubmittedWorkDetailPage. */
+  /** ISO timestamp of the first moment a job's steps reached TOTAL_WORK_STEPS — the time a job counts as submitted. */
   submittedAtByJobId: Record<string, string>;
 
   getCompletedSteps: (jobId: string, fallback: number) => number;
