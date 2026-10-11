@@ -1,6 +1,9 @@
 package lk.ac.sliit.legacylens.common.exception;
 
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
+import lk.ac.sliit.legacylens.speech.exception.ProviderNotFoundException;
+import lk.ac.sliit.legacylens.speech.exception.SpeechProviderException;
+import lk.ac.sliit.legacylens.speech.exception.UnsupportedAudioException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -138,6 +141,22 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(StateTransitionException.class)
     public ResponseEntity<ApiResponse<Void>> handleStateTransition(StateTransitionException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(UnsupportedAudioException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnsupportedAudio(UnsupportedAudioException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ProviderNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleProviderNotFound(ProviderNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(SpeechProviderException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSpeechProvider(SpeechProviderException ex) {
+        log.warn("Speech provider failure: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(ApiResponse.error(ex.getMessage()));
     }
 
     /** e.g. an unparseable enum or UUID passed as a @RequestParam/@PathVariable — a client input error, not a server one. */

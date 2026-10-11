@@ -28,3 +28,4 @@ export { RejectReasonSheet } from './RejectReasonSheet';
 export { VoiceReplySheet } from './VoiceReplySheet';
 export type { VoiceReplyClip } from './VoiceReplySheet';
 export { ReviewCard } from './ReviewCard';
+export { VoiceCaptureField } from './VoiceCaptureField';
