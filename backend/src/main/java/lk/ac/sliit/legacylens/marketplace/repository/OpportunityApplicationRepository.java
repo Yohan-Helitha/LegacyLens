@@ -34,6 +34,9 @@ public interface OpportunityApplicationRepository extends JpaRepository<Opportun
     /** Ownership-scoped lookup for the elder decision - only the elder who owns the opportunity can find the application. */
     Optional<OpportunityApplication> findByIdAndOpportunityElderId(UUID id, UUID elderId);
 
+    /** The creator's rejected applications they have not looked at yet. */
+    List<OpportunityApplication> findByCreatorIdAndStatusAndRejectionSeenAtIsNull(UUID creatorId, OpportunityApplicationStatus status);
+
     /** How many of a creator's applications are in any of these states - backs the profile's "Approved" count. */
     long countByCreatorIdAndStatusIn(UUID creatorId, Collection<OpportunityApplicationStatus> statuses);
 }

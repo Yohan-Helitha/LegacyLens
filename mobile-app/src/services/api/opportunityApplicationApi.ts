@@ -44,6 +44,9 @@ export const opportunityApplicationApi = {
     ),
 
   remove: (id: string) => apiDelete<void>(`/opportunity-applications/${id}`),
+
+  /** The creator opened Rejected Applications - their rejections stop counting as new. */
+  markRejectedSeen: () => apiPost<void, undefined>('/opportunity-applications/rejected/seen', undefined),
 };
 
 /**

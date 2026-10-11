@@ -25,6 +25,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -61,10 +62,10 @@ class OpportunityApplicationServiceImplTest {
         opportunity.setElder(elder);
         opportunity.setTitle("Traditional recipe documentation");
 
-        when(userRepository.findById(creatorId)).thenReturn(Optional.of(creator));
-        when(opportunityRepository.findByIdAndStatus(opportunity.getId(), OpportunityStatus.PUBLISHED))
+        lenient().when(userRepository.findById(creatorId)).thenReturn(Optional.of(creator));
+        lenient().when(opportunityRepository.findByIdAndStatus(opportunity.getId(), OpportunityStatus.PUBLISHED))
                 .thenReturn(Optional.of(opportunity));
-        when(applicationRepository.findByCreatorIdAndOpportunityId(creatorId, opportunity.getId()))
+        lenient().when(applicationRepository.findByCreatorIdAndOpportunityId(creatorId, opportunity.getId()))
                 .thenReturn(Optional.empty());
     }
 
@@ -113,5 +114,31 @@ class OpportunityApplicationServiceImplTest {
     void saveDraft_withAnUnsupportedLanguage_isRejected() {
         assertThrows(InvalidRequestException.class,
                 () -> service.saveDraft(creatorId, request(List.of("Klingon:FLUENT"))));
+    }
+
+    @Test
+    void markRejectedSeen_stampsOnlyTheRejectedApplicationsNotLookedAtYet() {
+        OpportunityApplication unseenOne = new OpportunityApplication();
+        OpportunityApplication unseenTwo = new OpportunityApplication();
+        when(applicationRepository.findByCreatorIdAndStatusAndRejectionSeenAtIsNull(
+                creatorId, lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus.REJECTED))
+                .thenReturn(List.of(unseenOne, unseenTwo));
+
+        service.markRejectedSeen(creatorId);
+
+        assertThat(unseenOne.getRejectionSeenAt()).isNotNull();
+        assertThat(unseenTwo.getRejectionSeenAt()).isNotNull();
+        verify(applicationRepository).saveAll(List.of(unseenOne, unseenTwo));
+    }
+
+    @Test
+    void markRejectedSeen_withNothingNew_savesNothingNew() {
+        when(applicationRepository.findByCreatorIdAndStatusAndRejectionSeenAtIsNull(
+                creatorId, lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus.REJECTED))
+                .thenReturn(List.of());
+
+        service.markRejectedSeen(creatorId);
+
+        verify(applicationRepository).saveAll(List.of());
     }
 }

@@ -223,6 +223,16 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
 
     @Override
     @Transactional
+    public void markRejectedSeen(UUID creatorId) {
+        LocalDateTime now = LocalDateTime.now();
+        List<OpportunityApplication> unseen = opportunityApplicationRepository
+                .findByCreatorIdAndStatusAndRejectionSeenAtIsNull(creatorId, OpportunityApplicationStatus.REJECTED);
+        unseen.forEach(application -> application.setRejectionSeenAt(now));
+        opportunityApplicationRepository.saveAll(unseen);
+    }
+
+    @Override
+    @Transactional
     public void deleteApplication(UUID creatorId, UUID applicationId) {
         OpportunityApplication application = opportunityApplicationRepository
                 .findByIdAndCreatorId(applicationId, creatorId)

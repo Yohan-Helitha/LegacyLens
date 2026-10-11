@@ -47,4 +47,6 @@ public class OpportunityApplicationResponse {
     private String status;
     private LocalDateTime savedAt;
     private LocalDateTime submittedAt;
+    /** Null while a rejection has not been looked at yet. */
+    private LocalDateTime rejectionSeenAt;
 }

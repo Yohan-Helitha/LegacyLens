@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -11,6 +11,7 @@ import {
   ApplicationSummary,
   DeleteApplicationButton,
 } from '../../../components/module-specific/marketplace/ApplicationCard';
+import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
 import { useMyApplications } from '../../../hooks/useMyApplications';
 import type { OpportunityApplicationResponse } from '../../../types/opportunityApplication';
 import { groupApplications } from '../../../utils/applicationGroups';
@@ -44,11 +45,27 @@ export const RejectedApplicationsPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
   onViewOpportunity: (opportunityId: string) => void;
-}> = ({ onNavigate, onBack, onViewOpportunity }) => {
+  /** Called once the rejections have been marked as seen, so the menu's red number can update. */
+  onSeen: () => void;
+}> = ({ onNavigate, onBack, onViewOpportunity, onSeen }) => {
   const { applications, loaded, error: loadError, reload } = useMyApplications();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { rejected } = groupApplications(applications);
+  const { rejected, unseenRejected } = groupApplications(applications);
+
+  // Which cards were new when the creator arrived - remembered so they can wear a "New" tag for this
+  // visit even though they are marked as seen straight away.
+  const [newIds, setNewIds] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    if (!loaded || loadError || newIds !== null) return;
+    setNewIds(new Set(unseenRejected.map((a) => a.id)));
+    if (unseenRejected.length > 0) {
+      opportunityApplicationApi
+        .markRejectedSeen()
+        .then(onSeen)
+        .catch(() => {});
+    }
+  }, [loaded, loadError, newIds, unseenRejected, onSeen]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -106,7 +123,16 @@ export const RejectedApplicationsPage: React.FC<{
           <ApplicationSummary
             key={record.id}
             record={record}
-            trailing={<DeleteApplicationButton record={record} onDeleted={reload} />}
+            trailing={
+              <View style={s.trailing}>
+                {newIds?.has(record.id) && (
+                  <View style={s.newPill}>
+                    <Text style={s.newPillText}>New</Text>
+                  </View>
+                )}
+                <DeleteApplicationButton record={record} onDeleted={reload} />
+              </View>
+            }
           >
             <Pressable
               onPress={() => onViewOpportunity(record.opportunityId)}
@@ -161,6 +187,10 @@ const s = StyleSheet.create({
     backgroundColor: D.surfaceContainerLow,
   },
   emptyStateText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+
+  trailing: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  newPill: { borderRadius: Radii.full, backgroundColor: '#E53935', paddingHorizontal: 10, paddingVertical: 3 },
+  newPillText: { fontFamily: Typography.fontBodySemi, fontSize: 11, color: '#ffffff' },
 
   fillBtn: {
     paddingVertical: 9, borderRadius: Radii.full, backgroundColor: D.primary,

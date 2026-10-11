@@ -77,7 +77,8 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   // The red number on the side menu: how many applications have been rejected. Asked of the server
   // again whenever the creator moves to another screen, so a fresh rejection shows up promptly.
   const { applications: myApplications, reload: reloadApplications } = useMyApplications();
-  const rejectedApplicationsCount = groupApplications(myApplications).rejected.length;
+  // Only rejections the creator has not looked at yet - opening Rejected Applications clears them.
+  const rejectedApplicationsCount = groupApplications(myApplications).unseenRejected.length;
   useEffect(() => {
     reloadApplications();
   }, [screen, reloadApplications]);
@@ -286,6 +287,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onNavigate={handleNavigate}
           onBack={handleOpenSavedApplications}
           onViewOpportunity={handleViewOpportunityFromApplication}
+          onSeen={reloadApplications}
         />
       )}
       {screen === 'apply' && (

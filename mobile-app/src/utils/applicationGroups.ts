@@ -7,6 +7,8 @@ export interface ApplicationGroups {
   waiting: OpportunityApplicationResponse[];
   /** Turned down by the knowledge holder. */
   rejected: OpportunityApplicationResponse[];
+  /** The rejected ones the creator has not looked at yet - what the red number on the menu counts. */
+  unseenRejected: OpportunityApplicationResponse[];
   /**
    * How many applications were sent and are still this page's business: waiting plus rejected.
    * An approved one has moved on to booking, so it is no longer counted here.
@@ -18,7 +20,8 @@ export function groupApplications(applications: OpportunityApplicationResponse[]
   const saved = applications.filter((a) => a.status === 'SAVED');
   const waiting = applications.filter((a) => a.status === 'PENDING');
   const rejected = applications.filter((a) => a.status === 'REJECTED');
-  return { saved, waiting, rejected, sentCount: waiting.length + rejected.length };
+  const unseenRejected = rejected.filter((a) => !a.rejectionSeenAt);
+  return { saved, waiting, rejected, unseenRejected, sentCount: waiting.length + rejected.length };
 }
 
 /** "3 sent" - the count shown on the Submitted section; a rejected application is still one that was sent. */

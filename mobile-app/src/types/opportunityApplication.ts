@@ -32,6 +32,8 @@ export interface OpportunityApplicationResponse {
   status: OpportunityApplicationStatus;
   savedAt: string;
   submittedAt: string | null;
+  /** Null while a rejection has not been looked at - those are what the menu's red number counts. */
+  rejectionSeenAt?: string | null;
 }
 
 /** Everything the "Confirm Booking" form sends — the creator's agreed date/time with the elder. */

@@ -100,4 +100,11 @@ public class OpportunityApplication {
     /** Set when the creator submits (SAVED -> PENDING); null until then. */
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
+
+    /**
+     * When the creator first looked at the fact that this application was rejected; null until then.
+     * Drives the red number on the creator's menu - an unseen rejection counts, a seen one does not.
+     */
+    @Column(name = "rejection_seen_at")
+    private LocalDateTime rejectionSeenAt;
 }

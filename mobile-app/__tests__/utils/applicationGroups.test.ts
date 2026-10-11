@@ -38,6 +38,22 @@ describe('groupApplications', () => {
   });
 });
 
+describe('unseen rejections', () => {
+  it('counts only the rejected applications not looked at yet', () => {
+    const seen = { ...application('REJECTED'), rejectionSeenAt: '2026-10-10T20:00:00' };
+    const groups = groupApplications([seen, application('REJECTED'), application('PENDING')]);
+
+    expect(groups.rejected).toHaveLength(2);
+    expect(groups.unseenRejected).toHaveLength(1);
+  });
+
+  it('is empty once everything has been looked at, and ignores applications that are not rejected', () => {
+    const seen = { ...application('REJECTED'), rejectionSeenAt: '2026-10-10T20:00:00' };
+
+    expect(groupApplications([seen, application('PENDING'), application('SAVED')]).unseenRejected).toHaveLength(0);
+  });
+});
+
 describe('labels', () => {
   it('words the sent count', () => {
     expect(sentLabel(2)).toBe('2 sent');
