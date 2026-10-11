@@ -91,7 +91,7 @@ class OpportunityServiceImplTest {
                 creatorProfileRepository, creatorApplicationRepository, jobRepository, opportunityRepository);
         OpportunityEligibility eligibility = new OpportunityEligibility(applicationRepository, invitationRepository, jobRepository);
         service = new OpportunityServiceImpl(opportunityRepository, knowledgeHolderProfileRepository, userRepository,
-                new OpportunityMatcher(loader, cityRepository, elderTrustLookup, eligibility));
+                new OpportunityMatcher(loader, cityRepository, elderTrustLookup, eligibility), applicationRepository);
 
         elder = user("Anura Bandara");
         nimal = user("Nimal Perera");
@@ -286,6 +286,37 @@ class OpportunityServiceImplTest {
 
         assertThat(result).extracting(OpportunityCardResponse::getMatchPercentage).containsExactly(91, 0);
         assertThat(result.get(1).getMatchLevel()).isEqualTo("NOT_RECOMMENDED");
+    }
+
+    @Test
+    void recentList_leavesOutWhatTheCreatorAlreadyAppliedFor_butOtherCreatorsStillSeeIt() {
+        Opportunity recipe = opportunity("Traditional recipe documentation", "Food", "Matara");
+        Opportunity words = opportunity("Old village words and proverbs", "Language", "Matara");
+        OpportunityApplication sent = new OpportunityApplication();
+        sent.setOpportunity(recipe);
+        sent.setCreator(nimal);
+        sent.setStatus(OpportunityApplicationStatus.REJECTED);
+        lenient().when(applicationRepository.findByCreatorIdOrderBySavedAtDesc(nimal.getId())).thenReturn(List.of(sent));
+        lenient().when(opportunityRepository.findByStatusOrderByCreatedAtDesc(eq(OpportunityStatus.PUBLISHED), any()))
+                .thenReturn(List.of(recipe, words));
+
+        assertThat(service.getRecent(10, nimal.getId())).extracting(OpportunityCardResponse::getTitle)
+                .containsExactly("Old village words and proverbs");
+        assertThat(service.getRecent(10, UUID.randomUUID())).hasSize(2);
+    }
+
+    @Test
+    void recentList_keepsAnOpportunityOnlySavedAsADraft() {
+        Opportunity recipe = opportunity("Traditional recipe documentation", "Food", "Matara");
+        OpportunityApplication draft = new OpportunityApplication();
+        draft.setOpportunity(recipe);
+        draft.setCreator(nimal);
+        draft.setStatus(OpportunityApplicationStatus.SAVED);
+        lenient().when(applicationRepository.findByCreatorIdOrderBySavedAtDesc(nimal.getId())).thenReturn(List.of(draft));
+        lenient().when(opportunityRepository.findByStatusOrderByCreatedAtDesc(eq(OpportunityStatus.PUBLISHED), any()))
+                .thenReturn(List.of(recipe));
+
+        assertThat(service.getRecent(10, nimal.getId())).hasSize(1);
     }
 
     @Test

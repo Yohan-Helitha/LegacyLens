@@ -4,10 +4,12 @@ import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityCardResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityDetailResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
+import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
 import lk.ac.sliit.legacylens.marketplace.matching.CreatorMatchScorer.Match;
 import lk.ac.sliit.legacylens.marketplace.matching.OpportunityMatcher;
 import lk.ac.sliit.legacylens.marketplace.matching.OpportunityMatcher.CreatorMatching;
+import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.repository.KnowledgeHolderProfileRepository;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -48,16 +51,34 @@ public class OpportunityServiceImpl implements OpportunityService {
     private final KnowledgeHolderProfileRepository knowledgeHolderProfileRepository;
     private final UserRepository userRepository;
     private final OpportunityMatcher matcher;
+    private final OpportunityApplicationRepository applicationRepository;
 
     public OpportunityServiceImpl(
             OpportunityRepository opportunityRepository,
             KnowledgeHolderProfileRepository knowledgeHolderProfileRepository,
             UserRepository userRepository,
-            OpportunityMatcher matcher) {
+            OpportunityMatcher matcher,
+            OpportunityApplicationRepository applicationRepository) {
         this.opportunityRepository = opportunityRepository;
         this.knowledgeHolderProfileRepository = knowledgeHolderProfileRepository;
         this.userRepository = userRepository;
         this.matcher = matcher;
+        this.applicationRepository = applicationRepository;
+    }
+
+    /**
+     * The opportunities this creator has already applied for. A saved draft is not an application yet,
+     * so it stays listed; a sent one - whatever the answer - is left out so the creator only browses
+     * what is still open to them. Other creators are not affected.
+     */
+    private Set<UUID> alreadyAppliedTo(UUID creatorId) {
+        if (creatorId == null) {
+            return Set.of();
+        }
+        return applicationRepository.findByCreatorIdOrderBySavedAtDesc(creatorId).stream()
+                .filter(application -> application.getStatus() != OpportunityApplicationStatus.SAVED)
+                .map(application -> application.getOpportunity().getId())
+                .collect(Collectors.toSet());
     }
 
     @Override
@@ -77,7 +98,9 @@ public class OpportunityServiceImpl implements OpportunityService {
             log.warn("Recommendations only looked at the newest {} published opportunities; older ones were not considered",
                     RECOMMENDATION_POOL);
         }
+        Set<UUID> applied = alreadyAppliedTo(creatorId);
         return pool.stream()
+                .filter(opportunity -> !applied.contains(opportunity.getId()))
                 .filter(matching::isEligible)
                 .map(opportunity -> new Scored(opportunity, matching.score(opportunity)))
                 .filter(scored -> scored.match().recommendableToCreator())
@@ -93,9 +116,12 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Transactional(readOnly = true)
     public List<OpportunityCardResponse> getUrgent(int limit, UUID creatorId) {
         CreatorMatching matching = matcher.forCreator(creatorId);
+        Set<UUID> applied = alreadyAppliedTo(creatorId);
         return opportunityRepository
-                .findByStatusAndUrgentTrueOrderByDueAtAsc(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit))
+                .findByStatusAndUrgentTrueOrderByDueAtAsc(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit + applied.size()))
                 .stream()
+                .filter(o -> !applied.contains(o.getId()))
+                .limit(limit)
                 .map(o -> mapCard(o, matching.score(o)))
                 .collect(Collectors.toList());
     }
@@ -104,9 +130,12 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Transactional(readOnly = true)
     public List<OpportunityCardResponse> getRecent(int limit, UUID creatorId) {
         CreatorMatching matching = matcher.forCreator(creatorId);
+        Set<UUID> applied = alreadyAppliedTo(creatorId);
         return opportunityRepository
-                .findByStatusOrderByCreatedAtDesc(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit))
+                .findByStatusOrderByCreatedAtDesc(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit + applied.size()))
                 .stream()
+                .filter(o -> !applied.contains(o.getId()))
+                .limit(limit)
                 .map(o -> mapCard(o, matching.score(o)))
                 .collect(Collectors.toList());
     }
@@ -125,9 +154,12 @@ public class OpportunityServiceImpl implements OpportunityService {
         }
 
         CreatorMatching matching = matcher.forCreator(creatorId);
+        Set<UUID> applied = alreadyAppliedTo(creatorId);
         return opportunityRepository
-                .search(OpportunityStatus.PUBLISHED, category, location, PageRequest.of(0, limit))
+                .search(OpportunityStatus.PUBLISHED, category, location, PageRequest.of(0, limit + applied.size()))
                 .stream()
+                .filter(o -> !applied.contains(o.getId()))
+                .limit(limit)
                 .map(o -> mapCard(o, matching.score(o)))
                 .collect(Collectors.toList());
     }
