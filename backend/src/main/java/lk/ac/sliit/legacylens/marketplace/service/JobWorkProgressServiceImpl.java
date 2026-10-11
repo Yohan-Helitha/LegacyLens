@@ -178,6 +178,11 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         progress.setRejected(false);
         progress.setRejectionReason(null);
         progress.setRejectedAt(null);
+        // ...and so are the reviewers' notes - they asked for these changes, which are now made.
+        progress.setElderFeedback(null);
+        progress.setElderFeedbackAt(null);
+        progress.setAdminFeedback(null);
+        progress.setAdminFeedbackAt(null);
 
         return mapToResponse(workProgressRepository.save(progress));
     }
@@ -370,6 +375,10 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .rejected(progress.isRejected())
                 .rejectionReason(progress.getRejectionReason())
                 .rejectedAt(progress.getRejectedAt())
+                .elderFeedback(progress.getElderFeedback())
+                .elderFeedbackAt(progress.getElderFeedbackAt())
+                .adminFeedback(progress.getAdminFeedback())
+                .adminFeedbackAt(progress.getAdminFeedbackAt())
                 .materials(materials)
                 .checklistItems(checklistItems)
                 .build();

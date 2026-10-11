@@ -13,6 +13,10 @@ describe('creatorScreenForNotification', () => {
     expect(creatorScreenForNotification({ type: 'urgent-opportunity' })).toBe('market');
   });
 
+  it('opens Rejected Submissions for reviewer feedback on submitted work', () => {
+    expect(creatorScreenForNotification({ type: 'work-feedback' })).toBe('rejected-work');
+  });
+
   it('just opens the app for anything else', () => {
     expect(creatorScreenForNotification({ type: 'something-new' })).toBeNull();
     expect(creatorScreenForNotification({})).toBeNull();

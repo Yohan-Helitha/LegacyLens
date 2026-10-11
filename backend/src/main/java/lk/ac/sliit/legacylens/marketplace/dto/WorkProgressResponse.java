@@ -45,6 +45,12 @@ public class WorkProgressResponse {
     private boolean rejected;
     private String rejectionReason;
     private LocalDateTime rejectedAt;
+
+    /** The two reviewers' notes on this submission - shown to the creator only, never in the published content. */
+    private String elderFeedback;
+    private LocalDateTime elderFeedbackAt;
+    private String adminFeedback;
+    private LocalDateTime adminFeedbackAt;
     private List<WorkMaterialResponse> materials;
     private List<ChecklistItemResponse> checklistItems;
 }

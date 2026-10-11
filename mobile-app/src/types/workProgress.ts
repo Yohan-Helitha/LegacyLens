@@ -94,6 +94,11 @@ export interface WorkProgressResponse {
   rejected: boolean;
   rejectionReason: string | null;
   rejectedAt: string | null;
+  /** What the knowledge holder and the admin each asked to change - for the creator only, never published. */
+  elderFeedback: string | null;
+  elderFeedbackAt: string | null;
+  adminFeedback: string | null;
+  adminFeedbackAt: string | null;
   materials: WorkMaterialResponse[];
   checklistItems: ChecklistItemResponse[];
 }

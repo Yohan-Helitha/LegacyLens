@@ -8,6 +8,7 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
+import { ReviewerFeedback } from '../../../components/module-specific/marketplace/ReviewerFeedback';
 import { workProgressApi } from '../../../services/api/workProgressApi';
 import { ApiError } from '../../../services/api/client';
 import { ChecklistItemResponse, WorkProgressResponse, deriveStageAndPercentage, stepsForStage } from '../../../types/workProgress';
@@ -380,7 +381,7 @@ export const ContinueMyWorkPage: React.FC<{
           <View style={s.rejectionBanner}>
             <Text style={s.rejectionBannerTitle}>Changes requested</Text>
             <Text style={s.rejectionBannerText}>
-              {progress.rejectionReason ?? 'An admin sent this back — please review and resubmit.'}
+              {progress.rejectionReason ?? 'Your reviewers asked for changes - read their feedback at the bottom of this page, then resubmit.'}
             </Text>
           </View>
         )}
@@ -580,6 +581,15 @@ export const ContinueMyWorkPage: React.FC<{
         >
           <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Save As a Draft'}</Text>
         </Pressable>
+
+        {/* Private to the creator - the reviewers' notes are never part of the published content. */}
+        <ReviewerFeedback
+          elderFeedback={progress.elderFeedback}
+          elderFeedbackAt={progress.elderFeedbackAt}
+          adminFeedback={progress.adminFeedback}
+          adminFeedbackAt={progress.adminFeedbackAt}
+          showEmpty
+        />
 
         <View style={{ height: 8 }} />
       </ScrollView>
