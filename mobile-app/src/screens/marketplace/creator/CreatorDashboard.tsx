@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
@@ -105,7 +105,7 @@ function formatCompletedDate(iso: string): string {
 }
 
 function formatAppDate(isoDate: string): string {
-  return new Date(isoDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return new Date(isoDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // Local (not UTC) y-m-d / HH:mm — avoids the date/time shifting a day or hour
@@ -332,6 +332,28 @@ const ActiveJobCard: React.FC<{ item: ActiveJobItem; onPress: () => void }> = ({
 // creates a real Job (see OpportunityApplicationStatus's javadoc), this can
 // likely be retired in favour of ActiveJobCard alone.
 // ─────────────────────────────────────────────────────────────────────────────
+const CalendarIcon: React.FC<IconProps> = ({ size = 13, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="3" y="5" width="18" height="16" rx="2" />
+    <Line x1="16" y1="3" x2="16" y2="7" />
+    <Line x1="8" y1="3" x2="8" y2="7" />
+    <Line x1="3" y1="10" x2="21" y2="10" />
+  </Svg>
+);
+
+const CardIcon: React.FC<IconProps> = ({ size = 13, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="2" y="5" width="20" height="14" rx="2" />
+    <Line x1="2" y1="10" x2="22" y2="10" />
+  </Svg>
+);
+
+const LanguageIcon: React.FC<IconProps> = ({ size = 13, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.8-.9L4 21l1.9-4.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 13.5 4 8.5 8.5 0 0 1 21 11.5z" />
+  </Svg>
+);
+
 const ApprovedApplicationCard: React.FC<{
   item: OpportunityApplicationResponse;
   onBook: () => void;
@@ -364,14 +386,36 @@ const ApprovedApplicationCard: React.FC<{
       {item.scheduledDate && (
         <View style={s.jobMetaItem}>
           <View style={s.jobMetaIconBox}>
-            <ClockIcon />
+            <CalendarIcon />
           </View>
           <Text style={[s.jobMetaText, { color: D.secondary }]}>{formatAppDate(item.scheduledDate)}</Text>
         </View>
       )}
+      {!!item.timeWindowText && (
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}>
+            <ClockIcon />
+          </View>
+          <Text style={s.jobMetaText}>{item.timeWindowText}</Text>
+        </View>
+      )}
+      <View style={s.jobMetaItem}>
+        <View style={s.jobMetaIconBox}>
+          <CardIcon />
+        </View>
+        <Text style={s.jobMetaText}>{`LKR ${Math.round(item.offeredAmount).toLocaleString('en-US')}`}</Text>
+      </View>
+      {!!item.language && (
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}>
+            <LanguageIcon />
+          </View>
+          <Text style={s.jobMetaText}>{item.language}</Text>
+        </View>
+      )}
     </View>
 
-    <View style={s.jobViewDetailsRow}>
+    <View style={s.bookBtnRow}>
       <Pressable
         onPress={onBook}
         style={({ pressed }) => [s.bookBtn, pressed && s.pressed]}
@@ -932,7 +976,7 @@ const s = StyleSheet.create({
   jobStatusBadge: { backgroundColor: D.secondaryContainer, borderRadius: Radii.full, paddingHorizontal: 9, paddingVertical: 4, marginTop: 2 },
   jobStatusText:  { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSecondaryContainer, letterSpacing: 0.8 },
   jobDesc:        { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: D.onSurfaceVariant },
-  jobMeta:        { flexDirection: 'row', gap: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant, marginTop: 2 },
+  jobMeta:        { flexDirection: 'row', flexWrap: 'wrap', columnGap: Spacing.md, rowGap: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant, marginTop: 2 },
   jobMetaItem:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
   jobMetaIconBox: {
     width: 20, height: 20, borderRadius: 10,
@@ -941,6 +985,7 @@ const s = StyleSheet.create({
   },
   jobMetaText:    { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, letterSpacing: 0.2 },
   jobViewDetailsRow: { alignItems: 'flex-end' },
+  bookBtnRow: { alignItems: 'stretch' },
   jobViewDetailsText: {
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeSM,
@@ -949,12 +994,12 @@ const s = StyleSheet.create({
     textAlignVertical: 'center',
   },
   bookBtn: {
-    alignSelf: 'flex-end',
+    alignSelf: 'stretch',
     backgroundColor: D.primary,
     borderRadius: Radii.full,
     paddingHorizontal: 20,
-    paddingVertical: 9,
-    minHeight: 40,
+    paddingVertical: 12,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },

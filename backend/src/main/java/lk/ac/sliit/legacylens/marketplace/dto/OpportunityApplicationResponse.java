@@ -36,6 +36,8 @@ public class OpportunityApplicationResponse {
     private LocalDate scheduledDate;
     private String timeWindowText;
     private BigDecimal offeredAmount;
+    /** The language the knowledge holder will speak, as shown on the opportunity's detail page. */
+    private String language;
 
     private List<String> skills;
     private String experienceText;

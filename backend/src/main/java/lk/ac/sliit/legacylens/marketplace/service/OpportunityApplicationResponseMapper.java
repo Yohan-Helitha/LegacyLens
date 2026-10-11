@@ -36,6 +36,7 @@ class OpportunityApplicationResponseMapper {
                 .scheduledDate(opportunity.getScheduledDate())
                 .timeWindowText(opportunity.getTimeWindowText())
                 .offeredAmount(opportunity.getOfferedAmount())
+                .language(opportunity.getLanguage())
                 .skills(splitCsv(application.getSkills()))
                 .experienceText(application.getExperienceText())
                 .approachText(application.getApproachText())

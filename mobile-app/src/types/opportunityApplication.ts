@@ -22,6 +22,8 @@ export interface OpportunityApplicationResponse {
   scheduledDate: string | null;
   timeWindowText: string | null;
   offeredAmount: number;
+  /** The language the knowledge holder will speak - same value the opportunity detail page shows. */
+  language?: string | null;
   skills: string[];
   experienceText: string | null;
   approachText: string | null;
