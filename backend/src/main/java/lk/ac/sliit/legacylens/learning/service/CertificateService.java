@@ -25,62 +25,52 @@ import java.time.format.DateTimeFormatter;
 @Service
 public class CertificateService {
 
-    private final LearningTrackRepository learningTrackRepository;
-    private final LessonProgressRepository lessonProgressRepository;
+        private final LearningTrackRepository learningTrackRepository;
+        private final LessonProgressRepository lessonProgressRepository;
 
-    public CertificateService(
-            LearningTrackRepository learningTrackRepository,
-            LessonProgressRepository lessonProgressRepository) {
+        public CertificateService(
+                        LearningTrackRepository learningTrackRepository,
+                        LessonProgressRepository lessonProgressRepository) {
 
-        this.learningTrackRepository = learningTrackRepository;
-        this.lessonProgressRepository = lessonProgressRepository;
-    }
-
-    public CertificateResponse getCertificate(
-            Long userId,
-            String learnerName,
-            Long trackId) {
-
-        LearningTrack track = learningTrackRepository.findById(trackId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Track not found"));
-
-        int totalLessons =
-                track.getTotalLessons() == null ? 0 : track.getTotalLessons();
-
-        long completedLessons =
-                lessonProgressRepository
-                        .countByUserIdAndLesson_Track_IdAndCompletedTrue(
-                                userId,
-                                trackId
-                        );
-
-        if (totalLessons == 0 || completedLessons < totalLessons) {
-            throw new IllegalArgumentException(
-                    "This track hasn't been completed yet"
-            );
+                this.learningTrackRepository = learningTrackRepository;
+                this.lessonProgressRepository = lessonProgressRepository;
         }
 
-        LocalDateTime completedAt =
-                lessonProgressRepository.findLatestCompletionForTrack(
-                        userId,
-                        trackId
-                );
+        public CertificateResponse getCertificate(
+                        Long userId,
+                        String learnerName,
+                        Long trackId) {
 
-        LocalDate completionDate =
-                completedAt != null
-                        ? completedAt.toLocalDate()
-                        : LocalDate.now();
+                LearningTrack track = learningTrackRepository.findById(trackId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Track not found"));
 
-        String formattedDate = completionDate.format(
-                DateTimeFormatter.ofPattern("d MMMM yyyy")
-        );
+                int totalLessons = track.getTotalLessons() == null ? 0 : track.getTotalLessons();
 
-        return new CertificateResponse(
-                track.getId(),
-                track.getTitle(),
-                learnerName,
-                formattedDate
-        );
-    }
+                long completedLessons = lessonProgressRepository
+                                .countByUserIdAndLesson_Track_IdAndCompletedTrue(
+                                                userId,
+                                                trackId);
+
+                if (totalLessons == 0 || completedLessons < totalLessons) {
+                        throw new IllegalArgumentException(
+                                        "This track hasn't been completed yet");
+                }
+
+                LocalDateTime completedAt = lessonProgressRepository.findLatestCompletionForTrack(
+                                userId,
+                                trackId);
+
+                LocalDate completionDate = completedAt != null
+                                ? completedAt.toLocalDate()
+                                : LocalDate.now();
+
+                String formattedDate = completionDate.format(
+                                DateTimeFormatter.ofPattern("d MMMM yyyy"));
+
+                return new CertificateResponse(
+                                track.getId(),
+                                track.getTitle(),
+                                learnerName,
+                                formattedDate);
+        }
 }
