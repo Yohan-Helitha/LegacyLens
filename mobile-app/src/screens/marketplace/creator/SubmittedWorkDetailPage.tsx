@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -44,41 +44,6 @@ interface SubmittedWorkItem {
   status: SubmittedStatus;
   submittedAt: string | null;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Fallback data — shown only if /api/creator-dashboard/jobs fails, so the
-// screen never renders blank. Matches the same demo job (fallback-1) used
-// throughout ContinueMyWorkPage/SavedCompletedWorkPage/MyWorkList.
-// ─────────────────────────────────────────────────────────────────────────────
-const FALLBACK_PENDING_JOB: JobResponse = {
-  id: 'fallback-1',
-  title: 'Traditional Recipe Documentation',
-  description: '',
-  elderName: 'Mrs. Kamala Wijesinghe',
-  location: 'Matara',
-  offeredAmount: 3000,
-  status: 'ACTIVE',
-  urgent: false,
-  scheduledAt: null,
-  timeWindowText: null,
-  completedAt: null,
-};
-
-const FALLBACK_PUBLISHED_JOB: JobResponse = {
-  id: 'fallback-2',
-  title: 'Documentation Of Oral history of Sri Lanka',
-  description: '',
-  elderName: 'Mrs. Nimala Wijesinghe',
-  location: 'Galle',
-  offeredAmount: 3500,
-  status: 'COMPLETED',
-  urgent: false,
-  scheduledAt: null,
-  timeWindowText: null,
-  completedAt: '2026-08-15T12:30:00',
-};
-
-const FALLBACK_SUBMITTED_AT = '2026-09-01T10:30:00';
 
 /** "1 September 2026, 10.30 A.M" — matches the mockup's date/time style. */
 function formatSubmittedAt(iso: string): string {
@@ -186,23 +151,31 @@ export const SubmittedWorkDetailPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
 }> = ({ onNavigate, onBack }) => {
-  const [activeJobs, setActiveJobs] = useState<JobResponse[]>([FALLBACK_PENDING_JOB]);
-  const [completedJobs, setCompletedJobs] = useState<JobResponse[]>([FALLBACK_PUBLISHED_JOB]);
+  const [activeJobs, setActiveJobs] = useState<JobResponse[]>([]);
+  const [completedJobs, setCompletedJobs] = useState<JobResponse[]>([]);
+  // Nothing is drawn until the server has answered, so no stand-in cards ever flash up first.
+  const [loaded, setLoaded] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const completedStepsByJobId = useMyWorkProgressStore((st) => st.completedStepsByJobId);
   const submittedAtByJobId = useMyWorkProgressStore((st) => st.submittedAtByJobId);
 
   useEffect(() => {
-    creatorDashboardApi.getJobs('ACTIVE').then(setActiveJobs).catch(() => {});
-    creatorDashboardApi.getJobs('COMPLETED').then(setCompletedJobs).catch(() => {});
+    Promise.all([creatorDashboardApi.getJobs('ACTIVE'), creatorDashboardApi.getJobs('COMPLETED')])
+      .then(([active, completed]) => {
+        setActiveJobs(active);
+        setCompletedJobs(completed);
+      })
+      .catch(() => setLoadFailed(true))
+      .finally(() => setLoaded(true));
   }, []);
 
   const pending: SubmittedWorkItem[] = activeJobs
-    .filter((job) => (completedStepsByJobId[job.id] ?? (job.id === FALLBACK_PENDING_JOB.id ? TOTAL_WORK_STEPS : 0)) >= TOTAL_WORK_STEPS)
+    .filter((job) => (completedStepsByJobId[job.id] ?? 0) >= TOTAL_WORK_STEPS)
     .map((job) => ({
       job,
       status: 'Pending',
-      submittedAt: submittedAtByJobId[job.id] ?? (job.id === FALLBACK_PENDING_JOB.id ? FALLBACK_SUBMITTED_AT : null),
+      submittedAt: submittedAtByJobId[job.id] ?? null,
     }));
 
   const published: SubmittedWorkItem[] = completedJobs.map((job) => ({
@@ -230,7 +203,13 @@ export const SubmittedWorkDetailPage: React.FC<{
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {items.length === 0 ? (
+        {!loaded ? (
+          <ActivityIndicator color={D.primary} style={{ marginTop: Spacing.lg }} />
+        ) : loadFailed ? (
+          <View style={s.emptyState}>
+            <Text style={s.emptyStateText}>Could not load your submitted work.</Text>
+          </View>
+        ) : items.length === 0 ? (
           <View style={s.emptyState}>
             <Text style={s.emptyStateText}>No submitted work yet.</Text>
           </View>
