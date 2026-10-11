@@ -79,7 +79,8 @@ public class ElderApplicationReviewServiceImpl implements ElderApplicationReview
 
         // The creator is told on their phone once this is committed; that can never undo the decision.
         events.publishEvent(new ApplicationDecidedEvent(
-                saved.getCreator().getId(), saved.getId(), saved.getOpportunity().getTitle(), decision));
+                saved.getCreator().getId(), saved.getId(), saved.getOpportunity().getTitle(),
+                saved.getOpportunity().getElder().getFullName(), decision));
         return responseMapper.toResponse(saved);
     }
 }

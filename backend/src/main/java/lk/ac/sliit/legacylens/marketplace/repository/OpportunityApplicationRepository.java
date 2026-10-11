@@ -37,9 +37,6 @@ public interface OpportunityApplicationRepository extends JpaRepository<Opportun
     /** The creator's rejected applications they have not looked at yet. */
     List<OpportunityApplication> findByCreatorIdAndStatusAndRejectionSeenAtIsNull(UUID creatorId, OpportunityApplicationStatus status);
 
-    /** The creator approved applications they have not looked at yet. */
-    List<OpportunityApplication> findByCreatorIdAndStatusAndApprovalSeenAtIsNull(UUID creatorId, OpportunityApplicationStatus status);
-
     /** How many of a creator's applications are in any of these states - backs the profile's "Approved" count. */
     long countByCreatorIdAndStatusIn(UUID creatorId, Collection<OpportunityApplicationStatus> statuses);
 }

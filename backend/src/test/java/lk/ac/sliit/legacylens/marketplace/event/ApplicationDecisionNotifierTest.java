@@ -27,7 +27,7 @@ class ApplicationDecisionNotifierTest {
     private final UUID applicationId = UUID.randomUUID();
 
     private ApplicationDecidedEvent decision(OpportunityApplicationStatus status) {
-        return new ApplicationDecidedEvent(creatorId, applicationId, "Traditional recipe documentation", status);
+        return new ApplicationDecidedEvent(creatorId, applicationId, "Traditional recipe documentation", "Kamala Wijesinghe", status);
     }
 
     @Test
@@ -49,8 +49,8 @@ class ApplicationDecisionNotifierTest {
         ArgumentCaptor<PushMessage> sent = ArgumentCaptor.forClass(PushMessage.class);
         verify(pushNotificationService).sendToUser(eq(creatorId), sent.capture());
         assertThat(sent.getValue().data()).containsEntry("type", "application-approved");
-        assertThat(sent.getValue().title()).isEqualTo("Application approved");
-        assertThat(sent.getValue().body()).contains("approved");
+        assertThat(sent.getValue().title()).isEqualTo("Approved");
+        assertThat(sent.getValue().body()).contains("Traditional recipe documentation").contains("Kamala Wijesinghe").contains("approved");
     }
 
     @Test

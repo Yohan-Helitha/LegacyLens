@@ -1,10 +1,6 @@
 import type { OpportunityApplicationResponse } from '../types/opportunityApplication';
 
 export interface ApplicationGroups {
-  /** Accepted by the knowledge holder and waiting to be booked. */
-  approved: OpportunityApplicationResponse[];
-  /** The approved ones the creator has not looked at yet - what the green number on My Applications counts. */
-  unseenApproved: OpportunityApplicationResponse[];
   /** Drafts the creator can still edit. */
   saved: OpportunityApplicationResponse[];
   /** Sent and still waiting for the knowledge holder. */
@@ -21,13 +17,11 @@ export interface ApplicationGroups {
 }
 
 export function groupApplications(applications: OpportunityApplicationResponse[]): ApplicationGroups {
-  const approved = applications.filter((a) => a.status === 'APPROVED');
-  const unseenApproved = approved.filter((a) => !a.approvalSeenAt);
   const saved = applications.filter((a) => a.status === 'SAVED');
   const waiting = applications.filter((a) => a.status === 'PENDING');
   const rejected = applications.filter((a) => a.status === 'REJECTED');
   const unseenRejected = rejected.filter((a) => !a.rejectionSeenAt);
-  return { approved, unseenApproved, saved, waiting, rejected, unseenRejected, sentCount: waiting.length + rejected.length };
+  return { saved, waiting, rejected, unseenRejected, sentCount: waiting.length + rejected.length };
 }
 
 /** "3 sent" - the count shown on the Submitted section; a rejected application is still one that was sent. */

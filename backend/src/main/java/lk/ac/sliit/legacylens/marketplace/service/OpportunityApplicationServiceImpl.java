@@ -214,7 +214,8 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
     /** Same phone notification the knowledge holder's real decision sends, so the temporary test buttons exercise it too. */
     private void announceDecision(OpportunityApplication application, OpportunityApplicationStatus decision) {
         events.publishEvent(new ApplicationDecidedEvent(
-                application.getCreator().getId(), application.getId(), application.getOpportunity().getTitle(), decision));
+                application.getCreator().getId(), application.getId(), application.getOpportunity().getTitle(),
+                application.getOpportunity().getElder().getFullName(), decision));
     }
 
     private static String formatTimeWindow(LocalTime start, LocalTime end) {
@@ -228,16 +229,6 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         List<OpportunityApplication> unseen = opportunityApplicationRepository
                 .findByCreatorIdAndStatusAndRejectionSeenAtIsNull(creatorId, OpportunityApplicationStatus.REJECTED);
         unseen.forEach(application -> application.setRejectionSeenAt(now));
-        opportunityApplicationRepository.saveAll(unseen);
-    }
-
-    @Override
-    @Transactional
-    public void markApprovedSeen(UUID creatorId) {
-        LocalDateTime now = LocalDateTime.now();
-        List<OpportunityApplication> unseen = opportunityApplicationRepository
-                .findByCreatorIdAndStatusAndApprovalSeenAtIsNull(creatorId, OpportunityApplicationStatus.APPROVED);
-        unseen.forEach(application -> application.setApprovalSeenAt(now));
         opportunityApplicationRepository.saveAll(unseen);
     }
 

@@ -54,8 +54,8 @@ public class ApplicationDecisionNotifier {
         }
         if (event.decision() == OpportunityApplicationStatus.APPROVED) {
             return Optional.of(new PushMessage(
-                    "Application approved",
-                    "Good news - \"" + title + "\" was approved. Confirm your booking.",
+                    "Approved",
+                    "\"" + title + "\" with " + event.elderName() + " was approved. Confirm your booking.",
                     withType(data, "application-approved")));
         }
         return Optional.empty();

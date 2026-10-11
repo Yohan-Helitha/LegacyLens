@@ -54,20 +54,6 @@ describe('unseen rejections', () => {
   });
 });
 
-describe('unseen approvals', () => {
-  it('counts only the approved applications not looked at yet', () => {
-    const seen = { ...application('APPROVED'), approvalSeenAt: '2026-10-10T20:00:00' };
-    const groups = groupApplications([seen, application('APPROVED'), application('PENDING')]);
-
-    expect(groups.approved).toHaveLength(2);
-    expect(groups.unseenApproved).toHaveLength(1);
-  });
-
-  it('stops counting an approval once it has been booked', () => {
-    expect(groupApplications([application('BOOKED')]).unseenApproved).toHaveLength(0);
-  });
-});
-
 describe('labels', () => {
   it('words the sent count', () => {
     expect(sentLabel(2)).toBe('2 sent');

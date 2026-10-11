@@ -107,8 +107,4 @@ public class OpportunityApplication {
      */
     @Column(name = "rejection_seen_at")
     private LocalDateTime rejectionSeenAt;
-
-    /** When the creator first saw that this application was approved; null until then - drives the My Applications menu number. */
-    @Column(name = "approval_seen_at")
-    private LocalDateTime approvalSeenAt;
 }

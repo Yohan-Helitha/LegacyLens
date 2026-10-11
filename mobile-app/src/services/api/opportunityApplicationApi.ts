@@ -47,9 +47,6 @@ export const opportunityApplicationApi = {
 
   /** The creator opened Rejected Applications - their rejections stop counting as new. */
   markRejectedSeen: () => apiPost<void, undefined>('/opportunity-applications/rejected/seen', undefined),
-
-  /** The creator opened My Applications - their approvals stop counting as new. */
-  markApprovedSeen: () => apiPost<void, undefined>('/opportunity-applications/approved/seen', undefined),
 };
 
 /**

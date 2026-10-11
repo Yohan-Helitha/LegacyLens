@@ -9,5 +9,6 @@ public record ApplicationDecidedEvent(
         UUID creatorId,
         UUID applicationId,
         String opportunityTitle,
+        String elderName,
         OpportunityApplicationStatus decision) {
 }
