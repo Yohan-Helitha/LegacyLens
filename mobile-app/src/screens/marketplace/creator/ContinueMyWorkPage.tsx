@@ -3,7 +3,7 @@ import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
@@ -50,6 +50,28 @@ const SEO_KEYWORD_MAX_LENGTH = 30;
 // ─────────────────────────────────────────────────────────────────────────────
 // Icons
 // ─────────────────────────────────────────────────────────────────────────────
+// Same outline icons the opportunity detail page uses, in the orange accent.
+const PersonIcon: React.FC<{ size?: number; color?: string }> = ({ size = 14, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none">
+    <Circle cx="12" cy="8" r="4" />
+    <Path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+  </Svg>
+);
+
+const PinIcon: React.FC<{ size?: number; color?: string }> = ({ size = 14, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z" />
+    <Circle cx="12" cy="10" r="3" />
+  </Svg>
+);
+
+const CardIcon: React.FC<{ size?: number; color?: string }> = ({ size = 14, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="2" y="5" width="20" height="14" rx="2" />
+    <Line x1="2" y1="10" x2="22" y2="10" />
+  </Svg>
+);
+
 const CheckIcon: React.FC<{ size?: number }> = ({ size = 10 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
     <Path d="M20 6L9 17l-5-5" />
@@ -363,6 +385,8 @@ export const ContinueMyWorkPage: React.FC<{
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <Text style={s.pageHeading}>Work Progress</Text>
+
         {progress.rejected && (
           <View style={s.rejectionBanner}>
             <Text style={s.rejectionBannerTitle}>Changes requested</Text>
@@ -384,10 +408,23 @@ export const ContinueMyWorkPage: React.FC<{
           </View>
           <View style={s.jobCardBody}>
             {!!jobTitle && <Text style={s.jobHeaderTitle} numberOfLines={3}>{jobTitle}</Text>}
-            {!!elderName && <Text style={s.jobHeaderElder}>{elderName}</Text>}
-            <View style={s.jobFactsRow}>
-              {!!location && <Text style={s.jobFact}>{location}</Text>}
-              <Text style={s.jobPrice}>{`LKR ${Math.round(progress.offeredAmount ?? 0).toLocaleString('en-US')}`}</Text>
+            <View style={s.jobFacts}>
+              {!!elderName && (
+                <View style={s.jobFactRow}>
+                  <PersonIcon />
+                  <Text style={s.jobFact} numberOfLines={1}>{elderName}</Text>
+                </View>
+              )}
+              {!!location && (
+                <View style={s.jobFactRow}>
+                  <PinIcon />
+                  <Text style={s.jobFact} numberOfLines={1}>{location}</Text>
+                </View>
+              )}
+              <View style={s.jobFactRow}>
+                <CardIcon />
+                <Text style={s.jobPrice}>{`LKR ${Math.round(progress.offeredAmount ?? 0).toLocaleString('en-US')}`}</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -672,8 +709,10 @@ const s = StyleSheet.create({
     shadowColor: D.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 10, elevation: 2,
   },
   jobCardBody: { padding: Spacing.md, gap: 4 },
-  jobFactsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
-  jobFact: { flex: 1, fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+  pageHeading: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeXL, lineHeight: Typography.sizeXL * 1.2, color: D.primary, letterSpacing: -0.3 },
+  jobFacts: { gap: 6, marginTop: 4 },
+  jobFactRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  jobFact: { flex: 1, fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurface },
   jobPrice: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
   jobHeaderTitle: { fontFamily: Typography.fontDisplay, fontSize: 20, lineHeight: 26, color: D.onSurface, letterSpacing: -0.2 },
 
@@ -685,7 +724,6 @@ const s = StyleSheet.create({
   },
   rejectionBannerTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.danger },
   rejectionBannerText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurface },
-  jobHeaderElder: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.primary },
 
   // ── Hero ─────────────────────────────────────────────────────────────────
   heroWrapper: { width: '100%', aspectRatio: 4 / 2.7, overflow: 'hidden' },
