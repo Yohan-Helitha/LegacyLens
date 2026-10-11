@@ -76,6 +76,14 @@ export function useVoiceInput({ language }: UseVoiceInputOptions = {}) {
    * elder abandons the attempt via retry()/cancel().
    */
   const lastRecordingRef = useRef<{ uri: string; durationMs: number } | null>(null);
+  /**
+   * Bumped by resetToIdle() — every cancel()/retry()/start() passes through
+   * it. uploadAndScore captures the current value before awaiting the
+   * network call and checks it's unchanged before applying its result,
+   * so a cancel mid-upload can't have a late response resurrect state
+   * after the elder has already moved on (e.g. tapped "Start Over").
+   */
+  const attemptIdRef = useRef(0);
 
   const clearTimers = useCallback(() => {
     if (tickRef.current) clearInterval(tickRef.current);
@@ -90,6 +98,7 @@ export function useVoiceInput({ language }: UseVoiceInputOptions = {}) {
     clearTimers();
     cancelledDuringCueRef.current = false;
     lastRecordingRef.current = null;
+    attemptIdRef.current += 1;
     setState('idle');
     setElapsedSeconds(0);
     setResult(null);
@@ -115,11 +124,13 @@ export function useVoiceInput({ language }: UseVoiceInputOptions = {}) {
         return;
       }
 
+      const attemptId = attemptIdRef.current;
       lastRecordingRef.current = { uri, durationMs: recordedMs };
       setState('uploading');
       AccessibilityInfo.announceForAccessibility('Writing it down, please wait');
       try {
         const response = await speechApi.transcribe(uri, language);
+        if (attemptIdRef.current !== attemptId) return; // cancelled/reset while this was in flight — drop it.
         lastRecordingRef.current = null;
         setResult(response);
         setState('done');
@@ -129,6 +140,7 @@ export function useVoiceInput({ language }: UseVoiceInputOptions = {}) {
             : 'Done. Please review the text.',
         );
       } catch (err) {
+        if (attemptIdRef.current !== attemptId) return; // same — nothing to show, the attempt is gone.
         setState('error');
         if (err instanceof ApiError) {
           if (err.status === 401) {
