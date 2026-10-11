@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CreatorDashboard } from '../screens/marketplace/creator/CreatorDashboard';
 import { OpportunityPage } from '../screens/marketplace/creator/OpportunityPage';
 import { OpportunityDetailPage } from '../screens/marketplace/creator/OpportunityDetailPage';
@@ -22,12 +22,8 @@ import { RejectedApplicationsPage } from '../screens/marketplace/creator/Rejecte
 import { CreatorMenuContext } from './CreatorMenuContext';
 import { useMyApplications } from '../hooks/useMyApplications';
 import { groupApplications } from '../utils/applicationGroups';
-import { creatorScreenForNotification } from '../utils/notificationRouting';
-import {
-  onNotificationReceived,
-  onNotificationTapped,
-  registerForPushNotifications,
-} from '../services/pushNotifications';
+import { creatorScreenForNotification } from './creatorNotificationRouting';
+import { usePushNotificationEvents } from '../hooks/usePushNotifications';
 import type { NavTab } from '../components/BottomNavBar';
 
 export type CreatorScreen =
@@ -86,21 +82,14 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
     reloadApplications();
   }, [screen, reloadApplications]);
 
-  // Phone notifications: register this phone, open the right screen when a notification is tapped,
-  // and refresh the red number when one arrives while the app is open. All of it is optional - on a
-  // build without notification support these do nothing.
-  useEffect(() => {
-    registerForPushNotifications();
-    const stopTap = onNotificationTapped((data) => {
-      const target = creatorScreenForNotification(data);
-      if (target) setScreen(target);
-    });
-    const stopReceive = onNotificationReceived(() => reloadApplications());
-    return () => {
-      stopTap();
-      stopReceive();
-    };
-  }, [reloadApplications]);
+  // Phone notifications. The phone itself is registered once for everyone at the top of the app;
+  // here the creator side decides what a tap opens, and refreshes the red number when one arrives
+  // while the app is open. On a build without notification support this does nothing.
+  const openFromNotification = useCallback((data: Record<string, unknown>) => {
+    const target = creatorScreenForNotification(data);
+    if (target) setScreen(target);
+  }, []);
+  usePushNotificationEvents({ onTapped: openFromNotification, onReceived: reloadApplications });
 
   /**
    * Shared navigation handler passed to all screens.

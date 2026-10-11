@@ -96,8 +96,14 @@ class PushNotificationServiceImplTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Collection<String>> tokens = ArgumentCaptor.forClass(Collection.class);
-        verify(gateway).send(tokens.capture(), org.mockito.ArgumentMatchers.eq(message), any());
+        ArgumentCaptor<PushMessage> sent = ArgumentCaptor.forClass(PushMessage.class);
+        verify(gateway).send(tokens.capture(), sent.capture(), any());
         assertThat(tokens.getValue()).containsExactlyInAnyOrder(TOKEN, "ExponentPushToken[def456]");
+        // The notification says who it is for, so a phone shared by two people shows it only to its owner.
+        assertThat(sent.getValue().title()).isEqualTo("Hi");
+        assertThat(sent.getValue().data())
+                .containsEntry("type", "test")
+                .containsEntry(PushNotificationServiceImpl.RECIPIENT_KEY, user.getId().toString());
     }
 
     @Test

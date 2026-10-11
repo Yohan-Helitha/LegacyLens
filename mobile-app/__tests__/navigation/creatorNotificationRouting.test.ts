@@ -1,4 +1,4 @@
-import { creatorScreenForNotification } from '../../src/utils/notificationRouting';
+import { creatorScreenForNotification } from '../../src/navigation/creatorNotificationRouting';
 
 describe('creatorScreenForNotification', () => {
   it('opens the rejected applications for a rejection', () => {

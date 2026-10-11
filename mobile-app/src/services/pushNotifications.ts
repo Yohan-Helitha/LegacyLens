@@ -2,6 +2,8 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import { pushDeviceApi } from './api/pushDeviceApi';
+import { useAuthStore } from '../store/authStore';
+import { isForUser } from '../utils/notificationOwner';
 
 /**
  * Phone notifications (the ones in the notification bar) for the creator side.
@@ -48,6 +50,24 @@ function loadNative(): { Notifications: NotificationsModule; Device: DeviceModul
   return cachedNative;
 }
 
+/** The token this phone last registered, kept so it can be removed again on log-out. */
+let registeredPushToken: string | null = null;
+
+/**
+ * Stops this phone receiving the signed-out user's notifications. Called with the session token the
+ * user had just before logging out, because by then the app itself no longer holds one.
+ */
+export async function unregisterThisPhone(sessionToken: string): Promise<void> {
+  const pushToken = registeredPushToken;
+  if (!pushToken) return;
+  registeredPushToken = null;
+  try {
+    await pushDeviceApi.unregister(pushToken, sessionToken);
+  } catch {
+    // Best effort: the phone also drops notifications that are not for whoever is signed in.
+  }
+}
+
 /** Asks permission, gets this phone's push token and tells the server about it. Returns the token, or null if it could not be set up. */
 export async function registerForPushNotifications(): Promise<string | null> {
   const native = loadNative();
@@ -59,13 +79,21 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
   try {
     // Show a notification even while the app is open.
+    // Show a notification even while the app is open - but only to the person it is for. On a phone
+    // shared by two people, or after a log-out, someone else's notification is dropped silently.
     Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-      }),
+      handleNotification: async (notification) => {
+        const mine = isForUser(
+          notification.request.content.data as Record<string, unknown>,
+          useAuthStore.getState().user?.userId,
+        );
+        return {
+          shouldShowBanner: mine,
+          shouldShowList: mine,
+          shouldPlaySound: mine,
+          shouldSetBadge: false,
+        };
+      },
     });
 
     if (Platform.OS === 'android') {
@@ -85,6 +113,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
     const token = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
 
     await pushDeviceApi.register(token, Platform.OS);
+    registeredPushToken = token;
     return token;
   } catch (error) {
     // Typically: no Firebase/Google services set up for this build yet. Not an app error.
@@ -108,8 +137,11 @@ export function onNotificationTapped(listener: Listener): () => void {
     const handle = (response: import('expo-notifications').NotificationResponse) => {
       const id = response.notification.request.identifier;
       if (id === lastHandledId) return;
+      const data = (response.notification.request.content.data ?? {}) as Record<string, unknown>;
+      // Someone else's notification (shared phone) must not steer this person's app.
+      if (!isForUser(data, useAuthStore.getState().user?.userId)) return;
       lastHandledId = id;
-      listener((response.notification.request.content.data ?? {}) as Record<string, unknown>);
+      listener(data);
     };
 
     const subscription = Notifications.addNotificationResponseReceivedListener(handle);

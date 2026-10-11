@@ -9,11 +9,16 @@ import lk.ac.sliit.legacylens.users.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
 public class PushNotificationServiceImpl implements PushNotificationService {
+
+    /** The key in a notification's data that holds the id of the one user it is meant for. */
+    public static final String RECIPIENT_KEY = "recipientId";
 
     private final PushDeviceRepository deviceRepository;
     private final UserRepository userRepository;
@@ -55,6 +60,9 @@ public class PushNotificationServiceImpl implements PushNotificationService {
         if (tokens.isEmpty()) {
             return;
         }
-        gateway.send(tokens, message, deviceRepository::deleteByToken);
+        // The phone checks this against whoever is signed in, so a notification is only ever shown to its owner.
+        Map<String, String> data = new HashMap<>(message.data());
+        data.put(RECIPIENT_KEY, userId.toString());
+        gateway.send(tokens, new PushMessage(message.title(), message.body(), data), deviceRepository::deleteByToken);
     }
 }
