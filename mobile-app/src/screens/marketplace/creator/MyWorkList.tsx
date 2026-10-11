@@ -274,7 +274,7 @@ const WorkCard: React.FC<{
 // CompletedCard - a finished job: what it was, for whom, when, and what it earned.
 // (No progress bar or stepper - those only mean something while work is under way.)
 // ─────────────────────────────────────────────────────────────────────────────
-const CompletedCard: React.FC<{ job: JobResponse; onView: () => void }> = ({ job, onView }) => {
+const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; onView: () => void }> = ({ job, heroImageUrl, onView }) => {
   const doneOn = formatDoneDate(job.completedAt);
 
   return (
@@ -286,40 +286,50 @@ const CompletedCard: React.FC<{ job: JobResponse; onView: () => void }> = ({ job
           </View>
           <Text style={s.donePillText}>Completed</Text>
         </View>
-        {doneOn && <Text style={s.doneDate}>{doneOn}</Text>}
       </View>
 
       <View style={s.doneBody}>
-        <Image source={GENERIC_HERO_IMAGE} style={s.doneThumb} resizeMode="cover" accessibilityLabel={job.title} />
+        <Image
+          source={resolveOpportunityImage(heroImageUrl) ?? GENERIC_HERO_IMAGE}
+          style={s.doneThumb}
+          resizeMode="cover"
+          accessibilityLabel={job.title}
+        />
         <View style={s.doneInfo}>
-          <Text style={s.cardTitle} numberOfLines={2}>{job.title}</Text>
-          <View style={s.contributorRow}>
-            <PersonIcon />
-            <Text style={s.contributorText} numberOfLines={1}>{job.elderName}</Text>
-          </View>
+          <Text style={s.cardTitle} numberOfLines={3}>{job.title}</Text>
+          <Text style={s.doneElder} numberOfLines={1}>{job.elderName}</Text>
           {!!job.location && (
-            <View style={s.contributorRow}>
-              <PinIcon />
-              <Text style={s.contributorText} numberOfLines={1}>{job.location}</Text>
+            <View style={s.doneInline}>
+              <PinIcon color={D.secondary} />
+              <Text style={s.doneElderPlace} numberOfLines={1}>{job.location}</Text>
             </View>
           )}
         </View>
       </View>
 
-      <View style={s.doneFooter}>
-        <View>
-          <Text style={s.doneEarnedLabel}>Earned</Text>
-          <Text style={s.doneEarnedValue}>{formatLkr(job.offeredAmount)}</Text>
+      <View style={s.factsStrip}>
+        <View style={s.factsRow}>
+          {!!doneOn && (
+            <View style={s.factItem}>
+              <CalendarIcon />
+              <Text style={s.factText}>{doneOn}</Text>
+            </View>
+          )}
+          <View style={s.factItem}>
+            <CardIcon />
+            <Text style={s.factText}>{formatLkr(job.offeredAmount)}</Text>
+          </View>
         </View>
-        <Pressable
-          onPress={onView}
-          style={({ pressed }) => [s.doneViewBtn, pressed && s.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel={`View ${job.title}`}
-        >
-          <Text style={s.doneViewBtnText}>{'View  →'}</Text>
-        </Pressable>
       </View>
+
+      <Pressable
+        onPress={onView}
+        style={({ pressed }) => [s.doneLink, pressed && s.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`View publication of ${job.title}`}
+      >
+        <Text style={s.doneLinkText}>{'View Publication  →'}</Text>
+      </Pressable>
     </View>
   );
 };
@@ -336,6 +346,7 @@ export const MyWorkList: React.FC<{
   const [workJobs, setWorkJobs] = useState<JobResponse[]>([]);
   const [completedJobs, setCompletedJobs] = useState<JobResponse[]>([]);
   const [progressByJobId, setProgressByJobId] = useState<Record<string, WorkProgressResponse>>({});
+  const [completedPictures, setCompletedPictures] = useState<Record<string, string | null>>({});
   const [activeTab, setActiveTab] = useState<WorkTab>('active');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -355,6 +366,10 @@ export const MyWorkList: React.FC<{
         const progressList = await Promise.all(
           jobsInProgress.map((job) => workProgressApi.getProgress(job.id)),
         );
+        // Completed cards show the opportunity's picture too; a missing one just falls back to the default photo.
+        const completedProgress = await Promise.all(
+          completed.map((job) => workProgressApi.getProgress(job.id).catch(() => null)),
+        );
         if (cancelled) return;
 
         const progressMap: Record<string, WorkProgressResponse> = {};
@@ -365,6 +380,11 @@ export const MyWorkList: React.FC<{
         setWorkJobs(jobsInProgress);
         setProgressByJobId(progressMap);
         setCompletedJobs(completed);
+        const pictures: Record<string, string | null> = {};
+        completedProgress.forEach((p, i) => {
+          pictures[completed[i].id] = p?.heroImageUrl ?? null;
+        });
+        setCompletedPictures(pictures);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -511,7 +531,7 @@ export const MyWorkList: React.FC<{
                     </Text>
                   </View>
                   {month.jobs.map((job) => (
-                    <CompletedCard key={job.id} job={job} onView={onViewSubmittedWork} />
+                    <CompletedCard key={job.id} job={job} heroImageUrl={completedPictures[job.id] ?? null} onView={onViewSubmittedWork} />
                   ))}
                 </View>
               ))}
@@ -729,21 +749,14 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   donePillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#2F6B3F' },
-  doneDate: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
   doneBody: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
-  doneThumb: { width: 76, height: 76, borderRadius: Radii.lg, backgroundColor: D.surfaceContainer },
-  doneInfo: { flex: 1 },
-  doneFooter: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant, paddingTop: Spacing.sm,
-  },
-  doneEarnedLabel: { fontFamily: Typography.fontBody, fontSize: 11, color: D.onSurfaceVariant },
-  doneEarnedValue: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: D.primary },
-  doneViewBtn: {
-    borderRadius: Radii.full, borderWidth: 1.5, borderColor: D.secondary,
-    paddingVertical: 8, paddingHorizontal: 18, minHeight: 40, alignItems: 'center', justifyContent: 'center',
-  },
-  doneViewBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
+  doneThumb: { width: 84, height: 84, borderRadius: Radii.lg, backgroundColor: D.surfaceContainer },
+  doneInfo: { flex: 1, gap: 4 },
+  doneElder: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurface },
+  doneInline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  doneElderPlace: { flex: 1, fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurface },
+  doneLink: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
+  doneLinkText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
 
   // ── Press feedback ───────────────────────────────────────────────────────
   pressed: { opacity: 0.75 },
