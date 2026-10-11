@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   Image,
   Modal,
   Pressable,
@@ -13,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle, Line, Path, Polyline, Rect } from 'react-native-svg';
+import { appAlert } from '../../../components/common/AppDialog';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
@@ -349,7 +349,7 @@ export const OpportunityApplicationForm: React.FC<{
 
   const handleSaveProfile = async () => {
     if (!editName.trim()) {
-      Alert.alert('Name required', 'Please enter your full name.');
+      appAlert('Name required', 'Please enter your full name.');
       return;
     }
 
@@ -361,7 +361,7 @@ export const OpportunityApplicationForm: React.FC<{
       setEditVisible(false);
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Could not update your details.';
-      Alert.alert('Update failed', message);
+      appAlert('Update failed', message);
     } finally {
       setSavingProfile(false);
     }
@@ -369,13 +369,13 @@ export const OpportunityApplicationForm: React.FC<{
 
   const handleSave = async () => {
     if (!opportunityId) {
-      Alert.alert('Cannot save', 'No opportunity is selected.');
+      appAlert('Cannot save', 'No opportunity is selected.');
       return;
     }
 
     const missingLevel = languageMissingLevel(languages);
     if (missingLevel) {
-      Alert.alert('Language level needed', `Choose how well you speak ${missingLevel}, or untick it.`);
+      appAlert('Language level needed', `Choose how well you speak ${missingLevel}, or untick it.`);
       return;
     }
 
@@ -390,12 +390,12 @@ export const OpportunityApplicationForm: React.FC<{
         equipment: Object.keys(selectedEquipment).filter((k) => selectedEquipment[k]),
         languages: toWireFormat(toLanguageRequests(languages)),
       });
-      Alert.alert('Application saved', 'Your application draft has been saved.', [
+      appAlert('Application saved', 'Your application draft has been saved.', [
         { text: 'OK', onPress: onSave },
       ]);
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Could not save your application.';
-      Alert.alert('Save failed', message);
+      appAlert('Save failed', message);
     } finally {
       setSaving(false);
     }

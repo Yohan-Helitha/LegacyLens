@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import type { OpportunityApplicationResponse } from '../../../types/opportunityApplication';
 import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
 import { ApiError } from '../../../services/api/client';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
+import { appAlert } from '../../common/AppDialog';
 import { formatStamp } from '../../../utils/applicationDates';
 import { proficiencyLabel } from '../../../utils/creatorLanguages';
 
@@ -87,7 +88,7 @@ export const DeleteApplicationButton: React.FC<{
   onDeleted: () => void;
 }> = ({ record, onDeleted }) => {
   const confirmDelete = () => {
-    Alert.alert(
+    appAlert(
       'Delete this application?',
       `"${record.title}" will be removed${record.status === 'SAVED' ? ' from your saved drafts' : ''}.`,
       [
@@ -101,7 +102,7 @@ export const DeleteApplicationButton: React.FC<{
               onDeleted();
             } catch (err) {
               const message = err instanceof ApiError ? err.message : 'Could not delete this application.';
-              Alert.alert('Delete failed', message);
+              appAlert('Delete failed', message);
             }
           },
         },

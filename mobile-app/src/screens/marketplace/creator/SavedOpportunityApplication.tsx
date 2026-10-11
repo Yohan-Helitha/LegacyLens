@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path } from 'react-native-svg';
+import { appAlert } from '../../../components/common/AppDialog';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
@@ -100,7 +101,7 @@ export const SavedOpportunityApplication: React.FC<{
       reload();
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Could not submit this application.';
-      Alert.alert('Submit failed', message);
+      appAlert('Submit failed', message);
     }
   };
 
@@ -116,7 +117,7 @@ export const SavedOpportunityApplication: React.FC<{
       reload();
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Could not approve this application.';
-      Alert.alert('Approve failed', message);
+      appAlert('Approve failed', message);
     }
   };
 
@@ -127,7 +128,7 @@ export const SavedOpportunityApplication: React.FC<{
       reload();
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Could not reject this application.';
-      Alert.alert('Reject failed', message);
+      appAlert('Reject failed', message);
     }
   };
 
