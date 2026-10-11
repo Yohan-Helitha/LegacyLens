@@ -495,11 +495,11 @@ export const ContinueMyWorkPage: React.FC<{
             </Pressable>
           </View>
 
-          <View style={{ gap: Spacing.sm }}>
-            <Text style={s.sectionTitle}>Note & Written Content</Text>
+          <View style={s.formSection}>
+            <Text style={s.formHeading}>Note & Written Content</Text>
 
-            <View style={{ gap: 4 }}>
-              <Text style={s.noteSubLabel}>Introduction</Text>
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>Introduction</Text>
               <TextInput
                 style={s.noteInput}
                 value={introductionText}
@@ -511,8 +511,8 @@ export const ContinueMyWorkPage: React.FC<{
               />
             </View>
 
-            <View style={{ gap: 4 }}>
-              <Text style={s.noteSubLabel}>Story / Main Content</Text>
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>Story / Main Content</Text>
               <TextInput
                 style={s.noteInput}
                 value={storyText}
@@ -525,15 +525,15 @@ export const ContinueMyWorkPage: React.FC<{
             </View>
           </View>
 
-          <View style={{ gap: Spacing.sm }}>
-            <Text style={s.sectionTitle}>Search Context (SEO)</Text>
-            <Text style={s.emptyMaterialsText}>
+          <View style={s.formSection}>
+            <Text style={s.formHeading}>Search Context (SEO)</Text>
+            <Text style={s.formHelp}>
               Help beneficiaries find this content — describe it briefly and add the words people would search for.
             </Text>
 
-            <View style={{ gap: 4 }}>
+            <View style={s.field}>
               <View style={s.seoLabelRow}>
-                <Text style={s.noteSubLabel}>Search Summary</Text>
+                <Text style={s.fieldLabel}>Search Summary</Text>
                 <Text style={[s.seoCounter, seoSummary.length >= SEO_SUMMARY_MAX && { color: D.danger }]}>
                   {seoSummary.length}/{SEO_SUMMARY_MAX}
                 </Text>
@@ -550,9 +550,9 @@ export const ContinueMyWorkPage: React.FC<{
               />
             </View>
 
-            <View style={{ gap: 4 }}>
+            <View style={s.field}>
               <View style={s.seoLabelRow}>
-                <Text style={s.noteSubLabel}>Keywords / Tags</Text>
+                <Text style={s.fieldLabel}>Keywords / Tags</Text>
                 <Text style={s.seoCounter}>{seoKeywords.length}/{SEO_KEYWORDS_MAX}</Text>
               </View>
 
@@ -807,23 +807,33 @@ const s = StyleSheet.create({
   addMaterialBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#ffffff' },
 
   // ── Note ─────────────────────────────────────────────────────────────────
+  // A form section: set apart by a divider and generous spacing so fields do not run together.
+  formSection: {
+    gap: Spacing.md, marginTop: Spacing.md, paddingTop: Spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant,
+  },
+  formHeading: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeMD, color: D.primary, letterSpacing: -0.1 },
+  formHelp: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, lineHeight: 18, color: D.onSurfaceVariant, marginTop: -4 },
+  field: { gap: 8 },
+  fieldLabel: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurface, letterSpacing: 0.2 },
   noteInput: {
-    backgroundColor: D.surfaceContainerLowest,
-    borderWidth: StyleSheet.hairlineWidth,
+    backgroundColor: '#FAFCFC',
+    borderWidth: 1,
     borderColor: D.surfaceVariant,
     borderRadius: Radii.lg,
-    padding: Spacing.sm,
-    minHeight: 96,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+    minHeight: 120,
     fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeXS,
-    lineHeight: 18,
-    color: D.onSurfaceVariant,
+    fontSize: Typography.sizeSM,
+    lineHeight: 22,
+    color: D.onSurface,
   },
 
   // ── Search Context (SEO) ─────────────────────────────────────────────────
   seoLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   seoCounter: { fontFamily: Typography.fontBody, fontSize: 11, color: D.onSurfaceVariant },
-  seoSummaryInput: { minHeight: 72 },
+  seoSummaryInput: { minHeight: 88 },
   keywordChipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   keywordChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -834,15 +844,15 @@ const s = StyleSheet.create({
   keywordChipRemove: { fontFamily: Typography.fontBodySemi, fontSize: 14, lineHeight: 16, color: D.onSecondaryContainer },
   keywordInputRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
   keywordInput: {
-    flex: 1, minHeight: 44,
-    backgroundColor: D.surfaceContainerLowest,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant, borderRadius: Radii.lg,
-    paddingHorizontal: Spacing.sm,
+    flex: 1, minHeight: 48,
+    backgroundColor: '#FAFCFC',
+    borderWidth: 1, borderColor: D.surfaceVariant, borderRadius: Radii.lg,
+    paddingHorizontal: Spacing.md,
     fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurface,
   },
   keywordAddBtn: {
     backgroundColor: D.primary, borderRadius: Radii.lg,
-    paddingHorizontal: 18, minHeight: 44, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 20, minHeight: 48, alignItems: 'center', justifyContent: 'center',
   },
 
   // ── Save button ──────────────────────────────────────────────────────────
