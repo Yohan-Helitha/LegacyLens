@@ -106,39 +106,6 @@ function jobToScheduleItem(job: JobResponse): ScheduleItem | null {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fallback data — shown only if /api/creator-dashboard/jobs fails, so the
-// screen never renders blank.
-// ─────────────────────────────────────────────────────────────────────────────
-const FALLBACK_JOBS: JobResponse[] = [
-  {
-    id: 'fallback-1',
-    title: 'Traditional Recipe Documentation',
-    description: '',
-    elderName: 'Mrs. Kamala Wijesinghe',
-    location: 'Matara',
-    offeredAmount: 3000,
-    status: 'UPCOMING',
-    urgent: false,
-    scheduledAt: '2026-08-30T12:30:00',
-    timeWindowText: null,
-    completedAt: null,
-  },
-  {
-    id: 'fallback-2',
-    title: 'Photographing the Family Loom',
-    description: '',
-    elderName: 'Mrs. Kamala Wijesinghe',
-    location: 'Matara',
-    offeredAmount: 1800,
-    status: 'UPCOMING',
-    urgent: true,
-    scheduledAt: '2026-08-30T15:30:00',
-    timeWindowText: null,
-    completedAt: null,
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Date helpers — a plain y-m-d key (never ISO/UTC) so a job scheduled at
 // 11pm local time doesn't silently land on the wrong calendar day.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -372,10 +339,10 @@ export const OpportunitySchedulePage: React.FC<{
   /** Opens the real opportunity for an application-sourced item — Job-sourced items have no detail page yet, so they fall back to onBack. */
   onViewOpportunity?: (opportunityId: string) => void;
 }> = ({ onNavigate, onBack, onViewOpportunity }) => {
-  const [jobs, setJobs] = useState<JobResponse[]>(FALLBACK_JOBS);
+  const [jobs, setJobs] = useState<JobResponse[]>([]);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
-  const [visibleMonth, setVisibleMonth] = useState<Date>(startOfMonth(new Date(FALLBACK_JOBS[0].scheduledAt!)));
-  const [selectedKey, setSelectedKey] = useState<string>(dateKey(new Date(FALLBACK_JOBS[0].scheduledAt!)));
+  const [visibleMonth, setVisibleMonth] = useState<Date>(startOfMonth(new Date()));
+  const [selectedKey, setSelectedKey] = useState<string>(dateKey(new Date()));
 
   useEffect(() => {
     creatorDashboardApi
@@ -384,7 +351,7 @@ export const OpportunitySchedulePage: React.FC<{
         setJobs(data);
         const scheduled = data.filter((j) => j.scheduledAt).sort((a, b) => a.scheduledAt!.localeCompare(b.scheduledAt!));
         if (scheduled.length > 0) {
-          const first = new Date(scheduled[0].scheduledAt!);
+          const first = parseDateOnly(scheduled[0].scheduledAt!);
           setVisibleMonth(startOfMonth(first));
           setSelectedKey(dateKey(first));
         }
