@@ -328,7 +328,7 @@ const ActiveJobCard: React.FC<{ item: ActiveJobItem; onPress: () => void }> = ({
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ApprovedApplicationCard — an approved OpportunityApplication shown
-// alongside real Jobs in the Upcoming Booking tab. TEMPORARY: once approving
+// in the Upcoming Booking tab (booked ones move to the Schedule page). TEMPORARY: once approving
 // creates a real Job (see OpportunityApplicationStatus's javadoc), this can
 // likely be retired in favour of ActiveJobCard alone.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -614,13 +614,6 @@ export const CreatorDashboard: React.FC<{
       setApprovedApplications((prev) => prev.filter((a) => a.id !== bookingTarget.id));
       setBookingTarget(null);
 
-      // The booking just created a real Job — refresh the Upcoming tab so it
-      // appears immediately instead of only after switching tabs.
-      creatorDashboardApi
-        .getJobs('UPCOMING')
-        .then((data) => setJobsByTab((prev) => ({ ...prev, upcoming: data.map(mapJobToItem) })))
-        .catch(() => {});
-
       // Booking confirmed — jump straight to the Schedule page so the
       // creator sees it marked on the calendar right away.
       onOpenSchedule();
@@ -633,6 +626,13 @@ export const CreatorDashboard: React.FC<{
   };
 
   useEffect(() => {
+    // Upcoming Booking lists only approved opportunities still waiting to be booked; once booked they
+    // live on the Schedule page, so there is no job list to load for this tab.
+    if (activeTab === 'upcoming') {
+      setJobsLoading(false);
+      setJobsError(false);
+      return;
+    }
     let cancelled = false;
     setJobsLoading(true);
     setJobsError(false);
@@ -656,7 +656,7 @@ export const CreatorDashboard: React.FC<{
     };
   }, [activeTab]);
 
-  const currentJobs = jobsByTab[activeTab];
+  const currentJobs = activeTab === 'upcoming' ? undefined : jobsByTab[activeTab];
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
@@ -724,7 +724,9 @@ export const CreatorDashboard: React.FC<{
                   ? 'Loading…'
                   : jobsError
                     ? "Couldn't load jobs. Pull down to try again."
-                    : 'No jobs to show.'}
+                    : activeTab === 'upcoming'
+                      ? 'No approved opportunities waiting to be booked.'
+                      : 'No jobs to show.'}
               </Text>
             </View>
           )}
