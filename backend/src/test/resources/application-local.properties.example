@@ -1,0 +1,11 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# LOCAL SECRETS TEMPLATE — Safe to commit
+# Copy this file to application-local.properties and fill in real values.
+# NEVER put real credentials in this file.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Supabase DB password (get from Supabase → Settings → Database)
+DB_PASSWORD=YOUR_SUPABASE_DB_PASSWORD
+
+# JWT secret — generate a strong random string (min 32 chars)
+JWT_SECRET=YOUR_JWT_SECRET_KEY_MIN_32_CHARACTERS_LONG
