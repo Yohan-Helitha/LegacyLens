@@ -12,6 +12,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+
 /**
  * Spring Security configuration.
  * Auth endpoints are public.
@@ -20,6 +22,7 @@ import org.springframework.security.web.SecurityFilterChain;
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -56,15 +59,25 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/api/cities/**",
                                 "/uploads/**",
+                                "/stories/**",
                                 "/api/home/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/swagger-resources/**",
                                 "/swagger-ui.html",
-                                "/webjars/**")
+                                "/webjars/**",
+                                "/api/learning/certificates/verify/**")
+                        .permitAll()
+                        .requestMatchers(
+                                org.springframework.http.HttpMethod.GET,
+                                "/api/learning/tracks",
+                                "/api/learning/tracks/**",
+                                "/api/learning/builder/content")
                         .permitAll()
                         // Everything else requires authentication
                         .anyRequest().authenticated())
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(new org.springframework.security.web.authentication.HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED)))
                 // Without this, JwtAuthenticationFilter is never invoked and every
                 // Bearer-token request falls through as anonymous — see the class's
                 // own javadoc; it exists specifically to populate SecurityContext.

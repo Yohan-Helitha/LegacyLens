@@ -1,29 +1,20 @@
 package lk.ac.sliit.legacylens.learning.service;
 
+import lk.ac.sliit.legacylens.learning.progress.XpPolicy;
 import org.springframework.stereotype.Service;
 
 @Service
 public class XpService {
 
-    private static final int XP_PER_CORRECT_ANSWER = 10;
-    private static final int XP_COMPLETION_BONUS = 20;
+	private final XpPolicy xpPolicy;
 
-    public int calculateQuizXp(
-            int correctAnswers,
-            boolean completed) {
+	public XpService(XpPolicy xpPolicy) {
+		this.xpPolicy = xpPolicy;
+	}
 
-        if (correctAnswers < 0) {
-            throw new IllegalArgumentException(
-                    "Correct answers cannot be negative"
-            );
-        }
+	public int calculateQuizXp(int correctAnswers, boolean completed) {
+		int xp = xpPolicy.calculateQuizXp(correctAnswers, completed);
 
-        int xp = correctAnswers * XP_PER_CORRECT_ANSWER;
-
-        if (completed) {
-            xp += XP_COMPLETION_BONUS;
-        }
-
-        return xp;
-    }
+		return xp;
+	}
 }

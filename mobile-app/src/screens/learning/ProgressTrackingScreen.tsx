@@ -16,11 +16,12 @@ import Animated, {
   useAnimatedStyle, 
   withTiming 
 } from 'react-native-reanimated';
-import { Trophy, Star, BookOpen, Flame } from 'lucide-react-native';
+import { Trophy, Star, BookOpen, Flame, Sparkles, Award, ArrowLeft, Target, ChevronRight, Check } from 'lucide-react-native';
 
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { apiGet } from '../../services/api/client';
 import { UserFooter, UserTabKey } from '../../components/common';
+import { learningStrings } from '../../constants/learningStrings';
 
 interface TrackProgress {
   trackId: number;
@@ -36,14 +37,28 @@ interface StreakResponse {
   last7Days: boolean[];
 }
 
+interface ProgressSummary {
+  totalXp: number;
+  level: number;
+  xpForCurrentLevel: number;
+  xpForNextLevel: number;
+  xpToNextLevel: number;
+  currentStreakDays: number;
+  last7Days: boolean[];
+  completedLessons: number;
+  completedTracks: number;
+  levelUp: boolean;
+}
+
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 function AnimatedProgressBar({ percent }: { percent: number }) {
   const width = useSharedValue(0);
+  const clampedPercent = Math.max(0, Math.min(100, isNaN(percent) ? 0 : percent));
 
   useEffect(() => {
-    width.value = withTiming(percent, { duration: 1000 });
-  }, [percent]);
+    width.value = withTiming(clampedPercent, { duration: 1000 });
+  }, [clampedPercent]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     width: `${width.value}%`,
@@ -59,6 +74,7 @@ function AnimatedProgressBar({ percent }: { percent: number }) {
 export default function ProgressTrackingScreen() {
   const navigation = useNavigation();
   const [trackProgress, setTrackProgress] = useState<TrackProgress[]>([]);
+  const [summary, setSummary] = useState<ProgressSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const handleTabSelect = (tab: UserTabKey) => {
@@ -83,10 +99,17 @@ export default function ProgressTrackingScreen() {
   const loadTrackProgress = async () => {
     try {
       setLoading(true);
-      const data = await apiGet<TrackProgress[]>('/learning/progress/tracks/me');
+      const [data, streakData, summaryData] = await Promise.all([
+        apiGet<TrackProgress[]>('/learning/progress/tracks/me').catch(() => []),
+        apiGet<StreakResponse>('/learning/progress/me/streak').catch(() => ({
+          currentStreakDays: 0,
+          last7Days: [false, false, false, false, false, false, false],
+        })),
+        apiGet<ProgressSummary>('/learning/progress/me/summary').catch(() => null),
+      ]);
       setTrackProgress(data);
-      const streakData = await apiGet<StreakResponse>('/learning/progress/me/streak');
       setStreak(streakData);
+      setSummary(summaryData);
     } catch (error) {
       console.log('PROGRESS / STREAK ERROR:', error);
     } finally {
@@ -96,15 +119,47 @@ export default function ProgressTrackingScreen() {
 
   const startedTracks = trackProgress.filter(t => t.completedLessons > 0 || t.xpEarned > 0);
   const tracksStarted = startedTracks.length;
-  const lessonsCompleted = trackProgress.reduce((total, track) => total + track.completedLessons, 0);
-  const totalLessons = startedTracks.reduce((total, track) => total + track.totalLessons, 0);
-  const totalXp = trackProgress.reduce((total, track) => total + track.xpEarned, 0);
-  const overallProgress = totalLessons === 0 ? 0 : Math.round((lessonsCompleted / totalLessons) * 100);
+  const lifetimeLessonsCompleted = summary?.completedLessons ?? trackProgress.reduce((total, track) => total + track.completedLessons, 0);
+  const totalXp = summary?.totalXp ?? trackProgress.reduce((total, track) => total + track.xpEarned, 0);
+
+  const tracksToAggregate = startedTracks.length > 0 ? startedTracks : trackProgress;
+  const totalLessonsAcrossTracks = tracksToAggregate.reduce((total, track) => {
+    return total + Math.max(track.totalLessons, track.completedLessons);
+  }, 0);
+  const completedLessonsAcrossTracks = tracksToAggregate.reduce((total, track) => {
+    const trackTotal = Math.max(track.totalLessons, track.completedLessons);
+    return total + Math.min(track.completedLessons, trackTotal);
+  }, 0);
+
+  const overallCompleted = Math.min(completedLessonsAcrossTracks, totalLessonsAcrossTracks);
+  const overallTotal = totalLessonsAcrossTracks;
+  const overallProgress = overallTotal === 0 ? 0 : Math.min(100, Math.max(0, Math.round((overallCompleted / overallTotal) * 100)));
+
+  const level = summary?.level ?? 1;
+  const xpToNextLevel = summary?.xpToNextLevel ?? 0;
+  const xpForCurrentLevel = summary?.xpForCurrentLevel ?? 0;
+  const xpForNextLevel = summary?.xpForNextLevel ?? 100;
+  const levelSpan = Math.max(1, xpForNextLevel - xpForCurrentLevel);
+  const levelProgressXp = Math.max(0, totalXp - xpForCurrentLevel);
+  const levelProgressPercent = Math.min(100, Math.round((levelProgressXp / levelSpan) * 100));
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <Text style={styles.loadingText}>Loading your progress...</Text>
+        <View style={styles.contentPad}>
+          <Pressable
+            onPress={() => {
+              if (navigation.canGoBack()) navigation.goBack();
+              else navigation.navigate('CourseTracksList' as never);
+            }}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
+            <ArrowLeft size={20} color={Colors.text} />
+          </Pressable>
+          <Text style={styles.loadingText}>Loading your progress...</Text>
+        </View>
       </View>
     );
   }
@@ -119,18 +174,85 @@ export default function ProgressTrackingScreen() {
         contentContainerStyle={styles.contentPad}
         ListHeaderComponent={
           <Animated.View entering={FadeInDown.duration(600)}>
-            <View style={styles.headerRow}>
-              <View>
-                <Text style={styles.headerSubtitle}>Your Analytics</Text>
-                <Text style={styles.header}>My Progress</Text>
-              </View>
+            {/* Top Navigation Bar: Back button on left, Review & Badges on right */}
+            <View style={styles.navBar}>
               <Pressable
-                style={({ pressed }) => [styles.badgesButton, pressed && { opacity: 0.8 }]}
-                onPress={() => navigation.navigate('BadgesStreaks' as never)}
+                onPress={() => {
+                  if (navigation.canGoBack()) navigation.goBack();
+                  else navigation.navigate('CourseTracksList' as never);
+                }}
+                style={styles.backButton}
+                accessibilityRole="button"
+                accessibilityLabel="Back to Discover Tracks"
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Trophy size={16} color={Colors.accent} />
-                <Text style={styles.badgesButtonText}>Badges</Text>
+                <ArrowLeft size={20} color={Colors.text} />
               </Pressable>
+
+              <View style={styles.headerActions}>
+                <Pressable
+                  style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.8 }]}
+                  onPress={() => navigation.navigate('WeakWordReview' as never)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Weak Word Review"
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                >
+                  <BookOpen size={16} color={Colors.accent} />
+                  <Text style={styles.actionButtonText}>Review</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.8 }]}
+                  onPress={() => navigation.navigate('BadgesStreaks' as never)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Badges"
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                >
+                  <Trophy size={16} color={Colors.accent} />
+                  <Text style={styles.actionButtonText}>Badges</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Page Title Section */}
+            <View style={styles.titleSection}>
+              <Text style={styles.headerSubtitle}>{learningStrings.progress.subtitle}</Text>
+              <Text style={styles.header}>{learningStrings.progress.title}</Text>
+            </View>
+
+            {/* Level-Up Celebration Banner (if leveled up) */}
+            {summary?.levelUp && (
+              <Animated.View entering={FadeInDown.duration(500)} style={styles.levelUpBanner}>
+                <View style={styles.levelUpIconCircle}>
+                  <Sparkles size={22} color={Colors.white} />
+                </View>
+                <View style={styles.levelUpTextWrapper}>
+                  <Text style={styles.levelUpBannerTitle}>{learningStrings.progress.levelUpTitle}</Text>
+                  <Text style={styles.levelUpBannerSubtitle}>
+                    {learningStrings.progress.levelUpSubtitle(level)}
+                  </Text>
+                </View>
+              </Animated.View>
+            )}
+
+            {/* Level Progress Card */}
+            <View style={styles.levelCard}>
+              <View style={styles.levelCardHeader}>
+                <View style={styles.levelBadge}>
+                  <Award size={16} color={Colors.white} />
+                  <Text style={styles.levelBadgeText}>{learningStrings.progress.levelLabel(level)}</Text>
+                </View>
+                <Text style={styles.levelTitle}>{learningStrings.progress.scholarTitle(level)}</Text>
+              </View>
+
+              <View style={styles.levelProgressRow}>
+                <Text style={styles.levelXpInfo}>
+                  {xpToNextLevel > 0
+                    ? learningStrings.progress.xpToNext(xpToNextLevel)
+                    : learningStrings.progress.maxLevel}
+                </Text>
+                <Text style={styles.levelPercentText}>{levelProgressPercent}%</Text>
+              </View>
+              <AnimatedProgressBar percent={levelProgressPercent} />
             </View>
 
             <View style={styles.statsRow}>
@@ -138,7 +260,7 @@ export default function ProgressTrackingScreen() {
                 <View style={styles.statIconWrapper}>
                   <BookOpen size={20} color={Colors.secondary} />
                 </View>
-                <Text style={styles.statValue}>{lessonsCompleted}</Text>
+                <Text style={styles.statValue}>{lifetimeLessonsCompleted}</Text>
                 <Text style={styles.statLabel}>Lessons</Text>
               </View>
               <View style={styles.statCardGlass}>
@@ -156,7 +278,7 @@ export default function ProgressTrackingScreen() {
                 <Text style={styles.percentageText}>{overallProgress}%</Text>
               </View>
               <Text style={styles.summaryText}>
-                {lessonsCompleted} of {totalLessons} lessons completed across {tracksStarted} tracks
+                {overallCompleted} of {overallTotal} lessons completed across {tracksStarted} {tracksStarted === 1 ? 'track' : 'tracks'}
               </Text>
               <AnimatedProgressBar percent={overallProgress} />
             </View>
@@ -172,7 +294,7 @@ export default function ProgressTrackingScreen() {
                   return (
                     <View key={day} style={styles.dayColumn}>
                       <View style={[styles.dayDot, isActive && styles.dayDotActive]}>
-                        {isActive && <CheckIcon size={12} color={Colors.white} />}
+                        {isActive && <Check size={12} color={Colors.white} strokeWidth={3} />}
                       </View>
                       <Text style={[styles.dayLabel, isActive && styles.dayLabelActive]}>{day}</Text>
                     </View>
@@ -181,26 +303,49 @@ export default function ProgressTrackingScreen() {
               </View>
             </View>
 
+            {/* Weak Words Practice Banner */}
+            <Pressable
+              style={({ pressed }) => [styles.weakWordsReviewCard, pressed && { opacity: 0.9 }]}
+              onPress={() => navigation.navigate('WeakWordReview' as never)}
+            >
+              <View style={styles.weakWordsRow}>
+                <View style={styles.weakWordsIconWrapper}>
+                  <Target size={22} color={Colors.secondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.weakWordsTitle}>Adaptive Weak-Words Review</Text>
+                  <Text style={styles.weakWordsSubtitle}>Master terms you previously missed in quizzes</Text>
+                </View>
+                <ChevronRight size={20} color={Colors.secondary} />
+              </View>
+            </Pressable>
+
             <Text style={styles.sectionTitle}>Active Tracks</Text>
           </Animated.View>
         }
-        renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInRight.delay(index * 100).duration(500)}>
-            <View style={styles.trackRow}>
-              <View style={styles.trackHeader}>
-                <Text style={styles.trackTitle}>{item.trackTitle}</Text>
-                <Text style={styles.trackPercentage}>{item.progressPercentage}%</Text>
+        renderItem={({ item, index }) => {
+          const itemTotal = Math.max(item.totalLessons, item.completedLessons);
+          const itemCompleted = Math.min(item.completedLessons, itemTotal);
+          const itemPercent = Math.min(100, Math.max(0, item.progressPercentage ?? (itemTotal === 0 ? 0 : Math.round((itemCompleted / itemTotal) * 100))));
+
+          return (
+            <Animated.View entering={FadeInRight.delay(index * 100).duration(500)}>
+              <View style={styles.trackRow}>
+                <View style={styles.trackHeader}>
+                  <Text style={styles.trackTitle}>{item.trackTitle}</Text>
+                  <Text style={styles.trackPercentage}>{itemPercent}%</Text>
+                </View>
+                <AnimatedProgressBar percent={itemPercent} />
+                <View style={styles.trackInfoRow}>
+                  <Text style={styles.trackSubtext}>
+                    {itemCompleted} of {itemTotal} lessons
+                  </Text>
+                  <Text style={styles.trackXp}>+{item.xpEarned} XP</Text>
+                </View>
               </View>
-              <AnimatedProgressBar percent={item.progressPercentage} />
-              <View style={styles.trackInfoRow}>
-                <Text style={styles.trackSubtext}>
-                  {item.completedLessons} of {item.totalLessons} lessons
-                </Text>
-                <Text style={styles.trackXp}>+{item.xpEarned} XP</Text>
-              </View>
-            </View>
-          </Animated.View>
-        )}
+            </Animated.View>
+          );
+        }}
         ListEmptyComponent={
           <Animated.View entering={FadeInDown.delay(300)}>
             <View style={[styles.emptyCard, { marginTop: Spacing.sm }]}>
@@ -212,16 +357,6 @@ export default function ProgressTrackingScreen() {
 
       <UserFooter activeTab="learn" onTabSelect={handleTabSelect} />
     </View>
-  );
-}
-
-import Svg, { Polyline } from 'react-native-svg';
-
-function CheckIcon({ size, color }: { size: number; color: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-      <Polyline points="20 6 9 17 4 12" />
-    </Svg>
   );
 }
 
@@ -243,11 +378,51 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
 
-  headerRow: {
+  navBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 40,
+    backgroundColor: Colors.white,
+    borderRadius: Radii.full,
+    paddingHorizontal: Spacing.md - 2,
+    shadowColor: Colors.secondaryDark,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  actionButtonText: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeSM,
+    color: Colors.accent,
+  },
+  titleSection: {
+    marginBottom: Spacing.lg,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.secondaryDark,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   headerSubtitle: {
     fontFamily: Typography.fontBodySemi,
@@ -257,29 +432,97 @@ const styles = StyleSheet.create({
   },
   header: {
     fontFamily: Typography.fontDisplay,
-    fontSize: Typography.sizeXL + 2,
+    fontSize: Typography.sizeXL + 4,
     color: Colors.text,
   },
-  badgesButton: {
+  levelUpBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.white,
+    gap: Spacing.sm,
+    backgroundColor: Colors.accent,
+    borderRadius: Radii.xl,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    shadowColor: Colors.accent,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  levelUpIconCircle: {
+    width: 44,
+    height: 44,
     borderRadius: Radii.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  levelUpTextWrapper: {
+    flex: 1,
+  },
+  levelUpBannerTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeMD + 2,
+    color: Colors.white,
+  },
+  levelUpBannerSubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeXS,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 2,
+  },
+  levelCard: {
+    backgroundColor: Colors.white,
+    borderRadius: Radii.xl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
     shadowColor: Colors.secondaryDark,
     shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  badgesButtonText: {
+  levelCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  levelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.secondary,
+    borderRadius: Radii.full,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 4,
+  },
+  levelBadgeText: {
     fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeSM,
+    fontSize: Typography.sizeXS,
+    color: Colors.white,
+  },
+  levelTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeMD,
+    color: Colors.text,
+  },
+  levelProgressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  levelXpInfo: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeXS,
     color: Colors.accent,
   },
-
+  levelPercentText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeXS,
+    color: Colors.textMuted,
+  },
   statsRow: {
     flexDirection: 'row',
     gap: Spacing.md,
@@ -487,5 +730,38 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizeSM,
     color: Colors.textMuted,
     textAlign: 'center',
+  },
+  weakWordsReviewCard: {
+    backgroundColor: Colors.white,
+    borderRadius: Radii.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+    borderWidth: 1.5,
+    borderColor: '#0F5C5C',
+    elevation: 2,
+  },
+  weakWordsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  weakWordsIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.secondarySubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weakWordsTitle: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeMD,
+    color: '#0F5C5C',
+  },
+  weakWordsSubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeXS,
+    color: Colors.textMuted,
+    marginTop: 2,
   },
 });

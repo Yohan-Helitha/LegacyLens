@@ -9,3 +9,12 @@ DB_PASSWORD=YOUR_SUPABASE_DB_PASSWORD
 
 # JWT secret — generate a strong random string (min 32 chars)
 JWT_SECRET=YOUR_JWT_SECRET_KEY_MIN_32_CHARACTERS_LONG
+
+# Google Gemini API key for AI Study Builder
+AI_API_KEY=YOUR_GEMINI_API_KEY
+AI_MODEL=gemini-1.5-flash
+
+# Groq API Configuration (for app.ai.provider=groq)
+app.ai.provider=groq
+learning.ai.groq.api-key=YOUR_GROQ_API_KEY
+learning.ai.groq.model=llama-3.3-70b-versatile

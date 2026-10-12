@@ -43,6 +43,70 @@ export interface QuizQuestion {
   correctOption: string; // 'A', 'B', 'C', 'D'
 }
 
+export interface ApiResponse<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
+
+export interface AdminTrackGenerationRequest {
+  sourceText?: string;
+  storyId?: string;
+  region?: string;
+  occupation?: string;
+  difficultyLevel?: string;
+  lessonCount?: number;
+  flashcardCount?: number;
+  quizQuestionCount?: number;
+}
+
+export interface AdminGeneratedFlashcardDto {
+  word: string;
+  meaning: string;
+  culturalNote?: string;
+}
+
+export interface AdminGeneratedQuizDto {
+  question: string;
+  optionA: string;
+  optionB: string;
+  optionC: string;
+  optionD: string;
+  correctOption: string;
+}
+
+export interface AdminGeneratedLessonDto {
+  lessonOrder: number;
+  title: string;
+  description: string;
+  type: string;
+  flashcards?: AdminGeneratedFlashcardDto[];
+  quizQuestions?: AdminGeneratedQuizDto[];
+}
+
+export interface AdminGeneratedTrackPreviewDto {
+  title: string;
+  description: string;
+  region: string;
+  occupation: string;
+  difficultyLevel: string;
+  thumbnailUrl?: string;
+  lessons: AdminGeneratedLessonDto[];
+}
+
+export interface AdminPublishTrackRequest {
+  preview: AdminGeneratedTrackPreviewDto;
+}
+
+export interface CommunityStorySummary {
+  id: string;
+  title: string;
+  region?: string;
+  occupation?: string;
+  contributorDisplayName?: string;
+  snippet?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -151,5 +215,34 @@ export class LearningService {
 
   deleteQuizQuestion(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/questions/${id}`, { headers: this.getHeaders() });
+  }
+
+  // --- AI Track & Curriculum Generator ---
+  getCommunityStories(): Observable<ApiResponse<CommunityStorySummary[]>> {
+    return this.http.get<ApiResponse<CommunityStorySummary[]>>(`${this.apiUrl}/builder/content`, { headers: this.getHeaders() });
+  }
+
+  generateTrackPreview(request: AdminTrackGenerationRequest): Observable<ApiResponse<AdminGeneratedTrackPreviewDto>> {
+    return this.http.post<ApiResponse<AdminGeneratedTrackPreviewDto>>(
+      `${this.apiUrl}/tracks/admin/ai-preview`,
+      request,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  publishGeneratedTrack(request: AdminPublishTrackRequest): Observable<ApiResponse<LearningTrack>> {
+    return this.http.post<ApiResponse<LearningTrack>>(
+      `${this.apiUrl}/tracks/admin/ai-publish`,
+      request,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  repairLegacyLessons(): Observable<ApiResponse<string>> {
+    return this.http.post<ApiResponse<string>>(
+      `${this.apiUrl}/tracks/admin/repair-legacy`,
+      {},
+      { headers: this.getHeaders() }
+    );
   }
 }

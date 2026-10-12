@@ -14,10 +14,10 @@ import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { apiGet, apiPut } from '../../services/api/client';
+import { apiGet, apiPost } from '../../services/api/client';
 import { getMediaUrl } from '../../constants/api';
 import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
-import { RefreshCcw } from 'lucide-react-native';
+import { RefreshCcw, ArrowLeft, ArrowRight } from 'lucide-react-native';
 
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'Flashcard'>;
 
@@ -142,6 +142,15 @@ export default function FlashcardScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <ArrowLeft size={22} color={Colors.text} />
+        </Pressable>
         <Text style={{ color: Colors.text, textAlign: 'center', marginTop: 100 }}>Loading flashcards...</Text>
       </View>
     );
@@ -150,6 +159,15 @@ export default function FlashcardScreen() {
   if (!card) {
     return (
       <View style={styles.container}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <ArrowLeft size={22} color={Colors.text} />
+        </Pressable>
         <Text style={{ color: Colors.text, textAlign: 'center', marginTop: 100 }}>No flashcards found.</Text>
       </View>
     );
@@ -161,6 +179,18 @@ export default function FlashcardScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
+        <Pressable
+          onPress={() => {
+            safePause();
+            navigation.goBack();
+          }}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back to Track"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <ArrowLeft size={22} color={Colors.text} />
+        </Pressable>
         <Text style={styles.header}>Vocabulary Training</Text>
         <Text style={styles.counter}>{index + 1} / {cards.length}</Text>
       </View>
@@ -221,14 +251,16 @@ export default function FlashcardScreen() {
           onPress={goPrev}
           disabled={isFirst}
         >
-          <Text style={[styles.navButtonText, isFirst && styles.navButtonTextDisabled]}>← Previous</Text>
+          <ArrowLeft size={16} color={isFirst ? Colors.textMuted : Colors.secondary} />
+          <Text style={[styles.navButtonText, isFirst && styles.navButtonTextDisabled]}>Previous</Text>
         </Pressable>
         <Pressable
           style={[styles.navButton, isLast && styles.navButtonDisabled]}
           onPress={goNext}
           disabled={isLast}
         >
-          <Text style={[styles.navButtonText, isLast && styles.navButtonTextDisabled]}>Next →</Text>
+          <Text style={[styles.navButtonText, isLast && styles.navButtonTextDisabled]}>Next</Text>
+          <ArrowRight size={16} color={isLast ? Colors.textMuted : Colors.secondary} />
         </Pressable>
       </View>
 
@@ -236,7 +268,7 @@ export default function FlashcardScreen() {
         style={({ pressed }) => [styles.quizButton, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
         onPress={async () => {
           try {
-            await apiPut(`/learning/progress/me/lessons/${route.params.lessonId}?completed=true&score=100&xpEarned=20`, {});
+            await apiPost(`/learning/progress/me/lessons/${route.params.lessonId}/complete`, {});
             navigation.goBack();
           } catch (error) {
             navigation.goBack();
@@ -251,8 +283,20 @@ export default function FlashcardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dominant, paddingTop: 50, paddingHorizontal: Spacing.md },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  header: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, color: Colors.text },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.secondaryDark,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  header: { flex: 1, fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, color: Colors.text },
   counter: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: Colors.textMuted },
 
   progressRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.lg },
@@ -340,7 +384,7 @@ const styles = StyleSheet.create({
   recordedBy: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: Colors.accent },
 
   navRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xl },
-  navButton: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.sm },
+  navButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.sm },
   navButtonDisabled: { opacity: 0.3 },
   navButtonText: { color: Colors.secondary, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD },
   navButtonTextDisabled: { color: Colors.textMuted },

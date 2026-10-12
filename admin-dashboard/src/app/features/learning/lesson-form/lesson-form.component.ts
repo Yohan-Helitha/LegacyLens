@@ -53,11 +53,15 @@ export class LessonFormComponent implements OnInit {
       this.learningService.getLessonsByTrack(this.trackId).subscribe(lessons => {
         const existing = lessons.find(l => l.id === this.lessonId);
         if (existing) {
+          if (existing.type && existing.type !== 'CULTURE') {
+            this.lessonType = existing.type.toUpperCase();
+          }
           this.lessonForm.patchValue({
             title: existing.title,
             description: existing.description,
             lessonOrder: existing.lessonOrder
           });
+          this.loadContent();
         }
       });
       this.loadContent();
@@ -109,8 +113,23 @@ export class LessonFormComponent implements OnInit {
     if (!this.lessonId) return;
     if (this.lessonType === 'FLASHCARDS') {
       this.learningService.getFlashcardsByLesson(this.lessonId).subscribe(data => this.flashcards = data);
-    } else {
+    } else if (this.lessonType === 'QUIZ') {
       this.learningService.getQuizQuestionsByLesson(this.lessonId).subscribe(data => this.quizQuestions = data);
+    } else {
+      this.learningService.getFlashcardsByLesson(this.lessonId).subscribe(data => {
+        this.flashcards = data;
+        if (data && data.length > 0) {
+          this.lessonType = 'FLASHCARDS';
+          this.initForms();
+        }
+      });
+      this.learningService.getQuizQuestionsByLesson(this.lessonId).subscribe(data => {
+        this.quizQuestions = data;
+        if (data && data.length > 0 && (!this.flashcards || this.flashcards.length === 0)) {
+          this.lessonType = 'QUIZ';
+          this.initForms();
+        }
+      });
     }
   }
 

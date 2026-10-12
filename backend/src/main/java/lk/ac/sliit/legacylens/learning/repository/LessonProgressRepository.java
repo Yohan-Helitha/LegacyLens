@@ -7,30 +7,31 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface LessonProgressRepository
         extends JpaRepository<LessonProgress, Long> {
 
     Optional<LessonProgress> findByUserIdAndLessonId(
-            Long userId,
+            UUID userId,
             Long lessonId
     );
 
-    List<LessonProgress> findByUserId(Long userId);
+    List<LessonProgress> findByUserId(UUID userId);
 
-    long countByUserIdAndCompletedTrue(Long userId);
+    long countByUserIdAndCompletedTrue(UUID userId);
 
-    long countByUserId(Long userId);
+    long countByUserId(UUID userId);
 
     @Query("""
         SELECT COALESCE(SUM(lp.xpEarned), 0)
         FROM LessonProgress lp
         WHERE lp.userId = :userId
     """)
-    long sumXpByUserId(@Param("userId") Long userId);
+    long sumXpByUserId(@Param("userId") UUID userId);
 
     long countByUserIdAndLesson_Track_IdAndCompletedTrue(
-            Long userId,
+            UUID userId,
             Long trackId
     );
 
@@ -41,7 +42,7 @@ public interface LessonProgressRepository
           AND lp.lesson.track.id = :trackId
     """)
     long sumXpByUserIdAndTrackId(
-            @Param("userId") Long userId,
+            @Param("userId") UUID userId,
             @Param("trackId") Long trackId
     );
 
@@ -53,7 +54,7 @@ public interface LessonProgressRepository
           AND lp.completed = true
     """)
     java.time.LocalDateTime findLatestCompletionForTrack(
-            @Param("userId") Long userId,
+            @Param("userId") UUID userId,
             @Param("trackId") Long trackId
     );
 }

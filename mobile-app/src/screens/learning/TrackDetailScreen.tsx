@@ -12,13 +12,14 @@ import Animated, {
   withTiming,
   withSpring
 } from 'react-native-reanimated';
-import { BookOpen, Headphones, HelpCircle, Check, Lock, Play, MapPin, Briefcase, Zap } from 'lucide-react-native';
+import { BookOpen, Headphones, HelpCircle, Check, Lock, Play, MapPin, Briefcase, Zap, ArrowLeft, GraduationCap } from 'lucide-react-native';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
 import { apiGet } from '../../services/api/client';
 import { Track, Lesson } from '../../types/learning';
+import { mockTracks, mockLessons } from '../../constants/mockLearningData';
 
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'TrackDetail'>;
 
@@ -59,11 +60,11 @@ function PulsingNode({ color, isCompleted }: { color: string; isCompleted: boole
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function LessonNode({ item, index, activeLessonIndex, totalLessons, navigation }: any) {
-  const isCompleted = item.completed;
+  const isCompleted = Boolean(item.completed || item.status === 'completed');
   const isActive = index === activeLessonIndex;
-  const isLocked = true; // index > activeLessonIndex;
+  const isLocked = index > activeLessonIndex;
 
-  const isQuiz = item.type.toLowerCase() === 'quiz';
+  const isQuiz = (item.type || '').toLowerCase() === 'quiz';
   const IconComponent = isQuiz ? HelpCircle : BookOpen;
   
   const nodeColor = isCompleted ? Colors.accent : isActive ? Colors.secondary : Colors.surface;
@@ -75,6 +76,8 @@ function LessonNode({ item, index, activeLessonIndex, totalLessons, navigation }
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: cardScale.value }],
   }));
+
+  const lessonTargetId = item.lessonId ?? item.id;
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 150).springify()}>
@@ -108,8 +111,8 @@ function LessonNode({ item, index, activeLessonIndex, totalLessons, navigation }
           ]}
           onPress={() => {
             isQuiz
-              ? navigation.navigate('Quiz', { lessonId: item.lessonId })
-              : navigation.navigate('Flashcard', { lessonId: item.lessonId })
+              ? navigation.navigate('Quiz', { lessonId: lessonTargetId })
+              : navigation.navigate('Flashcard', { lessonId: lessonTargetId })
           }}
         >
           <View style={[styles.lessonBadge, { backgroundColor: isLocked ? Colors.surface : Colors.secondarySubtle }]}>
@@ -145,9 +148,13 @@ export default function TrackDetailScreen() {
           id: trackDashboardData.trackId,
           title: trackDashboardData.trackTitle,
         });
-        setLessons(trackDashboardData.lessons);
+        setLessons(trackDashboardData.lessons || []);
       } catch (error: any) {
-        console.log('Failed to load track:', error?.message ?? error);
+        console.log('Failed to load track from API, using mock fallback:', error?.message ?? error);
+        const fallbackTrack = mockTracks.find(t => String(t.id) === String(route.params.trackId)) || mockTracks[0];
+        setTrack(fallbackTrack);
+        const trackLessons = mockLessons.filter(l => String(l.trackId) === String(fallbackTrack.id));
+        setLessons(trackLessons.length > 0 ? trackLessons : mockLessons);
       } finally {
         setLoading(false);
       }
@@ -158,7 +165,17 @@ export default function TrackDetailScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <Text style={{ color: Colors.text }}>Loading track...</Text>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <ArrowLeft size={20} color={Colors.text} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+        <Text style={{ color: Colors.text, marginTop: 40, textAlign: 'center' }}>Loading track...</Text>
       </View>
     );
   }
@@ -166,7 +183,17 @@ export default function TrackDetailScreen() {
   if (!track) {
     return (
       <View style={styles.container}>
-        <Text style={{ color: Colors.text }}>Track not found.</Text>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <ArrowLeft size={20} color={Colors.text} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+        <Text style={{ color: Colors.text, marginTop: 40, textAlign: 'center' }}>Track not found.</Text>
       </View>
     );
   }
@@ -178,14 +205,14 @@ export default function TrackDetailScreen() {
       : Math.round((completedLessons / track.totalLessons) * 100);
 
   // Determine the next active lesson
-  const firstIncompleteIndex = lessons.findIndex((l: any) => !l.completed);
+  const firstIncompleteIndex = lessons.findIndex((l: any) => !l.completed && l.status !== 'completed');
   const activeLessonIndex = firstIncompleteIndex === -1 ? lessons.length : firstIncompleteIndex;
 
   return (
     <View style={styles.container}>
       <Animated.FlatList
         data={lessons}
-        keyExtractor={(item: any) => String(item.lessonId)}
+        keyExtractor={(item: any, i) => String(item.lessonId ?? item.id ?? i)}
         renderItem={({ item, index }) => (
           <LessonNode 
             item={item} 
@@ -199,6 +226,19 @@ export default function TrackDetailScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <Animated.View entering={FadeInDown.duration(600)}>
+            <View style={styles.topNavRow}>
+              <Pressable
+                onPress={() => navigation.goBack()}
+                style={styles.backButton}
+                accessibilityRole="button"
+                accessibilityLabel="Back to Discover Tracks"
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <ArrowLeft size={20} color={Colors.text} />
+                <Text style={styles.backButtonText}>Discover Tracks</Text>
+              </Pressable>
+            </View>
+
             <View style={styles.heroCard}>
               <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 60" preserveAspectRatio="xMidYMid slice">
                 <Defs>
@@ -246,7 +286,8 @@ export default function TrackDetailScreen() {
                 style={({ pressed }) => [styles.certificateButton, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
                 onPress={() => navigation.navigate('Certificate', { trackId: track.id.toString() })}
               >
-                <Text style={styles.certificateButtonText}>🎓 View Certificate</Text>
+                <GraduationCap size={18} color={Colors.white} />
+                <Text style={styles.certificateButtonText}>View Certificate</Text>
               </Pressable>
             ) : null}
             <Pressable
@@ -255,12 +296,17 @@ export default function TrackDetailScreen() {
                 const nextLesson: any = lessons.find((l: any) => !l.completed) || lessons[0];
                 if (!nextLesson) return;
                 
+                const targetLessonId = nextLesson.lessonId ?? nextLesson.id;
                 nextLesson.type.toLowerCase() === 'quiz'
-                  ? navigation.navigate('Quiz', { lessonId: nextLesson.lessonId })
-                  : navigation.navigate('Flashcard', { lessonId: nextLesson.lessonId });
+                  ? navigation.navigate('Quiz', { lessonId: targetLessonId })
+                  : navigation.navigate('Flashcard', { lessonId: targetLessonId });
               }}
+              accessibilityRole="button"
+              accessibilityLabel={completedLessons > 0 && completedLessons < track.totalLessons ? "Resume Learning" : "Start Learning"}
             >
-              <Text style={styles.continueButtonText}>Continue Learning</Text>
+              <Text style={styles.continueButtonText}>
+                {completedLessons > 0 && completedLessons < track.totalLessons ? 'Resume Learning' : 'Start Learning'}
+              </Text>
             </Pressable>
           </Animated.View>
         }
@@ -271,7 +317,29 @@ export default function TrackDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dominant, paddingTop: 50, paddingHorizontal: Spacing.md },
-  list: { paddingBottom: Spacing.xl },
+  list: { paddingBottom: 100 },
+  topNavRow: {
+    marginBottom: Spacing.md,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    borderRadius: Radii.full,
+    shadowColor: Colors.secondaryDark,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  backButtonText: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeSM,
+    color: Colors.text,
+  },
 
   heroCard: {
     overflow: 'hidden',
@@ -426,6 +494,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.secondary,
     borderRadius: Radii.lg + 2,
     paddingVertical: Spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
     alignItems: 'center',
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,

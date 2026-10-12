@@ -27,6 +27,18 @@ public class LearningTrack {
 
     private Integer totalLessons;
 
+    @Column(length = 20)
+    private String origin = "ADMIN";
+
+    @Column(name = "owner_user_id")
+    private java.util.UUID ownerUserId;
+
+    @Column(length = 20)
+    private String visibility = "PUBLIC";
+
+    @Column(name = "source_content_ids", columnDefinition = "TEXT")
+    private String sourceContentIds;
+
     @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Lesson> lessons;
 
@@ -121,5 +133,37 @@ public class LearningTrack {
 
     public void setCreatedAt(java.time.LocalDate createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(String origin) {
+        this.origin = origin;
+    }
+
+    public java.util.UUID getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(java.util.UUID ownerUserId) {
+        this.ownerUserId = ownerUserId;
+    }
+
+    public String getVisibility() {
+        return visibility;
+    }
+
+    public void setVisibility(String visibility) {
+        this.visibility = visibility;
+    }
+
+    public String getSourceContentIds() {
+        return sourceContentIds;
+    }
+
+    public void setSourceContentIds(String sourceContentIds) {
+        this.sourceContentIds = sourceContentIds;
     }
 }

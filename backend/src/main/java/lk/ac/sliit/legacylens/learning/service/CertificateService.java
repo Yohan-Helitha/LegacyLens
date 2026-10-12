@@ -36,41 +36,35 @@ public class CertificateService {
                 this.lessonProgressRepository = lessonProgressRepository;
         }
 
-        public CertificateResponse getCertificate(
-                        Long userId,
-                        String learnerName,
-                        Long trackId) {
+	public CertificateResponse getCertificate(
+			java.util.UUID userId,
+			String learnerName,
+			Long trackId) {
+		LearningTrack track = learningTrackRepository.findById(trackId)
+				.orElseThrow(() -> new ResourceNotFoundException("Track not found"));
+		int totalLessons = track.getTotalLessons() == null ? 0 : track.getTotalLessons();
+		long completedLessons = lessonProgressRepository
+				.countByUserIdAndLesson_Track_IdAndCompletedTrue(userId, trackId);
+		LocalDateTime completedAt = null;
+		LocalDate completionDate = null;
+		String formattedDate = "";
+		CertificateResponse response = null;
 
-                LearningTrack track = learningTrackRepository.findById(trackId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Track not found"));
+		if (totalLessons == 0 || completedLessons < totalLessons) {
+			throw new IllegalArgumentException("This track hasn't been completed yet");
+		}
 
-                int totalLessons = track.getTotalLessons() == null ? 0 : track.getTotalLessons();
+		completedAt = lessonProgressRepository.findLatestCompletionForTrack(userId, trackId);
+		completionDate = completedAt != null ? completedAt.toLocalDate() : LocalDate.now();
+		formattedDate = completionDate.format(DateTimeFormatter.ofPattern("d MMMM yyyy"));
 
-                long completedLessons = lessonProgressRepository
-                                .countByUserIdAndLesson_Track_IdAndCompletedTrue(
-                                                userId,
-                                                trackId);
+		response = new CertificateResponse(
+				track.getId(),
+				track.getTitle(),
+				learnerName,
+				formattedDate
+		);
 
-                if (totalLessons == 0 || completedLessons < totalLessons) {
-                        throw new IllegalArgumentException(
-                                        "This track hasn't been completed yet");
-                }
-
-                LocalDateTime completedAt = lessonProgressRepository.findLatestCompletionForTrack(
-                                userId,
-                                trackId);
-
-                LocalDate completionDate = completedAt != null
-                                ? completedAt.toLocalDate()
-                                : LocalDate.now();
-
-                String formattedDate = completionDate.format(
-                                DateTimeFormatter.ofPattern("d MMMM yyyy"));
-
-                return new CertificateResponse(
-                                track.getId(),
-                                track.getTitle(),
-                                learnerName,
-                                formattedDate);
-        }
+		return response;
+	}
 }

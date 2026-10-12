@@ -26,44 +26,44 @@ public class BadgeService {
         this.lessonProgressService = lessonProgressService;
     }
 
-    public List<BadgeResponse> getMyBadges(Long userId) {
+	public List<BadgeResponse> getMyBadges(java.util.UUID userId) {
+		List<TrackProgressResponse> trackProgress = lessonProgressService.getUserTrackProgress(userId);
+		StreakResponse streak = lessonProgressService.getStreak(userId);
+		long tracksStarted = 0;
+		long tracksCompleted = 0;
+		List<BadgeResponse> badges = null;
 
-        List<TrackProgressResponse> trackProgress =
-                lessonProgressService.getUserTrackProgress(userId);
+		tracksStarted = trackProgress.stream()
+				.filter(t -> t.getCompletedLessons() > 0)
+				.count();
+		tracksCompleted = trackProgress.stream()
+				.filter(t -> t.getTotalLessons() > 0 && t.getCompletedLessons() >= t.getTotalLessons())
+				.count();
 
-        long tracksStarted = trackProgress.stream()
-                .filter(t -> t.getCompletedLessons() > 0)
-                .count();
+		badges = List.of(
+				new BadgeResponse(
+						"first-track-started",
+						"First Track Started",
+						"Started your first learning track",
+						tracksStarted >= 1,
+						"Start any track to unlock"
+				),
+				new BadgeResponse(
+						"five-day-streak",
+						"5 Day Streak",
+						"Learned 5 days in a row",
+						streak.getCurrentStreakDays() >= 5,
+						"Learn 5 days in a row to unlock"
+				),
+				new BadgeResponse(
+						"track-master",
+						"Track Master",
+						"Complete 3 tracks",
+						tracksCompleted >= 3,
+						"Complete 3 tracks to unlock"
+				)
+		);
 
-        long tracksCompleted = trackProgress.stream()
-                .filter(t -> t.getTotalLessons() > 0
-                        && t.getCompletedLessons() >= t.getTotalLessons())
-                .count();
-
-        StreakResponse streak = lessonProgressService.getStreak(userId);
-
-        return List.of(
-                new BadgeResponse(
-                        "first-track-started",
-                        "First Track Started",
-                        "Started your first learning track",
-                        tracksStarted >= 1,
-                        "Start any track to unlock"
-                ),
-                new BadgeResponse(
-                        "five-day-streak",
-                        "5 Day Streak",
-                        "Learned 5 days in a row",
-                        streak.getCurrentStreakDays() >= 5,
-                        "Learn 5 days in a row to unlock"
-                ),
-                new BadgeResponse(
-                        "track-master",
-                        "Track Master",
-                        "Complete 3 tracks",
-                        tracksCompleted >= 3,
-                        "Complete 3 tracks to unlock"
-                )
-        );
-    }
+		return badges;
+	}
 }

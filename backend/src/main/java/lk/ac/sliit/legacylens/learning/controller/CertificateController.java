@@ -1,46 +1,71 @@
 package lk.ac.sliit.legacylens.learning.controller;
 
 import lk.ac.sliit.legacylens.auth.security.CustomUserDetails;
-import lk.ac.sliit.legacylens.learning.dto.CertificateResponse;
-import lk.ac.sliit.legacylens.learning.service.CertificateService;
+import lk.ac.sliit.legacylens.common.dto.ApiResponse;
+import lk.ac.sliit.legacylens.learning.certificate.CertificateIssuer;
+import lk.ac.sliit.legacylens.learning.dto.CertificateVerificationResponse;
+import lk.ac.sliit.legacylens.learning.dto.IssuedCertificateResponse;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/learning/certificates")
 public class CertificateController {
 
-    private final CertificateService certificateService;
+	private final CertificateIssuer certificateIssuer;
 
-    public CertificateController(CertificateService certificateService) {
-        this.certificateService = certificateService;
-    }
+	public CertificateController(CertificateIssuer certificateIssuer) {
+		this.certificateIssuer = certificateIssuer;
+	}
 
-    @GetMapping("/me/tracks/{trackId}")
-    public ResponseEntity<CertificateResponse> getMyCertificate(
-            Authentication authentication,
-            @PathVariable Long trackId) {
+	@GetMapping("/me")
+	public ResponseEntity<ApiResponse<List<IssuedCertificateResponse>>> getMyCertificates(
+			@AuthenticationPrincipal CustomUserDetails principal) {
+		UUID userId = principal.getUser().getId();
+		List<IssuedCertificateResponse> certificates = certificateIssuer.getMyCertificates(userId);
 
-        // Long userId here is the existing (phone-number-based) key used
-        // to look up lesson progress — see CertificateService's note.
-        Long userId = Long.valueOf(authentication.getName());
+		return ResponseEntity.ok(ApiResponse.ok(certificates));
+	}
 
-        // The real learner name comes straight off the authenticated
-        // User entity, not from that Long userId.
-        CustomUserDetails userDetails =
-                (CustomUserDetails) authentication.getPrincipal();
-        String learnerName = userDetails.getUser().getFullName();
+	@PostMapping("/me/tracks/{trackId}")
+	public ResponseEntity<ApiResponse<IssuedCertificateResponse>> issueMyCertificate(
+			@AuthenticationPrincipal CustomUserDetails principal,
+			@PathVariable Long trackId) {
+		UUID userId = principal.getUser().getId();
+		String learnerName = principal.getUser().getFullName();
+		IssuedCertificateResponse certificate = certificateIssuer.issueCertificate(
+				userId,
+				learnerName,
+				trackId
+		);
 
-        return ResponseEntity.ok(
-                certificateService.getCertificate(
-                        userId,
-                        learnerName,
-                        trackId
-                )
-        );
-    }
+		return ResponseEntity.ok(ApiResponse.ok("Certificate issued successfully", certificate));
+	}
+
+	@GetMapping("/me/tracks/{trackId}")
+	public ResponseEntity<ApiResponse<IssuedCertificateResponse>> getMyCertificateForTrack(
+			@AuthenticationPrincipal CustomUserDetails principal,
+			@PathVariable Long trackId) {
+		UUID userId = principal.getUser().getId();
+		String learnerName = principal.getUser().getFullName();
+		IssuedCertificateResponse certificate = certificateIssuer.issueCertificate(
+				userId,
+				learnerName,
+				trackId
+		);
+
+		return ResponseEntity.ok(ApiResponse.ok(certificate));
+	}
+
+	@GetMapping("/verify/{code}")
+	public ResponseEntity<ApiResponse<CertificateVerificationResponse>> verifyCertificate(
+			@PathVariable String code) {
+		CertificateVerificationResponse response = certificateIssuer.verifyCertificate(code);
+
+		return ResponseEntity.ok(ApiResponse.ok(response));
+	}
 }

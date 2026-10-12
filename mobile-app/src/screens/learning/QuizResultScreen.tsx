@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import {
   useNavigation,
@@ -6,9 +6,13 @@ import {
   RouteProp,
 } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Sparkles, Award, ArrowLeft, Trophy, Star, CheckCircle2, XCircle, Flame } from 'lucide-react-native';
 
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
+import { apiGet } from '../../services/api/client';
+import { learningStrings } from '../../constants/learningStrings';
 
 type NavigationProp = NativeStackNavigationProp<
   LearningStackParamList,
@@ -20,9 +24,18 @@ type QuizResultRouteProp = RouteProp<
   'QuizResult'
 >;
 
+interface ProgressSummary {
+  totalXp: number;
+  level: number;
+  xpForCurrentLevel: number;
+  xpForNextLevel: number;
+  xpToNextLevel: number;
+  currentStreakDays: number;
+  levelUp: boolean;
+}
+
 export default function QuizResultScreen() {
   const navigation = useNavigation<NavigationProp>();
-
   const route = useRoute<QuizResultRouteProp>();
 
   const {
@@ -30,8 +43,22 @@ export default function QuizResultScreen() {
     totalQuestions,
     correctCount,
     xpEarned,
-    currentStreakDays,
+    currentStreakDays: initialStreak,
   } = route.params;
+
+  const [summary, setSummary] = useState<ProgressSummary | null>(null);
+
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const data = await apiGet<ProgressSummary>('/learning/progress/me/summary');
+        setSummary(data);
+      } catch (err) {
+        console.log('Failed to fetch summary on quiz result:', err);
+      }
+    };
+    fetchSummary();
+  }, []);
 
   const percent =
     totalQuestions > 0
@@ -46,12 +73,44 @@ export default function QuizResultScreen() {
         : 1;
 
   const incorrectCount = totalQuestions - correctCount;
+  const streakDays = summary?.currentStreakDays ?? initialStreak;
+  const userLevel = summary?.level ?? 1;
 
   return (
     <View style={styles.container}>
+      {/* Top Bar with Back Button */}
+      <View style={styles.topBar}>
+        <Pressable
+          onPress={() => navigation.navigate('CourseTracksList')}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back to Discover Tracks"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <ArrowLeft size={20} color={Colors.text} />
+          <Text style={styles.backButtonText}>Tracks</Text>
+        </Pressable>
+      </View>
+
+      {/* Level-Up Moment */}
+      {summary?.levelUp && (
+        <Animated.View entering={FadeInDown.duration(600)} style={styles.levelUpMomentCard}>
+          <View style={styles.levelUpMomentIcon}>
+            <Sparkles size={24} color={Colors.white} />
+          </View>
+          <View style={styles.levelUpMomentTextWrapper}>
+            <Text style={styles.levelUpMomentTitle}>{learningStrings.progress.levelUpTitle}</Text>
+            <Text style={styles.levelUpMomentSubtitle}>
+              {learningStrings.progress.levelUpSubtitle(userLevel)}
+            </Text>
+          </View>
+        </Animated.View>
+      )}
 
       {/* Trophy */}
-      <Text style={styles.trophy}>🏆</Text>
+      <View style={styles.trophyWrapper}>
+        <Trophy size={54} color={Colors.accent} />
+      </View>
 
       {/* Headline */}
       <Text style={styles.headline}>
@@ -64,10 +123,16 @@ export default function QuizResultScreen() {
       </Text>
 
       {/* Stars */}
-      <Text style={styles.stars}>
-        {'⭐'.repeat(starCount)}
-        {'☆'.repeat(3 - starCount)}
-      </Text>
+      <View style={styles.starsRow}>
+        {[1, 2, 3].map((starIdx) => (
+          <Star
+            key={starIdx}
+            size={24}
+            color={Colors.accent}
+            fill={starIdx <= starCount ? Colors.accent : 'transparent'}
+          />
+        ))}
+      </View>
 
       {/* Percentage */}
       <Text style={styles.percentText}>
@@ -76,40 +141,42 @@ export default function QuizResultScreen() {
 
       {/* Breakdown */}
       <View style={styles.breakdownRow}>
-
         <View style={styles.breakdownItem}>
-          <Text style={styles.breakdownIcon}>
-            ✅
-          </Text>
-
+          <CheckCircle2 size={20} color={Colors.secondary} />
           <Text style={styles.breakdownLabel}>
             {correctCount} Correct
           </Text>
         </View>
 
         <View style={styles.breakdownItem}>
-          <Text style={styles.breakdownIcon}>
-            ❌
-          </Text>
-
+          <XCircle size={20} color={Colors.accent} />
           <Text style={styles.breakdownLabel}>
             {incorrectCount} Incorrect
           </Text>
         </View>
-
       </View>
 
       {/* Reward Card */}
       <View style={styles.rewardCard}>
-
         <Text style={styles.rewardText}>
           +{xpEarned} XP
         </Text>
 
-        <Text style={styles.streakText}>
-          🔥 {currentStreakDays} day streak
-        </Text>
+        <View style={styles.streakRow}>
+          <Flame size={16} color={Colors.secondary} />
+          <Text style={styles.streakText}>
+            {streakDays} day streak
+          </Text>
+        </View>
 
+        {summary && (
+          <View style={styles.levelSummaryRow}>
+            <Award size={14} color={Colors.secondary} />
+            <Text style={styles.levelSummaryText}>
+              Level {userLevel} · {summary.xpToNextLevel > 0 ? `${summary.xpToNextLevel} XP to next level` : 'Max Level'}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Continue */}
@@ -118,6 +185,8 @@ export default function QuizResultScreen() {
         onPress={() =>
           navigation.navigate('ProgressTracking')
         }
+        accessibilityRole="button"
+        accessibilityLabel="Continue to Progress Tracking"
       >
         <Text style={styles.continueButtonText}>
           Continue
@@ -132,6 +201,8 @@ export default function QuizResultScreen() {
             lessonId,
           })
         }
+        accessibilityRole="button"
+        accessibilityLabel="Retry Quiz"
       >
         <Text style={styles.retryButtonText}>
           Retry Quiz
@@ -147,13 +218,43 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.dominant,
-    paddingTop: 60,
+    paddingTop: 50,
     paddingHorizontal: Spacing.lg,
     alignItems: 'center',
   },
 
-  trophy: {
-    fontSize: 60,
+  topBar: {
+    width: '100%',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.sm,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderRadius: Radii.full,
+    shadowColor: Colors.secondaryDark,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  backButtonText: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeSM,
+    color: Colors.text,
+  },
+
+  trophyWrapper: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: Colors.accentSubtle,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: Spacing.sm,
     marginBottom: Spacing.xs,
   },
 
@@ -170,8 +271,9 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
 
-  stars: {
-    fontSize: 24,
+  starsRow: {
+    flexDirection: 'row',
+    gap: 6,
     marginVertical: Spacing.xs + 2,
   },
 
@@ -184,17 +286,13 @@ const styles = StyleSheet.create({
 
   breakdownRow: {
     flexDirection: 'row',
-    gap: Spacing.lg,
+    gap: Spacing.xl,
     marginBottom: Spacing.md,
   },
 
   breakdownItem: {
     alignItems: 'center',
-  },
-
-  breakdownIcon: {
-    fontSize: 20,
-    marginBottom: Spacing.xs,
+    gap: 4,
   },
 
   breakdownLabel: {
@@ -218,6 +316,12 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizeLG,
     color: Colors.accent,
     marginBottom: Spacing.xs,
+  },
+
+  streakRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 
   streakText: {
@@ -251,5 +355,52 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeSM,
   },
-
+  levelUpMomentCard: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.accent,
+    borderRadius: Radii.xl,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    shadowColor: Colors.accent,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  levelUpMomentIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: Radii.full,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  levelUpMomentTextWrapper: {
+    flex: 1,
+  },
+  levelUpMomentTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeMD + 2,
+    color: Colors.white,
+  },
+  levelUpMomentSubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeXS,
+    color: 'rgba(255,255,255,0.92)',
+    marginTop: 2,
+  },
+  levelSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: Spacing.xs,
+  },
+  levelSummaryText: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeXS,
+    color: Colors.secondary,
+  },
 });

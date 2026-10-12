@@ -10,6 +10,7 @@ import Animated, {
   FadeOutLeft
 } from 'react-native-reanimated';
 import { QuestionOptionId } from '../../types/learning';
+import { ArrowLeft } from 'lucide-react-native';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
@@ -104,6 +105,15 @@ export default function QuizScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <ArrowLeft size={22} color={Colors.text} />
+        </Pressable>
         <Text style={{ color: Colors.text, textAlign: 'center', marginTop: 100 }}>Loading quiz...</Text>
       </View>
     );
@@ -112,6 +122,15 @@ export default function QuizScreen() {
   if (error || !question) {
     return (
       <View style={styles.container}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <ArrowLeft size={22} color={Colors.text} />
+        </Pressable>
         <Text style={{ color: Colors.text, textAlign: 'center', marginTop: 100 }}>
           {error || 'No quiz questions found.'}
         </Text>
@@ -158,7 +177,18 @@ export default function QuizScreen() {
     <View style={styles.container}>
       {/* Header & Progress */}
       <View style={styles.header}>
-        <Text style={styles.progressLabel}>Question {questionIndex + 1} of {questions.length}</Text>
+        <View style={styles.headerTopRow}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Back to Track"
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <ArrowLeft size={22} color={Colors.text} />
+          </Pressable>
+          <Text style={styles.progressLabel}>Question {questionIndex + 1} of {questions.length}</Text>
+        </View>
         <View style={styles.progressBarBackground}>
           <Animated.View style={[styles.progressBarFill, progressStyle]} />
         </View>
@@ -217,11 +247,29 @@ export default function QuizScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dominant, paddingTop: 50, paddingHorizontal: Spacing.md },
   header: { marginBottom: Spacing.xl },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.secondaryDark,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   progressLabel: { 
+    flex: 1,
     fontFamily: Typography.fontDisplay, 
     fontSize: Typography.sizeLG, 
     color: Colors.text,
-    marginBottom: Spacing.sm
   },
   progressBarBackground: {
     height: 10,

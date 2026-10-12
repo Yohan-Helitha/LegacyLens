@@ -4,319 +4,221 @@ import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.learning.dto.LessonProgressResponse;
 import lk.ac.sliit.legacylens.learning.dto.StreakResponse;
 import lk.ac.sliit.legacylens.learning.dto.TrackProgressResponse;
+import lk.ac.sliit.legacylens.learning.entity.LearningTrack;
 import lk.ac.sliit.legacylens.learning.entity.Lesson;
 import lk.ac.sliit.legacylens.learning.entity.LessonProgress;
-import lk.ac.sliit.legacylens.learning.entity.LearningTrack;
+import lk.ac.sliit.legacylens.learning.progress.StreakCalculator;
+import lk.ac.sliit.legacylens.learning.progress.XpPolicy;
+import lk.ac.sliit.legacylens.learning.repository.LearningTrackRepository;
 import lk.ac.sliit.legacylens.learning.repository.LessonProgressRepository;
 import lk.ac.sliit.legacylens.learning.repository.LessonRepository;
-import lk.ac.sliit.legacylens.learning.repository.LearningTrackRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.DayOfWeek;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.TemporalAdjusters;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+
 @Service
 public class LessonProgressService {
 
-    private final LessonProgressRepository lessonProgressRepository;
-    private final LessonRepository lessonRepository;
-    private final LearningTrackRepository learningTrackRepository;
-    private final XpService xpService;
-    private final QuizQuestionService quizQuestionService;
-    
-    public LessonProgressService(
-            LessonProgressRepository lessonProgressRepository,
-            LessonRepository lessonRepository,
-            LearningTrackRepository learningTrackRepository,
-            XpService xpService,
-            QuizQuestionService quizQuestionService) {
+	private static final Logger log = LoggerFactory.getLogger(LessonProgressService.class);
 
-        this.lessonProgressRepository = lessonProgressRepository;
-        this.lessonRepository = lessonRepository;
-        this.learningTrackRepository = learningTrackRepository;
-        this.xpService = xpService;
-        this.quizQuestionService = quizQuestionService;
-    }
+	private final LessonProgressRepository lessonProgressRepository;
+	private final LessonRepository lessonRepository;
+	private final LearningTrackRepository learningTrackRepository;
+	private final XpPolicy xpPolicy;
+	private final StreakCalculator streakCalculator;
+	private final Clock clock;
 
-    public Optional<LessonProgress> getProgress(
-            Long userId,
-            Long lessonId) {
+	public LessonProgressService(
+			LessonProgressRepository lessonProgressRepository,
+			LessonRepository lessonRepository,
+			LearningTrackRepository learningTrackRepository,
+			XpPolicy xpPolicy,
+			StreakCalculator streakCalculator,
+			Clock clock) {
+		this.lessonProgressRepository = lessonProgressRepository;
+		this.lessonRepository = lessonRepository;
+		this.learningTrackRepository = learningTrackRepository;
+		this.xpPolicy = xpPolicy;
+		this.streakCalculator = streakCalculator;
+		this.clock = clock;
+	}
 
-        return lessonProgressRepository
-                .findByUserIdAndLessonId(userId, lessonId);
-    }
+	public Optional<LessonProgress> getProgress(UUID userId, Long lessonId) {
+		Optional<LessonProgress> progress = lessonProgressRepository.findByUserIdAndLessonId(userId, lessonId);
 
-    public List<LessonProgress> getUserProgress(Long userId) {
-        return lessonProgressRepository.findByUserId(userId);
-    }
+		return progress;
+	}
 
-    public Optional<LessonProgressResponse> getProgressResponse(
-            Long userId,
-            Long lessonId) {
+	public List<LessonProgress> getUserProgress(UUID userId) {
+		List<LessonProgress> progressList = lessonProgressRepository.findByUserId(userId);
 
-        return lessonProgressRepository
-                .findByUserIdAndLessonId(userId, lessonId)
-                .map(progress -> new LessonProgressResponse(
-                        progress.getLesson().getId(),
-                        progress.isCompleted(),
-                        progress.getScore(),
-                        progress.getXpEarned()
-                ));
-    }
+		return progressList;
+	}
 
-    public List<LessonProgressResponse> getUserProgressResponse(
-            Long userId) {
+	public Optional<LessonProgressResponse> getProgressResponse(UUID userId, Long lessonId) {
+		Optional<LessonProgressResponse> response = lessonProgressRepository
+				.findByUserIdAndLessonId(userId, lessonId)
+				.map(progress -> new LessonProgressResponse(
+						progress.getLesson().getId(),
+						progress.isCompleted(),
+						progress.getScore(),
+						progress.getXpEarned()
+				));
 
-        return lessonProgressRepository.findByUserId(userId)
-                .stream()
-                .map(progress -> new LessonProgressResponse(
-                        progress.getLesson().getId(),
-                        progress.isCompleted(),
-                        progress.getScore(),
-                        progress.getXpEarned()
-                ))
-                .toList();
-    }
+		return response;
+	}
 
-    public List<TrackProgressResponse> getUserTrackProgress(
-            Long userId) {
+	public List<LessonProgressResponse> getUserProgressResponse(UUID userId) {
+		List<LessonProgressResponse> responses = lessonProgressRepository.findByUserId(userId)
+				.stream()
+				.map(progress -> new LessonProgressResponse(
+						progress.getLesson().getId(),
+						progress.isCompleted(),
+						progress.getScore(),
+						progress.getXpEarned()
+				))
+				.toList();
 
-        List<LearningTrack> tracks =
-                learningTrackRepository.findAll();
+		return responses;
+	}
 
-        return tracks.stream()
-                .map(track -> {
+	public List<TrackProgressResponse> getUserTrackProgress(UUID userId) {
+		Map<Long, LearningTrack> trackMap = new LinkedHashMap<>();
+		for (LearningTrack track : learningTrackRepository.findByOriginAndVisibility("ADMIN", "PUBLIC")) {
+			trackMap.put(track.getId(), track);
+		}
+		if (userId != null) {
+			for (LearningTrack track : learningTrackRepository.findByOwnerUserIdOrderByCreatedAtDesc(userId)) {
+				trackMap.putIfAbsent(track.getId(), track);
+			}
+		}
 
-                    int totalLessons =
-                            track.getTotalLessons() == null
-                                    ? 0
-                                    : track.getTotalLessons();
+		List<TrackProgressResponse> results = trackMap.values().stream()
+				.map(track -> {
+					long completedLessons = userId == null ? 0 : lessonProgressRepository
+							.countByUserIdAndLesson_Track_IdAndCompletedTrue(userId, track.getId());
+					int rawTotalLessons = track.getTotalLessons() == null ? 0 : track.getTotalLessons();
+					long actualLessonCount = lessonRepository.countByTrackId(track.getId());
+					int totalLessons = (int) Math.max(Math.max(rawTotalLessons, actualLessonCount), completedLessons);
+					long cappedCompletedLessons = Math.min(completedLessons, totalLessons);
+					long xpEarned = userId == null ? 0 : lessonProgressRepository.sumXpByUserIdAndTrackId(userId, track.getId());
+					int progressPercentage = totalLessons == 0 ? 0 : Math.min(100, (int) Math.round((cappedCompletedLessons * 100.0) / totalLessons));
 
-                    long completedLessons =
-                            lessonProgressRepository
-                                    .countByUserIdAndLesson_Track_IdAndCompletedTrue(
-                                            userId,
-                                            track.getId()
-                                    );
+					return new TrackProgressResponse(
+							track.getId(),
+							track.getTitle(),
+							totalLessons,
+							cappedCompletedLessons,
+							progressPercentage,
+							xpEarned
+					);
+				})
+				.toList();
 
-                    long xpEarned =
-                            lessonProgressRepository
-                                    .sumXpByUserIdAndTrackId(
-                                            userId,
-                                            track.getId()
-                                    );
+		return results;
+	}
 
-                    int progressPercentage =
-                            totalLessons == 0
-                                    ? 0
-                                    : (int) Math.round(
-                                            (completedLessons * 100.0)
-                                                    / totalLessons
-                                    );
+	@Transactional
+	public LessonProgress completeFlashcardLesson(UUID userId, Long lessonId) {
+		Lesson lesson = lessonRepository.findById(lessonId)
+				.orElseThrow(() -> new ResourceNotFoundException("Lesson not found"));
+		LessonProgress progress = lessonProgressRepository.findByUserIdAndLessonId(userId, lessonId)
+				.orElseGet(LessonProgress::new);
 
-                    return new TrackProgressResponse(
-                            track.getId(),
-                            track.getTitle(),
-                            totalLessons,
-                            completedLessons,
-                            progressPercentage,
-                            xpEarned
-                    );
-                })
-                .toList();
-    }
+		if (progress.isCompleted()) {
+			return progress;
+		}
 
-    public LessonProgress updateProgress(
-            Long userId,
-            Long lessonId,
-            boolean completed,
-            Integer score,
-            Integer xpEarned) {
+		int xpEarned = xpPolicy.calculateFlashcardLessonXp(true);
+		LocalDateTime now = LocalDateTime.now(clock.withZone(ZoneId.of("Asia/Colombo")));
 
-        Lesson lesson = lessonRepository.findById(lessonId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Lesson not found"
-                        ));
+		progress.setUserId(userId);
+		progress.setLesson(lesson);
+		progress.setCompleted(true);
+		progress.setScore(100);
+		progress.setXpEarned(xpEarned);
+		progress.setCompletedAt(now);
 
-        LessonProgress progress =
-                lessonProgressRepository
-                        .findByUserIdAndLessonId(userId, lessonId)
-                        .orElseGet(LessonProgress::new);
+		try {
+			progress = lessonProgressRepository.save(progress);
+		} catch (DataIntegrityViolationException ex) {
+			log.warn("Concurrent lesson progress creation detected for user {} lesson {}", userId, lessonId);
+			progress = lessonProgressRepository.findByUserIdAndLessonId(userId, lessonId)
+					.orElseThrow(() -> ex);
+		}
 
-        progress.setUserId(userId);
-        progress.setLesson(lesson);
-        progress.setCompleted(completed);
-        progress.setScore(score);
-        progress.setXpEarned(xpEarned);
+		return progress;
+	}
 
+	@Transactional
+	public LessonProgress completeQuizLessonServerGraded(
+			UUID userId,
+			Long lessonId,
+			int correctAnswers,
+			long totalQuestions) {
+		Lesson lesson = lessonRepository.findById(lessonId)
+				.orElseThrow(() -> new ResourceNotFoundException("Lesson not found"));
+		LessonProgress progress = lessonProgressRepository.findByUserIdAndLessonId(userId, lessonId)
+				.orElseGet(LessonProgress::new);
 
-        if (completed) {
-        progress.setCompletedAt(LocalDateTime.now());
-        }
+		if (progress.isCompleted()) {
+			return progress;
+		}
 
-        return lessonProgressRepository.save(progress);
-    }
+		int scorePercentage = totalQuestions == 0 ? 0 : (int) Math.round((correctAnswers * 100.0) / totalQuestions);
+		boolean passed = scorePercentage >= 50;
+		int xpEarned = xpPolicy.calculateQuizXp(correctAnswers, passed);
+		LocalDateTime now = LocalDateTime.now(clock.withZone(ZoneId.of("Asia/Colombo")));
 
-    public List<TrackProgressResponse> getTrackProgress(Long userId) {
+		progress.setUserId(userId);
+		progress.setLesson(lesson);
+		progress.setCompleted(passed);
+		progress.setScore(correctAnswers);
+		progress.setXpEarned(xpEarned);
+		if (passed) {
+			progress.setCompletedAt(now);
+		}
 
-    List<LearningTrack> tracks =
-            learningTrackRepository.findAll();
+		try {
+			progress = lessonProgressRepository.save(progress);
+		} catch (DataIntegrityViolationException ex) {
+			log.warn("Concurrent quiz completion detected for user {} lesson {}", userId, lessonId);
+			progress = lessonProgressRepository.findByUserIdAndLessonId(userId, lessonId)
+					.orElseThrow(() -> ex);
+		}
 
-    return tracks.stream()
-            .map(track -> {
+		return progress;
+	}
 
-                long totalLessons =
-                        lessonRepository.countByTrackId(track.getId());
+	public StreakResponse getStreak(UUID userId) {
+		List<LessonProgress> userProgress = lessonProgressRepository.findByUserId(userId);
+		Set<LocalDate> completedDates = userProgress.stream()
+				.filter(LessonProgress::isCompleted)
+				.map(LessonProgress::getCompletedAt)
+				.filter(Objects::nonNull)
+				.map(LocalDateTime::toLocalDate)
+				.collect(Collectors.toSet());
+		int currentStreak = streakCalculator.calculateCurrentStreak(completedDates);
+		List<Boolean> last7Days = streakCalculator.calculateLast7Days(completedDates);
 
-                long completedLessons =
-        lessonProgressRepository
-                .countByUserIdAndLesson_Track_IdAndCompletedTrue(
-                        userId,
-                        track.getId()
-                );
+		StreakResponse response = new StreakResponse(currentStreak, last7Days);
 
-                long xpEarned =
-                        lessonProgressRepository
-                                .sumXpByUserIdAndTrackId(
-                                        userId,
-                                        track.getId()
-                                );
-
-                int progressPercentage =
-                        totalLessons == 0
-                                ? 0
-                                : (int) Math.round(
-                                        (completedLessons * 100.0)
-                                                / totalLessons
-                                );
-
-                return new TrackProgressResponse(
-                        track.getId(),
-                        track.getTitle(),
-                        (int) totalLessons,
-                        completedLessons,
-                        progressPercentage,
-                        xpEarned
-                );
-            })
-            .toList();
-}
-
-    public LessonProgress completeLesson(
-            Long userId,
-            Long lessonId,
-            int correctAnswers) {
-
-        if (correctAnswers < 0) {
-            throw new IllegalArgumentException(
-                    "Correct answers cannot be negative"
-            );
-        }
-
-        Lesson lesson = lessonRepository.findById(lessonId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Lesson not found"
-                        ));
-
-        long totalQuestions =
-                quizQuestionService.getQuestionCountForLesson(lessonId);
-
-        if (correctAnswers > totalQuestions) {
-            throw new IllegalArgumentException(
-                    "Correct answers cannot exceed total quiz questions"
-            );
-        }
-
-        LessonProgress progress =
-                lessonProgressRepository
-                        .findByUserIdAndLessonId(userId, lessonId)
-                        .orElseGet(LessonProgress::new);
-
-        /*
-         * If the lesson was already successfully completed,
-         * don't award XP again.
-         */
-        if (progress.isCompleted()) {
-            return progress;
-        }
-
-        int scorePercentage = totalQuestions == 0
-                ? 0
-                : (int) Math.round(
-                        (correctAnswers * 100.0) / totalQuestions
-                );
-
-        // 50% or above = lesson passed
-        boolean completed = scorePercentage >= 50;
-
-        int xpEarned = xpService.calculateQuizXp(
-                correctAnswers,
-                completed
-        );
-
-        progress.setUserId(userId);
-        progress.setLesson(lesson);
-        progress.setCompleted(completed);
-        progress.setScore(correctAnswers);
-        progress.setXpEarned(xpEarned);
-
-
-        if (completed) {
-        progress.setCompletedAt(LocalDateTime.now());
-        }
-
-        return lessonProgressRepository.save(progress);
-    }
-
-    public StreakResponse getStreak(Long userId) {
-
-    Set<LocalDate> completedDates =
-            lessonProgressRepository.findByUserId(userId)
-                    .stream()
-                    .filter(LessonProgress::isCompleted)
-                    .map(LessonProgress::getCompletedAt)
-                    .filter(Objects::nonNull)
-                    .map(LocalDateTime::toLocalDate)
-                    .collect(Collectors.toSet());
-
-    LocalDate today = LocalDate.now();
-
-    int currentStreak = 0;
-    LocalDate date = today;
-
-    while (completedDates.contains(date)) {
-        currentStreak++;
-        date = date.minusDays(1);
-    }
-
-    LocalDate monday =
-            today.with(
-                    TemporalAdjusters.previousOrSame(
-                            DayOfWeek.MONDAY
-                    )
-            );
-
-    List<Boolean> last7Days =
-            IntStream.range(0, 7)
-                    .mapToObj(i ->
-                            completedDates.contains(
-                                    monday.plusDays(i)
-                            )
-                    )
-                    .toList();
-
-    return new StreakResponse(
-            currentStreak,
-            last7Days
-    );
-}
+		return response;
+	}
 }

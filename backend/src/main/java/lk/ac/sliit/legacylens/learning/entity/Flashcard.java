@@ -30,6 +30,12 @@ public class Flashcard {
     @Column(name = "recorded_by")
     private String recordedBy;
 
+    @Column(name = "source_content_id")
+    private String sourceContentId;
+
+    @Column(columnDefinition = "TEXT")
+    private String evidence;
+
     public Flashcard() {
     }
 
@@ -87,5 +93,21 @@ public class Flashcard {
 
     public void setRecordedBy(String recordedBy) {
         this.recordedBy = recordedBy;
+    }
+
+    public String getSourceContentId() {
+        return sourceContentId;
+    }
+
+    public void setSourceContentId(String sourceContentId) {
+        this.sourceContentId = sourceContentId;
+    }
+
+    public String getEvidence() {
+        return evidence;
+    }
+
+    public void setEvidence(String evidence) {
+        this.evidence = evidence;
     }
 }

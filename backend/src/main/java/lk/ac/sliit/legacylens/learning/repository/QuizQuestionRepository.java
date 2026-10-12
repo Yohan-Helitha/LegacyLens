@@ -9,4 +9,5 @@ public interface QuizQuestionRepository extends JpaRepository<QuizQuestion, Long
 
     List<QuizQuestion> findByLessonIdOrderByIdAsc(Long lessonId);
     long countByLessonId(Long lessonId);
+    List<QuizQuestion> findByFlashcardId(Long flashcardId);
 }

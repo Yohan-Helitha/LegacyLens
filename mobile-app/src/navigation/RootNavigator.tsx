@@ -44,7 +44,7 @@ export type RootStackParamList = {
   OnBoarding1: undefined;
   OnBoarding2: undefined;
   OnBoarding3: undefined;
-  User: undefined;
+  User: { initialTab?: 'home' | 'learn' | 'market' | 'map' | 'profile' } | undefined;
   Admin: undefined;
   StorytellerOnboarding: undefined;
   ContentCapture: undefined;
@@ -258,7 +258,7 @@ export const RootNavigator: React.FC = () => {
 
       {/* ── General-user flow (home feed, map, profile) ─────────────────────── */}
       <Stack.Screen name="User">
-        {({ navigation }) => <UserNavigator navigation={navigation} />}
+        {({ navigation, route }) => <UserNavigator navigation={navigation} route={route} />}
       </Stack.Screen>
 
       {/* ── Admin flow — only reached when the logged-in user has the ADMIN role ── */}

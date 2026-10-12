@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect, Circle, Path } from 'react-native-svg';
 import { Badge } from '../../types/learning';
+import { ArrowLeft, Lock, Flame, Check } from 'lucide-react-native';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { useNavigation } from '@react-navigation/native';
 import { apiGet } from '../../services/api/client';
@@ -19,7 +20,7 @@ function BadgeMedal({ earned }: { earned: boolean }) {
   if (!earned) {
     return (
       <View style={styles.lockCircle}>
-        <Text style={styles.lockGlyph}>🔒</Text>
+        <Lock size={18} color={Colors.textMuted} />
       </View>
     );
   }
@@ -84,8 +85,14 @@ export default function BadgesStreaksScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.backArrow}>←</Text>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back to Progress Tracking"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <ArrowLeft size={20} color={Colors.text} />
         </Pressable>
         <Text style={styles.header}>Badges & Streaks</Text>
       </View>
@@ -103,12 +110,15 @@ export default function BadgesStreaksScreen() {
           <Circle cx="6" cy="56" r="18" fill={Colors.white} opacity={0.06} />
         </Svg>
 
-        <Text style={styles.streakHeadline}>🔥 {currentStreakDays} Days</Text>
+        <View style={styles.streakHeadlineRow}>
+          <Flame size={20} color={Colors.white} fill={Colors.white} />
+          <Text style={styles.streakHeadline}>{currentStreakDays} Days</Text>
+        </View>
         <View style={styles.weekRow}>
           {last7Days.map((done, i) => (
             <View key={i} style={styles.dayColumn}>
               <View style={[styles.dayDot, done && styles.dayDotDone]}>
-                {done ? <Text style={styles.dayDotCheck}>✓</Text> : null}
+                {done ? <Check size={12} color={Colors.white} strokeWidth={3} /> : null}
               </View>
               <Text style={styles.dayLabel}>{DAY_LABELS[i]}</Text>
             </View>
@@ -137,7 +147,18 @@ export default function BadgesStreaksScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dominant, paddingTop: 50, paddingHorizontal: Spacing.md },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md, gap: Spacing.sm },
-  backArrow: { fontSize: Typography.sizeLG, color: Colors.text },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.secondaryDark,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   header: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeXL - 2, color: Colors.text },
 
   streakCard: {
@@ -151,7 +172,8 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 5,
   },
-  streakHeadline: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: Colors.white, marginBottom: Spacing.sm + 2 },
+  streakHeadlineRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.sm + 2 },
+  streakHeadline: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: Colors.white },
   weekRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
   dayColumn: { alignItems: 'center' },
   dayDot: {
@@ -171,7 +193,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  dayDotCheck: { color: Colors.white, fontSize: 12, fontFamily: Typography.fontBodySemi },
   dayLabel: { fontFamily: Typography.fontBody, fontSize: 10, color: 'rgba(255,255,255,0.85)' },
   motivationText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: Colors.white, fontStyle: 'italic', opacity: 0.9 },
 
@@ -203,7 +224,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  lockGlyph: { fontSize: 18, opacity: 0.5 },
   badgeName: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS - 1, color: Colors.text, textAlign: 'center', marginTop: Spacing.xs + 2 },
   badgeNameLocked: { color: Colors.textMuted },
   unlockHint: { fontFamily: Typography.fontBody, fontSize: 9, color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.xs },

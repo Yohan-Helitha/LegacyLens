@@ -17,207 +17,158 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 public class LearningDashboardService {
 
-    private final LessonProgressRepository lessonProgressRepository;
-    private final LessonRepository lessonRepository;
-    private final LearningTrackRepository learningTrackRepository;
+	private final LessonProgressRepository lessonProgressRepository;
+	private final LessonRepository lessonRepository;
+	private final LearningTrackRepository learningTrackRepository;
 
-    public LearningDashboardService(
-            LessonProgressRepository lessonProgressRepository,
-            LessonRepository lessonRepository,
-            LearningTrackRepository learningTrackRepository) {
+	public LearningDashboardService(
+			LessonProgressRepository lessonProgressRepository,
+			LessonRepository lessonRepository,
+			LearningTrackRepository learningTrackRepository) {
+		this.lessonProgressRepository = lessonProgressRepository;
+		this.lessonRepository = lessonRepository;
+		this.learningTrackRepository = learningTrackRepository;
+	}
 
-        this.lessonProgressRepository = lessonProgressRepository;
-        this.lessonRepository = lessonRepository;
-        this.learningTrackRepository = learningTrackRepository;
-    }
+	public LearningDashboardResponse getDashboard(UUID userId) {
+		long completedLessons = lessonProgressRepository.countByUserIdAndCompletedTrue(userId);
+		long totalLessons = lessonRepository.countByTrack_OriginAndTrack_Visibility("ADMIN", "PUBLIC")
+				+ lessonRepository.countByTrack_OwnerUserId(userId);
+		if (totalLessons < completedLessons) {
+			totalLessons = completedLessons;
+		}
+		long totalXp = lessonProgressRepository.sumXpByUserId(userId);
+		long completedTracks = learningTrackRepository.countCompletedTracks(userId);
+		double progressPercentage = 0.0;
+		LearningDashboardResponse response = null;
 
-    public LearningDashboardResponse getDashboard(Long userId) {
+		progressPercentage = totalLessons == 0
+				? 0.0
+				: Math.min(100.0, Math.round((completedLessons * 100.0 / totalLessons) * 100.0) / 100.0);
 
-        long completedLessons =
-                lessonProgressRepository
-                        .countByUserIdAndCompletedTrue(userId);
+		response = new LearningDashboardResponse(
+				totalXp,
+				completedLessons,
+				totalLessons,
+				progressPercentage,
+				completedTracks
+		);
 
-        long totalLessons =
-                lessonRepository.count();
+		return response;
+	}
 
-        long totalXp =
-                lessonProgressRepository
-                        .sumXpByUserId(userId);
+	public TrackDashboardResponse getTrackDashboard(UUID userId, Long trackId) {
+		LearningTrack track = learningTrackRepository.findById(trackId)
+				.orElseThrow(() -> new ResourceNotFoundException("Learning track not found"));
+		List<Lesson> lessons = lessonRepository.findByTrackIdOrderByLessonOrderAsc(trackId);
+		List<LessonProgress> progressList = lessonProgressRepository.findByUserId(userId);
+		Map<Long, LessonProgress> progressMap = null;
+		List<LessonProgressItem> lessonItems = null;
+		long totalLessons = 0;
+		long completedLessons = 0;
+		long totalXp = 0;
+		double progressPercentage = 0.0;
+		boolean completed = false;
+		TrackDashboardResponse response = null;
 
-        long completedTracks =
-                learningTrackRepository
-                        .countCompletedTracks(userId);
+		progressMap = progressList.stream()
+				.filter(progress -> progress.getLesson() != null)
+				.collect(Collectors.toMap(
+						progress -> progress.getLesson().getId(),
+						progress -> progress,
+						(existing, replacement) -> existing
+				));
 
-        double progressPercentage =
-                totalLessons == 0
-                        ? 0
-                        : Math.round(
-                                (completedLessons * 100.0 / totalLessons)
-                                        * 100.0
-                        ) / 100.0;
+		final Map<Long, LessonProgress> lookup = progressMap;
+		lessonItems = lessons.stream()
+				.map(lesson -> {
+					LessonProgress progress = lookup.get(lesson.getId());
+					boolean isDone = progress != null && progress.isCompleted();
+					int score = progress != null ? progress.getScore() : 0;
+					int xpEarned = progress != null ? progress.getXpEarned() : 0;
 
-        return new LearningDashboardResponse(
-                totalXp,
-                completedLessons,
-                totalLessons,
-                progressPercentage,
-                completedTracks
-        );
-    }
+					return new LessonProgressItem(
+							lesson.getId(),
+							lesson.getLessonOrder(),
+							lesson.getTitle(),
+							lesson.getDescription(),
+							lesson.getType(),
+							isDone,
+							score,
+							xpEarned
+					);
+				})
+				.toList();
 
-    public TrackDashboardResponse getTrackDashboard(
-            Long userId,
-            Long trackId) {
+		totalLessons = lessons.size();
+		completedLessons = lessonItems.stream()
+				.filter(LessonProgressItem::isCompleted)
+				.count();
+		totalXp = lessonItems.stream()
+				.mapToLong(LessonProgressItem::getXpEarned)
+				.sum();
+		progressPercentage = totalLessons == 0
+				? 0.0
+				: Math.round((completedLessons * 100.0 / totalLessons) * 100.0) / 100.0;
+		completed = totalLessons > 0 && completedLessons == totalLessons;
 
-        LearningTrack track =
-                learningTrackRepository.findById(trackId)
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "Learning track not found"
-                                ));
+		response = new TrackDashboardResponse(
+				track.getId(),
+				track.getTitle(),
+				completedLessons,
+				totalLessons,
+				progressPercentage,
+				totalXp,
+				completed,
+				lessonItems
+		);
 
-        List<Lesson> lessons =
-                lessonRepository
-                        .findByTrackIdOrderByLessonOrderAsc(trackId);
+		return response;
+	}
 
-        List<LessonProgress> progressList =
-                lessonProgressRepository.findByUserId(userId);
+	public NextLessonResponse getNextLesson(UUID userId, Long trackId) {
+		if (!learningTrackRepository.existsById(trackId)) {
+			throw new ResourceNotFoundException("Learning track not found");
+		}
 
-        Map<Long, LessonProgress> progressMap =
-                progressList.stream()
-                        .filter(progress -> progress.getLesson() != null)
-                        .collect(Collectors.toMap(
-                                progress -> progress.getLesson().getId(),
-                                progress -> progress,
-                                (existing, replacement) -> existing
-                        ));
+		List<Lesson> lessons = lessonRepository.findByTrackIdOrderByLessonOrderAsc(trackId);
+		List<LessonProgress> progressList = lessonProgressRepository.findByUserId(userId);
+		Set<Long> completedLessonIds = null;
+		Optional<Lesson> nextLesson = Optional.empty();
+		NextLessonResponse response = null;
 
-        List<LessonProgressItem> lessonItems =
-                lessons.stream()
-                        .map(lesson -> {
+		completedLessonIds = progressList.stream()
+				.filter(LessonProgress::isCompleted)
+				.filter(progress -> progress.getLesson() != null)
+				.map(progress -> progress.getLesson().getId())
+				.collect(Collectors.toSet());
 
-                            LessonProgress progress =
-                                    progressMap.get(lesson.getId());
+		final Set<Long> completedIds = completedLessonIds;
+		nextLesson = lessons.stream()
+				.filter(lesson -> !completedIds.contains(lesson.getId()))
+				.findFirst();
 
-                            boolean completed =
-                                    progress != null
-                                            && progress.isCompleted();
+		if (nextLesson.isEmpty()) {
+			return new NextLessonResponse(true, null);
+		}
 
-                            int score =
-                                    progress != null
-                                            ? progress.getScore()
-                                            : 0;
+		Lesson lesson = nextLesson.get();
+		NextLessonResponse.LessonInfo lessonInfo = new NextLessonResponse.LessonInfo(
+				lesson.getId(),
+				lesson.getLessonOrder(),
+				lesson.getTitle(),
+				lesson.getDescription(),
+				lesson.getType()
+		);
 
-                            int xpEarned =
-                                    progress != null
-                                            ? progress.getXpEarned()
-                                            : 0;
+		response = new NextLessonResponse(false, lessonInfo);
 
-                            return new LessonProgressItem(
-                                    lesson.getId(),
-                                    lesson.getLessonOrder(),
-                                    lesson.getTitle(),
-                                    lesson.getDescription(),
-                                    lesson.getType(),
-                                    completed,
-                                    score,
-                                    xpEarned
-                            );
-                        })
-                        .toList();
-
-        long totalLessons = lessons.size();
-
-        long completedLessons =
-                lessonItems.stream()
-                        .filter(LessonProgressItem::isCompleted)
-                        .count();
-
-        long totalXp =
-                lessonItems.stream()
-                        .mapToLong(LessonProgressItem::getXpEarned)
-                        .sum();
-
-        double progressPercentage =
-                totalLessons == 0
-                        ? 0
-                        : Math.round(
-                                (completedLessons * 100.0 / totalLessons)
-                                        * 100.0
-                        ) / 100.0;
-
-        boolean completed =
-                totalLessons > 0
-                        && completedLessons == totalLessons;
-
-        return new TrackDashboardResponse(
-                track.getId(),
-                track.getTitle(),
-                completedLessons,
-                totalLessons,
-                progressPercentage,
-                totalXp,
-                completed,
-                lessonItems
-        );
-    }
-
-    public NextLessonResponse getNextLesson(
-            Long userId,
-            Long trackId) {
-
-        if (!learningTrackRepository.existsById(trackId)) {
-            throw new ResourceNotFoundException(
-                    "Learning track not found"
-            );
-        }
-
-        List<Lesson> lessons =
-                lessonRepository
-                        .findByTrackIdOrderByLessonOrderAsc(trackId);
-
-        List<LessonProgress> progressList =
-                lessonProgressRepository.findByUserId(userId);
-
-        Set<Long> completedLessonIds =
-                progressList.stream()
-                        .filter(LessonProgress::isCompleted)
-                        .filter(progress -> progress.getLesson() != null)
-                        .map(progress -> progress.getLesson().getId())
-                        .collect(Collectors.toSet());
-
-        Optional<Lesson> nextLesson =
-                lessons.stream()
-                        .filter(lesson ->
-                                !completedLessonIds.contains(lesson.getId()))
-                        .findFirst();
-
-        if (nextLesson.isEmpty()) {
-            return new NextLessonResponse(
-                    true,
-                    null
-            );
-        }
-
-        Lesson lesson = nextLesson.get();
-
-        NextLessonResponse.LessonInfo lessonInfo =
-                new NextLessonResponse.LessonInfo(
-                        lesson.getId(),
-                        lesson.getLessonOrder(),
-                        lesson.getTitle(),
-                        lesson.getDescription(),
-                        lesson.getType()
-                );
-
-        return new NextLessonResponse(
-                false,
-                lessonInfo
-        );
-    }
+		return response;
+	}
 }

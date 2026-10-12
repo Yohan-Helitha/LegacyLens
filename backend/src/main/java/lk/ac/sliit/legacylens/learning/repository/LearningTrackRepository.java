@@ -5,13 +5,29 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
 public interface LearningTrackRepository
         extends JpaRepository<LearningTrack, Long> {
+
+    List<LearningTrack> findByOriginAndVisibility(String origin, String visibility);
+
+    List<LearningTrack> findByOriginAndVisibilityOrderByCreatedAtDesc(String origin, String visibility);
+
+    List<LearningTrack> findByOwnerUserIdOrderByCreatedAtDesc(UUID ownerUserId);
+
+    List<LearningTrack> findByOriginAndOwnerUserIdOrderByCreatedAtDesc(String origin, UUID ownerUserId);
+
+    Optional<LearningTrack> findByIdAndOwnerUserId(Long id, UUID ownerUserId);
 
     @Query("""
         SELECT COUNT(t)
         FROM LearningTrack t
         WHERE t.totalLessons > 0
+        AND t.origin = 'ADMIN'
+        AND t.visibility = 'PUBLIC'
         AND (
             SELECT COUNT(lp)
             FROM LessonProgress lp
@@ -20,5 +36,5 @@ public interface LearningTrackRepository
               AND lp.lesson.track.id = t.id
         ) = t.totalLessons
     """)
-    long countCompletedTracks(@Param("userId") Long userId);
+    long countCompletedTracks(@Param("userId") UUID userId);
 }

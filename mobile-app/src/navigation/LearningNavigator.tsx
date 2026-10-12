@@ -9,6 +9,13 @@ import QuizResultScreen from '../screens/learning/QuizResultScreen';
 import ProgressTrackingScreen from '../screens/learning/ProgressTrackingScreen';
 import BadgesStreaksScreen from '../screens/learning/BadgesStreaksScreen';
 import CertificateScreen from '../screens/learning/CertificateScreen';
+import StudyBuilderSelectScreen from '../screens/learning/StudyBuilderSelectScreen';
+import StudyBuilderConfigureScreen from '../screens/learning/StudyBuilderConfigureScreen';
+import StudyBuilderGenerateScreen from '../screens/learning/StudyBuilderGenerateScreen';
+import MyStudySetsScreen from '../screens/learning/MyStudySetsScreen';
+import StudySetRetakeScreen from '../screens/learning/StudySetRetakeScreen';
+import { WeakWordReviewScreen } from '../screens/learning/WeakWordReviewScreen';
+import { CreateStudyJobRequest } from '../types/studyBuilder';
 
 export type LearningStackParamList = {
   CourseTracksList: undefined;
@@ -40,6 +47,25 @@ export type LearningStackParamList = {
   Certificate: {
     trackId: string;
   };
+
+  StudyBuilderSelect: undefined;
+
+  StudyBuilderConfigure: {
+    selectedSourceIds: string[];
+  };
+
+  StudyBuilderGenerate: {
+    jobRequest: CreateStudyJobRequest;
+  };
+
+  MyStudySets: undefined;
+
+  StudySetRetake: {
+    trackId: number;
+    title?: string;
+  };
+
+  WeakWordReview: undefined;
 };
 
 const Stack = createNativeStackNavigator<LearningStackParamList>();
@@ -85,6 +111,36 @@ export default function LearningNavigator() {
       <Stack.Screen
         name="Certificate"
         component={CertificateScreen}
+      />
+
+      <Stack.Screen
+        name="StudyBuilderSelect"
+        component={StudyBuilderSelectScreen}
+      />
+
+      <Stack.Screen
+        name="StudyBuilderConfigure"
+        component={StudyBuilderConfigureScreen}
+      />
+
+      <Stack.Screen
+        name="StudyBuilderGenerate"
+        component={StudyBuilderGenerateScreen}
+      />
+
+      <Stack.Screen
+        name="MyStudySets"
+        component={MyStudySetsScreen}
+      />
+
+      <Stack.Screen
+        name="StudySetRetake"
+        component={StudySetRetakeScreen}
+      />
+
+      <Stack.Screen
+        name="WeakWordReview"
+        component={WeakWordReviewScreen}
       />
     </Stack.Navigator>
   );

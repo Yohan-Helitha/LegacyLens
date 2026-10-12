@@ -1,139 +1,110 @@
 package lk.ac.sliit.legacylens.learning.controller;
 
-
+import lk.ac.sliit.legacylens.auth.security.CustomUserDetails;
+import lk.ac.sliit.legacylens.common.dto.ApiResponse;
 import lk.ac.sliit.legacylens.learning.dto.LessonProgressResponse;
+import lk.ac.sliit.legacylens.learning.dto.ProgressSummaryResponse;
+import lk.ac.sliit.legacylens.learning.dto.StreakResponse;
 import lk.ac.sliit.legacylens.learning.dto.TrackProgressResponse;
 import lk.ac.sliit.legacylens.learning.entity.LessonProgress;
+import lk.ac.sliit.legacylens.learning.progress.ProgressSummaryService;
 import lk.ac.sliit.legacylens.learning.service.LessonProgressService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.security.core.Authentication;
-import lk.ac.sliit.legacylens.learning.dto.StreakResponse;
+
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/learning/progress")
 public class LessonProgressController {
 
-    private final LessonProgressService lessonProgressService;
+	private final LessonProgressService lessonProgressService;
+	private final ProgressSummaryService progressSummaryService;
 
-    public LessonProgressController(
-            LessonProgressService lessonProgressService) {
-        this.lessonProgressService = lessonProgressService;
-    }
+	public LessonProgressController(
+			LessonProgressService lessonProgressService,
+			ProgressSummaryService progressSummaryService) {
+		this.lessonProgressService = lessonProgressService;
+		this.progressSummaryService = progressSummaryService;
+	}
 
-    @GetMapping("/{userId}/lessons/{lessonId}")
-    public ResponseEntity<LessonProgress> getProgress(
-            @PathVariable Long userId,
-            @PathVariable Long lessonId) {
+	@GetMapping("/me/summary")
+	public ResponseEntity<ApiResponse<ProgressSummaryResponse>> getMySummary(
+			@AuthenticationPrincipal CustomUserDetails principal) {
+		UUID userId = principal.getUser().getId();
+		ProgressSummaryResponse summary = progressSummaryService.getProgressSummary(userId);
 
-        return lessonProgressService
-                .getProgress(userId, lessonId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
+		return ResponseEntity.ok(ApiResponse.ok(summary));
+	}
 
-    @GetMapping("/{userId}")
-    public ResponseEntity<List<LessonProgress>> getUserProgress(
-            @PathVariable Long userId) {
+	@GetMapping("/me")
+	public ResponseEntity<ApiResponse<List<LessonProgressResponse>>> getMyProgress(
+			@AuthenticationPrincipal CustomUserDetails principal) {
+		UUID userId = principal.getUser().getId();
+		List<LessonProgressResponse> progress = lessonProgressService.getUserProgressResponse(userId);
 
-        return ResponseEntity.ok(
-                lessonProgressService.getUserProgress(userId)
-        );
-    }
+		return ResponseEntity.ok(ApiResponse.ok(progress));
+	}
 
-    @PutMapping("/{userId}/lessons/{lessonId}")
-    public ResponseEntity<LessonProgress> updateProgress(
-            @PathVariable Long userId,
-            @PathVariable Long lessonId,
-            @RequestParam boolean completed,
-            @RequestParam Integer score,
-            @RequestParam Integer xpEarned) {
+	@GetMapping("/me/lessons/{lessonId}")
+	public ResponseEntity<ApiResponse<LessonProgressResponse>> getMyLessonProgress(
+			@AuthenticationPrincipal CustomUserDetails principal,
+			@PathVariable Long lessonId) {
+		UUID userId = principal.getUser().getId();
+		LessonProgressResponse response = lessonProgressService
+				.getProgressResponse(userId, lessonId)
+				.orElse(null);
 
-        return ResponseEntity.ok(
-                lessonProgressService.updateProgress(
-                        userId,
-                        lessonId,
-                        completed,
-                        score,
-                        xpEarned
-                )
-        );
-    }
+		if (response == null) {
+			return ResponseEntity.notFound().build();
+		}
 
-    @PutMapping("/me/lessons/{lessonId}")
-    public ResponseEntity<LessonProgressResponse> updateMyProgress(
-            Authentication authentication,
-            @PathVariable Long lessonId,
-            @RequestParam boolean completed,
-            @RequestParam Integer score,
-            @RequestParam Integer xpEarned) {
+		return ResponseEntity.ok(ApiResponse.ok(response));
+	}
 
-        Long userId = Long.valueOf(authentication.getName());
+	@PostMapping("/me/lessons/{lessonId}/complete")
+	public ResponseEntity<ApiResponse<LessonProgressResponse>> completeLesson(
+			@AuthenticationPrincipal CustomUserDetails principal,
+			@PathVariable Long lessonId) {
+		UUID userId = principal.getUser().getId();
+		LessonProgress progress = lessonProgressService.completeFlashcardLesson(userId, lessonId);
+		LessonProgressResponse response = new LessonProgressResponse(
+				progress.getLesson().getId(),
+				progress.isCompleted(),
+				progress.getScore(),
+				progress.getXpEarned()
+		);
 
-        LessonProgress progress =
-                lessonProgressService.updateProgress(
-                        userId,
-                        lessonId,
-                        completed,
-                        score,
-                        xpEarned
-                );
+		return ResponseEntity.ok(ApiResponse.ok("Lesson completed successfully", response));
+	}
 
-        LessonProgressResponse response =
-                new LessonProgressResponse(
-                        progress.getLesson().getId(),
-                        progress.isCompleted(),
-                        progress.getScore(),
-                        progress.getXpEarned()
-                );
+	@GetMapping("/tracks/me")
+	public ResponseEntity<ApiResponse<List<TrackProgressResponse>>> getMyTrackProgress(
+			@AuthenticationPrincipal CustomUserDetails principal) {
+		UUID userId = principal.getUser().getId();
+		List<TrackProgressResponse> trackProgress = lessonProgressService.getUserTrackProgress(userId);
 
-        return ResponseEntity.ok(response);
-    }
+		return ResponseEntity.ok(ApiResponse.ok(trackProgress));
+	}
 
-    @GetMapping("/me")
-    public ResponseEntity<List<LessonProgressResponse>> getMyProgress(
-            Authentication authentication) {
+	@GetMapping("/me/streak")
+	public ResponseEntity<ApiResponse<StreakResponse>> getMyStreak(
+			@AuthenticationPrincipal CustomUserDetails principal) {
+		UUID userId = principal.getUser().getId();
+		StreakResponse streak = lessonProgressService.getStreak(userId);
 
-        Long userId = Long.valueOf(authentication.getName());
+		return ResponseEntity.ok(ApiResponse.ok(streak));
+	}
 
-        return ResponseEntity.ok(
-                lessonProgressService.getUserProgressResponse(userId)
-        );
-    }
+	@GetMapping("/{userId}")
+	@PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<ApiResponse<List<LessonProgressResponse>>> getAdminUserProgress(
+			@PathVariable UUID userId) {
+		List<LessonProgressResponse> progress = lessonProgressService.getUserProgressResponse(userId);
 
-    @GetMapping("/me/lessons/{lessonId}")
-    public ResponseEntity<LessonProgressResponse> getMyLessonProgress(
-            Authentication authentication,
-            @PathVariable Long lessonId) {
-
-        Long userId = Long.valueOf(authentication.getName());
-
-        return lessonProgressService
-                .getProgressResponse(userId, lessonId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    @GetMapping("/tracks/me")
-    public ResponseEntity<List<TrackProgressResponse>> getMyTrackProgress(
-            Authentication authentication) {
-
-        Long userId = Long.valueOf(authentication.getName());
-
-        return ResponseEntity.ok(
-                lessonProgressService.getUserTrackProgress(userId)
-        );
-    }
-
-    @GetMapping("/me/streak")
-public ResponseEntity<StreakResponse> getMyStreak(
-        Authentication authentication) {
-
-    Long userId = Long.valueOf(authentication.getName());
-
-    return ResponseEntity.ok(
-            lessonProgressService.getStreak(userId)
-    );
-}
+		return ResponseEntity.ok(ApiResponse.ok(progress));
+	}
 }

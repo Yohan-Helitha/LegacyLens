@@ -1,21 +1,16 @@
 // src/screens/learning/CertificateScreen.tsx
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Circle, Path, Polygon } from 'react-native-svg';
+import { ArrowLeft, Lock, Download, Share2, ShieldCheck } from 'lucide-react-native';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
-import { apiGet } from '../../services/api/client';
+import { certificateApi } from '../../services/api/certificateApi';
+import { IssuedCertificate } from '../../types/certificate';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
-
-type CertificateData = {
-  trackId: number;
-  trackTitle: string;
-  learnerName: string;
-  completionDate: string;
-};
 
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'Certificate'>;
 
@@ -66,8 +61,9 @@ export default function CertificateScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProp<LearningStackParamList, 'Certificate'>>();
 
-  const [certificate, setCertificate] = useState<CertificateData | null>(null);
+  const [certificate, setCertificate] = useState<IssuedCertificate | null>(null);
   const [loading, setLoading] = useState(true);
+  const [verifying, setVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const viewRef = useRef<View>(null);
@@ -85,19 +81,37 @@ export default function CertificateScreen() {
           dialogTitle: 'Download / Share Certificate',
         });
       } else {
-        Alert.alert('Success', 'Certificate ready, but sharing is not supported on this device.');
+        Alert.alert('Success', 'Certificate image created, but sharing is not supported on this device.');
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to process certificate.');
     }
   };
 
+  const handleVerify = async () => {
+    if (!certificate?.verificationCode) return;
+    try {
+      setVerifying(true);
+      const res = await certificateApi.verifyCertificate(certificate.verificationCode);
+      if (res.valid) {
+        Alert.alert(
+          'Certificate Verified ✓',
+          `Learner: ${res.learnerDisplayName}\nTrack: ${res.trackTitle}\nType: ${res.certificateType}\nIssued: ${res.issueDate}\nCode: ${res.verificationCode}`
+        );
+      } else {
+        Alert.alert('Invalid Certificate', 'This certificate code could not be verified on the network.');
+      }
+    } catch (err: any) {
+      Alert.alert('Verification Error', err.message || 'Could not verify certificate code.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   useEffect(() => {
     const loadCertificate = async () => {
       try {
-        const data = await apiGet<CertificateData>(
-          `/learning/certificates/me/tracks/${route.params.trackId}`
-        );
+        const data = await certificateApi.getCertificateForTrack(route.params.trackId);
         setCertificate(data);
       } catch (error: any) {
         setErrorMessage(error?.message ?? 'Could not load your certificate.');
@@ -111,8 +125,18 @@ export default function CertificateScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <Text style={{ color: Colors.text }}>Loading certificate...</Text>
+      <View style={styles.centerContainer}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.backButtonLoading}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <ArrowLeft size={20} color={Colors.text} />
+        </Pressable>
+        <ActivityIndicator size="large" color={Colors.secondary} />
+        <Text style={styles.loadingText}>Loading certificate...</Text>
       </View>
     );
   }
@@ -120,9 +144,20 @@ export default function CertificateScreen() {
   if (errorMessage || !certificate) {
     return (
       <View style={styles.container}>
-        <Text style={styles.header}>Certificate of Completion</Text>
+        <View style={styles.headerRow}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <ArrowLeft size={20} color={Colors.text} />
+          </Pressable>
+          <Text style={styles.header}>Certificate of Completion</Text>
+        </View>
         <View style={styles.emptyIconWrap}>
-          <Text style={styles.emptyIcon}>🔒</Text>
+          <Lock size={30} color={Colors.textMuted} />
         </View>
         <Text style={styles.emptyText}>
           {errorMessage ?? 'Complete this track to earn your certificate.'}
@@ -137,25 +172,48 @@ export default function CertificateScreen() {
     );
   }
 
-  const { learnerName, trackTitle, completionDate } = certificate;
+  const { learnerName, trackTitle, issueDate, verificationCode, certificateType } = certificate;
+  const isAiCourse = certificateType === 'AI_COURSE';
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.header}>Certificate of Completion</Text>
+    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.headerRow}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <ArrowLeft size={20} color={Colors.text} />
+        </Pressable>
+        <Text style={styles.header}>Certificate of Completion</Text>
+      </View>
 
+      {/* Main Certificate Render Card */}
       <View ref={viewRef} collapsable={false} style={styles.certificateCard}>
         <View style={styles.innerBorder}>
           <CornerFlourish rotate="0deg" />
           <CornerFlourish rotate="90deg" />
-          <View style={[styles.cornerBR]}>
+          <View style={styles.cornerBR}>
             <CornerFlourish rotate="180deg" />
           </View>
-          <View style={[styles.cornerBL]}>
+          <View style={styles.cornerBL}>
             <CornerFlourish rotate="270deg" />
           </View>
 
           <Text style={styles.eyebrow}>LEGACY LENS</Text>
           <Text style={styles.certTitle}>Certificate of Completion</Text>
+
+          {/* Certificate Type Pill */}
+          <View style={[styles.certTypeBadge, isAiCourse && styles.certTypeBadgeAi]}>
+            <Text style={[styles.certTypeBadgeText, isAiCourse && styles.certTypeBadgeTextAi]}>
+              {isAiCourse
+                ? 'Self-study certificate (AI-generated course)'
+                : 'Curated Heritage Track Certificate'}
+            </Text>
+          </View>
+
           <View style={styles.divider} />
 
           <Text style={styles.awardedTo}>This certifies that</Text>
@@ -163,27 +221,60 @@ export default function CertificateScreen() {
 
           <Text style={styles.bodyText}>
             has successfully completed the{'\n'}
-            <Text style={styles.trackName}>{trackTitle}</Text> track
+            <Text style={styles.trackName}>{trackTitle}</Text> {isAiCourse ? 'course' : 'track'}
           </Text>
 
           <MedallionSeal />
 
-          <Text style={styles.date}>{completionDate}</Text>
+          <Text style={styles.date}>Issued: {issueDate}</Text>
+
+          {/* Embedded Verification Stamp */}
+          <View style={styles.certStampBox}>
+            <Text style={styles.certStampLabel}>VERIFICATION CODE</Text>
+            <Text style={styles.certStampCode}>{verificationCode}</Text>
+          </View>
         </View>
       </View>
 
+      {/* Actions */}
       <View style={styles.actionsRow}>
-        <Pressable 
+        <Pressable
           onPress={handleDownloadShare}
           style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
         >
-          <Text style={styles.actionButtonText}>⬇ Download</Text>
+          <Download size={16} color={Colors.white} />
+          <Text style={styles.actionButtonText}>Download</Text>
         </Pressable>
-        <Pressable 
+        <Pressable
           onPress={handleDownloadShare}
           style={({ pressed }) => [styles.actionButtonOutline, pressed && styles.actionButtonPressed]}
         >
-          <Text style={styles.actionButtonOutlineText}>↗ Share</Text>
+          <Share2 size={16} color={Colors.secondary} />
+          <Text style={styles.actionButtonOutlineText}>Share</Text>
+        </Pressable>
+      </View>
+
+      {/* Verification Card */}
+      <View style={styles.verifyCard}>
+        <View style={styles.verifyHeaderRow}>
+          <ShieldCheck size={22} color={Colors.secondary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.verifyCardTitle}>Public Verification</Text>
+            <Text style={styles.verifyCardSubtitle}>
+              Anyone can verify this credential using its unique code.
+            </Text>
+          </View>
+        </View>
+        <Pressable
+          onPress={handleVerify}
+          disabled={verifying}
+          style={styles.verifyCtaBtn}
+        >
+          {verifying ? (
+            <ActivityIndicator size="small" color={Colors.white} />
+          ) : (
+            <Text style={styles.verifyCtaBtnText}>Verify Authenticity</Text>
+          )}
         </Pressable>
       </View>
 
@@ -206,11 +297,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg - 4,
     alignItems: 'center',
   },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.dominant,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    color: Colors.text,
+    fontFamily: Typography.fontBodyMed,
+  },
+  backButtonLoading: {
+    position: 'absolute',
+    top: 50,
+    left: Spacing.lg,
+    width: 40,
+    height: 40,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.secondaryDark,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  headerRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: Radii.full,
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.secondaryDark,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   header: {
+    flex: 1,
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeLG + 2,
     color: Colors.text,
-    marginBottom: Spacing.lg,
   },
 
   // Outer card = soft elevated teal frame; inner border = the "paper"
@@ -253,6 +390,24 @@ const styles = StyleSheet.create({
     color: Colors.text,
     textAlign: 'center',
   },
+  certTypeBadge: {
+    backgroundColor: '#E6F0F0',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: Radii.full,
+    marginTop: 6,
+  },
+  certTypeBadgeAi: {
+    backgroundColor: '#FDEEE9',
+  },
+  certTypeBadgeText: {
+    fontSize: 11,
+    fontFamily: Typography.fontBodySemi,
+    color: Colors.secondaryDark,
+  },
+  certTypeBadgeTextAi: {
+    color: Colors.accent,
+  },
   divider: {
     width: 48,
     height: 3,
@@ -291,6 +446,30 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizeXS,
     color: Colors.textMuted,
     letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+
+  certStampBox: {
+    backgroundColor: '#EDEFEE',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D2D7D6',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  certStampLabel: {
+    fontSize: 9,
+    fontFamily: Typography.fontBodySemi,
+    color: Colors.textMuted,
+    letterSpacing: 1,
+  },
+  certStampCode: {
+    fontSize: 12,
+    fontFamily: Typography.fontBodySemi,
+    color: Colors.text,
+    letterSpacing: 0.5,
   },
 
   actionsRow: { flexDirection: 'row', gap: Spacing.sm + 2, width: '100%', marginBottom: Spacing.sm + 2 },
@@ -299,7 +478,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
     borderRadius: Radii.lg + 2,
     paddingVertical: Spacing.sm + 6,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     shadowColor: Colors.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -313,11 +495,53 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: Colors.secondary,
     paddingVertical: Spacing.sm + 6,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   actionButtonPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   actionButtonText: { color: Colors.white, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM },
   actionButtonOutlineText: { color: Colors.secondary, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM },
+
+  verifyCard: {
+    width: '100%',
+    backgroundColor: Colors.white,
+    borderRadius: Radii.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: '#D2D7D6',
+  },
+  verifyHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  verifyCardTitle: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeSM,
+    color: Colors.text,
+  },
+  verifyCardSubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeXS,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  verifyCtaBtn: {
+    backgroundColor: Colors.secondaryDark,
+    borderRadius: Radii.md,
+    minHeight: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  verifyCtaBtnText: {
+    color: Colors.white,
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeSM,
+  },
 
   backLink: { paddingVertical: Spacing.xs + 2 },
   backLinkText: { color: Colors.accent, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS + 1 },
@@ -331,6 +555,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.md,
   },
-  emptyIcon: { fontSize: 28 },
   emptyText: { color: Colors.textMuted, textAlign: 'center', fontFamily: Typography.fontBody, paddingHorizontal: Spacing.lg, marginBottom: Spacing.md },
 });

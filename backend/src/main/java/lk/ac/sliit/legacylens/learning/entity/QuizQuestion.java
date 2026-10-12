@@ -34,6 +34,16 @@ public class QuizQuestion {
     @Column(name = "correct_option", nullable = false)
     private String correctOption;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "flashcard_id")
+    private Flashcard flashcard;
+
+    @Column(name = "source_content_id")
+    private String sourceContentId;
+
+    @Column(columnDefinition = "TEXT")
+    private String evidence;
+
     public QuizQuestion() {
     }
 
@@ -99,5 +109,29 @@ public class QuizQuestion {
 
     public void setCorrectOption(String correctOption) {
         this.correctOption = correctOption;
+    }
+
+    public Flashcard getFlashcard() {
+        return flashcard;
+    }
+
+    public void setFlashcard(Flashcard flashcard) {
+        this.flashcard = flashcard;
+    }
+
+    public String getSourceContentId() {
+        return sourceContentId;
+    }
+
+    public void setSourceContentId(String sourceContentId) {
+        this.sourceContentId = sourceContentId;
+    }
+
+    public String getEvidence() {
+        return evidence;
+    }
+
+    public void setEvidence(String evidence) {
+        this.evidence = evidence;
     }
 }

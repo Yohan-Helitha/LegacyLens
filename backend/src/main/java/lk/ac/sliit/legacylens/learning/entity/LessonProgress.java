@@ -16,7 +16,7 @@ public class LessonProgress {
     private Long id;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private java.util.UUID userId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lesson_id", nullable = false)
@@ -45,11 +45,11 @@ public class LessonProgress {
         this.id = id;
     }
 
-    public Long getUserId() {
+    public java.util.UUID getUserId() {
         return userId;
     }
 
-    public void setUserId(Long userId) {
+    public void setUserId(java.util.UUID userId) {
         this.userId = userId;
     }
 

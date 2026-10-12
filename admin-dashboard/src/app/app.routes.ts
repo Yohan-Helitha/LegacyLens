@@ -152,6 +152,11 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
+    path: 'learning/tracks/ai-generate',
+    loadComponent: () => import('./features/learning/track-ai-generate/track-ai-generate.component').then(m => m.TrackAiGenerateComponent),
+    canActivate: [authGuard]
+  },
+  {
     path: 'learning/tracks/:id/edit',
     loadComponent: () => import('./features/learning/track-form/track-form.component').then(m => m.TrackFormComponent),
     canActivate: [authGuard]

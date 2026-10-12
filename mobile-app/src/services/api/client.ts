@@ -53,6 +53,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiEnvelope<unknown>>) => {
     if (error.response) {
+      console.log('API FAILURE DETAILS:', error.config?.url, error.response.status, error.response.data);
       const envelope = error.response.data;
       const status = error.response.status;
       const message = envelope?.message?.trim() || 'Something went wrong. Please try again.';
