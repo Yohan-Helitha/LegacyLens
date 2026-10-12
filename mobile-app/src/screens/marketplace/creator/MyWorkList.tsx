@@ -335,7 +335,7 @@ const ReviewerStatus: React.FC<{ who: string; approved: boolean }> = ({ who, app
   </View>
 );
 
-const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; published: boolean; onView: () => void }> = ({ job, heroImageUrl, published, onView }) => {
+const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; published: boolean; onView: () => void; onTestRate: (stars: number) => void }> = ({ job, heroImageUrl, published, onView, onTestRate }) => {
   const doneOn = formatDoneDate(job.completedAt);
 
   return (
@@ -380,6 +380,17 @@ const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; p
             <CardIcon />
             <Text style={s.factText}>{formatLkr(job.offeredAmount)}</Text>
           </View>
+        </View>
+      </View>
+
+      <View style={s.testGrid}>
+        <Text style={s.testLabel}>TEMPORARY - the knowledge holder rates you</Text>
+        <View style={s.testRow}>
+          {[1, 3, 5].map((stars) => (
+            <Pressable key={stars} onPress={() => onTestRate(stars)} style={({ pressed }) => [s.testBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel={`Knowledge holder gives ${stars} stars (test)`}>
+              <Text style={s.testBtnText}>{`${stars} ★ (Test)`}</Text>
+            </Pressable>
+          ))}
         </View>
       </View>
 
@@ -567,6 +578,17 @@ export const MyWorkList: React.FC<{
     }
   };
 
+  // TEMPORARY: stands in for the knowledge holder's "rate the creator" screen until it exists.
+  const handleTestRate = async (job: JobResponse, stars: number) => {
+    try {
+      const result = await workProgressApi.testRate(job.id, stars);
+      const overall = result.creatorRating != null ? Number(result.creatorRating).toFixed(2) : '-';
+      appAlert('Rating recorded', `You were given ${stars} star${stars === 1 ? '' : 's'} for this job.\n\nYour overall rating is now ${overall} from ${result.creatorRatingCount} review${result.creatorRatingCount === 1 ? '' : 's'}.`);
+    } catch (err) {
+      appAlert('Test rating failed', err instanceof ApiError ? err.message : 'Could not record this rating.');
+    }
+  };
+
   const handleDeleteDraft = (job: JobResponse) => {
     appAlert('Delete this draft?', `All progress on "${job.title}" will be discarded.`, [
       { text: 'Cancel', style: 'cancel' },
@@ -714,7 +736,7 @@ export const MyWorkList: React.FC<{
                     </Text>
                   </View>
                   {month.jobs.map((job) => (
-                    <CompletedCard key={job.id} job={job} heroImageUrl={completedPictures[job.id] ?? null} published={completedPublished[job.id] ?? false} onView={() => onViewPublication(job)} />
+                    <CompletedCard key={job.id} job={job} heroImageUrl={completedPictures[job.id] ?? null} published={completedPublished[job.id] ?? false} onView={() => onViewPublication(job)} onTestRate={(stars) => handleTestRate(job, stars)} />
                   ))}
                 </View>
               ))}

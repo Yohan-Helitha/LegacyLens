@@ -47,6 +47,11 @@ export const workProgressApi = {
   markOpened: (jobId: string) =>
     apiPost<void, undefined>(`/jobs/${jobId}/work-progress/opened`, undefined),
 
+  /** TEMPORARY - the knowledge holder gives the creator 1-5 stars on a completed job. See TemporaryReviewTestController. */
+  testRate: (jobId: string, stars: number) =>
+    apiPost<{ rating: number; creatorRating: number | null; creatorRatingCount: number }, undefined>(
+      `/jobs/${jobId}/work-progress/test/rate/${stars}`, undefined),
+
   resetProgress: (jobId: string) => apiDelete<void>(`/jobs/${jobId}/work-progress`),
 
   /** multipart/form-data — same file-part pattern as creatorDashboardApi.addPayment. */
