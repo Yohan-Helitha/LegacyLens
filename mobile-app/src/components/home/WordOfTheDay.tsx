@@ -50,7 +50,7 @@ export const WordOfTheDay = () => {
 
   const playSound = async (type: 'like' | 'save' | 'share') => {
     try {
-      await setAudioModeAsync({ playsInSilentModeIOS: true });
+      await setAudioModeAsync({ playsInSilentMode: true });
       if (type === 'like') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
         likePlayer.seekTo(0);

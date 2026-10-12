@@ -7,8 +7,8 @@ import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.moderation.dto.ModerationQueueItemResponse;
 import lk.ac.sliit.legacylens.moderation.dto.UpdateModerationStatusRequest;
 import lk.ac.sliit.legacylens.moderation.entity.ModerationQueueItem;
-import lk.ac.sliit.legacylens.moderation.entity.ModerationStatus;
 import lk.ac.sliit.legacylens.moderation.repository.ModerationQueueRepository;
+import lk.ac.sliit.legacylens.stories.entity.StoryStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -47,10 +47,10 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
             items = moderationQueueRepository.findAll();
         } else {
             try {
-                ModerationStatus status = ModerationStatus.valueOf(statusFilter.toUpperCase());
+                StoryStatus status = StoryStatus.valueOf(statusFilter.toUpperCase());
                 items = moderationQueueRepository.findByStatus(status);
             } catch (IllegalArgumentException e) {
-                log.warn("Invalid ModerationStatus filter '{}', returning all items", statusFilter);
+                log.warn("Invalid status filter '{}', returning all items", statusFilter);
                 items = moderationQueueRepository.findAll();
             }
         }
@@ -72,15 +72,15 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
         ModerationQueueItem item = moderationQueueRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Moderation item not found"));
 
-        ModerationStatus newStatus;
+        StoryStatus newStatus;
         try {
-            newStatus = ModerationStatus.valueOf(request.getStatus().toUpperCase());
+            newStatus = StoryStatus.valueOf(request.getStatus().toUpperCase());
         } catch (IllegalArgumentException e) {
-            newStatus = ModerationStatus.PENDING;
+            newStatus = StoryStatus.PENDING;
         }
         item.setStatus(newStatus);
 
-        if (newStatus == ModerationStatus.REJECTED) {
+        if (newStatus == StoryStatus.REJECTED) {
             item.setRejectionReason(request.getRejectionReason());
             item.setRejectionNotes(request.getRejectionNotes());
             item.setRejectionReason(request.getEffectiveRejectionReason());
@@ -97,7 +97,7 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
             item.setDistrict(request.getDistrict());
         }
 
-        if (newStatus == ModerationStatus.PUBLISHED && item.getPublishedAt() == null) {
+        if (newStatus == StoryStatus.PUBLISHED && item.getPublishedAt() == null) {
             item.setPublishedAt(LocalDateTime.now());
         }
 

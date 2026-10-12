@@ -25,3 +25,11 @@ export function formatRelativeTime(iso: string): string {
   const diffYears = Math.floor(diffDays / 365);
   return `Recorded ${diffYears} year${diffYears === 1 ? '' : 's'} ago`;
 }
+
+/** "Sep 3, 2026" — used where a plain date reads better than a relative one, e.g. the My Stories hero card. */
+export function formatShortDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}

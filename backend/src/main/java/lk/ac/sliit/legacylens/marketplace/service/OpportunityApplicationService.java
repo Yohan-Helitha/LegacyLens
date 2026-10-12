@@ -1,0 +1,52 @@
+package lk.ac.sliit.legacylens.marketplace.service;
+
+import lk.ac.sliit.legacylens.marketplace.dto.BookApplicationRequest;
+import lk.ac.sliit.legacylens.marketplace.dto.OpportunityApplicationRequest;
+import lk.ac.sliit.legacylens.marketplace.dto.OpportunityApplicationResponse;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+public interface OpportunityApplicationService {
+
+    /** Creates a new SAVED draft, or updates the creator's existing draft for that opportunity in place. */
+    OpportunityApplicationResponse saveDraft(UUID creatorId, OpportunityApplicationRequest request);
+
+    /** Backs SavedOpportunityApplication's Saved + Submitted lists. */
+    List<OpportunityApplicationResponse> getMyApplications(UUID creatorId);
+
+    /** Used by OpportunityApplicationForm to prefill an existing draft when opening "Apply" for an opportunity already saved. */
+    Optional<OpportunityApplicationResponse> getByOpportunity(UUID creatorId, UUID opportunityId);
+
+    /** Moves a SAVED draft to PENDING. */
+    OpportunityApplicationResponse submitApplication(UUID creatorId, UUID applicationId);
+
+    /**
+     * TEMPORARY: moves a PENDING application to APPROVED. This is normally
+     * the knowledge holder's decision, but no review UI exists for them yet,
+     * so the creator can self-approve their own submitted application here to
+     * keep testing the rest of the booking flow. Remove once a real
+     * elder-facing approval flow exists.
+     */
+    OpportunityApplicationResponse approveApplication(UUID creatorId, UUID applicationId);
+
+    /**
+     * TEMPORARY: moves a PENDING application to REJECTED, standing in for
+     * the knowledge holder's decision the same way approveApplication does.
+     * Remove once a real elder-facing approval flow exists.
+     */
+    OpportunityApplicationResponse rejectApplication(UUID creatorId, UUID applicationId);
+
+    /**
+     * Moves an APPROVED application to BOOKED and creates the real Job that
+     * backs it — the "Confirm Booking" form on the dashboard's Upcoming
+     * Booking tab. The creator's agreed date/time in the request becomes the
+     * new Job's schedule, which is why this Job then shows up automatically
+     * everywhere Jobs already do (Active/Upcoming tabs, the Schedule page).
+     */
+    OpportunityApplicationResponse bookApplication(UUID creatorId, UUID applicationId, BookApplicationRequest request);
+
+    /** Removes a draft or submitted application — the Delete/Cancel action on either list. */
+    void deleteApplication(UUID creatorId, UUID applicationId);
+}

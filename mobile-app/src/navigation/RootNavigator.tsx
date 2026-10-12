@@ -25,6 +25,7 @@ import { ContentCaptureNavigator } from './ContentCaptureNavigator';
 import { authApi } from '../services/api/authApi';
 import { profileApi } from '../services/api/profileApi';
 import { useAuthStore } from '../store/authStore';
+import { useLocaleStore } from '../store/localeStore';
 
 export type RootStackParamList = {
   Loading: undefined;
@@ -87,7 +88,12 @@ export const RootNavigator: React.FC = () => {
 
       <Stack.Screen name="Language">
         {({ navigation }) => (
-          <LanguageSelectionScreen onContinue={() => navigation.navigate('Login')} />
+          <LanguageSelectionScreen
+            onContinue={(languageCode) => {
+              useLocaleStore.getState().setLocale(languageCode);
+              navigation.navigate('Login');
+            }}
+          />
         )}
       </Stack.Screen>
 

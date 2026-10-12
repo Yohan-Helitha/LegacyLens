@@ -95,7 +95,6 @@ export async function apiPost<TResponse, TRequest = unknown>(
   body: TRequest,
 ): Promise<TResponse> {
   const response = await apiClient.post<any>(url, body);
-  console.log('FULL API RESPONSE:', response.data);
   return unwrapResponse<TResponse>(response.data);
 }
 

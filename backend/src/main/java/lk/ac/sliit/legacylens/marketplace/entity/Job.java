@@ -61,6 +61,16 @@ public class Job {
     @Column(length = 150)
     private String location;
 
+    /**
+     * This job's own photo — same "local:<key>" or real-URL convention as
+     * Opportunity.heroImageUrl (see resolveOpportunityImage on the frontend).
+     * Only needed for jobs seeded directly with no real opportunity behind
+     * them; a job created via a real booking instead falls back to its
+     * linked Opportunity's photo (see JobWorkProgressServiceImpl).
+     */
+    @Column(name = "hero_image_url", length = 500)
+    private String heroImageUrl;
+
     /** Amount agreed with the elder, paid in cash directly to the creator — not processed by this platform. */
     @Column(name = "offered_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal offeredAmount;
@@ -69,9 +79,30 @@ public class Job {
     @Column(nullable = false, length = 20)
     private JobStatus status = JobStatus.UPCOMING;
 
+    /**
+     * Static, admin/seed-set flag (same convention as Opportunity.urgent) —
+     * shown as a distinct colour on OpportunitySchedulePage's calendar so a
+     * time-sensitive booking stands out from the creator's other scheduled
+     * work. Nothing computes this automatically yet.
+     */
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean urgent = false;
+
     /** When the work is/was scheduled to happen. */
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
+
+    /** Display text for the confirmed time range, e.g. "10:00 AM - 2:00 PM" — set when booked from an application. */
+    @Column(name = "time_window_text", length = 60)
+    private String timeWindowText;
+
+    /** Traceability only, no relation navigated through it — which Opportunity this Job was booked from, if any. */
+    @Column(name = "opportunity_id", columnDefinition = "uuid")
+    private UUID opportunityId;
+
+    /** Traceability only — which OpportunityApplication this Job was booked from, if any. */
+    @Column(name = "application_id", columnDefinition = "uuid")
+    private UUID applicationId;
 
     /** Set once the creator finishes the work. Null until then. */
     @Column(name = "completed_at")

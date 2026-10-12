@@ -1,7 +1,7 @@
 package lk.ac.sliit.legacylens.admin.service;
 
 import lk.ac.sliit.legacylens.admin.dto.DashboardStatsDTO;
-import lk.ac.sliit.legacylens.moderation.entity.ModerationStatus;
+import lk.ac.sliit.legacylens.stories.entity.StoryStatus;
 import lk.ac.sliit.legacylens.moderation.repository.ModerationQueueRepository;
 import lk.ac.sliit.legacylens.users.entity.AccountStatus;
 import lk.ac.sliit.legacylens.users.entity.RoleStatus;
@@ -94,10 +94,10 @@ public class DashboardServiceImpl implements DashboardService {
 
         // ── Moderation counts ─────────────────────────────────────────────────
         long totalStories = moderationQueueRepository.count();
-        long pendingModeration = moderationQueueRepository.findByStatus(ModerationStatus.PENDING).size();
-        long publishedStories = moderationQueueRepository.findByStatus(ModerationStatus.PUBLISHED).size();
-        long rejectedStories = moderationQueueRepository.findByStatus(ModerationStatus.REJECTED).size();
-        long archivedStories = moderationQueueRepository.findByStatus(ModerationStatus.ARCHIVED).size();
+        long pendingModeration = moderationQueueRepository.findByStatus(StoryStatus.PENDING).size();
+        long publishedStories = moderationQueueRepository.findByStatus(StoryStatus.PUBLISHED).size();
+        long rejectedStories = moderationQueueRepository.findByStatus(StoryStatus.REJECTED).size();
+        long archivedStories = moderationQueueRepository.findByStatus(StoryStatus.ARCHIVED).size();
 
         DashboardStatsDTO stats = DashboardStatsDTO.builder()
                 .totalUsers(totalUsers)

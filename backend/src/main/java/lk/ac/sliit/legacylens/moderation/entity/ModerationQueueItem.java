@@ -2,6 +2,7 @@ package lk.ac.sliit.legacylens.moderation.entity;
 
 import jakarta.persistence.*;
 import lk.ac.sliit.legacylens.moderation.converter.StringArrayConverter;
+import lk.ac.sliit.legacylens.stories.entity.StoryStatus;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -93,9 +94,14 @@ public class ModerationQueueItem {
     @Column(name = "comments_count", columnDefinition = "integer default 0")
     private Integer commentsCount = 0;
 
-    @Enumerated(EnumType.STRING)
+    /**
+     * Mapped via StoryStatusConverter (autoApply, in stories/converter) —
+     * not @Enumerated, which would suppress that converter for this field.
+     * Shares StoryStatus with the elder-facing Story entity, which also maps
+     * the `stories` table: see StoryStatus's own doc comment.
+     */
     @Column(nullable = false, length = 20)
-    private ModerationStatus status = ModerationStatus.PENDING;
+    private StoryStatus status = StoryStatus.PENDING;
 
     @Column(name = "rejection_reason", length = 100)
     private String rejectionReason;

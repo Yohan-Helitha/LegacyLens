@@ -3,7 +3,7 @@ package lk.ac.sliit.legacylens.stories.service;
 import lk.ac.sliit.legacylens.common.exception.ForbiddenOperationException;
 import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
-import lk.ac.sliit.legacylens.common.storage.FileStorageService;
+import lk.ac.sliit.legacylens.common.storage.MediaStorageService;
 import lk.ac.sliit.legacylens.stories.dto.CreateStoryRequest;
 import lk.ac.sliit.legacylens.stories.dto.StoryResponse;
 import lk.ac.sliit.legacylens.stories.dto.UpdateStoryRequest;
@@ -55,13 +55,13 @@ class StoryServiceImplTest {
     private UserRoleRepository userRoleRepository;
 
     @Mock
-    private FileStorageService fileStorageService;
+    private MediaStorageService mediaStorageService;
 
     private StoryServiceImpl storyService;
 
     @BeforeEach
     void setUp() {
-        storyService = new StoryServiceImpl(storyRepository, userRepository, userRoleRepository, fileStorageService);
+        storyService = new StoryServiceImpl(storyRepository, userRepository, userRoleRepository, mediaStorageService);
     }
 
     private User buildUser(UUID id) {
@@ -92,7 +92,7 @@ class StoryServiceImplTest {
         story.setStatus(StoryStatus.PENDING);
         story.setMethod(StoryMethod.RECORDED);
         story.setMediaType(MediaType.AUDIO);
-        story.setMediaFilePath("stories/existing.m4a");
+        story.setMediaFilePath("/uploads/stories/existing.m4a");
         return story;
     }
 
@@ -108,7 +108,7 @@ class StoryServiceImplTest {
 
         assertThrows(ForbiddenOperationException.class, () -> storyService.create(USER_ID, request));
 
-        verify(fileStorageService, never()).store(any(), anyString());
+        verify(mediaStorageService, never()).store(any(), anyString());
         verify(storyRepository, never()).save(any());
     }
 
@@ -129,7 +129,7 @@ class StoryServiceImplTest {
         User author = buildUser(USER_ID);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(author));
         when(userRoleRepository.existsByUserIdAndRoleType(USER_ID, RoleType.ELDER)).thenReturn(true);
-        when(fileStorageService.store(any(), eq("stories"))).thenReturn("stories/generated-name.m4a");
+        when(mediaStorageService.store(any(), eq("stories"))).thenReturn("/uploads/stories/generated-name.m4a");
 
         MockMultipartFile media = new MockMultipartFile("media", "voice.m4a", "audio/m4a", "hello".getBytes());
         CreateStoryRequest request = buildRequest(StoryMethod.RECORDED, media);
@@ -144,7 +144,9 @@ class StoryServiceImplTest {
         assertThat(saved.getTitle()).isEqualTo("The Monsoon of '78");
         assertThat(saved.getStatus()).isEqualTo(StoryStatus.PENDING);
         assertThat(saved.getMediaType()).isEqualTo(MediaType.AUDIO);
-        assertThat(saved.getMediaFilePath()).isEqualTo("stories/generated-name.m4a");
+        // mediaFilePath now holds the complete URL MediaStorageService.store returned
+        // (local "/uploads/..." or a Supabase public URL) — see StoryServiceImpl's own doc comment.
+        assertThat(saved.getMediaFilePath()).isEqualTo("/uploads/stories/generated-name.m4a");
         assertThat(saved.getMediaDurationMillis()).isEqualTo(45_000L);
 
         assertThat(response.getMediaUrl()).isEqualTo("/uploads/stories/generated-name.m4a");
@@ -155,7 +157,7 @@ class StoryServiceImplTest {
     void create_videoClip_resolvesVideoMediaType() {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(buildUser(USER_ID)));
         when(userRoleRepository.existsByUserIdAndRoleType(USER_ID, RoleType.ELDER)).thenReturn(true);
-        when(fileStorageService.store(any(), eq("stories"))).thenReturn("stories/clip.mp4");
+        when(mediaStorageService.store(any(), eq("stories"))).thenReturn("/uploads/stories/clip.mp4");
 
         MockMultipartFile media = new MockMultipartFile("media", "clip.mp4", "video/mp4", "x".getBytes());
         CreateStoryRequest request = buildRequest(StoryMethod.UPLOADED, media);
@@ -175,7 +177,7 @@ class StoryServiceImplTest {
 
         assertThrows(InvalidRequestException.class, () -> storyService.create(USER_ID, request));
 
-        verify(fileStorageService, never()).store(any(), anyString());
+        verify(mediaStorageService, never()).store(any(), anyString());
         verify(storyRepository, never()).save(any());
     }
 
@@ -188,7 +190,7 @@ class StoryServiceImplTest {
 
         StoryResponse response = storyService.create(USER_ID, request);
 
-        verify(fileStorageService, never()).store(any(), anyString());
+        verify(mediaStorageService, never()).store(any(), anyString());
         assertThat(response.getMediaUrl()).isNull();
         assertThat(response.getMediaType()).isNull();
     }
@@ -214,7 +216,7 @@ class StoryServiceImplTest {
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getId()).isEqualTo(STORY_ID);
-        assertThat(results.get(0).getMediaUrl()).isEqualTo("/uploads/stories/existing.m4a");
+        assertThat(results.get(0).getMediaUrl()).isEqualTo("/uploads/stories/existing.m4a"); // see buildStory()
     }
 
     // ── getById ───────────────────────────────────────────────────────────
@@ -301,7 +303,7 @@ class StoryServiceImplTest {
 
         storyService.delete(USER_ID, STORY_ID);
 
-        verify(fileStorageService).delete("stories/existing.m4a");
+        verify(mediaStorageService).delete("/uploads/stories/existing.m4a");
         verify(storyRepository).delete(story);
     }
 
@@ -314,7 +316,7 @@ class StoryServiceImplTest {
 
         storyService.delete(USER_ID, STORY_ID);
 
-        verify(fileStorageService, never()).delete(anyString());
+        verify(mediaStorageService, never()).delete(anyString());
         verify(storyRepository).delete(story);
     }
 
@@ -326,7 +328,11 @@ class StoryServiceImplTest {
 
         assertThrows(ResourceNotFoundException.class, () -> storyService.delete(OTHER_USER_ID, STORY_ID));
 
-        verify(fileStorageService, never()).delete(anyString());
-        verify(storyRepository, never()).delete(any());
+        verify(mediaStorageService, never()).delete(anyString());
+        // Explicit type witness: StoryRepository now also extends
+        // JpaSpecificationExecutor (see StoryQueryService), which adds an
+        // overloaded delete(Specification<Story>) that makes bare any()
+        // ambiguous against delete(Story).
+        verify(storyRepository, never()).delete(any(Story.class));
     }
 }

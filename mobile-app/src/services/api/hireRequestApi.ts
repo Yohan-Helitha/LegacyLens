@@ -1,0 +1,50 @@
+import { apiDelete, apiGet, apiPost, apiPostForm } from './client';
+import type {
+  JobApplicationSummary,
+  JobRequestResponse,
+  JobRequestSummary,
+  SubmitHireRequestPayload,
+} from '../../types/hireRequest';
+
+function toFormData(payload: SubmitHireRequestPayload): FormData {
+  const formData = new FormData();
+  formData.append('title', payload.title);
+  formData.append('inputMode', payload.inputMode);
+  // React Native's FormData accepts this {uri, name, type} shape directly —
+  // it isn't a real web File/Blob, so the DOM FormData typings don't cover it.
+  formData.append('voiceNote', payload.voiceNote as unknown as Blob);
+  return formData;
+}
+
+/** Typed wrappers around /api/job-requests/** — the elder-side hiring backend. */
+export const hireRequestApi = {
+  /** POST /api/job-requests — submits straight to admin review (PENDING_ADMIN_REVIEW). */
+  submit: (payload: SubmitHireRequestPayload) =>
+    apiPostForm<JobRequestResponse>('/job-requests', toFormData(payload)),
+
+  /** GET /api/job-requests/mine — the elder's own requests with applicant counts. */
+  listMine: () => apiGet<JobRequestSummary[]>('/job-requests/mine'),
+
+  /** GET /api/job-requests/{id} — one request's full detail (title + the recorded Details clip). */
+  getById: (jobRequestId: string) => apiGet<JobRequestResponse>(`/job-requests/${jobRequestId}`),
+
+  /** DELETE /api/job-requests/{id} — only within the first hour of posting, and only before an admin has acted on it. */
+  remove: (jobRequestId: string) => apiDelete<void>(`/job-requests/${jobRequestId}`),
+
+  getApplications: (jobRequestId: string) =>
+    apiGet<JobApplicationSummary[]>(`/job-requests/${jobRequestId}/applications`),
+
+  /** Accepts one applicant; the backend auto-rejects the rest and closes the request. */
+  approveApplication: (jobRequestId: string, applicationId: string) =>
+    apiPost<void, Record<string, never>>(
+      `/job-requests/${jobRequestId}/applications/${applicationId}/approve`,
+      {},
+    ),
+
+  /** `reason` is optional by design — an elder never has to explain a rejection. */
+  rejectApplication: (jobRequestId: string, applicationId: string, reason?: string) =>
+    apiPost<void, { reason?: string }>(
+      `/job-requests/${jobRequestId}/applications/${applicationId}/reject`,
+      reason ? { reason } : {},
+    ),
+};

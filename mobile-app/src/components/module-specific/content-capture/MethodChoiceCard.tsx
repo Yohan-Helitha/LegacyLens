@@ -7,17 +7,22 @@ interface MethodChoiceCardProps {
   /** Icon (or icon group) rendered above the label */
   icon: React.ReactNode;
   label: string;
+  /** One-line description shown under the label — also folded into the default accessibilityLabel. */
+  description?: string;
   onPress?: () => void;
   accessibilityLabel?: string;
 }
 
 /**
  * Selectable card used on the "how would you like to share" screen —
- * one per capture method (voice/video, writing, …).
+ * one per capture method (audio, video, written, …). The whole card is a
+ * single accessible element (one accessibilityLabel combining label +
+ * description), not separately-focusable icon/label/description parts.
  */
 export const MethodChoiceCard: React.FC<MethodChoiceCardProps> = ({
   icon,
   label,
+  description,
   onPress,
   accessibilityLabel,
 }) => (
@@ -25,10 +30,11 @@ export const MethodChoiceCard: React.FC<MethodChoiceCardProps> = ({
     onPress={onPress}
     style={({ pressed }) => [s.card, pressed && s.pressed]}
     accessibilityRole="button"
-    accessibilityLabel={accessibilityLabel ?? label}
+    accessibilityLabel={accessibilityLabel ?? (description ? `${label}. ${description}.` : label)}
   >
     <View style={s.iconRow}>{icon}</View>
     <Text style={s.label}>{label}</Text>
+    {!!description && <Text style={s.description}>{description}</Text>}
   </Pressable>
 );
 
@@ -55,6 +61,13 @@ const s = StyleSheet.create({
     fontSize: Typography.sizeMD,
     color: D.onSurface,
     textAlign: 'center',
+  },
+  description: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    color: D.onSurfaceVariant,
+    textAlign: 'center',
+    marginTop: -Spacing.xs,
   },
 });
 

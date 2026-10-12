@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,11 +16,15 @@ import Svg, { Circle, Line, Path, Polyline, Rect } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import { profileApi } from '../../../services/api/profileApi';
+import { cityApi } from '../../../services/api/cityApi';
+import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
+import { ApiError } from '../../../services/api/client';
 import type { OpportunityDetailResponse } from '../../../types/opportunity';
+import type { City } from '../../../types/city';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
-import { useOpportunityApplicationStore } from '../../../store/opportunityApplicationStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -41,46 +46,31 @@ const D = {
   onSurfaceVariant: '#4a5568',
 } as const;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Fallback data — shown while opportunityId is unset or the fetch fails, so
-// the screen never renders blank.
-// ─────────────────────────────────────────────────────────────────────────────
-const FALLBACK_DETAIL: OpportunityDetailResponse = {
-  id: '',
-  title: 'Traditional Recipe Documentation',
-  description: '',
-  heroImageUrl: 'local:fisheries',
-  elderName: 'Mrs. Kamala Wijesingha',
-  elderAvatarUrl: null,
-  elderVerified: true,
-  location: 'Matara',
-  scheduledDate: '2026-08-28T00:00:00',
-  durationText: null,
-  offeredAmount: 2500,
-  timeWindowText: '10.00 A.M - 2.00 P.M',
-  language: null,
-  preservationGoal: null,
-  tasks: [],
-};
-
-const FALLBACK_NAME = 'Arani Inothma';
-const FALLBACK_PHONE = '07X XXX XXXX';
-const FALLBACK_CITY = 'Matara';
-
 /**
  * The opportunity doesn't carry a "required skills" or "equipment" field on
  * the backend yet, so these checklists are static/illustrative for now —
  * matching the mockup — rather than derived from real per-opportunity data.
  */
-const RELEVANT_SKILLS = ['Videography', 'Basic Video Editing', 'Documentation'];
-const EQUIPMENT_ITEMS = ['Camera', 'Microphone'];
+const RELEVANT_SKILLS = [
+  'Photography',
+  'Videography',
+  'Basic Video Editing',
+  'Photo Editing',
+  'Audio Recording',
+  'Oral History Interviewing',
+  'Documentation & Report Writing',
+  'Translation & Transcription',
+];
 
-/** Keeps only the first 2 digits visible — a phone number is sensitive even to show as a form default. */
-function maskPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length < 10) return phone;
-  return `${digits.slice(0, 2)}X XXX XXXX`;
-}
+const EQUIPMENT_ITEMS = [
+  'DSLR / Mirrorless Camera',
+  'Smartphone Camera',
+  'Tripod',
+  'Microphone (Lavalier / Shotgun)',
+  'Portable Audio Recorder',
+  'Portable Lighting Kit',
+  'Laptop for Editing',
+];
 
 function formatScheduledDate(iso: string | null): string {
   if (!iso) return '—';
@@ -157,31 +147,6 @@ const Checkbox: React.FC<{ label: string; checked: boolean; onToggle: () => void
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar — back arrow (this screen is reached via "Apply", not a nav tab)
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC<{ onBack: () => void }> = ({ onBack }) => (
-  <View style={s.appBar}>
-    <Pressable
-      style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
-      onPress={onBack}
-      accessibilityRole="button"
-      accessibilityLabel="Go back"
-    >
-      <Text style={s.backArrow}>{'←'}</Text>
-    </Pressable>
-
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Notifications">
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -190,13 +155,14 @@ export const OpportunityApplicationForm: React.FC<{
   onBack: () => void;
   onSave: () => void;
   opportunityId: string | null;
-  /** Editing an existing saved draft, opened from SavedOpportunityApplication's "Edit" button. */
-  draftId?: string | null;
-}> = ({ onNavigate, onBack, onSave, opportunityId, draftId }) => {
-  const [detail, setDetail] = useState<OpportunityDetailResponse>(FALLBACK_DETAIL);
-  const [name, setName] = useState(FALLBACK_NAME);
-  const [phone, setPhone] = useState(FALLBACK_PHONE);
-  const [city, setCity] = useState(FALLBACK_CITY);
+}> = ({ onNavigate, onBack, onSave, opportunityId }) => {
+  // Null until each real fetch resolves — no fallback/mock data; a genuine
+  // failure surfaces as an error state instead of invented content.
+  const [detail, setDetail] = useState<OpportunityDetailResponse | null>(null);
+  const [name, setName] = useState<string | null>(null);
+  const [phone, setPhone] = useState<string | null>(null);
+  const [cityObj, setCityObj] = useState<City | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [selectedSkills, setSelectedSkills] = useState<Record<string, boolean>>({});
   const [experienceText, setExperienceText] = useState('');
@@ -205,48 +171,52 @@ export const OpportunityApplicationForm: React.FC<{
   const [selectedEquipment, setSelectedEquipment] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
 
-  const saveDraft = useOpportunityApplicationStore((s) => s.saveDraft);
-  const getById = useOpportunityApplicationStore((s) => s.getById);
+  // "Edit Your Details" — full name + city only. Phone/NIC stay on their own
+  // OTP-verified change flow (see AccountSecurityController), so this form
+  // never touches them directly.
+  const [editVisible, setEditVisible] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editCityId, setEditCityId] = useState<number | null>(null);
+  const [cities, setCities] = useState<City[]>([]);
+  const [cityListOpen, setCityListOpen] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
-    // Editing an existing draft restores its own snapshot instead of
-    // re-fetching the opportunity — the draft may be a demo entry with no
-    // real opportunityId, and editing shouldn't silently overwrite what the
-    // creator already typed with fresh server data.
-    if (draftId) {
-      const existing = getById(draftId);
-      if (existing) {
-        setDetail((prev) => ({
-          ...prev,
-          title: existing.title,
-          elderName: existing.elderName,
-          location: existing.location,
-          heroImageUrl: existing.heroImageUrl,
-          timeWindowText: existing.timeWindowText,
-        }));
-        setSelectedSkills(Object.fromEntries(existing.formState.selectedSkills.map((k) => [k, true])));
-        setExperienceText(existing.formState.experienceText);
-        setApproachText(existing.formState.approachText);
-        setAvailabilityConfirmed(existing.formState.availabilityConfirmed);
-        setSelectedEquipment(Object.fromEntries(existing.formState.selectedEquipment.map((k) => [k, true])));
-      }
+    if (!opportunityId) {
+      setLoadError('No opportunity was selected.');
       return;
     }
+    opportunityApi
+      .getById(opportunityId)
+      .then(setDetail)
+      .catch((err) => setLoadError(err instanceof ApiError ? err.message : 'Could not load this opportunity.'));
 
-    if (opportunityId) {
-      opportunityApi.getById(opportunityId).then(setDetail).catch(() => {});
-    }
-  }, [opportunityId, draftId, getById]);
+    // A creator applies to a given opportunity at most once — if they
+    // already have a draft (or even a submitted application) for it, restore
+    // what they'd already filled in instead of starting blank. Not found
+    // (null data, no throw) simply means they're starting fresh.
+    opportunityApplicationApi
+      .getByOpportunity(opportunityId)
+      .then((existing) => {
+        if (!existing) return;
+        setSelectedSkills(Object.fromEntries(existing.skills.map((k) => [k, true])));
+        setExperienceText(existing.experienceText ?? '');
+        setApproachText(existing.approachText ?? '');
+        setAvailabilityConfirmed(existing.availabilityConfirmed);
+        setSelectedEquipment(Object.fromEntries(existing.equipment.map((k) => [k, true])));
+      })
+      .catch(() => {});
+  }, [opportunityId]);
 
   useEffect(() => {
     profileApi
       .getMe()
       .then((me) => {
-        if (me.fullName) setName(me.fullName);
-        if (me.phoneNumber) setPhone(maskPhone(me.phoneNumber));
-        if (me.city?.name) setCity(me.city.name);
+        setName(me.fullName);
+        setPhone(me.phoneNumber || '—');
+        setCityObj(me.city);
       })
-      .catch(() => {});
+      .catch((err) => setLoadError(err instanceof ApiError ? err.message : 'Could not load your profile.'));
   }, []);
 
   const toggleSkill = (skill: string) =>
@@ -255,36 +225,91 @@ export const OpportunityApplicationForm: React.FC<{
   const toggleEquipment = (item: string) =>
     setSelectedEquipment((prev) => ({ ...prev, [item]: !prev[item] }));
 
-  // There's no "submit application" endpoint on the backend yet — Save
-  // persists a local SAVED draft (see opportunityApplicationStore) and takes
-  // the creator to their Saved Applications list, same as the real flow will
-  // once that backend slice exists.
-  const handleSave = () => {
-    setSaving(true);
-    saveDraft(
-      {
-        opportunityId,
-        title: detail.title,
-        elderName: detail.elderName,
-        location: detail.location,
-        heroImageUrl: detail.heroImageUrl,
-        scheduledDateText: detail.scheduledDate ? formatScheduledDate(detail.scheduledDate) : null,
-        timeWindowText: detail.timeWindowText,
-        formState: {
-          selectedSkills: Object.keys(selectedSkills).filter((k) => selectedSkills[k]),
-          experienceText,
-          approachText,
-          availabilityConfirmed,
-          selectedEquipment: Object.keys(selectedEquipment).filter((k) => selectedEquipment[k]),
-        },
-      },
-      draftId ?? undefined,
-    );
-    setSaving(false);
-    Alert.alert('Application saved', 'Your application draft has been saved.', [
-      { text: 'OK', onPress: onSave },
-    ]);
+  const openEditDetails = () => {
+    setEditName(name ?? '');
+    setEditCityId(cityObj?.id ?? null);
+    setCityListOpen(false);
+    setEditVisible(true);
+    if (cities.length === 0) {
+      cityApi.getAll().then(setCities).catch(() => {});
+    }
   };
+
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) {
+      Alert.alert('Name required', 'Please enter your full name.');
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      const updated = await profileApi.updateMe({ fullName: editName.trim(), cityId: editCityId });
+      setName(updated.fullName);
+      setCityObj(updated.city);
+      setEditVisible(false);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not update your details.';
+      Alert.alert('Update failed', message);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!opportunityId) {
+      Alert.alert('Cannot save', 'No opportunity is selected.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await opportunityApplicationApi.saveDraft({
+        opportunityId,
+        skills: Object.keys(selectedSkills).filter((k) => selectedSkills[k]),
+        experienceText,
+        approachText,
+        availabilityConfirmed,
+        equipment: Object.keys(selectedEquipment).filter((k) => selectedEquipment[k]),
+      });
+      Alert.alert('Application saved', 'Your application draft has been saved.', [
+        { text: 'OK', onPress: onSave },
+      ]);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not save your application.';
+      Alert.alert('Save failed', message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Held back until every fetch above settles — real data only, no
+  // fallback/mock content, and a genuine failure shows as an error state.
+  if (loadError) {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+        <StatusBar style="dark" />
+        <CreatorTopAppBar variant="back" onBack={onBack} />
+        <View style={s.loadingWrap}>
+          <Text style={s.loadingText}>{loadError}</Text>
+        </View>
+        <BottomNavBar activeTab="market" onNavigate={onNavigate} />
+      </SafeAreaView>
+    );
+  }
+
+  // cityObj is intentionally excluded here — a creator with no city set is a valid loaded state, not a pending fetch.
+  if (!detail || name === null || phone === null) {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+        <StatusBar style="dark" />
+        <CreatorTopAppBar variant="back" onBack={onBack} />
+        <View style={s.loadingWrap}>
+          <Text style={s.loadingText}>Loading…</Text>
+        </View>
+        <BottomNavBar activeTab="market" onNavigate={onNavigate} />
+      </SafeAreaView>
+    );
+  }
 
   const availabilityText = detail.scheduledDate
     ? `${formatScheduledDate(detail.scheduledDate)}${detail.timeWindowText ? `, ${detail.timeWindowText}` : ''}`
@@ -294,7 +319,7 @@ export const OpportunityApplicationForm: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar onBack={onBack} />
+      <CreatorTopAppBar variant="back" onBack={onBack} />
 
       <ScrollView
         style={s.scroll}
@@ -353,11 +378,18 @@ export const OpportunityApplicationForm: React.FC<{
         <View style={s.card}>
           <View style={s.cardHeaderRow}>
             <Text style={s.cardTitle}>Your Details</Text>
-            <Text style={s.editProfileText}>Edit Profile</Text>
+            <Pressable
+              onPress={openEditDetails}
+              style={({ pressed }) => pressed && s.pressed}
+              accessibilityRole="button"
+              accessibilityLabel="Edit your details"
+            >
+              <Text style={s.editProfileText}>Edit Profile</Text>
+            </Pressable>
           </View>
           <Text style={s.detailsName}>{name}</Text>
           <Text style={s.detailsMuted}>{phone}</Text>
-          <Text style={s.detailsMuted}>{city}</Text>
+          <Text style={s.detailsMuted}>{cityObj?.name ?? 'No city set'}</Text>
         </View>
 
         {/* Relevant Skill */}
@@ -465,6 +497,86 @@ export const OpportunityApplicationForm: React.FC<{
       </ScrollView>
 
       <BottomNavBar activeTab="market" onNavigate={onNavigate} />
+
+      <Modal
+        visible={editVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditVisible(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>Edit Your Details</Text>
+
+            <Text style={s.modalLabel}>Full Name</Text>
+            <TextInput
+              style={s.modalInput}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Your full name"
+              placeholderTextColor={D.onSurfaceVariant}
+            />
+
+            <Text style={s.modalLabel}>City</Text>
+            <Pressable
+              style={({ pressed }) => [s.citySelector, pressed && s.pressed]}
+              onPress={() => setCityListOpen((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel="Select your city"
+            >
+              <Text style={s.citySelectorText}>
+                {cities.find((c) => c.id === editCityId)?.name ?? 'Select your city'}
+              </Text>
+            </Pressable>
+            {cityListOpen && (
+              <ScrollView style={s.cityListBox} nestedScrollEnabled>
+                {cities.map((c) => (
+                  <Pressable
+                    key={c.id}
+                    style={({ pressed }) => [s.cityListRow, pressed && s.pressed]}
+                    onPress={() => {
+                      setEditCityId(c.id);
+                      setCityListOpen(false);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={c.name}
+                  >
+                    <Text style={[s.cityListRowText, c.id === editCityId && s.cityListRowTextActive]}>
+                      {c.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
+            <Text style={s.modalLabel}>Phone Number</Text>
+            <Text style={s.modalPhoneReadOnly}>{phone}</Text>
+            <Text style={s.modalPhoneNote}>
+              Phone numbers are changed separately with SMS verification, from Profile → Privacy & Security.
+            </Text>
+
+            <View style={s.modalBtnRow}>
+              <Pressable
+                onPress={() => setEditVisible(false)}
+                style={({ pressed }) => [s.modalBtnCancel, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel editing"
+              >
+                <Text style={s.modalBtnCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleSaveProfile}
+                disabled={savingProfile}
+                style={({ pressed }) => [s.modalBtnSave, pressed && s.saveBtnPressed, savingProfile && { opacity: 0.7 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Save your details"
+              >
+                <Text style={s.modalBtnSaveText}>{savingProfile ? 'Saving…' : 'Save'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -521,6 +633,9 @@ const s = StyleSheet.create({
     fontSize: Typography.sizeMD,
     color: D.onSurface,
   },
+
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loadingText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
 
   // ── Section cards ────────────────────────────────────────────────────────
   card: {
@@ -624,4 +739,91 @@ const s = StyleSheet.create({
 
   // ── Press feedback ───────────────────────────────────────────────────────
   pressed: { opacity: 0.75 },
+
+  // ── Edit Your Details modal ─────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.md,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.xl,
+    padding: Spacing.md,
+    gap: 6,
+  },
+  modalTitle: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeMD,
+    color: D.onSurface,
+    marginBottom: 4,
+  },
+  modalLabel: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeXS,
+    color: D.onSurfaceVariant,
+    marginTop: 8,
+  },
+  modalInput: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    borderRadius: Radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    color: D.onSurface,
+  },
+  citySelector: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    borderRadius: Radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  citySelectorText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurface },
+  cityListBox: {
+    maxHeight: 160,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    borderRadius: Radii.lg,
+    marginTop: 6,
+  },
+  cityListRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: D.surfaceVariant,
+  },
+  cityListRowText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurface },
+  cityListRowTextActive: { fontFamily: Typography.fontBodySemi, color: D.primary },
+  modalPhoneReadOnly: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeSM,
+    color: D.onSurface,
+    paddingVertical: 4,
+  },
+  modalPhoneNote: {
+    fontFamily: Typography.fontBody,
+    fontSize: 11,
+    lineHeight: 16,
+    color: D.onSurfaceVariant,
+  },
+  modalBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.md },
+  modalBtnCancel: {
+    paddingVertical: 10, paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full, borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+    alignItems: 'center', justifyContent: 'center', minHeight: 44,
+  },
+  modalBtnCancelText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
+  modalBtnSave: {
+    paddingVertical: 10, paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full, backgroundColor: D.primary,
+    alignItems: 'center', justifyContent: 'center', minHeight: 44,
+  },
+  modalBtnSaveText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
 });

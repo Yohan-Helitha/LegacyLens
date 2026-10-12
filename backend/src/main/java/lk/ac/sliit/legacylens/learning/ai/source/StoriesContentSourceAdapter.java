@@ -1,7 +1,7 @@
 package lk.ac.sliit.legacylens.learning.ai.source;
 
 import lk.ac.sliit.legacylens.moderation.entity.ModerationQueueItem;
-import lk.ac.sliit.legacylens.moderation.entity.ModerationStatus;
+import lk.ac.sliit.legacylens.stories.entity.StoryStatus;
 import lk.ac.sliit.legacylens.moderation.repository.ModerationQueueRepository;
 import org.springframework.stereotype.Component;
 
@@ -30,9 +30,9 @@ public class StoriesContentSourceAdapter implements SourceContentProvider {
 		List<SourceContentSummary> summaries = new ArrayList<>();
 
 		if (query == null || query.isBlank()) {
-			items = moderationQueueRepository.findByStatus(ModerationStatus.PUBLISHED);
+			items = moderationQueueRepository.findByStatus(StoryStatus.PUBLISHED);
 		} else {
-			items = moderationQueueRepository.findByStatus(ModerationStatus.PUBLISHED);
+			items = moderationQueueRepository.findByStatus(StoryStatus.PUBLISHED);
 			if (items != null) {
 				final String q = query.toLowerCase();
 				items = items.stream().filter(item -> {
@@ -123,7 +123,7 @@ public class StoriesContentSourceAdapter implements SourceContentProvider {
 				continue;
 			}
 
-			itemOpt = moderationQueueRepository.findByIdAndStatus(uuid, ModerationStatus.PUBLISHED);
+			itemOpt = moderationQueueRepository.findByIdAndStatus(uuid, StoryStatus.PUBLISHED);
 			if (itemOpt.isPresent()) {
 				ModerationQueueItem item = itemOpt.get();
 				String fullText = buildFullText(item.getTitle(), item.getDescription(), item.getBodyContent());
