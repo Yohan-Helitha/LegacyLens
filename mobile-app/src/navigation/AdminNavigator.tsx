@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Modal } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AdminHomeScreen } from '../screens/admin/home';
@@ -7,6 +7,7 @@ import { CreateOpportunityScreen } from '../screens/admin/opportunity-create';
 import { OpportunityIntakeScreen, OpportunityReviewScreen } from '../screens/admin/opportunity-intake';
 import { OpportunityDraftsScreen } from '../screens/admin/opportunity-drafts';
 import { AdminNotificationsScreen } from '../screens/admin/notifications';
+import { AdminProfileScreen } from '../screens/admin/profile';
 import { VideoDetailScreen, BlogDetailScreen } from '../screens/content-details';
 import { AdminHeader, AdminFooter } from '../components/common';
 import type { AdminTabKey } from '../components/common';
@@ -73,7 +74,7 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
           ? 'admin_profile'
           : 'admin_home';
 
-  const showHeader = screen !== 'video' && screen !== 'blog' && screen !== 'notifications';
+  const showHeader = screen !== 'video' && screen !== 'blog' && screen !== 'notifications' && screen !== 'admin_profile';
   const showFooter = screen !== 'video' && screen !== 'blog' && screen !== 'notifications';
 
   return (
@@ -131,9 +132,11 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
       </Modal>
 
       {screen === 'admin_profile' && (
-        <View style={s.placeholder}>
-          <Text style={s.placeholderText}>Admin Profile (Coming Soon)</Text>
-        </View>
+        <AdminProfileScreen
+          onBack={() => setScreen('admin_home')}
+          onNavigate={handleNavigate}
+          onLogout={() => navigation.replace('Login')}
+        />
       )}
 
       {showFooter && (
