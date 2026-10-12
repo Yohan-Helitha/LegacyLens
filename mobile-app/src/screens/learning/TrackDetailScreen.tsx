@@ -110,9 +110,7 @@ function LessonNode({ item, index, activeLessonIndex, totalLessons, navigation }
             animatedStyle
           ]}
           onPress={() => {
-            isQuiz
-              ? navigation.navigate('Quiz', { lessonId: lessonTargetId })
-              : navigation.navigate('Flashcard', { lessonId: lessonTargetId })
+            navigation.navigate(isQuiz ? 'Quiz' : 'Flashcard', { lessonId: lessonTargetId });
           }}
         >
           <View style={[styles.lessonBadge, { backgroundColor: isLocked ? Colors.surface : Colors.secondarySubtle }]}>
@@ -297,9 +295,10 @@ export default function TrackDetailScreen() {
                 if (!nextLesson) return;
                 
                 const targetLessonId = nextLesson.lessonId ?? nextLesson.id;
-                nextLesson.type.toLowerCase() === 'quiz'
-                  ? navigation.navigate('Quiz', { lessonId: targetLessonId })
-                  : navigation.navigate('Flashcard', { lessonId: targetLessonId });
+                navigation.navigate(
+                  nextLesson.type.toLowerCase() === 'quiz' ? 'Quiz' : 'Flashcard',
+                  { lessonId: targetLessonId },
+                );
               }}
               accessibilityRole="button"
               accessibilityLabel={completedLessons > 0 && completedLessons < track.totalLessons ? "Resume Learning" : "Start Learning"}

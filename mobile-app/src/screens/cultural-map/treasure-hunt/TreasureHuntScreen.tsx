@@ -458,7 +458,7 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
             {(activeStage?.questions?.[currentQuestionIndex]?.choices || activeStage?.choices)?.map((item: any) => {
               const isSelected = selectedChoiceId === item.id;
 
-              let cardStyle: any = [styles.choiceCard];
+              const cardStyle: any = [styles.choiceCard];
               let textColor: string = Colors.textMuted;
 
               if (isAnswerRevealed) {

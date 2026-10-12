@@ -95,7 +95,7 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
     .map(b => ({
       ...b,
       isUnlocked: true,
-      textureType: 'wood' as 'wood', // dynamically assigned default unlocked texture
+      textureType: 'wood' as const, // dynamically assigned default unlocked texture
     }));
 
   const timelineItems = [...earnedBadges].reverse().map((badge, index, arr) => ({
