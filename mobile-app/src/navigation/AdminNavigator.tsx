@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Modal } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AdminHomeScreen } from '../screens/admin/home';
@@ -17,11 +17,12 @@ import { useOpportunity } from '../context/OpportunityContext';
 export type AdminScreen = AdminTabKey | 'add_opp' | 'opp_review' | 'drafts' | 'video' | 'blog' | 'notifications';
 
 interface AdminNavigatorProps {
-  /** Root stack navigation — used only to leave this flow ("Return to User View"). */
+  /** Root stack navigation â€” used only to leave this flow ("Return to User View"). */
   navigation: NativeStackNavigationProp<RootStackParamList>;
 }
 
 export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) => {
+  const [initialItemId, setInitialItemId] = useState<string | undefined>();
   const [screen, setScreen] = useState<AdminScreen>('admin_home');
   const [selectedPost, setSelectedPost] = useState<any>(null);
   const { audioSubmissions } = useOpportunity();
@@ -49,8 +50,12 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
   }, [screen]);
 
   const handleNavigate = (tab: string, item?: any) => {
-    if (item) {
+    if (item && typeof item === 'string') {
+      setInitialItemId(item);
+    } else if (item) {
       setSelectedPost(item);
+    } else {
+      setInitialItemId(undefined);
     }
     if (tab === 'home') {
       navigation.replace('User');
@@ -75,7 +80,7 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
     <View style={{ flex: 1 }}>
       {showHeader && <AdminHeader onNavigate={handleNavigate} />}
       
-      {screen === 'notifications' && <AdminNotificationsScreen onBack={() => setScreen('admin_home')} />}
+      {screen === 'notifications' && <AdminNotificationsScreen onBack={() => setScreen('admin_home')} onNavigate={handleNavigate} />}
 
       {screen === 'admin_home' && (
         <AdminHomeScreen
@@ -85,7 +90,7 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
         />
       )}
       {screen === 'intake' && (
-        <OpportunityIntakeScreen onOpenReview={() => {
+        <OpportunityIntakeScreen initialItemId={initialItemId} onOpenReview={() => {
           setIntakeBadge(null);
           setScreen('opp_review');
         }} />
@@ -101,7 +106,7 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
         />
       )}
       {screen === 'drafts' && <OpportunityDraftsScreen onNavigate={handleNavigate} />}
-      {screen === 'review' && <ModerationQueueScreen />}
+      {screen === 'review' && <ModerationQueueScreen initialItemId={initialItemId} />}
 
       <Modal
         visible={screen === 'video'}
@@ -149,3 +154,6 @@ const s = StyleSheet.create({
 });
 
 export default AdminNavigator;
+
+
+
