@@ -1,0 +1,153 @@
+import { apiGet } from './client';
+
+export interface DiscoveryStoryItem {
+  id: string;
+  title: string;
+  description?: string;
+  bodyContent?: string;
+  imageUrl?: string;
+  type?: 'video' | 'blog' | 'audio';
+  authorName?: string;
+  district?: string;
+  region?: string;
+  tags?: string[];
+  publishedAt?: string;
+  viewCount?: number;
+  likesCount?: number;
+  commentsCount?: number;
+  score?: number;
+  matchReason?: string;
+}
+
+export interface SearchDiscoveryParams {
+  query?: string;
+  category?: string;
+  type?: string;
+  includeRelated?: boolean;
+  page?: number;
+  size?: number;
+}
+
+export const discoveryApi = {
+  /**
+   * Tag-aware cultural search & filtering
+   * GET /api/v1/discovery/search?q=...&category=...&includeRelated=true
+   */
+  searchStories: async (params: SearchDiscoveryParams = {}): Promise<DiscoveryStoryItem[]> => {
+    const searchParams = new URLSearchParams();
+    if (params.query && params.query.trim()) {
+      searchParams.set('q', params.query.trim());
+    }
+    if (params.category && params.category.trim()) {
+      searchParams.set('category', params.category.trim());
+    }
+    if (params.type && params.type.trim() && params.type !== 'all' && params.type !== 'Explore all') {
+      // Normalize 'Videos' -> 'video', 'Blogs' -> 'blog', 'Audio' -> 'audio'
+      let normalizedType = params.type.toLowerCase().trim();
+      if (normalizedType.endsWith('s')) {
+        normalizedType = normalizedType.slice(0, -1);
+      }
+      searchParams.set('type', normalizedType);
+    }
+    if (params.includeRelated !== undefined) {
+      searchParams.set('includeRelated', String(params.includeRelated));
+    }
+    searchParams.set('page', String(params.page ?? 0));
+    searchParams.set('size', String(params.size ?? 20));
+
+    const response = await apiGet<any>(`/v1/discovery/search?${searchParams.toString()}`);
+    if (response && response.content) {
+      return response.content;
+    }
+    return Array.isArray(response) ? response : [];
+  },
+
+  /**
+   * Hybrid related content recommendations for story detail pages
+   * GET /api/v1/discovery/stories/{storyId}/related?limit=4
+   */
+  getRelatedStories: async (storyId: string, limit: number = 4): Promise<DiscoveryStoryItem[]> => {
+    const response = await apiGet<DiscoveryStoryItem[]>(`/v1/discovery/stories/${storyId}/related?limit=${limit}`);
+    return Array.isArray(response) ? response : [];
+  },
+
+  /**
+   * Personalized Home recommendations based on user view history
+   * GET /api/v1/discovery/recommendations/home?limit=10
+   */
+  getHomeRecommendations: async (limit: number = 10): Promise<DiscoveryStoryItem[]> => {
+    const response = await apiGet<DiscoveryStoryItem[]>(`/v1/discovery/recommendations/home?limit=${limit}`);
+    return Array.isArray(response) ? response : [];
+  },
+};
+
+/**
+ * Normalizes a DiscoveryStoryItem into the unified FeedItemResponse format
+ * used across the mobile app cards (VideoCard, BlogCard, AudioCard).
+ */
+export function mapDiscoveryToFeedItem(item: DiscoveryStoryItem): any {
+  const baseType = (item.type || 'blog').toLowerCase();
+  const id = String(item.id);
+  const title = item.title || 'Untitled Cultural Heritage';
+  const author = item.authorName || 'Elder Storyteller';
+  const location = item.district ? `${item.district}, ${item.region || 'Sri Lanka'}` : (item.region || 'Sri Lanka');
+  const tags = item.tags && item.tags.length > 0 ? item.tags : ['heritage'];
+  const thumbnail = item.imageUrl || 'https://images.unsplash.com/photo-1546707012-c46675f12716?auto=format&fit=crop&q=80&w=600';
+
+  if (baseType === 'video') {
+    return {
+      id,
+      title,
+      author,
+      location,
+      thumbnail,
+      videoUrl: (item as any).videoUrl || 'https://assets.mixkit.co/videos/preview/mixkit-traditional-cultural-dance-41484-large.mp4',
+      duration: '4:20',
+      tags,
+      type: 'video',
+      likesCount: item.likesCount ?? 0,
+      commentsCount: item.commentsCount ?? 0,
+      description: item.description ?? '',
+      excerpt: item.description ?? '',
+      ...(item as any),
+    };
+  } else if (baseType === 'audio') {
+    return {
+      id,
+      name: author,
+      title,
+      author,
+      location,
+      duration: '5:10',
+      topic: title,
+      tags,
+      avatar: thumbnail,
+      thumbnail,
+      bars: [30, 45, 60, 80, 55, 40, 70, 90, 65, 45, 30],
+      type: 'audio',
+      likesCount: item.likesCount ?? 0,
+      commentsCount: item.commentsCount ?? 0,
+      description: item.description ?? '',
+      excerpt: item.description ?? '',
+      ...(item as any),
+    };
+  } else {
+    return {
+      id,
+      title,
+      author,
+      location,
+      excerpt: item.description || item.bodyContent?.slice(0, 140) || 'Heritage story preserved in LegacyLens',
+      thumbnail,
+      readTime: '3 min read',
+      tags,
+      type: 'blog',
+      likesCount: item.likesCount ?? 0,
+      commentsCount: item.commentsCount ?? 0,
+      description: item.description ?? '',
+      content: item.bodyContent ?? '',
+      ...(item as any),
+    };
+  }
+}
+
