@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, Image, ActivityIndicator, TextInput } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
@@ -175,7 +175,7 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-export const OpportunityIntakeScreen: React.FC<{ onOpenReview?: () => void }> = ({ onOpenReview }) => {
+export const OpportunityIntakeScreen: React.FC<{ onOpenReview?: () => void, initialItemId?: string }> = ({ onOpenReview, initialItemId }) => {
   const { audioSubmissions, refreshAll, loading } = useOpportunity();
   const [activeFilter, setActiveFilter] = useState<FilterType>('All');
   const [previewVisible, setPreviewVisible] = useState(false);
@@ -447,3 +447,4 @@ export const OpportunityIntakeScreen: React.FC<{ onOpenReview?: () => void }> = 
     </View>
   );
 };
+
