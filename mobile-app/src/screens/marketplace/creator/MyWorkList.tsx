@@ -204,7 +204,7 @@ const WorkCard: React.FC<{
           <View style={s.chipsLeft}>
             {variant === 'continue' && (
               <View style={[s.statusChip, progress?.draft && s.statusChipSaved]}>
-                <Text style={[s.statusChipText, progress?.draft && s.statusChipTextSaved]}>{progress?.draft ? 'Saved' : 'Pending'}</Text>
+                <Text style={[s.statusChipText, progress?.draft && s.statusChipTextSaved]}>{progress?.draft ? 'Saved' : 'In Progress'}</Text>
               </View>
             )}
             {!!dueText && (
