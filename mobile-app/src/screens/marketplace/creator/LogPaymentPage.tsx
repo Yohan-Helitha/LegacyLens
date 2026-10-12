@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
@@ -63,6 +63,13 @@ const PinIcon: React.FC<IconProps> = ({ size = 13, color = D.secondary }) => (
   </Svg>
 );
 
+const CardIcon: React.FC<IconProps> = ({ size = 13, color = D.secondary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="2" y="5" width="20" height="14" rx="2" />
+    <Line x1="2" y1="10" x2="22" y2="10" />
+  </Svg>
+);
+
 const CheckIcon: React.FC<{ size?: number }> = ({ size = 11 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
     <Path d="M20 6L9 17l-5-5" />
@@ -94,6 +101,7 @@ export const LogPaymentPage: React.FC<{
 }> = ({ onNavigate, onBack, onSaved }) => {
   const [jobs, setJobs] = useState<JobResponse[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
+  const [jobsError, setJobsError] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
   const [amountInput, setAmountInput] = useState('');
@@ -102,18 +110,18 @@ export const LogPaymentPage: React.FC<{
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    Promise.all([creatorDashboardApi.getJobs('ACTIVE'), creatorDashboardApi.getJobs('UPCOMING')])
-      .then(([active, upcoming]) => {
+    // The opportunities to log a payment against are the jobs that are booked and in My Work (Active):
+    // the ones scheduled for today come first, then the rest soonest-first.
+    creatorDashboardApi
+      .getJobs('ACTIVE')
+      .then((active) => {
         const todayKey = dateKey(new Date());
-        const all = [...active, ...upcoming];
-        // "Today's opportunity" — jobs actually scheduled today; if none are,
-        // fall back to every active engagement so the list is never empty.
-        const todays = all.filter((j) => j.scheduledAt && dateKey(new Date(j.scheduledAt)) === todayKey);
-        const list = todays.length > 0 ? todays : active;
+        const isToday = (j: JobResponse) => !!j.scheduledAt && dateKey(new Date(j.scheduledAt)) === todayKey;
+        const list = [...active.filter(isToday), ...active.filter((j) => !isToday(j))];
         setJobs(list);
         if (list.length > 0) setSelectedJobId(list[0].id);
       })
-      .catch(() => {})
+      .catch(() => setJobsError(true))
       .finally(() => setJobsLoading(false));
   }, []);
 
@@ -222,10 +230,14 @@ export const LogPaymentPage: React.FC<{
         <View style={s.section}>
           <Text style={s.sectionTitle}>Select Opportunity</Text>
           {jobsLoading ? (
-            <Text style={s.emptyStateText}>Loading today's opportunities…</Text>
+            <Text style={s.emptyStateText}>Loading your opportunities…</Text>
           ) : jobs.length === 0 ? (
             <View style={s.emptyState}>
-              <Text style={s.emptyStateText}>No opportunities available right now.</Text>
+              <Text style={s.emptyStateText}>
+                {jobsError
+                  ? "Couldn't load your opportunities. Please go back and try again."
+                  : 'No booked opportunities yet. Book one and it will appear here.'}
+              </Text>
             </View>
           ) : (
             <View style={{ gap: Spacing.sm }}>
@@ -249,12 +261,16 @@ export const LogPaymentPage: React.FC<{
                           <PersonIcon />
                           <Text style={s.jobOptionMetaText}>{job.elderName}</Text>
                         </View>
-                        {job.location && (
+                        {!!job.location && (
                           <View style={s.metaInline}>
                             <PinIcon />
                             <Text style={s.jobOptionMetaText}>{job.location}</Text>
                           </View>
                         )}
+                        <View style={s.metaInline}>
+                          <CardIcon />
+                          <Text style={s.jobOptionMetaText}>{`LKR ${Math.round(job.offeredAmount).toLocaleString('en-US')}`}</Text>
+                        </View>
                       </View>
                     </View>
                   </Pressable>

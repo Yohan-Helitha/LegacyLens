@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.marketplace.service;
 
+import lk.ac.sliit.legacylens.common.exception.InvalidApplicationStateException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.common.storage.FileStorageService;
 import lk.ac.sliit.legacylens.marketplace.dto.CreatorDashboardSummaryResponse;
@@ -179,6 +180,10 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
         if (jobId != null) {
             job = jobRepository.findByIdAndCreatorId(jobId, creatorId)
                     .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
+            // Cash is collected for work that is under way or done - not for a job that is only booked or was cancelled.
+            if (job.getStatus() == JobStatus.UPCOMING || job.getStatus() == JobStatus.CANCELLED) {
+                throw new InvalidApplicationStateException("A payment can only be logged for work that has started.");
+            }
         }
 
         String proofDocumentUrl = fileStorageService.store(proofDocument, PAYMENT_PROOF_UPLOAD_SUBDIR,
