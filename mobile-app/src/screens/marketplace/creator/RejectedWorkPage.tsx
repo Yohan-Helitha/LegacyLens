@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { WorkStatusChip } from '../../../components/module-specific/marketplace/WorkStatusChip';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -92,6 +93,8 @@ const RejectedCard: React.FC<{
           accessibilityLabel={job.title}
         />
       </View>
+
+      <WorkStatusChip status={progress?.workStatus ?? 'REJECTED'} />
 
       <Text style={s.cardTitle} numberOfLines={2}>{job.title}</Text>
 

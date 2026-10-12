@@ -9,6 +9,7 @@ import lk.ac.sliit.legacylens.marketplace.dto.WorkProgressResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.ChecklistStage;
 import lk.ac.sliit.legacylens.marketplace.entity.Job;
 import lk.ac.sliit.legacylens.marketplace.entity.JobWorkMaterial;
+import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.JobWorkProgress;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityChecklistItem;
@@ -324,6 +325,23 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .orElse(null);
     }
 
+    /** The one word that says where a piece of work stands - the same rules every screen follows. */
+    static String workStatusOf(Job job, JobWorkProgress progress, boolean submitted) {
+        if (progress.getPublishedAt() != null) {
+            return "PUBLISHED";
+        }
+        if (job.getStatus() == JobStatus.COMPLETED) {
+            return "COMPLETED";
+        }
+        if (progress.isRejected()) {
+            return "REJECTED";
+        }
+        if (submitted) {
+            return "SUBMITTED";
+        }
+        return progress.isDraft() ? "SAVED" : "IN_PROGRESS";
+    }
+
     private boolean hasMaterials(Job job) {
         return !workMaterialRepository.findByJobIdOrderByUploadedAtAsc(job.getId()).isEmpty();
     }
@@ -407,6 +425,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .story(progress.getStory())
                 .seoSummary(progress.getSeoSummary())
                 .seoKeywords(splitKeywords(progress.getSeoKeywords()))
+                .workStatus(workStatusOf(job, progress, submitted))
                 .draft(progress.isDraft())
                 .submittedAt(progress.getSubmittedAt())
                 .rejected(progress.isRejected())

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { WorkStatusChip } from '../../../components/module-specific/marketplace/WorkStatusChip';
 import { StarRating } from '../../../components/module-specific/marketplace/StarRating';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -200,14 +201,11 @@ const WorkCard: React.FC<{
 
   return (
     <View style={s.card}>
-      {(dueText || variant === 'continue') && (
+      {(dueText || variant === 'continue' || variant === 'submitted') && (
         <View style={s.chipsRow}>
           <View style={s.chipsLeft}>
-            {variant === 'continue' && (
-              <View style={[s.statusChip, progress?.draft && s.statusChipSaved]}>
-                <Text style={[s.statusChipText, progress?.draft && s.statusChipTextSaved]}>{progress?.draft ? 'Saved' : 'In Progress'}</Text>
-              </View>
-            )}
+            {variant === 'continue' && <WorkStatusChip status={progress?.workStatus ?? 'IN_PROGRESS'} />}
+            {variant === 'submitted' && <WorkStatusChip status={progress?.workStatus ?? 'SUBMITTED'} />}
             {!!dueText && (
               <View style={[s.dueChip, overdue && s.dueChipOverdue]}>
                 <Text style={[s.dueChipText, overdue && s.dueChipTextOverdue]}>{dueText}</Text>

@@ -50,6 +50,11 @@ public class WorkProgressResponse {
     /** "Search Context (SEO)" — short search-result description and keywords. Empty list when none are set. */
     private String seoSummary;
     private List<String> seoKeywords;
+    /**
+     * Where this work stands, worked out from the facts below (never stored): IN_PROGRESS, SAVED, SUBMITTED
+     * (waiting for review), REJECTED (a reviewer asked for changes), COMPLETED (both approved) or PUBLISHED.
+     */
+    private String workStatus;
     private boolean draft;
     private LocalDateTime submittedAt;
 

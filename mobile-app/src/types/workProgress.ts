@@ -62,8 +62,12 @@ export interface WorkMaterialResponse {
  * always computed on the backend from checklistItems — the frontend never
  * increments them itself.
  */
+/** Where a piece of work stands - worked out by the backend, so every screen says the same thing. */
+export type WorkStatus = 'IN_PROGRESS' | 'SAVED' | 'SUBMITTED' | 'REJECTED' | 'COMPLETED' | 'PUBLISHED';
+
 export interface WorkProgressResponse {
   jobId: string;
+  workStatus: WorkStatus;
   /** The linked Opportunity's photo, present only when this job came from a real booking — see resolveOpportunityImage. */
   heroImageUrl: string | null;
   /** What the opportunity pays, in LKR. */
