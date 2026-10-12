@@ -91,6 +91,23 @@ public class GroqAiService {
         return callGroq(systemPrompt, userPrompt, 200);
     }
 
+    /**
+     * Generate culturally rich structured tags and relationships matching the canonical tag schema.
+     */
+    public String generateStructuredTags(String title, String description, String bodyContent, String type) {
+        if (!isConfigured()) {
+            log.warn("[GroqAiService] GROQ_API_KEY not set — skipping AI tag generation");
+            return null;
+        }
+
+        String userPrompt = buildStructuredTagsPrompt(title, description, bodyContent, type);
+        String systemPrompt = "You are an expert Sri Lankan cultural heritage curator, linguist, and digital archivist. "
+                + "Your task is to analyze heritage content and generate structured canonical taxonomy tags and conceptual relationships. "
+                + "Always respond ONLY with a valid JSON object matching the requested schema — no markdown, no explanation outside the JSON.";
+
+        return callGroq(systemPrompt, userPrompt, 600);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // PROMPT BUILDERS
     // ─────────────────────────────────────────────────────────────────────────
@@ -150,6 +167,48 @@ public class GroqAiService {
         sb.append("- No duplicates\n\n");
         sb.append("Respond ONLY with a JSON array of strings, e.g.:\n");
         sb.append("[\"kandyan-dance\", \"perahera\", \"traditional-drums\", \"central-highlands\"]");
+        return sb.toString();
+    }
+
+    private String buildStructuredTagsPrompt(String title, String description, String bodyContent, String type) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Analyze this Sri Lankan cultural heritage content and extract canonical taxonomy tags and conceptual relationships:\n\n");
+        sb.append("Title: ").append(nullSafe(title, "Heritage Content")).append("\n");
+        sb.append("Content Type: ").append(nullSafe(type, "general")).append("\n");
+        if (isNotBlank(description)) {
+            sb.append("Description:\n").append(description.trim()).append("\n\n");
+        }
+        if (isNotBlank(bodyContent)) {
+            String body = bodyContent.trim();
+            if (body.length() > 2000) body = body.substring(0, 2000) + "...";
+            sb.append("Content:\n").append(body).append("\n\n");
+        }
+        sb.append("Instructions:\n");
+        sb.append("1. Extract 5 to 10 concise, high-value cultural tags representing core traditions, arts, rituals, festivals, places, or practices.\n");
+        sb.append("2. Prefer specific cultural concepts over vague generic tags (e.g. \"Avurudu\", \"Kandyan Dance\", \"Kolam Masks\").\n");
+        sb.append("3. Preserve authentic cultural terms in English, Sinhala transliterations (e.g., 'si-Latn'), Tamil transliterations, or original scripts where appropriate.\n");
+        sb.append("4. Categorize each tag: festival, traditional_game, dance, music, craft, food, ritual, historical_place, oral_tradition, or general.\n");
+        sb.append("5. Suggest candidate conceptual relationships between extracted tags (e.g. 'Kana Mutti' is EXAMPLE_OF 'Traditional Games', 'Avurudu' is RELATED_TO 'Traditional Food').\n");
+        sb.append("   Allowed relationship types: RELATED_TO, BROADER_THAN, NARROWER_THAN, PART_OF, EXAMPLE_OF.\n\n");
+        sb.append("Respond ONLY with this valid JSON object structure:\n");
+        sb.append("{\n");
+        sb.append("  \"tags\": [\n");
+        sb.append("    {\n");
+        sb.append("      \"name\": \"Avurudu\",\n");
+        sb.append("      \"language\": \"si-Latn\",\n");
+        sb.append("      \"description\": \"Sinhala and Tamil New Year cultural celebrations\",\n");
+        sb.append("      \"category\": \"festival\",\n");
+        sb.append("      \"confidence\": 0.95\n");
+        sb.append("    }\n");
+        sb.append("  ],\n");
+        sb.append("  \"relationships\": [\n");
+        sb.append("    {\n");
+        sb.append("      \"source\": \"Avurudu\",\n");
+        sb.append("      \"target\": \"Traditional Games\",\n");
+        sb.append("      \"type\": \"RELATED_TO\"\n");
+        sb.append("    }\n");
+        sb.append("  ]\n");
+        sb.append("}");
         return sb.toString();
     }
 
