@@ -8,6 +8,7 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
+import { useKeepInputVisible } from '../../../hooks/useKeepInputVisible';
 import { ReviewerFeedback } from '../../../components/module-specific/marketplace/ReviewerFeedback';
 import { workProgressApi } from '../../../services/api/workProgressApi';
 import { ApiError } from '../../../services/api/client';
@@ -193,6 +194,7 @@ export const ContinueMyWorkPage: React.FC<{
   const [uploading, setUploading] = useState(false);
   const [pendingChecklistItemId, setPendingChecklistItemId] = useState<string | null>(null);
   const [savedModalVisible, setSavedModalVisible] = useState(false);
+  const { scrollProps, inputProps, keyboardHeight } = useKeepInputVisible();
 
   // What the written boxes hold right now, and what the server last stored - so a save only sends what
   // changed, and the latest text is always at hand when the page is left.
@@ -468,8 +470,9 @@ export const ContinueMyWorkPage: React.FC<{
       <CreatorTopAppBar variant="back" onBack={handleBack} />
 
       <ScrollView
+        {...scrollProps}
         style={s.scroll}
-        contentContainerStyle={s.scrollContent}
+        contentContainerStyle={[s.scrollContent, { paddingBottom: Spacing.lg + keyboardHeight }]}
         showsVerticalScrollIndicator={false}
       >
         <Text style={s.pageHeading}>Work Progress</Text>
@@ -594,6 +597,7 @@ export const ContinueMyWorkPage: React.FC<{
               <Text style={s.fieldLabel}>Introduction</Text>
               <TextInput
                 style={s.noteInput}
+                {...inputProps('intro')}
                 value={introductionText}
                 onChangeText={setIntroductionText}
                 placeholder="Set the scene — who, where, and what this piece is about."
@@ -607,6 +611,7 @@ export const ContinueMyWorkPage: React.FC<{
               <Text style={s.fieldLabel}>Story / Main Content</Text>
               <TextInput
                 style={s.noteInput}
+                {...inputProps('story')}
                 value={storyText}
                 onChangeText={setStoryText}
                 placeholder="Write the full story, ingredients, steps, or transcript here."
@@ -632,6 +637,7 @@ export const ContinueMyWorkPage: React.FC<{
               </View>
               <TextInput
                 style={[s.noteInput, s.seoSummaryInput]}
+                {...inputProps('seo')}
                 value={seoSummary}
                 onChangeText={setSeoSummary}
                 maxLength={SEO_SUMMARY_MAX}
@@ -669,6 +675,7 @@ export const ContinueMyWorkPage: React.FC<{
                 <View style={s.keywordInputRow}>
                   <TextInput
                     style={s.keywordInput}
+                    {...inputProps('keywords')}
                     value={keywordInput}
                     onChangeText={setKeywordInput}
                     onSubmitEditing={handleAddKeywords}
