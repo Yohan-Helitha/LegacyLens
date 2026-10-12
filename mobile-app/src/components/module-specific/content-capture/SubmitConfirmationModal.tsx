@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Check } from 'lucide-react-native';
 import { Typography, Spacing, Radii, Colors } from '../../../theme';
+import { Checkbox } from './Checkbox';
 import { ContentCaptureColors as D } from './tokens';
 
 interface SubmitConfirmationModalProps {
@@ -10,24 +10,6 @@ interface SubmitConfirmationModalProps {
   onCancel: () => void;
   onConfirm: () => void;
 }
-
-const Checkbox: React.FC<{
-  checked: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}> = ({ checked, onToggle, children }) => (
-  <Pressable
-    onPress={onToggle}
-    style={({ pressed }) => [s.checkboxRow, pressed && s.pressed]}
-    accessibilityRole="checkbox"
-    accessibilityState={{ checked }}
-  >
-    <View style={[s.checkboxBox, checked && s.checkboxBoxChecked]}>
-      {checked && <Check size={14} color="#ffffff" strokeWidth={3} />}
-    </View>
-    <Text style={s.checkboxLabel}>{children}</Text>
-  </Pressable>
-);
 
 /**
  * "Are you sure?" gate before a story becomes uneditable. Both checkboxes
@@ -141,25 +123,6 @@ const s = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
 
-  checkboxRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, minHeight: 44 },
-  checkboxBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: D.outline,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  checkboxBoxChecked: { backgroundColor: D.primary, borderColor: D.primary },
-  checkboxLabel: {
-    flex: 1,
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeSM,
-    color: D.onSurface,
-    lineHeight: 20,
-  },
   link: { color: D.primary, fontFamily: Typography.fontBodySemi, textDecorationLine: 'underline' },
 
   actions: { flexDirection: 'row', gap: Spacing.sm },

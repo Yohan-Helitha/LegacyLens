@@ -3,7 +3,7 @@ package lk.ac.sliit.legacylens.hiring.service;
 import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.common.exception.StateTransitionException;
-import lk.ac.sliit.legacylens.common.storage.FileStorageService;
+import lk.ac.sliit.legacylens.common.storage.MediaStorageService;
 import lk.ac.sliit.legacylens.hiring.dto.JobRequestResponse;
 import lk.ac.sliit.legacylens.hiring.dto.JobRequestSubmissionDto;
 import lk.ac.sliit.legacylens.hiring.entity.InputMode;
@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -44,7 +45,7 @@ class JobRequestServiceImplTest {
     private UserRepository userRepository;
 
     @Mock
-    private FileStorageService fileStorageService;
+    private MediaStorageService mediaStorageService;
 
     @Mock
     private JobRequestStateMachine jobRequestStateMachine;
@@ -57,7 +58,7 @@ class JobRequestServiceImplTest {
     @BeforeEach
     void setUp() {
         jobRequestService = new JobRequestServiceImpl(
-                jobRequestRepository, userRepository, fileStorageService, jobRequestStateMachine, adminNotificationPort);
+                jobRequestRepository, userRepository, mediaStorageService, jobRequestStateMachine, adminNotificationPort);
     }
 
     private User buildElder() {
@@ -111,7 +112,7 @@ class JobRequestServiceImplTest {
     @Test
     void submit_blankDescriptionButHasVoiceNote_succeeds() {
         when(userRepository.findById(ELDER_ID)).thenReturn(Optional.of(buildElder()));
-        when(fileStorageService.store(any(), eq("job-requests"))).thenReturn("job-requests/clip.m4a");
+        when(mediaStorageService.store(any(), eq("job-requests"))).thenReturn("/uploads/job-requests/clip.m4a");
 
         JobRequestSubmissionDto dto = buildRequest("   ");
         dto.setInputMode(InputMode.VOICE);
@@ -169,5 +170,55 @@ class JobRequestServiceImplTest {
         when(jobRequestRepository.findByIdAndElderId(JOB_REQUEST_ID, ELDER_ID)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> jobRequestService.submitDraft(ELDER_ID, JOB_REQUEST_ID));
+    }
+
+    private JobRequest buildDeletableRequest(JobRequestStatus status, LocalDateTime createdAt) {
+        JobRequest jobRequest = new JobRequest();
+        jobRequest.setId(JOB_REQUEST_ID);
+        jobRequest.setElder(buildElder());
+        jobRequest.setStatus(status);
+        jobRequest.setInputMode(InputMode.VOICE);
+        jobRequest.setVoiceNoteUrl("/uploads/job-requests/clip.m4a");
+        jobRequest.setCreatedAt(createdAt);
+        return jobRequest;
+    }
+
+    @Test
+    void delete_withinWindowAndPendingReview_deletesTheRequestAndItsClip() {
+        JobRequest jobRequest = buildDeletableRequest(JobRequestStatus.PENDING_ADMIN_REVIEW, LocalDateTime.now().minusMinutes(10));
+        when(jobRequestRepository.findByIdAndElderId(JOB_REQUEST_ID, ELDER_ID)).thenReturn(Optional.of(jobRequest));
+
+        jobRequestService.delete(ELDER_ID, JOB_REQUEST_ID);
+
+        verify(mediaStorageService).delete("/uploads/job-requests/clip.m4a");
+        verify(jobRequestRepository).delete(jobRequest);
+    }
+
+    @Test
+    void delete_pastTheOneHourWindow_throwsStateTransitionException_andDeletesNothing() {
+        JobRequest jobRequest = buildDeletableRequest(JobRequestStatus.PENDING_ADMIN_REVIEW, LocalDateTime.now().minusHours(2));
+        when(jobRequestRepository.findByIdAndElderId(JOB_REQUEST_ID, ELDER_ID)).thenReturn(Optional.of(jobRequest));
+
+        assertThrows(StateTransitionException.class, () -> jobRequestService.delete(ELDER_ID, JOB_REQUEST_ID));
+
+        verify(jobRequestRepository, never()).delete(any());
+        verify(mediaStorageService, never()).delete(any());
+    }
+
+    @Test
+    void delete_alreadyPublished_throwsStateTransitionException_evenWithinTheWindow() {
+        JobRequest jobRequest = buildDeletableRequest(JobRequestStatus.PUBLISHED, LocalDateTime.now().minusMinutes(5));
+        when(jobRequestRepository.findByIdAndElderId(JOB_REQUEST_ID, ELDER_ID)).thenReturn(Optional.of(jobRequest));
+
+        assertThrows(StateTransitionException.class, () -> jobRequestService.delete(ELDER_ID, JOB_REQUEST_ID));
+
+        verify(jobRequestRepository, never()).delete(any());
+    }
+
+    @Test
+    void delete_notOwnedOrMissing_throwsResourceNotFound() {
+        when(jobRequestRepository.findByIdAndElderId(JOB_REQUEST_ID, ELDER_ID)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> jobRequestService.delete(ELDER_ID, JOB_REQUEST_ID));
     }
 }
