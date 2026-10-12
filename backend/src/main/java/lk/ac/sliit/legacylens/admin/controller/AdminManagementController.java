@@ -8,9 +8,7 @@ import lk.ac.sliit.legacylens.admin.service.AdminManagementService;
 import lk.ac.sliit.legacylens.admin.validation.admin_management.AdminProfileFormValidator;
 import lk.ac.sliit.legacylens.admin.validation.admin_management.ChangePinFormValidator;
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.InitBinder;
@@ -26,14 +24,24 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/management/admins")
-@RequiredArgsConstructor
 public class AdminManagementController {
 
     private final AdminManagementService adminManagementService;
+    private final AdminProfileFormValidator adminProfileFormValidator;
+    private final ChangePinFormValidator changePinFormValidator;
+
+    public AdminManagementController(
+            AdminManagementService adminManagementService,
+            AdminProfileFormValidator adminProfileFormValidator,
+            ChangePinFormValidator changePinFormValidator) {
+        this.adminManagementService = adminManagementService;
+        this.adminProfileFormValidator = adminProfileFormValidator;
+        this.changePinFormValidator = changePinFormValidator;
+    }
 
     @InitBinder
     public void initBinder(WebDataBinder binder) {
-        binder.addValidators(new AdminProfileFormValidator(), new ChangePinFormValidator());
+        binder.addValidators(adminProfileFormValidator, changePinFormValidator);
     }
 
     @GetMapping
@@ -59,6 +67,6 @@ public class AdminManagementController {
             @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
             @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
         adminManagementService.changePin(id, request.getNewPin(), adminId, adminName);
-        return ResponseEntity.ok(ApiResponse.ok("PIN changed successfully", null));
+        return ResponseEntity.ok(ApiResponse.<Void>ok("PIN changed successfully", null));
     }
 }
