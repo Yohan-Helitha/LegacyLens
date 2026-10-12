@@ -641,7 +641,7 @@ export const ContinueMyWorkPage: React.FC<{
                 value={seoSummary}
                 onChangeText={setSeoSummary}
                 maxLength={SEO_SUMMARY_MAX}
-                placeholder="e.g. A war veteran from Anuradhapura recalls his years of service and the stories behind his medals."
+                placeholder="Describe in a sentence or two what this content is about, who it features and where it comes from."
                 placeholderTextColor={D.onSurfaceVariant}
                 multiline
                 textAlignVertical="top"
@@ -680,7 +680,7 @@ export const ContinueMyWorkPage: React.FC<{
                     onChangeText={setKeywordInput}
                     onSubmitEditing={handleAddKeywords}
                     maxLength={SEO_KEYWORD_MAX_LENGTH * 3}
-                    placeholder="e.g. war history, Anuradhapura"
+                    placeholder="e.g. topic, place, tradition"
                     placeholderTextColor={D.onSurfaceVariant}
                     returnKeyType="done"
                     submitBehavior="submit"
