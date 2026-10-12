@@ -159,6 +159,25 @@ class JobWorkProgressServiceImplTest {
         assertThat(read().isPrepDone()).isTrue();
     }
 
+    @Test
+    void erasingOneWrittenBox_unmarksEdit_andTakesAQuarterOff_butKeepsTheOtherBoxes() {
+        materials.add(new JobWorkMaterial());
+        writtenContentDone();
+        task(ChecklistStage.PREP, true);
+        assertThat(read().getProgressPercentage()).isEqualTo(75);
+
+        WorkProgressResponse response = service.updateNote(creatorId, job.getId(), "", "Story");
+
+        assertThat(response.isEditDone()).isFalse();
+        assertThat(response.getProgressPercentage()).isEqualTo(50);
+        assertThat(response.getIntroduction()).isEmpty();
+        assertThat(response.getStory()).isEqualTo("Story");
+        assertThat(response.getSeoSummary()).isEqualTo("Summary");
+
+        // Writing it again brings the step - and the quarter - back.
+        assertThat(service.updateNote(creatorId, job.getId(), "New intro", "Story").getProgressPercentage()).isEqualTo(75);
+    }
+
     // ── Percentage: four steps, a quarter each ──────────────────────────────
 
     @Test

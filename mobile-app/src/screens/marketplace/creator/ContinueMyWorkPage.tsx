@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -194,6 +194,14 @@ export const ContinueMyWorkPage: React.FC<{
   const [pendingChecklistItemId, setPendingChecklistItemId] = useState<string | null>(null);
   const [savedModalVisible, setSavedModalVisible] = useState(false);
 
+  // What the written boxes hold right now, and what the server last stored - so a save only sends what
+  // changed, and the latest text is always at hand when the page is left.
+  const latestText = useRef({ intro: '', story: '', seo: '', keywords: [] as string[] });
+  latestText.current = { intro: introductionText, story: storyText, seo: seoSummary, keywords: seoKeywords };
+  const storedText = useRef<{ intro: string; story: string; seo: string; keywords: string } | null>(null);
+  const saveChain = useRef<Promise<void>>(Promise.resolve());
+  const mounted = useRef(true);
+
   useEffect(() => {
     let cancelled = false;
     workProgressApi
@@ -205,6 +213,12 @@ export const ContinueMyWorkPage: React.FC<{
         setStoryText(data.story ?? '');
         setSeoSummary(data.seoSummary ?? '');
         setSeoKeywords(data.seoKeywords ?? []);
+        storedText.current = {
+          intro: data.introduction ?? '',
+          story: data.story ?? '',
+          seo: data.seoSummary ?? '',
+          keywords: (data.seoKeywords ?? []).join(','),
+        };
       })
       .catch((err) => {
         if (!cancelled) setLoadError(err instanceof ApiError ? err.message : 'Could not load this job.');
@@ -346,23 +360,53 @@ export const ContinueMyWorkPage: React.FC<{
     setSeoKeywords((prev) => prev.filter((k) => k !== keyword));
   };
 
-  // The Edit tasks tick themselves once the written content is complete, and that is worked out on the
-  // server - so each written field is saved the moment the creator leaves it, and the ticks, stepper and
-  // percentage follow straight away.
-  const persistWrittenContent = async () => {
-    if (!progress) return;
-    try {
-      let latest = progress;
-      if (introductionText !== (latest.introduction ?? '') || storyText !== (latest.story ?? '')) {
-        latest = await workProgressApi.updateNote(id, introductionText, storyText);
+  // Whatever has been written is kept as it is written - never lost to leaving the page early, and never
+  // waiting on the whole form being filled. Saves are queued one after another so they cannot overtake
+  // each other, and the server answers with the new progress (the Edit tick, stepper and percentage).
+  const saveWrittenContent = useCallback((): Promise<void> => {
+    saveChain.current = saveChain.current.then(async () => {
+      const stored = storedText.current;
+      if (!stored) return;
+      const now = latestText.current;
+      try {
+        let updated: WorkProgressResponse | null = null;
+        if (now.intro !== stored.intro || now.story !== stored.story) {
+          updated = await workProgressApi.updateNote(id, now.intro, now.story);
+          stored.intro = now.intro;
+          stored.story = now.story;
+        }
+        if (now.seo !== stored.seo || now.keywords.join(',') !== stored.keywords) {
+          updated = await workProgressApi.updateSeo(id, now.seo, now.keywords);
+          stored.seo = now.seo;
+          stored.keywords = now.keywords.join(',');
+        }
+        if (updated && mounted.current) setProgress(updated);
+      } catch {
+        // Retried by the next change or when the page is left; "Save As a Draft" reports a failure.
       }
-      if (seoSummary !== (latest.seoSummary ?? '')) {
-        latest = await workProgressApi.updateSeo(id, seoSummary, seoKeywords);
-      }
-      setProgress(latest);
-    } catch {
-      // Not fatal: "Save As a Draft" saves everything again and reports a failure then.
-    }
+    });
+    return saveChain.current;
+  }, [id]);
+
+  // Save shortly after the creator stops typing...
+  useEffect(() => {
+    if (!storedText.current) return;
+    const timer = setTimeout(saveWrittenContent, 700);
+    return () => clearTimeout(timer);
+  }, [introductionText, storyText, seoSummary, seoKeywords, saveWrittenContent]);
+
+  // ...and the moment the page is left, however it is left.
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      saveWrittenContent();
+    };
+  }, [saveWrittenContent]);
+
+  const handleBack = async () => {
+    await saveWrittenContent();
+    onBack();
   };
 
   // Saves the note and flags this job as a draft only — it must NOT touch
@@ -371,8 +415,10 @@ export const ContinueMyWorkPage: React.FC<{
   const handleSaveDraft = async () => {
     setSaving(true);
     try {
+      await saveChain.current; // let any save already under way finish first
       await workProgressApi.updateNote(id, introductionText, storyText);
       await workProgressApi.updateSeo(id, seoSummary, seoKeywords);
+      storedText.current = { intro: introductionText, story: storyText, seo: seoSummary, keywords: seoKeywords.join(',') };
       const finalState = await workProgressApi.markDraft(id);
       setProgress(finalState);
       setSavedModalVisible(true); // onSaveDraft fires once the creator dismisses the modal below.
@@ -419,7 +465,7 @@ export const ContinueMyWorkPage: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <CreatorTopAppBar variant="back" onBack={onBack} />
+      <CreatorTopAppBar variant="back" onBack={handleBack} />
 
       <ScrollView
         style={s.scroll}
@@ -550,7 +596,6 @@ export const ContinueMyWorkPage: React.FC<{
                 style={s.noteInput}
                 value={introductionText}
                 onChangeText={setIntroductionText}
-                onBlur={persistWrittenContent}
                 placeholder="Set the scene — who, where, and what this piece is about."
                 placeholderTextColor={D.onSurfaceVariant}
                 multiline
@@ -564,7 +609,6 @@ export const ContinueMyWorkPage: React.FC<{
                 style={s.noteInput}
                 value={storyText}
                 onChangeText={setStoryText}
-                onBlur={persistWrittenContent}
                 placeholder="Write the full story, ingredients, steps, or transcript here."
                 placeholderTextColor={D.onSurfaceVariant}
                 multiline
@@ -590,7 +634,6 @@ export const ContinueMyWorkPage: React.FC<{
                 style={[s.noteInput, s.seoSummaryInput]}
                 value={seoSummary}
                 onChangeText={setSeoSummary}
-                onBlur={persistWrittenContent}
                 maxLength={SEO_SUMMARY_MAX}
                 placeholder="e.g. A war veteran from Anuradhapura recalls his years of service and the stories behind his medals."
                 placeholderTextColor={D.onSurfaceVariant}
