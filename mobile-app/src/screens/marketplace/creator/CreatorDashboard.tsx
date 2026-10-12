@@ -18,6 +18,7 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
+import { StarRating } from '../../../components/module-specific/marketplace/StarRating';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
 import { profileApi } from '../../../services/api/profileApi';
 import { useAuthStore } from '../../../store/authStore';
@@ -89,9 +90,15 @@ type ActiveJobItem = {
 
 type ReviewItem = {
   id: string;
-  quote: string;
+  rating: number;
+  /** Null when the knowledge holder gave stars only. */
+  quote: string | null;
   author: string;
+  opportunityTitle: string;
 };
+
+/** How many of the newest reviews the dashboard carries; older ones live under each completed job. */
+const FEEDBACK_SHOWN = 4;
 
 const TAB_TO_STATUS: Record<JobTab, DashboardJobStatus> = {
   active: 'ACTIVE',
@@ -457,14 +464,28 @@ const ApprovedApplicationCard: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 // FeedbackSection
 // ─────────────────────────────────────────────────────────────────────────────
-const FeedbackSection: React.FC<{ rating: number | null; reviews: ReviewItem[] | null }> = ({ rating, reviews }) => (
+const FeedbackSection: React.FC<{
+  rating: number | null;
+  reviews: ReviewItem[] | null;
+  onViewAll: () => void;
+}> = ({ rating, reviews, onViewAll }) => (
   <View style={s.section}>
     <View style={s.sectionHeader}>
-      <Text style={s.sectionTitle}>Client Feedback</Text>
-      <View style={s.ratingRow}>
-        <Text style={s.feedbackRating}>{rating != null ? rating.toFixed(1) : '—'}</Text>
-        <StarIcon size={16} color={D.tertiaryContainer} />
+      <View style={s.feedbackTitleRow}>
+        <Text style={s.sectionTitle}>Client Feedback</Text>
+        <View style={s.ratingRow}>
+          <Text style={s.feedbackRating}>{rating != null ? rating.toFixed(1) : '—'}</Text>
+          <StarIcon size={16} color={D.tertiaryContainer} />
+        </View>
       </View>
+      <Pressable
+        onPress={onViewAll}
+        style={({ pressed }) => [s.viewAllBtn, pressed && s.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel="View all feedback on your completed work"
+      >
+        <Text style={s.viewAllText}>View All ›</Text>
+      </Pressable>
     </View>
 
     {reviews === null ? (
@@ -473,21 +494,27 @@ const FeedbackSection: React.FC<{ rating: number | null; reviews: ReviewItem[] |
       </View>
     ) : reviews.length === 0 ? (
       <View style={s.emptyState}>
-        <Text style={s.emptyStateText}>No reviews yet.</Text>
+        <Text style={s.emptyStateText}>No feedback yet.</Text>
       </View>
     ) : (
-      <View style={{ gap: Spacing.sm }}>
+      // Swipe sideways: newest first, one card per review, never more than FEEDBACK_SHOWN of them.
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.feedbackRow}
+        decelerationRate="fast"
+        snapToInterval={FEEDBACK_CARD_WIDTH + Spacing.sm}
+      >
         {reviews.map((review) => (
           <View key={review.id} style={s.feedbackCard}>
-            {/* Decorative large quote mark */}
-            <Text style={s.quoteDecor}>{'“'}</Text>
-            {/* Left accent bar */}
-            <View style={s.quoteBar} />
-            <Text style={s.quoteText}>{`“${review.quote}”`}</Text>
-            <Text style={s.quoteAuthor}>{`— ${review.author}`}</Text>
+            <StarRating rating={review.rating} size={18} />
+            {!!review.quote && <Text style={s.quoteText} numberOfLines={5}>{`“${review.quote}”`}</Text>}
+            <View style={{ flex: 1 }} />
+            <Text style={s.quoteAuthor} numberOfLines={1}>{`— ${review.author}`}</Text>
+            <Text style={s.quoteOpportunity} numberOfLines={1}>{review.opportunityTitle}</Text>
           </View>
         ))}
-      </View>
+      </ScrollView>
     )}
   </View>
 );
@@ -573,10 +600,11 @@ export const CreatorDashboard: React.FC<{
   onOpenHistory: () => void;
   onOpenSchedule: () => void;
   onOpenMyWork: () => void;
+  onOpenCompletedWork: () => void;
   onAddPayment: () => void;
   onOpenSavedApplications: () => void;
   onOpenRejectedWork: () => void;
-}> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork, onAddPayment, onOpenSavedApplications, onOpenRejectedWork }) => {
+}> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork, onOpenCompletedWork, onAddPayment, onOpenSavedApplications, onOpenRejectedWork }) => {
   const [activeTab, setActiveTab] = useState<JobTab>('active');
   const [summary, setSummary] = useState<CreatorDashboardSummaryResponse | null>(null);
   const [reviews, setReviews] = useState<ReviewItem[] | null>(null);
@@ -610,8 +638,10 @@ export const CreatorDashboard: React.FC<{
       .then(setSummary)
       .catch(() => setSummary({ rating: null, completedJobsCount: 0, contributionsCount: 0, collectedToday: 0 }));
     creatorDashboardApi
-      .getReviews(5)
-      .then((data) => setReviews(data.map((r) => ({ id: r.id, quote: r.comment, author: r.elderName }))))
+      .getReviews(FEEDBACK_SHOWN)
+      .then((data) => setReviews(data.map((r) => ({
+        id: r.id, rating: r.rating, quote: r.comment?.trim() || null, author: r.elderName, opportunityTitle: r.opportunityTitle,
+      }))))
       .catch(() => setReviews([]));
 
     opportunityApplicationApi
@@ -771,7 +801,7 @@ export const CreatorDashboard: React.FC<{
           )}
         </View>
 
-        <FeedbackSection rating={summary?.rating ?? null} reviews={reviews} />
+        <FeedbackSection rating={summary?.rating ?? null} reviews={reviews} onViewAll={onOpenCompletedWork} />
         <RecentWorkSection />
         <View style={{ height: 8 }} />
       </ScrollView>
@@ -896,6 +926,7 @@ export const CreatorDashboard: React.FC<{
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
 const GALLERY_SIZE = 128;
+const FEEDBACK_CARD_WIDTH = 280;
 
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
@@ -1054,15 +1085,19 @@ const s = StyleSheet.create({
   emptyStateText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
 
   // ── Feedback ───────────────────────────────────────────────────────────────
+  feedbackTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexShrink: 1 },
   feedbackRating: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.tertiaryContainer, lineHeight: 20 },
+  viewAllBtn: { minHeight: 44, justifyContent: 'center' },
+  feedbackRow: { flexDirection: 'row', gap: Spacing.sm, paddingBottom: 4 },
   feedbackCard: {
-    backgroundColor: D.surfaceContainerLow, borderRadius: Radii.xl, padding: Spacing.md,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant, overflow: 'hidden',
+    width: FEEDBACK_CARD_WIDTH, minHeight: 170, gap: Spacing.xs,
+    backgroundColor: D.surfaceContainerLowest, borderRadius: Radii.xl, padding: Spacing.md,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+    borderLeftWidth: 3, borderLeftColor: D.secondary,
   },
-  quoteDecor:  { position: 'absolute', top: -8, left: -4, fontSize: 80, color: D.surfaceVariant, opacity: 0.3, lineHeight: 80, fontFamily: Typography.fontDisplay },
-  quoteBar:    { position: 'absolute', left: Spacing.md, top: Spacing.md, bottom: Spacing.md, width: 2, backgroundColor: D.secondaryFixedDim, borderRadius: 1 },
-  quoteText:   { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: D.onSurfaceVariant, fontStyle: 'italic', paddingLeft: Spacing.md },
-  quoteAuthor: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.secondary, textAlign: 'right', marginTop: Spacing.sm, letterSpacing: 0.3 },
+  quoteText:   { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: D.onSurface, fontStyle: 'italic' },
+  quoteAuthor: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.primary, letterSpacing: 0.3 },
+  quoteOpportunity: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
 
   // ── Gallery ────────────────────────────────────────────────────────────────
   viewAllText:            { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.secondary, letterSpacing: 0.2 },

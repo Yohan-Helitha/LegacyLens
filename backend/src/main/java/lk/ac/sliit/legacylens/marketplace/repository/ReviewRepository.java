@@ -19,6 +19,8 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
 
     Optional<Review> findByJobId(UUID jobId);
 
+    List<Review> findByJobIdIn(java.util.Collection<UUID> jobIds);
+
     long countByCreatorId(UUID creatorId);
 
     /** Mean of every star rating this creator has received; null when they have none. */

@@ -28,6 +28,16 @@ export interface CreatorContribution {
   completedAt: string | null;
 }
 
+/** One knowledge holder's feedback on one piece of work. */
+export interface CreatorFeedback {
+  jobId: string;
+  opportunityTitle: string;
+  elderName: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+}
+
 export interface CreatorProfileData {
   userId: string;
   name: string;
@@ -47,6 +57,8 @@ export interface CreatorProfileData {
   approvedCount: number;
   activeCount: number;
   previousContributions: CreatorContribution[];
+  /** The latest few reviews, newest first. */
+  recentFeedback: CreatorFeedback[];
   ownerDetails: CreatorOwnerDetails | null;
 }
 

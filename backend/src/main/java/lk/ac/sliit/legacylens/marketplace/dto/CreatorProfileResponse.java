@@ -42,6 +42,8 @@ public class CreatorProfileResponse {
     private long approvedCount;
     private long activeCount;
     private List<CreatorContributionResponse> previousContributions;
+    /** The latest few knowledge-holder reviews, newest first - what others think of this creator's work. */
+    private List<CreatorFeedbackResponse> recentFeedback;
 
     private CreatorOwnerDetailsResponse ownerDetails;
 }

@@ -163,6 +163,12 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
     setScreen('my-work');
   };
 
+  /** Called when "View All" is pressed on CreatorDashboard's Client Feedback - feedback lives under each completed job */
+  const handleOpenCompletedWork = () => {
+    setMyWorkTab('completed');
+    setScreen('my-work');
+  };
+
   /** Called when "Rejected Submissions" is pressed in the side menu */
   const handleOpenRejectedWork = () => setScreen('rejected-work');
 
@@ -247,6 +253,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onOpenHistory={handleOpenHistory}
           onOpenSchedule={handleOpenSchedule}
           onOpenMyWork={handleOpenMyWork}
+          onOpenCompletedWork={handleOpenCompletedWork}
           onAddPayment={handleOpenLogPayment}
           onOpenSavedApplications={handleOpenSavedApplications}
           onOpenRejectedWork={handleOpenRejectedWork}

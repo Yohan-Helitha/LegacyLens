@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { StarRating } from '../../../components/module-specific/marketplace/StarRating';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -382,6 +383,16 @@ const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; p
           </View>
         </View>
       </View>
+
+      {job.reviewRating != null && (
+        <View style={s.feedbackBox}>
+          <View style={s.feedbackHead}>
+            <Text style={s.feedbackFrom} numberOfLines={1}>{`Feedback from ${job.elderName}`}</Text>
+            <StarRating rating={job.reviewRating} size={16} />
+          </View>
+          {!!job.reviewComment && <Text style={s.feedbackText}>{`“${job.reviewComment}”`}</Text>}
+        </View>
+      )}
 
       <View style={s.testGrid}>
         <Text style={s.testLabel}>TEMPORARY - the knowledge holder rates you</Text>
@@ -924,6 +935,10 @@ const s = StyleSheet.create({
     backgroundColor: '#f0f5f5', borderRadius: Radii.full, borderWidth: 1, borderColor: D.surfaceVariant,
     marginTop: Spacing.md, paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
   },
+  feedbackBox: { marginTop: Spacing.md, gap: 6, backgroundColor: D.surfaceContainer, borderRadius: Radii.lg, padding: Spacing.md },
+  feedbackHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
+  feedbackFrom: { flex: 1, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.primary },
+  feedbackText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: D.onSurface, fontStyle: 'italic' },
   testGrid: { marginTop: Spacing.md, gap: 6 },
   testLabel: { fontFamily: Typography.fontBody, fontSize: 10, color: D.onSurfaceVariant, letterSpacing: 0.3 },
   testRow: { flexDirection: 'row', gap: Spacing.sm },

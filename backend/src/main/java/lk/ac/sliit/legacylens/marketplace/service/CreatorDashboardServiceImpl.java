@@ -214,13 +214,23 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
             }
         }
 
+        // The knowledge holder's review of each job (one per job), fetched in one query.
+        Map<UUID, Review> reviewByJobId = new HashMap<>();
+        if (!jobs.isEmpty()) {
+            for (Review review : reviewRepository.findByJobIdIn(jobs.stream().map(Job::getId).toList())) {
+                reviewByJobId.put(review.getJob().getId(), review);
+            }
+        }
+
         return jobs.stream()
-                .map(job -> mapJob(job, opportunityById.get(job.getOpportunityId())))
+                .map(job -> mapJob(job, opportunityById.get(job.getOpportunityId()), reviewByJobId.get(job.getId())))
                 .collect(Collectors.toList());
     }
 
-    private JobResponse mapJob(Job job, Opportunity opportunity) {
+    private JobResponse mapJob(Job job, Opportunity opportunity, Review review) {
         return JobResponse.builder()
+                .reviewRating(review == null ? null : review.getRating())
+                .reviewComment(review == null ? null : review.getComment())
                 .id(job.getId())
                 .title(job.getTitle())
                 .description(job.getDescription())
@@ -243,6 +253,8 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
                 .rating(review.getRating())
                 .comment(review.getComment())
                 .elderName(review.getElder().getFullName())
+                .jobId(review.getJob().getId())
+                .opportunityTitle(review.getJob().getTitle())
                 .createdAt(review.getCreatedAt())
                 .build();
     }

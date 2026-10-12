@@ -41,6 +41,10 @@ export interface JobResponse {
   category?: string | null;
   /** The linked opportunity's language, e.g. "Sinhala". */
   language?: string | null;
+  /** The knowledge holder's star rating for this job; null until they have rated it. */
+  reviewRating?: number | null;
+  /** The knowledge holder's written feedback for this job. */
+  reviewComment?: string | null;
 }
 
 export interface ReviewResponse {
@@ -48,6 +52,9 @@ export interface ReviewResponse {
   rating: number;
   comment: string;
   elderName: string;
+  /** The job (opportunity) this feedback is about - each one is rated separately. */
+  jobId: string;
+  opportunityTitle: string;
   createdAt: string;
 }
 

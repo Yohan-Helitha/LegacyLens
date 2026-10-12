@@ -43,6 +43,7 @@ class CreatorProfileViewServiceImplTest {
     @Mock private CreatorApplicationRepository creatorApplicationRepository;
     @Mock private JobRepository jobRepository;
     @Mock private OpportunityApplicationRepository opportunityApplicationRepository;
+    @Mock private lk.ac.sliit.legacylens.marketplace.repository.ReviewRepository reviewRepository;
 
     private CreatorProfileViewServiceImpl service;
 
@@ -53,7 +54,7 @@ class CreatorProfileViewServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new CreatorProfileViewServiceImpl(userRepository, creatorProfileRepository, creatorApplicationRepository,
-                jobRepository, opportunityApplicationRepository, new CreatorProfileResponseMapper());
+                jobRepository, opportunityApplicationRepository, reviewRepository, new CreatorProfileResponseMapper());
 
         City colombo = new City();
         colombo.setName("Colombo");
