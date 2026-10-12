@@ -35,9 +35,15 @@ export const apiClient: AxiosInstance = axios.create({
 // Attach the current session token, if any — only relevant once
 // authenticated-only endpoints exist; auth/** itself is all public.
 apiClient.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token;
+  const { token, user } = useAuthStore.getState();
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);
+  }
+  if (user) {
+    config.headers.set('X-Admin-Id', user.userId);
+    if (user.fullName) {
+      config.headers.set('X-Admin-Name', user.fullName);
+    }
   }
   return config;
 });
