@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
-import { Handshake } from 'lucide-react-native';
+import { Handshake, Video } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
@@ -74,12 +74,14 @@ type JobTab = 'active' | 'upcoming' | 'completed';
 
 type ActiveJobItem = {
   id: string;
-  icon: string;
   title: string;
   client: string;
   description: string;
   location: string;
-  dueText: string;
+  /** The day it is scheduled for (or when it was completed). */
+  dateText: string;
+  /** The time range of the visit, e.g. "10:00 AM - 2:00 PM"; empty when not set. */
+  timeText: string;
   statusLabel: string;
 };
 
@@ -94,14 +96,6 @@ const TAB_TO_STATUS: Record<JobTab, DashboardJobStatus> = {
   upcoming: 'UPCOMING',
   completed: 'COMPLETED',
 };
-
-function formatDueDate(iso: string): string {
-  const diffDays = Math.round((new Date(iso).getTime() - Date.now()) / 86400000);
-  if (diffDays > 1) return `Due in ${diffDays} days`;
-  if (diffDays === 1) return 'Due tomorrow';
-  if (diffDays === 0) return 'Due today';
-  return 'Overdue';
-}
 
 function formatCompletedDate(iso: string): string {
   return `Completed ${new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
@@ -137,26 +131,30 @@ function formatClockTime(d: Date): string {
 function mapJobToItem(job: JobResponse): ActiveJobItem {
   const statusLabel =
     job.status === 'ACTIVE' ? 'IN PROGRESS' : job.status === 'UPCOMING' ? 'UPCOMING' : 'COMPLETED';
-  const dueText =
-    job.status === 'COMPLETED'
-      ? job.completedAt
-        ? formatCompletedDate(job.completedAt)
-        : ''
-      : job.scheduledAt
-        ? formatDueDate(job.scheduledAt)
-        : '';
+  const completed = job.status === 'COMPLETED';
+  const dateText = completed
+    ? (job.completedAt ? formatCompletedDate(job.completedAt) : '')
+    : (job.scheduledAt ? formatAppDate(job.scheduledAt) : '');
+  const timeText = completed ? '' : (job.timeWindowText ?? (job.scheduledAt ? formatClockTime(new Date(job.scheduledAt)) : ''));
 
   return {
     id: job.id,
-    icon: '🎥',
     title: job.title,
     client: job.elderName,
     description: job.description,
     location: job.location ?? '',
-    dueText,
+    dateText,
+    timeText,
     statusLabel,
   };
 }
+
+// The movie-camera look of the old emoji, as a crisp line icon (lucide - the same set as the side menu).
+const JobIcon: React.FC = () => (
+  <View style={s.jobIconBox}>
+    <Video size={22} color={D.primary} strokeWidth={1.8} />
+  </View>
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Minimal inline icons (emoji-based, zero extra dependencies)
@@ -298,9 +296,7 @@ const ActiveJobCard: React.FC<{ item: ActiveJobItem; onPress: () => void }> = ({
     {/* Header */}
     <View style={s.jobCardHeader}>
       <View style={s.jobCardLeft}>
-        <View style={s.jobIconBox}>
-          <Text style={{ fontSize: 18 }}>{item.icon}</Text>
-        </View>
+        <JobIcon />
         <View style={{ flex: 1 }}>
           <Text style={s.jobTitle}>{item.title}</Text>
           <Text style={s.jobClient}>{item.client}</Text>
@@ -318,23 +314,39 @@ const ActiveJobCard: React.FC<{ item: ActiveJobItem; onPress: () => void }> = ({
 
     {/* Meta footer */}
     <View style={s.jobMeta}>
-      <View style={s.jobMetaItem}>
-        <View style={s.jobMetaIconBox}>
-          <PinIcon />
+      {!!item.location && (
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}>
+            <PinIcon />
+          </View>
+          <Text style={s.jobMetaText}>{item.location}</Text>
         </View>
-        <Text style={s.jobMetaText}>{item.location}</Text>
-      </View>
-      <View style={s.jobMetaItem}>
-        <View style={s.jobMetaIconBox}>
-          <ClockIcon />
+      )}
+      {(!!item.dateText || !!item.timeText) && (
+        <View style={s.jobMetaWhen}>
+          {!!item.dateText && (
+            <View style={s.jobMetaItem}>
+              <View style={s.jobMetaIconBox}>
+                <CalendarIcon />
+              </View>
+              <Text style={[s.jobMetaText, { color: D.secondary }]}>{item.dateText}</Text>
+            </View>
+          )}
+          {!!item.timeText && (
+            <View style={s.jobMetaItem}>
+              <View style={s.jobMetaIconBox}>
+                <ClockIcon />
+              </View>
+              <Text style={s.jobMetaText}>{item.timeText}</Text>
+            </View>
+          )}
         </View>
-        <Text style={[s.jobMetaText, { color: D.secondary }]}>{item.dueText}</Text>
-      </View>
+      )}
     </View>
 
-    {/* View details */}
+    {/* Link to the full list */}
     <View style={s.jobViewDetailsRow}>
-      <Text style={s.jobViewDetailsText}>{'View Details →'}</Text>
+      <Text style={s.jobViewDetailsText}>{'View on My Work →'}</Text>
     </View>
   </Pressable>
 );
@@ -374,9 +386,7 @@ const ApprovedApplicationCard: React.FC<{
   <View style={s.jobCard}>
     <View style={s.jobCardHeader}>
       <View style={s.jobCardLeft}>
-        <View style={s.jobIconBox}>
-          <Text style={{ fontSize: 18 }}>🎥</Text>
-        </View>
+        <JobIcon />
         <View style={{ flex: 1 }}>
           <Text style={s.jobTitle}>{item.title}</Text>
           <Text style={s.jobClient}>{item.elderName}</Text>
@@ -660,7 +670,12 @@ export const CreatorDashboard: React.FC<{
       .getJobs(TAB_TO_STATUS[activeTab])
       .then((data) => {
         if (!cancelled) {
-          setJobsByTab((prev) => ({ ...prev, [activeTab]: data.map(mapJobToItem) }));
+          // The Active tab is "what I have to do today": only the jobs scheduled for today. The full list lives on My Work.
+          const todayKey = toDateKey(new Date());
+          const shown = activeTab === 'active'
+            ? data.filter((j) => !!j.scheduledAt && toDateKey(new Date(j.scheduledAt)) === todayKey)
+            : data;
+          setJobsByTab((prev) => ({ ...prev, [activeTab]: shown.map(mapJobToItem) }));
         }
       })
       .catch(() => {
@@ -704,7 +719,7 @@ export const CreatorDashboard: React.FC<{
             contentContainerStyle={s.tabsRow}
           >
             <TabPill
-              label="Active Jobs"
+              label="Today's Jobs"
               active={activeTab === 'active'}
               onPress={() => setActiveTab('active')}
             />
@@ -745,7 +760,9 @@ export const CreatorDashboard: React.FC<{
                     ? "Couldn't load jobs. Pull down to try again."
                     : activeTab === 'upcoming'
                       ? 'No approved opportunities waiting to be booked.'
-                      : 'No jobs to show.'}
+                      : activeTab === 'active'
+                        ? 'Nothing scheduled for today.'
+                        : 'No jobs to show.'}
               </Text>
             </View>
           )}
@@ -999,6 +1016,7 @@ const s = StyleSheet.create({
   jobStatusText:  { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSecondaryContainer, letterSpacing: 0.8 },
   jobDesc:        { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: D.onSurfaceVariant },
   jobMeta:        { flexDirection: 'row', flexWrap: 'wrap', columnGap: Spacing.md, rowGap: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant, marginTop: 2 },
+  jobMetaWhen:    { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: Spacing.sm, rowGap: Spacing.xs },
   jobMetaItem:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
   jobMetaIconBox: {
     width: 20, height: 20, borderRadius: 10,
