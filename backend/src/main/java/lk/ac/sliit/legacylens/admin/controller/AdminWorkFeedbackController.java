@@ -35,6 +35,18 @@ public class AdminWorkFeedbackController {
         return ResponseEntity.ok(ApiResponse.ok(feedbackService.adminView(jobId)));
     }
 
+    /** The admin approves the work; once the knowledge holder has too, it is complete. */
+    @PostMapping("/approve")
+    public ResponseEntity<ApiResponse<WorkFeedbackResponse>> approve(@PathVariable UUID jobId) {
+        return ResponseEntity.ok(ApiResponse.ok("Work approved", feedbackService.approveAsAdmin(jobId)));
+    }
+
+    /** Publishes completed work. */
+    @PostMapping("/publish")
+    public ResponseEntity<ApiResponse<WorkFeedbackResponse>> publish(@PathVariable UUID jobId) {
+        return ResponseEntity.ok(ApiResponse.ok("Work published", feedbackService.publish(jobId)));
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<WorkFeedbackResponse>> leave(
             @PathVariable UUID jobId, @Valid @RequestBody WorkFeedbackRequest request) {

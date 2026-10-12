@@ -132,4 +132,75 @@ class WorkFeedbackServiceImplTest {
         assertThatThrownBy(() -> service.leaveAdminFeedback(job.getId(), "x"))
                 .isInstanceOf(InvalidApplicationStateException.class);
     }
+
+    // ── Approval and publication ────────────────────────────────────────────
+
+    @Test
+    void oneApproval_isNotEnough_theWorkCompletesOnlyWhenBothApprove() {
+        service.approveAsElder(elder.getId(), job.getId());
+        assertThat(progress.isElderApproved()).isTrue();
+        assertThat(job.getStatus()).isNotEqualTo(lk.ac.sliit.legacylens.marketplace.entity.JobStatus.COMPLETED);
+
+        service.approveAsAdmin(job.getId());
+
+        assertThat(job.getStatus()).isEqualTo(lk.ac.sliit.legacylens.marketplace.entity.JobStatus.COMPLETED);
+        assertThat(job.getCompletedAt()).isNotNull();
+        ArgumentCaptor<lk.ac.sliit.legacylens.marketplace.event.WorkApprovedEvent> event = ArgumentCaptor.forClass(lk.ac.sliit.legacylens.marketplace.event.WorkApprovedEvent.class);
+        verify(events).publishEvent(event.capture());
+        assertThat(event.getValue().creatorId()).isEqualTo(creator.getId());
+        assertThat(event.getValue().published()).isFalse();
+    }
+
+    @Test
+    void anApproval_cannotComplete_whileTheOtherReviewerHasFeedbackOutstanding() {
+        service.leaveElderFeedback(elder.getId(), job.getId(), "Fix the intro");
+
+        service.approveAsAdmin(job.getId());
+
+        assertThat(job.getStatus()).isNotEqualTo(lk.ac.sliit.legacylens.marketplace.entity.JobStatus.COMPLETED);
+        assertThat(progress.isRejected()).isTrue();
+        // ...and the admin can still see why.
+        assertThat(service.adminView(job.getId()).getElderFeedback()).isEqualTo("Fix the intro");
+        assertThat(service.adminView(job.getId()).isAdminApproved()).isTrue();
+    }
+
+    @Test
+    void approvingAfterGivingFeedback_withdrawsTheNote_andClearsTheSendBack() {
+        service.leaveElderFeedback(elder.getId(), job.getId(), "Fix the intro");
+
+        service.approveAsElder(elder.getId(), job.getId());
+
+        assertThat(progress.getElderFeedback()).isNull();
+        assertThat(progress.isRejected()).isFalse();
+    }
+
+    @Test
+    void feedback_takesBackThatReviewersApproval() {
+        service.approveAsElder(elder.getId(), job.getId());
+
+        service.leaveElderFeedback(elder.getId(), job.getId(), "Actually, one change");
+
+        assertThat(progress.isElderApproved()).isFalse();
+    }
+
+    @Test
+    void onlyCompletedWork_canBePublished_andOnlyOnce() {
+        assertThatThrownBy(() -> service.publish(job.getId())).isInstanceOf(InvalidApplicationStateException.class);
+
+        service.approveAsElder(elder.getId(), job.getId());
+        service.approveAsAdmin(job.getId());
+        service.publish(job.getId());
+        service.publish(job.getId());
+
+        assertThat(progress.getPublishedAt()).isNotNull();
+        ArgumentCaptor<Object> events2 = ArgumentCaptor.forClass(Object.class);
+        verify(events, org.mockito.Mockito.times(2)).publishEvent(events2.capture());
+        assertThat(events2.getAllValues()).hasSize(2); // approved once, published once - not twice
+    }
+
+    @Test
+    void anotherKnowledgeHolder_cannotApprove() {
+        assertThatThrownBy(() -> service.approveAsElder(UUID.randomUUID(), job.getId()))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
 }

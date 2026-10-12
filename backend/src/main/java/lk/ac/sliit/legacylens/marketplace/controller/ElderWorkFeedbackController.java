@@ -37,6 +37,14 @@ public class ElderWorkFeedbackController {
         return ResponseEntity.ok(ApiResponse.ok(feedbackService.elderView(principal.getUser().getId(), jobId)));
     }
 
+    /** The knowledge holder approves the work. */
+    @PostMapping("/approve")
+    public ResponseEntity<ApiResponse<WorkFeedbackResponse>> approve(
+            @AuthenticationPrincipal CustomUserDetails principal, @PathVariable UUID jobId) {
+        return ResponseEntity.ok(ApiResponse.ok("Work approved",
+                feedbackService.approveAsElder(principal.getUser().getId(), jobId)));
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<WorkFeedbackResponse>> leave(
             @AuthenticationPrincipal CustomUserDetails principal,

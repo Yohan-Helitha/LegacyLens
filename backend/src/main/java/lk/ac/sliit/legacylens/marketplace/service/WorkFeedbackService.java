@@ -22,4 +22,13 @@ public interface WorkFeedbackService {
 
     /** Both notes. */
     WorkFeedbackResponse adminView(UUID jobId);
+
+    /** The knowledge holder is happy with the work. Their own earlier note, if any, is withdrawn. */
+    WorkFeedbackResponse approveAsElder(UUID elderId, UUID jobId);
+
+    /** The admin is happy with the work. Their own earlier note, if any, is withdrawn. */
+    WorkFeedbackResponse approveAsAdmin(UUID jobId);
+
+    /** The admin publishes work both reviewers have approved. */
+    WorkFeedbackResponse publish(UUID jobId);
 }

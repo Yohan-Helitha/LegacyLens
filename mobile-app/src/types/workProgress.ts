@@ -75,6 +75,10 @@ export interface WorkProgressResponse {
   recordDone: boolean;
   editDone: boolean;
   submitted: boolean;
+  /** Where the review stands: who has approved so far, and when the work was published. */
+  elderApproved: boolean;
+  adminApproved: boolean;
+  publishedAt: string | null;
   /** The two "Note & Written Content" sub-sections — kept as separate fields, not one combined note. */
   introduction: string | null;
   story: string | null;

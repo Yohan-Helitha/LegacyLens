@@ -106,6 +106,21 @@ public class JobWorkProgress {
     @Column(name = "admin_feedback_at")
     private LocalDateTime adminFeedbackAt;
 
+    /**
+     * Each reviewer's go-ahead. The work is complete only when the knowledge holder AND the admin have
+     * both approved and neither has feedback outstanding. Reset when the creator resubmits, so a changed
+     * piece of work is looked at again.
+     */
+    @Column(name = "elder_approved", nullable = false, columnDefinition = "boolean default false")
+    private boolean elderApproved = false;
+
+    @Column(name = "admin_approved", nullable = false, columnDefinition = "boolean default false")
+    private boolean adminApproved = false;
+
+    /** Set when the admin publishes completed work - until then a completed job reads "Completed", after it "Published". */
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -190,6 +190,9 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         progress.setElderFeedbackAt(null);
         progress.setAdminFeedback(null);
         progress.setAdminFeedbackAt(null);
+        // A changed piece of work is looked at again by both reviewers.
+        progress.setElderApproved(false);
+        progress.setAdminApproved(false);
 
         return mapToResponse(workProgressRepository.save(progress));
     }
@@ -398,6 +401,9 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .rejected(progress.isRejected())
                 .rejectionReason(progress.getRejectionReason())
                 .rejectedAt(progress.getRejectedAt())
+                .elderApproved(progress.isElderApproved())
+                .adminApproved(progress.isAdminApproved())
+                .publishedAt(progress.getPublishedAt())
                 .elderFeedback(progress.getElderFeedback())
                 .elderFeedbackAt(progress.getElderFeedbackAt())
                 .adminFeedback(progress.getAdminFeedback())

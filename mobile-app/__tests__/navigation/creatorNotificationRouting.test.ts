@@ -17,6 +17,10 @@ describe('creatorScreenForNotification', () => {
     expect(creatorScreenForNotification({ type: 'work-feedback' })).toBe('rejected-work');
   });
 
+  it('opens My Work when submitted work is approved', () => {
+    expect(creatorScreenForNotification({ type: 'work-approved' })).toBe('my-work');
+  });
+
   it('just opens the app for anything else', () => {
     expect(creatorScreenForNotification({ type: 'something-new' })).toBeNull();
     expect(creatorScreenForNotification({})).toBeNull();

@@ -188,8 +188,10 @@ const WorkCard: React.FC<{
   variant: 'continue' | 'submitted';
   /** The full progress record - the submitted card shows what was written from it. */
   progress?: WorkProgressResponse;
+  /** TEMPORARY test buttons: stand in for the knowledge holder / admin until their screens exist. */
+  onTestReview?: (by: 'elder' | 'admin', action: 'approve' | 'reject') => void;
   onContinue: () => void;
-}> = ({ job, heroImageUrl, materialsCount, progressPercentage, doneSteps, variant, progress, onContinue }) => {
+}> = ({ job, heroImageUrl, materialsCount, progressPercentage, doneSteps, variant, progress, onTestReview, onContinue }) => {
   // A job already sent for review is no longer "due" - the chip would only mislead.
   const dueText = variant === 'submitted' ? null : formatDueText(job.scheduledAt);
   const overdue = dueText === 'Overdue';
@@ -277,6 +279,33 @@ const WorkCard: React.FC<{
           <Text style={s.awaitingPillText}>Awaiting Review</Text>
         </View>
       )}
+      {variant === 'submitted' && !!onTestReview && (
+        <View style={s.testGrid}>
+          <Text style={s.testLabel}>TEMPORARY - stands in for the reviewers</Text>
+          <View style={s.testRow}>
+            <Pressable onPress={() => onTestReview('elder', 'reject')} style={({ pressed }) => [s.testBtnDanger, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Knowledge holder rejects (test)">
+              <Text style={s.testBtnDangerText}>Elder Reject (Test)</Text>
+            </Pressable>
+            <Pressable onPress={() => onTestReview('elder', 'approve')} style={({ pressed }) => [s.testBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Knowledge holder approves (test)">
+              <Text style={s.testBtnText}>Elder Approve (Test)</Text>
+            </Pressable>
+          </View>
+          <View style={s.testRow}>
+            <Pressable onPress={() => onTestReview('admin', 'reject')} style={({ pressed }) => [s.testBtnDanger, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Admin rejects (test)">
+              <Text style={s.testBtnDangerText}>Admin Reject (Test)</Text>
+            </Pressable>
+            <Pressable onPress={() => onTestReview('admin', 'approve')} style={({ pressed }) => [s.testBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Admin approves (test)">
+              <Text style={s.testBtnText}>Admin Approve (Test)</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+      {variant === 'submitted' && !!progress && (
+        <View style={s.reviewRow}>
+          <ReviewerStatus who="Knowledge holder" approved={progress.elderApproved} />
+          <ReviewerStatus who="Admin" approved={progress.adminApproved} />
+        </View>
+      )}
     </View>
   );
 };
@@ -285,7 +314,14 @@ const WorkCard: React.FC<{
 // CompletedCard - a finished job: what it was, for whom, when, and what it earned.
 // (No progress bar or stepper - those only mean something while work is under way.)
 // ─────────────────────────────────────────────────────────────────────────────
-const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; onView: () => void }> = ({ job, heroImageUrl, onView }) => {
+/** One reviewer's answer on a submitted job: approved, or still being waited on. */
+const ReviewerStatus: React.FC<{ who: string; approved: boolean }> = ({ who, approved }) => (
+  <View style={[s.reviewChip, approved && s.reviewChipDone]}>
+    <Text style={[s.reviewChipText, approved && s.reviewChipTextDone]}>{`${who}: ${approved ? 'Approved ✓' : 'Waiting'}`}</Text>
+  </View>
+);
+
+const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; published: boolean; onView: () => void }> = ({ job, heroImageUrl, published, onView }) => {
   const doneOn = formatDoneDate(job.completedAt);
 
   return (
@@ -295,7 +331,7 @@ const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; o
           <View style={s.doneCheck}>
             <CheckIcon size={9} />
           </View>
-          <Text style={s.donePillText}>Completed</Text>
+          <Text style={s.donePillText}>{published ? 'Published' : 'Completed'}</Text>
         </View>
       </View>
 
@@ -362,6 +398,7 @@ export const MyWorkList: React.FC<{
   const [completedJobs, setCompletedJobs] = useState<JobResponse[]>([]);
   const [progressByJobId, setProgressByJobId] = useState<Record<string, WorkProgressResponse>>({});
   const [completedPictures, setCompletedPictures] = useState<Record<string, string | null>>({});
+  const [completedPublished, setCompletedPublished] = useState<Record<string, boolean>>({});
   const [activeTab, setActiveTab] = useState<WorkTab>(initialTab);
   const selectTab = (tab: WorkTab) => {
     setActiveTab(tab);
@@ -403,6 +440,11 @@ export const MyWorkList: React.FC<{
           pictures[completed[i].id] = p?.heroImageUrl ?? null;
         });
         setCompletedPictures(pictures);
+        const published: Record<string, boolean> = {};
+        completedProgress.forEach((p, i) => {
+          published[completed[i].id] = Boolean(p?.publishedAt);
+        });
+        setCompletedPublished(published);
       })
       .catch((err) => {
         if (isCancelled()) return;
@@ -438,6 +480,7 @@ export const MyWorkList: React.FC<{
           submitted: Boolean(progress?.submittedAt) && !progress?.draft,
           // Saved with "Save As a Draft" - lives on the Saved tab until it is submitted.
           draft: Boolean(progress?.draft),
+          rejected: Boolean(progress?.rejected),
         };
       }),
     [workJobs, progressByJobId],
@@ -447,9 +490,10 @@ export const MyWorkList: React.FC<{
 
   // Active is everything not yet submitted - saving a draft does not take a job off it, so the creator
   // can always see how far along it is. Saved is the same jobs filtered to the ones saved as a draft.
-  const stillInProgress = activeWithProgress.filter((x) => !x.submitted);
+  const stillInProgress = activeWithProgress.filter((x) => !x.submitted && !x.rejected);
   const savedDrafts = activeWithProgress.filter((x) => x.draft);
-  const submitted = activeWithProgress.filter((x) => x.submitted);
+  // Waiting on the reviewers. Work they sent back lives on Rejected Submissions until it is submitted again.
+  const submitted = activeWithProgress.filter((x) => x.submitted && !x.rejected);
 
   // A step the creator has not finished yet is worth a warning before submitting, not a block.
   const unfinishedSteps = (progress: WorkProgressResponse | undefined): string[] => {
@@ -489,6 +533,16 @@ export const MyWorkList: React.FC<{
       { text: 'Cancel', style: 'cancel' },
       { text: 'Continue', onPress: () => submitDraft(job) },
     ]);
+  };
+
+  // TEMPORARY: stands in for the knowledge holder and the admin until their screens exist.
+  const handleTestReview = async (job: JobResponse, by: 'elder' | 'admin', action: 'approve' | 'reject') => {
+    try {
+      await workProgressApi.testReview(job.id, by, action);
+      await loadWork();
+    } catch (err) {
+      appAlert('Test review failed', err instanceof ApiError ? err.message : 'Could not record this review.');
+    }
   };
 
   const handleDeleteDraft = (job: JobResponse) => {
@@ -608,6 +662,7 @@ export const MyWorkList: React.FC<{
                 doneSteps={steps}
                 variant="submitted"
                 progress={progressByJobId[job.id]}
+                onTestReview={(by, action) => handleTestReview(job, by, action)}
                 onContinue={() => {}}
               />
             ))
@@ -636,7 +691,7 @@ export const MyWorkList: React.FC<{
                     </Text>
                   </View>
                   {month.jobs.map((job) => (
-                    <CompletedCard key={job.id} job={job} heroImageUrl={completedPictures[job.id] ?? null} onView={() => onViewPublication(job)} />
+                    <CompletedCard key={job.id} job={job} heroImageUrl={completedPictures[job.id] ?? null} published={completedPublished[job.id] ?? false} onView={() => onViewPublication(job)} />
                   ))}
                 </View>
               ))}
@@ -817,6 +872,18 @@ const s = StyleSheet.create({
     backgroundColor: '#f0f5f5', borderRadius: Radii.full, borderWidth: 1, borderColor: D.surfaceVariant,
     marginTop: Spacing.md, paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
   },
+  testGrid: { marginTop: Spacing.md, gap: 6 },
+  testLabel: { fontFamily: Typography.fontBody, fontSize: 10, color: D.onSurfaceVariant, letterSpacing: 0.3 },
+  testRow: { flexDirection: 'row', gap: Spacing.sm },
+  testBtn: { flex: 1, minHeight: 44, borderRadius: Radii.full, backgroundColor: D.primary, alignItems: 'center', justifyContent: 'center' },
+  testBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#ffffff' },
+  testBtnDanger: { flex: 1, minHeight: 44, borderRadius: Radii.full, borderWidth: 1.5, borderColor: '#C0392B', alignItems: 'center', justifyContent: 'center' },
+  testBtnDangerText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#C0392B' },
+  reviewRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: Spacing.sm },
+  reviewChip: { borderRadius: Radii.full, backgroundColor: '#f0f5f5', borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant, paddingHorizontal: 12, paddingVertical: 6 },
+  reviewChipDone: { backgroundColor: '#E3F1E6', borderColor: '#2F6B3F' },
+  reviewChipText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
+  reviewChipTextDone: { fontFamily: Typography.fontBodySemi, color: '#2F6B3F' },
   awaitingPillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, letterSpacing: 0.3 },
 
   // ── Completed tab ────────────────────────────────────────────────────────

@@ -5,6 +5,8 @@ import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.marketplace.dto.WorkFeedbackResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.Job;
 import lk.ac.sliit.legacylens.marketplace.entity.JobWorkProgress;
+import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
+import lk.ac.sliit.legacylens.marketplace.event.WorkApprovedEvent;
 import lk.ac.sliit.legacylens.marketplace.event.WorkFeedbackGivenEvent;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.JobWorkProgressRepository;
@@ -37,6 +39,7 @@ public class WorkFeedbackServiceImpl implements WorkFeedbackService {
 
         progress.setElderFeedback(message.trim());
         progress.setElderFeedbackAt(LocalDateTime.now());
+        progress.setElderApproved(false);
         sendBack(progress);
         events.publishEvent(new WorkFeedbackGivenEvent(job.getCreator().getId(), jobId, job.getTitle(), "knowledge holder"));
         return elderView(progressRepository.save(progress));
@@ -57,6 +60,7 @@ public class WorkFeedbackServiceImpl implements WorkFeedbackService {
 
         progress.setAdminFeedback(message.trim());
         progress.setAdminFeedbackAt(LocalDateTime.now());
+        progress.setAdminApproved(false);
         sendBack(progress);
         events.publishEvent(new WorkFeedbackGivenEvent(job.getCreator().getId(), jobId, job.getTitle(), "admin"));
         return adminView(progressRepository.save(progress));
@@ -67,6 +71,66 @@ public class WorkFeedbackServiceImpl implements WorkFeedbackService {
     public WorkFeedbackResponse adminView(UUID jobId) {
         jobRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found"));
         return adminView(progressRepository.findByJobId(jobId).orElse(new JobWorkProgress()), jobId);
+    }
+
+    @Override
+    @Transactional
+    public WorkFeedbackResponse approveAsElder(UUID elderId, UUID jobId) {
+        Job job = ownedByElder(elderId, jobId);
+        JobWorkProgress progress = submittedProgress(jobId);
+        progress.setElderFeedback(null);
+        progress.setElderFeedbackAt(null);
+        progress.setElderApproved(true);
+        completeWhenBothApproved(job, progress);
+        return elderView(progressRepository.save(progress));
+    }
+
+    @Override
+    @Transactional
+    public WorkFeedbackResponse approveAsAdmin(UUID jobId) {
+        Job job = jobRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found"));
+        JobWorkProgress progress = submittedProgress(jobId);
+        progress.setAdminFeedback(null);
+        progress.setAdminFeedbackAt(null);
+        progress.setAdminApproved(true);
+        completeWhenBothApproved(job, progress);
+        return adminView(progressRepository.save(progress));
+    }
+
+    @Override
+    @Transactional
+    public WorkFeedbackResponse publish(UUID jobId) {
+        Job job = jobRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found"));
+        if (job.getStatus() != JobStatus.COMPLETED) {
+            throw new InvalidApplicationStateException("Only work both reviewers approved can be published.");
+        }
+        JobWorkProgress progress = progressRepository.findByJobId(jobId)
+                .orElseThrow(() -> new InvalidApplicationStateException("This work has not been submitted yet."));
+        if (progress.getPublishedAt() == null) {
+            progress.setPublishedAt(LocalDateTime.now());
+            events.publishEvent(new WorkApprovedEvent(job.getCreator().getId(), jobId, job.getTitle(), true));
+        }
+        return adminView(progressRepository.save(progress));
+    }
+
+    /**
+     * Once both reviewers have approved and neither note is outstanding the work is complete: the job
+     * becomes COMPLETED (so it moves to the creator's Completed tab) and the creator is told. A note
+     * still outstanding keeps it on the creator's Rejected Submissions page.
+     */
+    private void completeWhenBothApproved(Job job, JobWorkProgress progress) {
+        boolean noteOutstanding = progress.getElderFeedback() != null || progress.getAdminFeedback() != null;
+        progress.setRejected(noteOutstanding);
+        if (!noteOutstanding) {
+            progress.setRejectedAt(null);
+        }
+        if (progress.isElderApproved() && progress.isAdminApproved() && !noteOutstanding
+                && job.getStatus() != JobStatus.COMPLETED) {
+            job.setStatus(JobStatus.COMPLETED);
+            job.setCompletedAt(LocalDateTime.now());
+            jobRepository.save(job);
+            events.publishEvent(new WorkApprovedEvent(job.getCreator().getId(), job.getId(), job.getTitle(), false));
+        }
     }
 
     /** Only a submission that was actually sent for review can be sent back. */
@@ -103,6 +167,8 @@ public class WorkFeedbackServiceImpl implements WorkFeedbackService {
                 .jobId(jobId)
                 .elderFeedback(progress.getElderFeedback())
                 .elderFeedbackAt(progress.getElderFeedbackAt())
+                .elderApproved(progress.isElderApproved())
+                .publishedAt(progress.getPublishedAt())
                 .build();
     }
 
@@ -117,6 +183,9 @@ public class WorkFeedbackServiceImpl implements WorkFeedbackService {
                 .elderFeedbackAt(progress.getElderFeedbackAt())
                 .adminFeedback(progress.getAdminFeedback())
                 .adminFeedbackAt(progress.getAdminFeedbackAt())
+                .elderApproved(progress.isElderApproved())
+                .adminApproved(progress.isAdminApproved())
+                .publishedAt(progress.getPublishedAt())
                 .build();
     }
 }

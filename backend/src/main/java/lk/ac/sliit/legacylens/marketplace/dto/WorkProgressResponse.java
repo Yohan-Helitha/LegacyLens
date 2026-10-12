@@ -59,6 +59,10 @@ public class WorkProgressResponse {
     private LocalDateTime rejectedAt;
 
     /** The two reviewers' notes on this submission - shown to the creator only, never in the published content. */
+    /** Where the review stands: who has approved so far, and when the work was published. */
+    private boolean elderApproved;
+    private boolean adminApproved;
+    private LocalDateTime publishedAt;
     private String elderFeedback;
     private LocalDateTime elderFeedbackAt;
     private String adminFeedback;

@@ -21,4 +21,8 @@ public class WorkFeedbackResponse {
     private LocalDateTime elderFeedbackAt;
     private String adminFeedback;
     private LocalDateTime adminFeedbackAt;
+    /** The knowledge holder only ever gets their own approval; the admin gets both. */
+    private boolean elderApproved;
+    private boolean adminApproved;
+    private LocalDateTime publishedAt;
 }

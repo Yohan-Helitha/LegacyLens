@@ -39,6 +39,10 @@ export const workProgressApi = {
   submitDraft: (jobId: string) =>
     apiPost<WorkProgressResponse, undefined>(`/jobs/${jobId}/work-progress/submit`, undefined),
 
+  /** TEMPORARY - stands in for the knowledge holder or admin until their screens exist. See TemporaryReviewTestController. */
+  testReview: (jobId: string, by: 'elder' | 'admin', action: 'approve' | 'reject') =>
+    apiPost<unknown, undefined>(`/jobs/${jobId}/work-progress/test/${by}/${action}`, undefined),
+
   resetProgress: (jobId: string) => apiDelete<void>(`/jobs/${jobId}/work-progress`),
 
   /** multipart/form-data — same file-part pattern as creatorDashboardApi.addPayment. */
