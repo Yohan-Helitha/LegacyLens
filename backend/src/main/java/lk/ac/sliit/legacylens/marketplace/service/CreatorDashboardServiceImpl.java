@@ -229,6 +229,8 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
 
     private JobResponse mapJob(Job job, Opportunity opportunity, Review review) {
         return JobResponse.builder()
+                .heroImageUrl(job.getHeroImageUrl() != null ? job.getHeroImageUrl()
+                        : opportunity == null ? null : opportunity.getHeroImageUrl())
                 .reviewRating(review == null ? null : review.getRating())
                 .reviewComment(review == null ? null : review.getComment())
                 .id(job.getId())

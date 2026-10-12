@@ -41,6 +41,8 @@ export interface JobResponse {
   category?: string | null;
   /** The linked opportunity's language, e.g. "Sinhala". */
   language?: string | null;
+  /** The job's own photo, else its opportunity's - "local:<key>" for bundled placeholder pictures. */
+  heroImageUrl?: string | null;
   /** The knowledge holder's star rating for this job; null until they have rated it. */
   reviewRating?: number | null;
   /** The knowledge holder's written feedback for this job. */

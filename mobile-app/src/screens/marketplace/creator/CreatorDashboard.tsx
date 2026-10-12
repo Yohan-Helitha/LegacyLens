@@ -19,6 +19,7 @@ import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { FeedbackCarousel } from '../../../components/module-specific/marketplace/FeedbackCarousel';
+import { resolveOpportunityImage } from '../../../utils/opportunityImages';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
 import { profileApi } from '../../../services/api/profileApi';
 import { useAuthStore } from '../../../store/authStore';
@@ -31,11 +32,11 @@ import type {
 } from '../../../types/creatorDashboard';
 import type { OpportunityApplicationResponse } from '../../../types/opportunityApplication';
 
-// Recent Work gallery — bundled locally so the viva demo never depends on network access.
-const POTTERY_IMAGE = require('../../../../assets/images/recent-work/pottery-making.jpg');
-const BLUE_RICE_IMAGE = require('../../../../assets/images/recent-work/blue-rice.jpg');
-const KANDYAN_DANCE_IMAGE = require('../../../../assets/images/recent-work/kandyan-dance.jpg');
-const SCRIPT_EVOLUTION_IMAGE = require('../../../../assets/images/recent-work/script-evolution.png');
+// Fallback picture for a completed job that has no photo of its own (same one My Work uses).
+const GENERIC_WORK_IMAGE = require('../../../../assets/images/work/traditional-rice-menu.jpg');
+
+/** How many of the newest completed jobs the dashboard shows; the rest live in My Work > Completed. */
+const RECENT_WORK_SHOWN = 4;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -513,75 +514,68 @@ const FeedbackSection: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 // RecentWorkSection
 // ─────────────────────────────────────────────────────────────────────────────
-const RecentWorkSection: React.FC = () => (
+const RecentWorkSection: React.FC<{ jobs: JobResponse[] | null; onViewAll: () => void }> = ({ jobs, onViewAll }) => (
   <View style={s.section}>
     <View style={s.sectionHeader}>
       <Text style={s.sectionTitle}>Recent Work</Text>
       <Pressable
-        style={({ pressed }) => pressed ? [s.pressed] : []}
+        onPress={onViewAll}
+        style={({ pressed }) => [s.viewAllBtn, pressed && s.pressed]}
         accessibilityRole="button"
+        accessibilityLabel="View all your completed work"
       >
         <Text style={s.viewAllText}>View All ›</Text>
       </Pressable>
     </View>
 
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={s.galleryRow}
-    >
-      {/* Item 1 — photo: traditional pottery making */}
-      <View style={s.galleryItem}>
-        <Image
-          source={POTTERY_IMAGE}
-          style={s.galleryImage}
-          accessibilityLabel="Traditional pottery being shaped on a potter's wheel"
-        />
-        <View style={s.galleryOverlayGradient} />
-        <Text style={s.galleryTypeIcon}>🖼</Text>
+    {jobs === null ? (
+      <View style={s.emptyState}>
+        <Text style={s.emptyStateText}>Loading…</Text>
       </View>
-
-      {/* Item 2 — video: blue butterfly-pea-flower rice recipe documentary */}
-      <View style={s.galleryItem}>
-        <Image
-          source={BLUE_RICE_IMAGE}
-          style={s.galleryImage}
-          accessibilityLabel="Traditional blue butterfly-pea-flower rice recipe documentary thumbnail"
-        />
-        <View style={s.galleryOverlayDark} />
-        <View style={s.playBtnWrapper}>
-          <View style={s.playBtn}>
-            <Text style={{ fontSize: 16, color: D.secondary, marginLeft: 2 }}>▶</Text>
-          </View>
-        </View>
+    ) : jobs.length === 0 ? (
+      <View style={s.emptyState}>
+        <Text style={s.emptyStateText}>No completed work yet.</Text>
       </View>
-
-      {/* Item 3 — photo: Kandyan dancer in costume */}
-      <View style={s.galleryItem}>
-        <Image
-          source={KANDYAN_DANCE_IMAGE}
-          style={s.galleryImage}
-          accessibilityLabel="Traditional Kandyan dancer in costume"
-        />
-        <View style={s.galleryOverlayGradient} />
-        <Text style={s.galleryTypeIcon}>🖼</Text>
-      </View>
-
-      {/* Item 4 — photo: Sinhala script evolution chart */}
-      <View style={s.galleryItem}>
-        <Image
-          source={SCRIPT_EVOLUTION_IMAGE}
-          style={s.galleryImage}
-          accessibilityLabel="Evolution of the Sinhala script from Brahmi chart"
-        />
-        <View style={s.galleryOverlayGradient} />
-        <Text style={s.galleryTypeIcon}>📄</Text>
-      </View>
-    </ScrollView>
+    ) : (
+      // Newest completed job first; a newly completed one joins the front and the oldest drops off.
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.workRow}
+        decelerationRate="fast"
+        snapToInterval={WORK_CARD_WIDTH + Spacing.sm}
+      >
+        {jobs.map((job) => (
+          <Pressable
+            key={job.id}
+            onPress={onViewAll}
+            style={({ pressed }) => [s.workCard, pressed && s.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={`${job.title}, completed. Open completed work`}
+          >
+            <Image
+              source={resolveOpportunityImage(job.heroImageUrl ?? null) ?? GENERIC_WORK_IMAGE}
+              style={s.workImage}
+              resizeMode="cover"
+            />
+            <View style={s.workShade} />
+            {job.urgent && (
+              <View style={s.workUrgent}>
+                <Text style={s.workUrgentText}>URGENT</Text>
+              </View>
+            )}
+            <View style={s.workInfo}>
+              <Text style={s.workTitle} numberOfLines={2}>{job.title}</Text>
+              <Text style={s.workMeta} numberOfLines={1}>
+                {`${job.elderName}${job.completedAt ? `  ·  ${formatAppDate(job.completedAt)}` : ''}`}
+              </Text>
+            </View>
+          </Pressable>
+        ))}
+      </ScrollView>
+    )}
   </View>
 );
-
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
@@ -599,6 +593,7 @@ export const CreatorDashboard: React.FC<{
   const [activeTab, setActiveTab] = useState<JobTab>('active');
   const [summary, setSummary] = useState<CreatorDashboardSummaryResponse | null>(null);
   const [reviews, setReviews] = useState<ReviewItem[] | null>(null);
+  const [recentWork, setRecentWork] = useState<JobResponse[] | null>(null);
   const [jobsByTab, setJobsByTab] = useState<Partial<Record<JobTab, ActiveJobItem[]>>>({});
   const [jobsLoading, setJobsLoading] = useState(false);
   const [jobsError, setJobsError] = useState(false);
@@ -634,6 +629,11 @@ export const CreatorDashboard: React.FC<{
         id: r.id, rating: r.rating, quote: r.comment?.trim() || null, author: r.elderName, opportunityTitle: r.opportunityTitle,
       }))))
       .catch(() => setReviews([]));
+
+    creatorDashboardApi
+      .getRecentWork(RECENT_WORK_SHOWN)
+      .then(setRecentWork)
+      .catch(() => setRecentWork([]));
 
     opportunityApplicationApi
       .getMyApplications()
@@ -793,7 +793,7 @@ export const CreatorDashboard: React.FC<{
         </View>
 
         <FeedbackSection rating={summary?.rating ?? null} reviews={reviews} onViewAll={onOpenCompletedWork} />
-        <RecentWorkSection />
+        <RecentWorkSection jobs={recentWork} onViewAll={onOpenCompletedWork} />
         <View style={{ height: 8 }} />
       </ScrollView>
 
@@ -916,7 +916,7 @@ export const CreatorDashboard: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
-const GALLERY_SIZE = 128;
+const WORK_CARD_WIDTH = 220;
 
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
@@ -1079,19 +1079,20 @@ const s = StyleSheet.create({
   feedbackRating: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.tertiaryContainer, lineHeight: 20 },
   viewAllBtn: { minHeight: 44, justifyContent: 'center' },
 
-  // ── Gallery ────────────────────────────────────────────────────────────────
-  viewAllText:            { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.secondary, letterSpacing: 0.2 },
-  galleryRow:             { flexDirection: 'row', gap: Spacing.md, paddingBottom: 4 },
-  galleryItem: {
-    width: GALLERY_SIZE, height: GALLERY_SIZE, borderRadius: Radii.xl, overflow: 'hidden',
+  // ── Recent work ────────────────────────────────────────────────────────────
+  viewAllText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.secondary, letterSpacing: 0.2 },
+  workRow: { flexDirection: 'row', gap: Spacing.sm, paddingBottom: 4 },
+  workCard: {
+    width: WORK_CARD_WIDTH, height: 150, borderRadius: Radii.xl, overflow: 'hidden', backgroundColor: D.surfaceContainer,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2,
   },
-  galleryImage:           { width: '100%', height: '100%' },
-  galleryOverlayGradient: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)' },
-  galleryOverlayDark:     { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.18)' },
-  galleryTypeIcon:        { position: 'absolute', bottom: 8, left: 8, fontSize: 18, color: '#fff' },
-  playBtnWrapper:         { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  playBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.82)', alignItems: 'center', justifyContent: 'center' },
+  workImage: { width: '100%', height: '100%' },
+  workShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '70%', backgroundColor: 'rgba(0,0,0,0.5)' },
+  workUrgent: { position: 'absolute', top: 10, left: 10, backgroundColor: '#C0392B', borderRadius: Radii.full, paddingHorizontal: 8, paddingVertical: 3 },
+  workUrgentText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.6 },
+  workInfo: { position: 'absolute', left: 12, right: 12, bottom: 10, gap: 2 },
+  workTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, lineHeight: 20, color: '#ffffff' },
+  workMeta: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: 'rgba(255,255,255,0.88)' },
 
   // ── Press feedback ─────────────────────────────────────────────────────────
   pressed:      { opacity: 0.75 },
