@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
-import { Hand } from 'lucide-react-native';
+import { Handshake } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
@@ -205,7 +205,7 @@ const GreetingSection: React.FC<{ name: string }> = ({ name }) => (
     <View style={s.greetingText}>
       <View style={s.greetingHeadlineRow}>
         <Text style={s.greetingHeadline}>{`${greetingForHour(new Date().getHours())}${name ? `, ${name}` : ''}`}</Text>
-        <Hand size={20} color={D.secondary} strokeWidth={2} />
+        <Handshake size={22} color={D.secondary} strokeWidth={2} />
       </View>
       <Text style={s.greetingSubtitle}>Ready to preserve a story today?</Text>
     </View>
