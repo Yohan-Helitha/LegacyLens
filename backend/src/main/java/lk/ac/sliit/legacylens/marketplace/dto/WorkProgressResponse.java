@@ -35,6 +35,15 @@ public class WorkProgressResponse {
     /** PREP / RECORD / EDIT / SUBMIT / COMPLETED — derived from progressPercentage, purely a display summary. */
     private String currentStage;
 
+    /**
+     * Which of the four steps are done: Prep (every task ticked), Record (a material uploaded), Edit (introduction,
+     * story and search summary written) and Submit (sent for review). Each is worth a quarter of progressPercentage.
+     */
+    private boolean prepDone;
+    private boolean recordDone;
+    private boolean editDone;
+    private boolean submitted;
+
     private String introduction;
     private String story;
 

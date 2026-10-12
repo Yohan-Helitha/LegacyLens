@@ -11,7 +11,7 @@ import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
 import { workProgressApi } from '../../../services/api/workProgressApi';
 import type { JobResponse } from '../../../types/creatorDashboard';
 import { ApiError } from '../../../services/api/client';
-import { WorkProgressResponse, stepsForStage } from '../../../types/workProgress';
+import { WorkProgressResponse, stepFlags } from '../../../types/workProgress';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
 import { groupCompletedByMonth } from '../../../utils/completedWork';
 
@@ -145,12 +145,12 @@ const ProgressBar: React.FC<{ percentage: number }> = ({ percentage }) => (
 // `completedSteps` (the next one up) gets a bold ring to mark it as current,
 // distinct from the plain grey outline on steps that haven't started yet.
 // ─────────────────────────────────────────────────────────────────────────────
-const Stepper: React.FC<{ completedSteps: number }> = ({ completedSteps }) => (
+const Stepper: React.FC<{ done: boolean[] }> = ({ done: doneSteps }) => (
   <View style={s.stepperRow}>
     {STEP_LABELS.map((label, i) => {
-      const done = i < completedSteps;
-      const isCurrent = i === completedSteps;
-      const connectorDone = i < completedSteps - 1;
+      const done = doneSteps[i];
+      const isCurrent = !done && doneSteps.slice(0, i).every(Boolean);
+      const connectorDone = done && doneSteps[i + 1];
       return (
         <React.Fragment key={label}>
           <View style={s.stepItem}>
@@ -181,10 +181,10 @@ const WorkCard: React.FC<{
   heroImageUrl: string | null;
   materialsCount: number;
   progressPercentage: number;
-  completedSteps: number;
+  doneSteps: boolean[];
   variant: 'continue' | 'submitted';
   onContinue: () => void;
-}> = ({ job, heroImageUrl, materialsCount, progressPercentage, completedSteps, variant, onContinue }) => {
+}> = ({ job, heroImageUrl, materialsCount, progressPercentage, doneSteps, variant, onContinue }) => {
   const dueText = formatDueText(job.scheduledAt);
   const overdue = dueText === 'Overdue';
   const scheduledOn = formatScheduleDate(job.scheduledAt);
@@ -239,7 +239,7 @@ const WorkCard: React.FC<{
           <Text style={s.progressValue}>{progressPercentage}%</Text>
         </View>
         <ProgressBar percentage={progressPercentage} />
-        <Stepper completedSteps={completedSteps} />
+        <Stepper done={doneSteps} />
       </View>
 
       <View style={s.cardPhotoWrapper}>
@@ -408,7 +408,7 @@ export const MyWorkList: React.FC<{
           heroImageUrl: progress?.heroImageUrl ?? null,
           materialsCount: progress?.materials.length ?? 0,
           percentage: progress?.progressPercentage ?? 0,
-          steps: stepsForStage(progress?.currentStage ?? 'PREP'),
+          steps: progress ? stepFlags(progress) : [false, false, false, false],
           // A job only counts as "Submitted" once it's actually been sent for
           // review — not just because its checklist happens to read 100%,
           // since a creator can submit early or keep polishing after 100%.
@@ -482,7 +482,7 @@ export const MyWorkList: React.FC<{
                 heroImageUrl={heroImageUrl}
                 materialsCount={materialsCount}
                 progressPercentage={percentage}
-                completedSteps={steps}
+                doneSteps={steps}
                 variant="continue"
                 onContinue={() => onContinueWork(job.id, job.title, job.elderName, job.location)}
               />
@@ -501,7 +501,7 @@ export const MyWorkList: React.FC<{
                 heroImageUrl={heroImageUrl}
                 materialsCount={materialsCount}
                 progressPercentage={percentage}
-                completedSteps={steps}
+                doneSteps={steps}
                 variant="submitted"
                 onContinue={() => {}}
               />

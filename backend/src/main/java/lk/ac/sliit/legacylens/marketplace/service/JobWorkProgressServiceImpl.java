@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.marketplace.service;
 
+import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.common.storage.FileStorageService;
 import lk.ac.sliit.legacylens.marketplace.dto.ChecklistItemResponse;
@@ -81,6 +82,12 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         WorkChecklistProgress progress = checklistProgressRepository
                 .findByJobIdAndChecklistItemId(jobId, checklistItemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Checklist item not found for this job"));
+
+        // Record, Edit and Submit are steps of their own (uploading, writing, submitting) and finish by
+        // themselves - only a Prep task is ticked by hand.
+        if (progress.getChecklistItem().getStage() != ChecklistStage.PREP) {
+            throw new InvalidRequestException("This step completes by itself - there is nothing to tick here.");
+        }
 
         progress.setCompleted(completed);
         progress.setCompletedAt(completed ? LocalDateTime.now() : null);
@@ -303,40 +310,51 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .orElse(null);
     }
 
-    private static final List<ChecklistStage> STAGE_ORDER =
-            List.of(ChecklistStage.PREP, ChecklistStage.RECORD, ChecklistStage.EDIT, ChecklistStage.SUBMIT);
+    private boolean hasMaterials(Job job) {
+        return !workMaterialRepository.findByJobIdOrderByUploadedAtAsc(job.getId()).isEmpty();
+    }
 
-    /**
-     * A stage is "done" only once every checklist item tagged with it is
-     * completed — never inferred from the overall percentage. A stage with no
-     * items tagged for it (a job type that skips that stage) counts as
-     * vacuously done, so the stepper moves straight past it.
-     */
-    private static String currentStageFor(List<WorkChecklistProgress> checklist) {
-        if (checklist.isEmpty()) {
+    private static boolean filled(String text) {
+        return text != null && !text.isBlank();
+    }
+
+    private static boolean isSubmitted(JobWorkProgress progress) {
+        return progress.getSubmittedAt() != null && !progress.isDraft();
+    }
+
+    /** How far a creator is: four steps, each worth a quarter, however many tasks sit inside Prep. */
+    private static final int STEP_WEIGHT = 25;
+
+    private static String currentStageFor(boolean prepDone, boolean recordDone, boolean editDone, boolean submitted) {
+        if (!prepDone) {
             return "PREP";
         }
-        if (checklist.stream().allMatch(WorkChecklistProgress::isCompleted)) {
-            return "COMPLETED";
+        if (!recordDone) {
+            return "RECORD";
         }
-        for (ChecklistStage stage : STAGE_ORDER) {
-            boolean stageDone = checklist.stream()
-                    .filter(cp -> cp.getChecklistItem().getStage() == stage)
-                    .allMatch(WorkChecklistProgress::isCompleted);
-            if (!stageDone) {
-                return stage.name();
-            }
+        if (!editDone) {
+            return "EDIT";
         }
-        return ChecklistStage.SUBMIT.name();
+        return submitted ? "COMPLETED" : "SUBMIT";
     }
 
     private WorkProgressResponse mapToResponse(JobWorkProgress progress) {
         Job job = progress.getJob();
 
-        List<WorkChecklistProgress> checklist = ensureChecklistProgress(job);
-        int total = checklist.size();
-        long completedCount = checklist.stream().filter(WorkChecklistProgress::isCompleted).count();
-        int percentage = total == 0 ? 0 : (int) Math.round((completedCount * 100.0) / total);
+        // The tasks an opportunity lists are the Prep tasks. Record, Edit and Submit are the three steps
+        // built into the page itself, so a task tagged with one of those stages is not listed.
+        List<WorkChecklistProgress> checklist = ensureChecklistProgress(job).stream()
+                .filter(cp -> cp.getChecklistItem().getStage() == ChecklistStage.PREP)
+                .collect(Collectors.toList());
+
+        long prepTasksDone = checklist.stream().filter(WorkChecklistProgress::isCompleted).count();
+        boolean prepDone = prepTasksDone == checklist.size();
+        boolean recordDone = hasMaterials(job);
+        boolean editDone = filled(progress.getIntroduction()) && filled(progress.getStory()) && filled(progress.getSeoSummary());
+        boolean submitted = isSubmitted(progress);
+
+        double prepShare = checklist.isEmpty() ? 1.0 : (double) prepTasksDone / checklist.size();
+        int percentage = (int) Math.round(STEP_WEIGHT * (prepShare + (recordDone ? 1 : 0) + (editDone ? 1 : 0) + (submitted ? 1 : 0)));
 
         List<ChecklistItemResponse> checklistItems = checklist.stream()
                 .map(cp -> ChecklistItemResponse.builder()
@@ -366,7 +384,11 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .heroImageUrl(resolveHeroImageUrl(job))
                 .offeredAmount(job.getOfferedAmount())
                 .progressPercentage(percentage)
-                .currentStage(currentStageFor(checklist))
+                .currentStage(currentStageFor(prepDone, recordDone, editDone, submitted))
+                .prepDone(prepDone)
+                .recordDone(recordDone)
+                .editDone(editDone)
+                .submitted(submitted)
                 .introduction(progress.getIntroduction())
                 .story(progress.getStory())
                 .seoSummary(progress.getSeoSummary())

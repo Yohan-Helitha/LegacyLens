@@ -11,7 +11,7 @@ import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { ReviewerFeedback } from '../../../components/module-specific/marketplace/ReviewerFeedback';
 import { workProgressApi } from '../../../services/api/workProgressApi';
 import { ApiError } from '../../../services/api/client';
-import { ChecklistItemResponse, WorkProgressResponse, deriveStageAndPercentage, stepsForStage } from '../../../types/workProgress';
+import { ChecklistItemResponse, WorkProgressResponse, deriveProgress, stepFlags } from '../../../types/workProgress';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
 
 // Fallback only for jobs with no linked Opportunity (e.g. directly-seeded
@@ -72,6 +72,25 @@ const CardIcon: React.FC<{ size?: number; color?: string }> = ({ size = 14, colo
   </Svg>
 );
 
+/** A step of the work: its name and whether it is done yet. */
+const StageHeader: React.FC<{ title: string; done: boolean }> = ({ title, done }) => (
+  <View style={s.stageHeader}>
+    <Text style={s.stageTitle}>{title}</Text>
+    <View style={[s.stageBadge, done && s.stageBadgeDone]}>
+      {done && <CheckIcon size={9} />}
+      <Text style={[s.stageBadgeText, done && s.stageBadgeTextDone]}>{done ? 'Done' : 'To do'}</Text>
+    </View>
+  </View>
+);
+
+/** A checkbox the page ticks for the creator, once the step's own work is there. Not tappable. */
+const AutoCheckRow: React.FC<{ label: string; done: boolean }> = ({ label, done }) => (
+  <View style={s.checklistRow} accessibilityRole="checkbox" accessibilityState={{ checked: done, disabled: true }}>
+    <View style={[s.checklistCheckbox, done && s.checklistCheckboxDone]}>{done && <CheckIcon size={12} />}</View>
+    <Text style={[s.checklistLabel, done && s.checklistLabelDone]}>{label}</Text>
+  </View>
+);
+
 const CheckIcon: React.FC<{ size?: number }> = ({ size = 10 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round">
     <Path d="M20 6L9 17l-5-5" />
@@ -96,12 +115,12 @@ const ProgressBar: React.FC<{ percentage: number }> = ({ percentage }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 // Stepper
 // ─────────────────────────────────────────────────────────────────────────────
-const Stepper: React.FC<{ completedSteps: number }> = ({ completedSteps }) => (
+const Stepper: React.FC<{ done: boolean[] }> = ({ done: doneSteps }) => (
   <View style={s.stepperRow}>
     {STEP_LABELS.map((label, i) => {
-      const done = i < completedSteps;
-      const isCurrent = i === completedSteps;
-      const connectorDone = i < completedSteps - 1;
+      const done = doneSteps[i];
+      const isCurrent = !done && doneSteps.slice(0, i).every(Boolean);
+      const connectorDone = done && doneSteps[i + 1];
       return (
         <React.Fragment key={label}>
           <View style={s.stepItem}>
@@ -144,6 +163,7 @@ const ChecklistRow: React.FC<{ item: ChecklistItemResponse; disabled: boolean; o
       {item.requiresMaterial && !item.completed && (
         <Text style={s.checklistHint}>Attach a photo/video below to complete this automatically.</Text>
       )}
+
     </View>
   </Pressable>
 );
@@ -195,7 +215,8 @@ export const ContinueMyWorkPage: React.FC<{
   }, [id]);
 
   const materials = progress?.materials ?? [];
-  const checklistItems = progress?.checklistItems ?? [];
+  // The tasks listed are the Prep tasks; Record, Edit and Submit are the three steps built into the page below.
+  const checklistItems = (progress?.checklistItems ?? []).filter((i) => i.stage === 'PREP');
 
   const handleToggleChecklistItem = async (item: ChecklistItemResponse) => {
     // Block a second tap while one toggle is still in flight — otherwise two
@@ -217,12 +238,13 @@ export const ContinueMyWorkPage: React.FC<{
       const nextItems = prev.checklistItems.map((i) =>
         i.id === item.id ? { ...i, completed: nextCompleted } : i,
       );
-      const { percentage, stage } = deriveStageAndPercentage(nextItems);
+      const next = deriveProgress(nextItems, prev);
       return {
         ...prev,
         checklistItems: nextItems,
-        progressPercentage: percentage,
-        currentStage: stage,
+        progressPercentage: next.percentage,
+        currentStage: next.stage,
+        prepDone: next.prepDone,
       };
     });
 
@@ -322,6 +344,25 @@ export const ContinueMyWorkPage: React.FC<{
 
   const handleRemoveKeyword = (keyword: string) => {
     setSeoKeywords((prev) => prev.filter((k) => k !== keyword));
+  };
+
+  // The Edit tasks tick themselves once the written content is complete, and that is worked out on the
+  // server - so each written field is saved the moment the creator leaves it, and the ticks, stepper and
+  // percentage follow straight away.
+  const persistWrittenContent = async () => {
+    if (!progress) return;
+    try {
+      let latest = progress;
+      if (introductionText !== (latest.introduction ?? '') || storyText !== (latest.story ?? '')) {
+        latest = await workProgressApi.updateNote(id, introductionText, storyText);
+      }
+      if (seoSummary !== (latest.seoSummary ?? '')) {
+        latest = await workProgressApi.updateSeo(id, seoSummary, seoKeywords);
+      }
+      setProgress(latest);
+    } catch {
+      // Not fatal: "Save As a Draft" saves everything again and reports a failure then.
+    }
   };
 
   // Saves the note and flags this job as a draft only — it must NOT touch
@@ -444,9 +485,10 @@ export const ContinueMyWorkPage: React.FC<{
 
           <ProgressBar percentage={progress.progressPercentage} />
 
-          <Stepper completedSteps={stepsForStage(progress.currentStage)} />
+          <Stepper done={stepFlags(progress)} />
 
           <View style={{ gap: Spacing.sm }}>
+            <StageHeader title="Prep" done={progress.prepDone} />
             <Text style={s.sectionTitle}>What needs to be prepared</Text>
             {checklistItems.length === 0 ? (
               <Text style={s.emptyMaterialsText}>No tasks added yet.</Text>
@@ -464,8 +506,10 @@ export const ContinueMyWorkPage: React.FC<{
             )}
           </View>
 
-          <View style={{ gap: Spacing.sm }}>
-            <Text style={s.sectionTitle}>Collected Materiels</Text>
+          <View style={s.formSection}>
+            <StageHeader title="Record" done={progress.recordDone} />
+            <AutoCheckRow label="Upload at least one recording or material" done={progress.recordDone} />
+            <Text style={s.sectionTitle}>Collected Materials</Text>
             {materials.length === 0 ? (
               <Text style={s.emptyMaterialsText}>No materials collected yet.</Text>
             ) : (
@@ -496,6 +540,8 @@ export const ContinueMyWorkPage: React.FC<{
           </View>
 
           <View style={s.formSection}>
+            <StageHeader title="Edit content" done={progress.editDone} />
+            <AutoCheckRow label="Write the introduction, the story and the search summary" done={progress.editDone} />
             <Text style={s.formHeading}>Note & Written Content</Text>
 
             <View style={s.field}>
@@ -504,6 +550,7 @@ export const ContinueMyWorkPage: React.FC<{
                 style={s.noteInput}
                 value={introductionText}
                 onChangeText={setIntroductionText}
+                onBlur={persistWrittenContent}
                 placeholder="Set the scene — who, where, and what this piece is about."
                 placeholderTextColor={D.onSurfaceVariant}
                 multiline
@@ -517,6 +564,7 @@ export const ContinueMyWorkPage: React.FC<{
                 style={s.noteInput}
                 value={storyText}
                 onChangeText={setStoryText}
+                onBlur={persistWrittenContent}
                 placeholder="Write the full story, ingredients, steps, or transcript here."
                 placeholderTextColor={D.onSurfaceVariant}
                 multiline
@@ -542,6 +590,7 @@ export const ContinueMyWorkPage: React.FC<{
                 style={[s.noteInput, s.seoSummaryInput]}
                 value={seoSummary}
                 onChangeText={setSeoSummary}
+                onBlur={persistWrittenContent}
                 maxLength={SEO_SUMMARY_MAX}
                 placeholder="e.g. A war veteran from Anuradhapura recalls his years of service and the stories behind his medals."
                 placeholderTextColor={D.onSurfaceVariant}
@@ -760,6 +809,17 @@ const s = StyleSheet.create({
   progressBarFill: {
     height: '100%', borderRadius: Radii.full, backgroundColor: D.secondary,
   },
+
+  // ── Step headers ─────────────────────────────────────────────────────────
+  stageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  stageTitle: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, color: D.primary, letterSpacing: -0.2 },
+  stageBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: D.surface, borderRadius: Radii.full, paddingHorizontal: 10, paddingVertical: 3,
+  },
+  stageBadgeDone: { backgroundColor: D.secondary },
+  stageBadgeText: { fontFamily: Typography.fontBodySemi, fontSize: 11, color: D.onSurfaceVariant },
+  stageBadgeTextDone: { color: '#ffffff' },
 
   // ── Stepper ──────────────────────────────────────────────────────────────
   stepperRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', paddingHorizontal: Spacing.xs },
