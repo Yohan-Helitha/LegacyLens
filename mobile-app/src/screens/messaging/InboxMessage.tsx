@@ -14,9 +14,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Phone } from 'lucide-react-native';
+import { Mic, Phone } from 'lucide-react-native';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { Avatar } from '../../components/common';
+import { VoiceReplySheet } from '../../components/module-specific/content-capture';
 import { useConversation } from '../../hooks/useConversation';
 import { useVoiceToText } from '../../hooks/useVoiceToText';
 import { LOCALE_SPEECH_TAG } from '../../constants/hireStrings';
@@ -124,9 +125,10 @@ const MessageBubble: React.FC<{ message: ChatMessage; avatarUri: string | null }
  * New messages arrive by polling every few seconds (see useConversation).
  */
 export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBack, header, footer, insetTop = false }) => {
-  const { detail, messages, loading, loadError, sending, sendError, send, clearSendError, reload } =
+  const { detail, messages, loading, loadError, sending, sendError, send, sendVoice, clearSendError, reload } =
     useConversation(conversationId);
   const [draft, setDraft] = useState('');
+  const [recordingVoice, setRecordingVoice] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const locale = useLocaleStore((state) => state.locale);
@@ -148,6 +150,13 @@ export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBa
     setDraft('');
     clearSendError();
     if (!(await send(text))) setDraft(text); // keep what they wrote if it didn't go through
+  };
+
+  /** The clip was recorded in the shared voice sheet - close it and send the clip as a voice message. */
+  const handleVoiceClip = async (clip: { uri: string; durationMillis: number }) => {
+    setRecordingVoice(false);
+    clearSendError();
+    await sendVoice(clip);
   };
 
   const other = detail?.otherParticipant;
@@ -299,17 +308,40 @@ export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBa
             </Pressable>
           </View>
 
-          <Pressable
-            onPress={handleSend}
-            disabled={!draft.trim() || sending || !detail}
-            style={({ pressed }) => [s.sendBtn, (!draft.trim() || sending) && s.sendBtnDisabled, pressed && s.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Send message"
-          >
-            {sending ? <ActivityIndicator size="small" color="#ffffff" /> : <SendIcon />}
-          </Pressable>
+          {/* Like WhatsApp: with nothing typed the round button records a voice message; with text it sends. */}
+          {draft.trim() || sending ? (
+            <Pressable
+              onPress={handleSend}
+              disabled={!draft.trim() || sending || !detail}
+              style={({ pressed }) => [s.sendBtn, (!draft.trim() || sending) && s.sendBtnDisabled, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
+            >
+              {sending ? <ActivityIndicator size="small" color="#ffffff" /> : <SendIcon />}
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => setRecordingVoice(true)}
+              disabled={!detail}
+              style={({ pressed }) => [s.sendBtn, !detail && s.sendBtnDisabled, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Record a voice message"
+            >
+              <Mic size={22} color="#ffffff" strokeWidth={2} />
+            </Pressable>
+          )}
         </View>
       </KeyboardAvoidingView>
+
+      <VoiceReplySheet
+        visible={recordingVoice}
+        applicantName={other?.name ?? ''}
+        title="Send a voice message"
+        hint="Tap the microphone and speak. When you stop, you can record it again or send it."
+        saveLabel="Send"
+        onClose={() => setRecordingVoice(false)}
+        onSave={handleVoiceClip}
+      />
 
       {footer}
     </SafeAreaView>

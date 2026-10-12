@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './client';
+import { apiGet, apiPost, apiPostForm } from './client';
 import type {
   ChatMessage,
   ConversationDetail,
@@ -31,6 +31,16 @@ export const messagingApi = {
 
   send: (conversationId: string, text: string) =>
     apiPost<ChatMessage, { text: string }>(`/conversations/${conversationId}/messages`, { text }),
+
+  /**
+   * Sends a recorded clip as a voice message - the same endpoint the knowledge holder's side uses
+   * (hiring's ReplyController), which stores the clip and adds it to this conversation.
+   */
+  sendVoice: (conversationId: string, clip: { uri: string; name: string; type: string }) => {
+    const form = new FormData();
+    form.append('media', clip as unknown as Blob);
+    return apiPostForm<void>(`/conversations/${conversationId}/reply-voice`, form);
+  },
 
   markRead: (conversationId: string) =>
     apiPost<void, Record<string, never>>(`/conversations/${conversationId}/read`, {}),

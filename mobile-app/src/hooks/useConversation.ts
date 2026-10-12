@@ -115,9 +115,28 @@ export function useConversation(conversationId: string) {
     [conversationId],
   );
 
+  /** Sends a recorded clip as a voice message, then fetches it so it shows in the chat. Resolves false on failure. */
+  const sendVoice = useCallback(
+    async (clip: { uri: string; durationMillis: number }): Promise<boolean> => {
+      setSending(true);
+      setSendError(false);
+      try {
+        await messagingApi.sendVoice(conversationId, { uri: clip.uri, name: `voice-${Date.now()}.m4a`, type: 'audio/mp4' });
+        await poll();
+        return true;
+      } catch {
+        if (mountedRef.current) setSendError(true);
+        return false;
+      } finally {
+        if (mountedRef.current) setSending(false);
+      }
+    },
+    [conversationId, poll],
+  );
+
   const clearSendError = useCallback(() => setSendError(false), []);
 
-  return { detail, messages, loading, loadError, sending, sendError, send, clearSendError, reload: load };
+  return { detail, messages, loading, loadError, sending, sendError, send, sendVoice, clearSendError, reload: load };
 }
 
 export default useConversation;
