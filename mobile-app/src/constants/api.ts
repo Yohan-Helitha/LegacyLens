@@ -33,7 +33,7 @@ export function getApiOrigin(): string {
 
 /** True for a path the backend already returned as a full URL (e.g. Supabase Storage), never one to prefix with our own host. */
 function isAbsoluteUrl(path: string): boolean {
-  return /^https?:\/\//i.test(path);
+  return (/^https?:\/\//i.test(path));
 }
 
 /**
@@ -43,9 +43,20 @@ function isAbsoluteUrl(path: string): boolean {
  * already returns a complete URL for it — passed through unchanged rather
  * than mangled by prefixing our own API host onto it.
  */
-export function getMediaUrl(relativePath: string): string {
+export function getMediaUrl(relativePath: string): string;
+export function getMediaUrl(relativePath: string | undefined | null): string | undefined;
+export function getMediaUrl(relativePath: string | undefined | null): string | undefined {
+  if (!relativePath) return undefined;
   if (isAbsoluteUrl(relativePath)) return relativePath;
-  return `${getApiOrigin()}${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
+
+  const origin = getApiOrigin();
+
+  // Fix for invalid local file URIs generated with relative paths like 'file:///stories/...'
+  if (relativePath.startsWith('file:///')) {
+    return `${origin}/${relativePath.replace('file:///', '')}`;
+  }
+
+  return `${origin}${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
 }
 
 /**

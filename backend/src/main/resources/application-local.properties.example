@@ -32,3 +32,12 @@ STORAGE_PROVIDER=local
 SUPABASE_URL=YOUR_SUPABASE_PROJECT_URL
 SUPABASE_SERVICE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY
 SUPABASE_STORAGE_BUCKET=story-media
+
+# Google Gemini API key for AI Study Builder
+AI_API_KEY=YOUR_GEMINI_API_KEY
+AI_MODEL=gemini-1.5-flash
+
+# Groq API Configuration (for app.ai.provider=groq)
+app.ai.provider=groq
+learning.ai.groq.api-key=YOUR_GROQ_API_KEY
+learning.ai.groq.model=llama-3.3-70b-versatile

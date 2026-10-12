@@ -16,10 +16,11 @@ import {
   Animated,
   Alert,
   Share,
-StyleSheet,} from 'react-native';
+  StyleSheet,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode, Audio } from 'expo-av';
+
 import * as Haptics from 'expo-haptics';
 import { VoiceSearchModal } from '../../components/common/VoiceSearchModal';
 import { CommentModal } from '../../components/common/CommentModal';
@@ -43,8 +44,8 @@ const CATEGORIES: Array<{
 // ─────────────────────────────────────────────────────────────────────────────
 // Component Definition
 // ─────────────────────────────────────────────────────────────────────────────
-export const SearchScreen: React.FC<{ 
-  onNavigate?: (tab: string) => void, 
+export const SearchScreen: React.FC<{
+  onNavigate?: (tab: string) => void,
   isOverlayActive?: boolean,
   initialSearchQuery?: string,
   onBack?: () => void
@@ -132,9 +133,9 @@ export const SearchScreen: React.FC<{
   // 🎙️ Filtering logic 🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️
   const filterMatches = (keywords: string[]) => {
     if (!searchQuery && !selectedCategoryId) return true;
-    
+
     const lower = keywords.map(k => k.toLowerCase());
-    
+
     // 1. Search bar filter
     if (searchQuery) {
       const queryParts = searchQuery.toLowerCase().split(' ').map(p => p.replace(/^#/, '')).filter(p => p.trim() !== '');
@@ -167,11 +168,11 @@ export const SearchScreen: React.FC<{
 
     return pool.filter(item => {
       const kw = [
-        (item as any).title  || (item as any).name  || '',
-        (item as any).author || (item as any).name  || '',
+        (item as any).title || (item as any).name || '',
+        (item as any).author || (item as any).name || '',
         (item as any).location || '',
-        (item as any).topic    || '',
-        (item as any).excerpt  || '',
+        (item as any).topic || '',
+        (item as any).excerpt || '',
         ...((item as any).tags || []),
       ];
       return filterMatches(kw);
@@ -194,144 +195,144 @@ export const SearchScreen: React.FC<{
     <View style={[styles.safeArea, { backgroundColor: Colors.secondary }]}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.secondary} />
 
-      <CommentModal 
-        visible={commentModalVisible} 
-        onClose={() => setCommentModalVisible(false)} 
-        postId={activePostId} 
+      <CommentModal
+        visible={commentModalVisible}
+        onClose={() => setCommentModalVisible(false)}
+        postId={activePostId}
       />
 
       <View style={{ flex: 1, overflow: 'hidden', backgroundColor: '#F8FAF9' }}>
-        <Animated.View 
+        <Animated.View
           onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
           style={[styles.stickyHeader, { backgroundColor: Colors.secondary, transform: [{ translateY: headerTranslateY }] }]}
         >
-        
-        {/* Custom Dark Green Search Header */}
-        <View style={{
-          flexDirection: 'row',
-          alignItems: 'flex-start',
-          paddingHorizontal: Spacing.md,
-          paddingTop: (StatusBar.currentHeight || 24) + Spacing.sm,
-          paddingBottom: Spacing.md,
-          backgroundColor: Colors.secondary,
-        }}>
-          {onBack && (
-            <TouchableOpacity onPress={onBack} style={{ marginRight: Spacing.sm, padding: 4, marginLeft: -4, marginTop: 4 }}>
-              <MaterialIcons name="arrow-back" size={26} color={Colors.white} />
-            </TouchableOpacity>
-          )}
-          
-          <View style={styles.tagInputContainer}>
-            <MaterialIcons
-              name="search"
-              size={24}
-              color={Colors.textMuted}
-              style={{ marginTop: 3 }}
-            />
-            
-            <View style={styles.tagInputInner}>
-              {(searchQuery.match(/#[^\s]+/g) || []).map(tag => (
-                <View key={tag} style={styles.tagPill}>
-                  <Text style={styles.tagPillText}>{tag}</Text>
-                  <TouchableOpacity onPress={() => setSearchQuery(searchQuery.replace(tag, '').replace(/\s+/g, ' ').trim())}>
-                    <MaterialIcons name="close" size={16} color={Colors.textMuted} />
-                  </TouchableOpacity>
-                </View>
-              ))}
 
-              <TextInput
-                style={styles.tagTextInput}
-                placeholder={searchQuery.match(/#[^\s]+/g) ? "Add tag..." : "Search by tags..."}
-                placeholderTextColor="#6F7978"
-                value={searchQuery.replace(/#[^\s]+/g, '').trimStart()}
-                onChangeText={(text) => {
-                  const tags = (searchQuery.match(/#[^\s]+/g) || []).join(' ');
-                  setSearchQuery((tags ? tags + ' ' : '') + text);
-                }}
-                autoCapitalize="none"
+          {/* Custom Dark Green Search Header */}
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            paddingHorizontal: Spacing.md,
+            paddingTop: (StatusBar.currentHeight || 24) + Spacing.sm,
+            paddingBottom: Spacing.md,
+            backgroundColor: Colors.secondary,
+          }}>
+            {onBack && (
+              <TouchableOpacity onPress={onBack} style={{ marginRight: Spacing.sm, padding: 4, marginLeft: -4, marginTop: 4 }}>
+                <MaterialIcons name="arrow-back" size={26} color={Colors.white} />
+              </TouchableOpacity>
+            )}
+
+            <View style={styles.tagInputContainer}>
+              <MaterialIcons
+                name="search"
+                size={24}
+                color={Colors.textMuted}
+                style={{ marginTop: 3 }}
               />
+
+              <View style={styles.tagInputInner}>
+                {(searchQuery.match(/#[^\s]+/g) || []).map(tag => (
+                  <View key={tag} style={styles.tagPill}>
+                    <Text style={styles.tagPillText}>{tag}</Text>
+                    <TouchableOpacity onPress={() => setSearchQuery(searchQuery.replace(tag, '').replace(/\s+/g, ' ').trim())}>
+                      <MaterialIcons name="close" size={16} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+
+                <TextInput
+                  style={styles.tagTextInput}
+                  placeholder={searchQuery.match(/#[^\s]+/g) ? "Add tag..." : "Search by tags..."}
+                  placeholderTextColor="#6F7978"
+                  value={searchQuery.replace(/#[^\s]+/g, '').trimStart()}
+                  onChangeText={(text) => {
+                    const tags = (searchQuery.match(/#[^\s]+/g) || []).join(' ');
+                    setSearchQuery((tags ? tags + ' ' : '') + text);
+                  }}
+                  autoCapitalize="none"
+                />
+              </View>
+
             </View>
-            
           </View>
-        </View>
-      </Animated.View>
+        </Animated.View>
 
-      <Animated.FlatList
-        data={feed}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight + 16 }]}
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[Colors.secondary, Colors.accent]}
-            tintColor={Colors.secondary}
-            progressViewOffset={190}
-          />
-        }
-        ListHeaderComponent={null}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <MaterialIcons name="search-off" size={48} color={Colors.textMuted} />
-            <Text style={styles.emptyStateText}>No results found</Text>
-            <Text style={styles.emptyStateSubtext}>Try a different keyword or category</Text>
-          </View>
-        }
-        renderItem={({ item }: any) => {
-                /* ── VIDEO CARD ──────────────────────────────────────── */
-                if (item.type === 'video') {
-                  const v = item as VItem;
-                  const isPlaying = visibleVideoId === v.id && !isOverlayActive;
-                  return (
-                    <VideoCard 
-                      v={v} 
-                      isPlaying={isPlaying} 
-                      item={item} 
-                      setActivePostId={setActivePostId} 
-                      setCommentModalVisible={setCommentModalVisible} 
-                      onNavigate={onNavigate}
-                      loadedVideoIds={loadedVideoIds}
-                    />
-                  );
-                }
+        <Animated.FlatList
+          data={feed}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight + 16 }]}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors.secondary, Colors.accent]}
+              tintColor={Colors.secondary}
+              progressViewOffset={190}
+            />
+          }
+          ListHeaderComponent={null}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <MaterialIcons name="search-off" size={48} color={Colors.textMuted} />
+              <Text style={styles.emptyStateText}>No results found</Text>
+              <Text style={styles.emptyStateSubtext}>Try a different keyword or category</Text>
+            </View>
+          }
+          renderItem={({ item }: any) => {
+            /* ── VIDEO CARD ──────────────────────────────────────── */
+            if (item.type === 'video') {
+              const v = item as VItem;
+              const isPlaying = visibleVideoId === v.id && !isOverlayActive;
+              return (
+                <VideoCard
+                  v={v}
+                  isPlaying={isPlaying}
+                  item={item}
+                  setActivePostId={setActivePostId}
+                  setCommentModalVisible={setCommentModalVisible}
+                  onNavigate={onNavigate}
+                  loadedVideoIds={loadedVideoIds}
+                />
+              );
+            }
 
-                /* ── BLOG / STORY CARD ───────────────────────────────── */
-                if (item.type === 'blog') {
-                  const b = item as BItem;
-                  return (
-                    <BlogCard 
-                      b={b} 
-                      item={item} 
-                      setActivePostId={setActivePostId} 
-                      setCommentModalVisible={setCommentModalVisible} 
-                      onNavigate={onNavigate} 
-                    />
-                  );
-                }
+            /* ── BLOG / STORY CARD ───────────────────────────────── */
+            if (item.type === 'blog') {
+              const b = item as BItem;
+              return (
+                <BlogCard
+                  b={b}
+                  item={item}
+                  setActivePostId={setActivePostId}
+                  setCommentModalVisible={setCommentModalVisible}
+                  onNavigate={onNavigate}
+                />
+              );
+            }
 
-                /* ── AUDIO CARD ──────────────────────────────────────── */
-                const a = item as AItem;
-                return (
-                  <AudioCard
-                    a={a}
-                    item={item}
-                    setActivePostId={setActivePostId}
-                    setCommentModalVisible={setCommentModalVisible}
-                  />
-                );
-        }}
-        ListFooterComponent={<View style={styles.bottomSpacer} />}
-      />
+            /* ── AUDIO CARD ──────────────────────────────────────── */
+            const a = item as AItem;
+            return (
+              <AudioCard
+                a={a}
+                item={item}
+                setActivePostId={setActivePostId}
+                setCommentModalVisible={setCommentModalVisible}
+              />
+            );
+          }}
+          ListFooterComponent={<View style={styles.bottomSpacer} />}
+        />
 
-      {/* ── Voice Search ─────────────────────────────────────────────────── */}
+        {/* ── Voice Search ─────────────────────────────────────────────────── */}
       </View>
       <VoiceSearchModal
         visible={isVoiceModalVisible}
