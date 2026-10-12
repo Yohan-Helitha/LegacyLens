@@ -24,6 +24,7 @@ const en = {
   'common.listening': 'Listening…',
   'common.micPermission': 'Microphone access is needed for voice typing.',
   'common.micError': "Couldn't hear that — please try again.",
+  'common.cancel': 'Cancel',
 
   // ── Screen 8 — Post a request ─────────────────────────────────────────────
   'post.headerTitle': 'Hire a Creator',
@@ -48,6 +49,9 @@ const en = {
   'post.error.submitFailed': "We couldn't send your request. Please try again.",
   'post.field.title': 'the request title',
   'post.field.description': 'the details',
+  'post.deletePolicy': "You can delete this request within 1 hour of sending it. After that, it can't be removed.",
+  'post.deleteAcknowledge': "I understand I'll have 1 hour to delete this if I change my mind.",
+  'post.error.acknowledgeRequired': 'Please confirm you understand before sending.',
 
   // ── Screen 9 — My Requests ────────────────────────────────────────────────
   'requests.headerTitle': 'My Requests',
@@ -74,6 +78,13 @@ const en = {
   'requests.askForHelp': 'Ask for help',
   'requests.loadError.title': "Couldn't load your requests",
   'requests.loadError.body': 'Check your connection and try again.',
+  'requests.deleteAction': 'Delete',
+  'requests.deleting': 'Deleting…',
+  'requests.deleteAccessibility': 'Delete this request',
+  'requests.deleteWindowPassedAccessibility': 'This request can no longer be deleted — the 1-hour window has passed.',
+  'requests.deleteConfirmTitle': 'Delete this request?',
+  'requests.deleteConfirmBody': "This can't be undone — your recording and details will be permanently removed.",
+  'requests.deleteError': "Couldn't delete this request. Please try again.",
 
   // ── Screen 10 — Applicant review ──────────────────────────────────────────
   'applicants.headerTitle': 'Applicants',
@@ -145,6 +156,7 @@ const si: HireStrings = {
   'common.listening': 'සවන් දෙමින්…',
   'common.micPermission': 'හඬ ටයිප් කිරීමට මයික්‍රෝෆෝනයට ප්‍රවේශය අවශ්‍යයි.',
   'common.micError': 'එය ඇසුණේ නැත — කරුණාකර නැවත උත්සාහ කරන්න.',
+  'common.cancel': 'අවලංගු කරන්න',
 
   'post.headerTitle': 'නිර්මාණකරුවෙකු ඉල්ලන්න',
   'post.heading': 'නිර්මාණකරුවෙකුගේ සහාය ඉල්ලන්න',
@@ -168,6 +180,9 @@ const si: HireStrings = {
   'post.error.submitFailed': 'ඔබේ ඉල්ලීම යැවීමට නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න.',
   'post.field.title': 'ඉල්ලීමේ මාතෘකාව',
   'post.field.description': 'විස්තර',
+  'post.deletePolicy': 'ඔබට මෙය යැවීමෙන් පැය 1ක් ඇතුළත මකා දැමිය හැක. ඉන් පසු එය ඉවත් කළ නොහැක.',
+  'post.deleteAcknowledge': 'මට අදහස වෙනස් වුවහොත් මෙය මකා දැමීමට පැයක් ඇති බව මම තේරුම් ගනිමි.',
+  'post.error.acknowledgeRequired': 'යැවීමට පෙර කරුණාකර ඔබ තේරුම් ගත් බව තහවුරු කරන්න.',
 
   'requests.headerTitle': 'මගේ ඉල්ලීම්',
   'requests.heading': 'මගේ ඉල්ලීම්',
@@ -193,6 +208,13 @@ const si: HireStrings = {
   'requests.askForHelp': 'උදව් ඉල්ලන්න',
   'requests.loadError.title': 'ඔබේ ඉල්ලීම් පූරණය කළ නොහැකි විය',
   'requests.loadError.body': 'ඔබේ සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.',
+  'requests.deleteAction': 'මකන්න',
+  'requests.deleting': 'මකමින්…',
+  'requests.deleteAccessibility': 'මෙම ඉල්ලීම මකන්න',
+  'requests.deleteWindowPassedAccessibility': 'මෙම ඉල්ලීම තවදුරටත් මකා දැමිය නොහැක — පැය 1 කාලය ඉකුත් වී ඇත.',
+  'requests.deleteConfirmTitle': 'මෙම ඉල්ලීම මකන්නද?',
+  'requests.deleteConfirmBody': 'මෙය පෙරලිය නොහැක — ඔබේ පටිගත කිරීම සහ විස්තර ස්ථිරවම ඉවත් කරනු ලැබේ.',
+  'requests.deleteError': 'මෙම ඉල්ලීම මකා දැමිය නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න.',
 
   'applicants.headerTitle': 'අයදුම්කරුවන්',
   'applicants.heading': 'ඔබේ ඉල්ලීමට පිළිතුරු',
@@ -257,6 +279,7 @@ const ta: HireStrings = {
   'common.listening': 'கேட்கிறது…',
   'common.micPermission': 'குரல் தட்டச்சுக்கு மைக்ரோஃபோன் அணுகல் தேவை.',
   'common.micError': 'அது கேட்கவில்லை — மீண்டும் முயலவும்.',
+  'common.cancel': 'ரத்துசெய்',
 
   'post.headerTitle': 'படைப்பாளரை அழைக்கவும்',
   'post.heading': 'படைப்பாளரின் உதவியைக் கேளுங்கள்',
@@ -280,6 +303,9 @@ const ta: HireStrings = {
   'post.error.submitFailed': 'உங்கள் கோரிக்கையை அனுப்ப முடியவில்லை. மீண்டும் முயலவும்.',
   'post.field.title': 'கோரிக்கையின் தலைப்பு',
   'post.field.description': 'விவரங்கள்',
+  'post.deletePolicy': 'இதை அனுப்பிய 1 மணி நேரத்திற்குள் நீக்கலாம். அதன் பிறகு நீக்க முடியாது.',
+  'post.deleteAcknowledge': 'எண்ணம் மாறினால் இதை நீக்க 1 மணி நேரம் இருக்கும் என்பதை நான் புரிந்துகொள்கிறேன்.',
+  'post.error.acknowledgeRequired': 'அனுப்பும் முன் நீங்கள் புரிந்துகொண்டதை உறுதிப்படுத்தவும்.',
 
   'requests.headerTitle': 'என் கோரிக்கைகள்',
   'requests.heading': 'என் கோரிக்கைகள்',
@@ -305,6 +331,13 @@ const ta: HireStrings = {
   'requests.askForHelp': 'உதவி கேளுங்கள்',
   'requests.loadError.title': 'உங்கள் கோரிக்கைகளை ஏற்ற முடியவில்லை',
   'requests.loadError.body': 'இணைப்பைச் சரிபார்த்து மீண்டும் முயலவும்.',
+  'requests.deleteAction': 'நீக்கு',
+  'requests.deleting': 'நீக்குகிறது…',
+  'requests.deleteAccessibility': 'இந்தக் கோரிக்கையை நீக்கு',
+  'requests.deleteWindowPassedAccessibility': 'இந்தக் கோரிக்கையை இனி நீக்க முடியாது — 1 மணி நேர காலக்கெடு முடிந்துவிட்டது.',
+  'requests.deleteConfirmTitle': 'இந்தக் கோரிக்கையை நீக்கவா?',
+  'requests.deleteConfirmBody': 'இதை மாற்ற முடியாது — உங்கள் பதிவும் விவரங்களும் நிரந்தரமாக அகற்றப்படும்.',
+  'requests.deleteError': 'இந்தக் கோரிக்கையை நீக்க முடியவில்லை. மீண்டும் முயலவும்.',
 
   'applicants.headerTitle': 'விண்ணப்பதாரர்கள்',
   'applicants.heading': 'உங்கள் கோரிக்கைக்கான பதில்கள்',

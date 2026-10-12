@@ -5,6 +5,7 @@ import { Mic, ShieldCheck } from 'lucide-react-native';
 import { Header, RoundIconButton, UserFooter } from '../../components/common';
 import type { UserTabKey } from '../../components/common';
 import {
+  Checkbox,
   ElderNavDrawer,
   HireActionButton,
   MediaPreviewCard,
@@ -29,10 +30,16 @@ const GUIDANCE_KEYS = [
 ] as const;
 
 interface PostHireRequestScreenProps {
+  /** Owned by the navigator (not local state here) so it survives the trip to AudioRecordingScreen and back. */
+  title: string;
+  onTitleChange: (title: string) => void;
   /** The recorded Details clip, if any — owned by the navigator so it survives the trip to AudioRecordingScreen and back. */
   voiceNote: HireRequestVoiceNote | null;
   /** Opens AudioRecordingScreen to record (or re-record) the Details clip. */
   onRecordVoiceNote: () => void;
+  /** The "I understand the 1-hour deletion window" checkbox — owned by the navigator for the same reason as title/voiceNote. */
+  acknowledged: boolean;
+  onAcknowledgedChange: (acknowledged: boolean) => void;
   /** Fired once the request has been posted — the navigator moves on to My Requests. */
   onSubmitted?: () => void;
   onTabPress?: (tab: UserTabKey) => void;
@@ -48,8 +55,12 @@ interface PostHireRequestScreenProps {
  * sits at the bottom with a reassurance line beneath.
  */
 export const PostHireRequestScreen: React.FC<PostHireRequestScreenProps> = ({
+  title,
+  onTitleChange,
   voiceNote,
   onRecordVoiceNote,
+  acknowledged,
+  onAcknowledgedChange,
   onSubmitted,
   onTabPress,
   onDrawerNavigate,
@@ -58,7 +69,17 @@ export const PostHireRequestScreen: React.FC<PostHireRequestScreenProps> = ({
   const [drawerVisible, setDrawerVisible] = useState(false);
   const keyboardVisible = useKeyboardVisible();
   const { t, speechLang, voiceLabels } = useHireStrings();
-  const { title, setTitle, submitting, errorKey, submit } = usePostHireRequest(voiceNote);
+  const { submitting, errorKey, clearError, submit } = usePostHireRequest(title, voiceNote, acknowledged);
+
+  const handleTitleChange = (value: string) => {
+    onTitleChange(value);
+    clearError('post.error.titleRequired');
+  };
+
+  const handleAcknowledgedToggle = () => {
+    onAcknowledgedChange(!acknowledged);
+    clearError('post.error.acknowledgeRequired');
+  };
 
   const handleSubmit = async () => {
     if (await submit()) onSubmitted?.();
@@ -66,6 +87,7 @@ export const PostHireRequestScreen: React.FC<PostHireRequestScreenProps> = ({
 
   const titleError = errorKey === 'post.error.titleRequired' ? t(errorKey) : undefined;
   const descriptionError = errorKey === 'post.error.descriptionRequired' ? t(errorKey) : undefined;
+  const acknowledgeError = errorKey === 'post.error.acknowledgeRequired' ? t(errorKey) : undefined;
   const submitError = errorKey === 'post.error.submitFailed' ? t(errorKey) : undefined;
 
   return (
@@ -107,7 +129,7 @@ export const PostHireRequestScreen: React.FC<PostHireRequestScreenProps> = ({
           <MicInputField
             label={t('post.titleLabel')}
             value={title}
-            onChangeText={setTitle}
+            onChangeText={handleTitleChange}
             placeholder={t('post.titlePlaceholder')}
             maxLength={200}
             // Long dictated titles were clipped to one line with no way to
@@ -157,6 +179,13 @@ export const PostHireRequestScreen: React.FC<PostHireRequestScreenProps> = ({
             )}
 
             {!!descriptionError && <Text style={s.fieldErrorText}>{descriptionError}</Text>}
+          </View>
+
+          <View style={s.deletePolicy}>
+            <Text style={s.deletePolicyText}>{t('post.deletePolicy')}</Text>
+            <Checkbox checked={acknowledged} onToggle={handleAcknowledgedToggle} errorText={acknowledgeError}>
+              {t('post.deleteAcknowledge')}
+            </Checkbox>
           </View>
 
           <View style={s.submitBlock}>
@@ -270,6 +299,19 @@ const s = StyleSheet.create({
     color: '#ba1a1a',
   },
   pressed: { opacity: 0.85 },
+
+  deletePolicy: {
+    gap: Spacing.sm,
+    backgroundColor: D.surfaceContainerLow,
+    borderRadius: Radii.lg,
+    padding: Spacing.md,
+  },
+  deletePolicyText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    lineHeight: 20,
+    color: D.onSurfaceVariant,
+  },
 
   submitBlock: { gap: Spacing.md, marginTop: Spacing.sm },
   submitError: {

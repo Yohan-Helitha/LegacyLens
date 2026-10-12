@@ -18,6 +18,8 @@ export interface JobRequestSummary {
   status: JobRequestStatus;
   applicantCount: number;
   createdAt: string;
+  /** Null when the request has no recorded Details clip (inputMode TEXT) — lets the card play it back inline. */
+  voiceNoteUrl: string | null;
   /**
    * Not returned by the backend's summary projection today (title only) —
    * the card falls back to `title` for its snippet until it is.

@@ -135,6 +135,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(FileStorageException.class)
     public ResponseEntity<ApiResponse<Void>> handleFileStorage(FileStorageException ex) {
+        // Handled exceptions don't reach Spring's own unhandled-exception
+        // logging, so without this a misconfigured bucket/endpoint fails
+        // silently server-side — the client only ever sees ex.getMessage().
+        log.error("File storage failure: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ex.getMessage()));
     }
 

@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPostForm } from './client';
+import { apiDelete, apiGet, apiPost, apiPostForm } from './client';
 import type {
   JobApplicationSummary,
   JobRequestResponse,
@@ -24,6 +24,12 @@ export const hireRequestApi = {
 
   /** GET /api/job-requests/mine — the elder's own requests with applicant counts. */
   listMine: () => apiGet<JobRequestSummary[]>('/job-requests/mine'),
+
+  /** GET /api/job-requests/{id} — one request's full detail (title + the recorded Details clip). */
+  getById: (jobRequestId: string) => apiGet<JobRequestResponse>(`/job-requests/${jobRequestId}`),
+
+  /** DELETE /api/job-requests/{id} — only within the first hour of posting, and only before an admin has acted on it. */
+  remove: (jobRequestId: string) => apiDelete<void>(`/job-requests/${jobRequestId}`),
 
   getApplications: (jobRequestId: string) =>
     apiGet<JobApplicationSummary[]>(`/job-requests/${jobRequestId}/applications`),

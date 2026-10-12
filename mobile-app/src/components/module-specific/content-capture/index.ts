@@ -18,6 +18,7 @@ export { MicInputField } from './MicInputField';
 export { MediaPreviewCard } from './MediaPreviewCard';
 export { ThumbnailPicker } from './ThumbnailPicker';
 export { SubmitConfirmationModal } from './SubmitConfirmationModal';
+export { Checkbox } from './Checkbox';
 export type { MicInputFieldVoiceLabels } from './MicInputField';
 export { HireActionButton } from './HireActionButton';
 export { HireStatusPill } from './HireStatusPill';
