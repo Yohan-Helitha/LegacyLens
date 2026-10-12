@@ -16,7 +16,9 @@ import lk.ac.sliit.legacylens.users.repository.CityRepository;
 import lk.ac.sliit.legacylens.users.repository.CreatorProfileRepository;
 import lk.ac.sliit.legacylens.users.repository.KnowledgeHolderProfileRepository;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
+import lk.ac.sliit.legacylens.common.storage.FileStorageService;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -35,17 +37,26 @@ public class UserProfileServiceImpl implements UserProfileService {
     private final CityRepository cityRepository;
     private final KnowledgeHolderProfileRepository knowledgeHolderProfileRepository;
     private final CreatorProfileRepository creatorProfileRepository;
+    private final FileStorageService fileStorageService;
+
+    /** Profile pictures: ordinary photo formats only, and small enough to load quickly on a phone. */
+    private static final List<String> PHOTO_CONTENT_TYPES = List.of("image/jpeg", "image/jpg", "image/png", "image/webp");
+    private static final long MAX_PHOTO_BYTES = 8L * 1024 * 1024;
+    private static final String PHOTO_SUBFOLDER = "profile-photos";
+    private static final String UPLOADS_PREFIX = "/uploads/";
 
     public UserProfileServiceImpl(
             UserRepository userRepository,
             CityRepository cityRepository,
             KnowledgeHolderProfileRepository knowledgeHolderProfileRepository,
-            CreatorProfileRepository creatorProfileRepository) {
+            CreatorProfileRepository creatorProfileRepository,
+            FileStorageService fileStorageService) {
 
         this.userRepository = userRepository;
         this.cityRepository = cityRepository;
         this.knowledgeHolderProfileRepository = knowledgeHolderProfileRepository;
         this.creatorProfileRepository = creatorProfileRepository;
+        this.fileStorageService = fileStorageService;
     }
 
     @Override
@@ -80,6 +91,25 @@ public class UserProfileServiceImpl implements UserProfileService {
 
         user = userRepository.save(user);
 
+        return toResponse(user);
+    }
+
+    @Override
+    @Transactional
+    public UserProfileResponse updateProfilePhoto(UUID userId, MultipartFile photo) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        String newUrl = fileStorageService.store(photo, PHOTO_SUBFOLDER, PHOTO_CONTENT_TYPES, MAX_PHOTO_BYTES);
+        String oldUrl = user.getProfilePhotoUrl();
+
+        user.setProfilePhotoUrl(newUrl);
+        user = userRepository.save(user);
+
+        // The previous upload is no longer shown anywhere; bundled "local:" pictures are not files and are left alone.
+        if (oldUrl != null && oldUrl.startsWith(UPLOADS_PREFIX)) {
+            fileStorageService.delete(oldUrl.substring(UPLOADS_PREFIX.length()));
+        }
         return toResponse(user);
     }
 

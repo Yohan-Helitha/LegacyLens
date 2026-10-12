@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import {
+  ActionSheetIOS,
   ActivityIndicator,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +13,8 @@ import {
 import { FeedbackCarousel } from '../../../components/module-specific/marketplace/FeedbackCarousel';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import * as ImagePicker from 'expo-image-picker';
+import { Camera } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
@@ -22,6 +26,10 @@ import { experienceBullets, experienceLabel } from '../../../utils/creatorProfil
 import { proficiencyLabel } from '../../../utils/creatorLanguages';
 import { ProofDocumentCard } from './ProofDocumentCard';
 import { EditLanguagesSheet } from './EditLanguagesSheet';
+import { EditProfileSheet } from './EditProfileSheet';
+import { appAlert } from '../../../components/common/AppDialog';
+import { ApiError } from '../../../services/api/client';
+import { profileApi } from '../../../services/api/profileApi';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -108,6 +116,64 @@ export const CreatorProfile: React.FC<{
 }> = ({ onNavigate, onOpenMyWork, onOpenSavedApplications, onOpenRejectedWork }) => {
   const { profile, loading, loadError, reload } = useCreatorProfile();
   const [editingLanguages, setEditingLanguages] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  /** Asks for the permission, opens the camera or the gallery, and uploads the picked photo as the profile picture. */
+  const pickPhoto = async (source: 'camera' | 'library') => {
+    const { status } =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      appAlert(
+        'Permission needed',
+        source === 'camera'
+          ? 'Legacy Lens needs camera access to take a profile photo.'
+          : 'Legacy Lens needs access to your photos to choose a profile picture.',
+      );
+      return;
+    }
+
+    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 };
+    const result =
+      source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+    if (result.canceled || result.assets.length === 0) return;
+
+    const asset = result.assets[0];
+    setUploadingPhoto(true);
+    try {
+      await profileApi.uploadPhoto({
+        uri: asset.uri,
+        name: asset.fileName ?? `profile-${Date.now()}.jpg`,
+        type: asset.mimeType ?? 'image/jpeg',
+      });
+      reload();
+    } catch (err) {
+      appAlert('Photo not saved', err instanceof ApiError ? err.message : "Couldn't save your photo. Please try again.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  /** The camera badge on the picture: choose to take a new photo or pick one from the gallery. */
+  const handleChangePhoto = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', 'Camera', 'Gallery'], cancelButtonIndex: 0 },
+        (index) => {
+          if (index === 1) pickPhoto('camera');
+          if (index === 2) pickPhoto('library');
+        },
+      );
+    } else {
+      appAlert('Profile photo', 'Choose where the photo comes from', [
+        { text: 'Camera', onPress: () => pickPhoto('camera') },
+        { text: 'Gallery', onPress: () => pickPhoto('library') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  };
 
   const avatarUri = resolveImageUrl(profile?.avatarUrl) ?? undefined;
   const rating = profile?.rating != null ? Number(profile.rating) : null;
@@ -129,6 +195,7 @@ export const CreatorProfile: React.FC<{
         <View style={s.pageHeaderRow}>
           <Text style={s.pageHeading}>My Profile</Text>
           <Pressable
+            onPress={() => setEditingProfile(true)}
             style={({ pressed }) => [s.editBtn, pressed && s.pressed]}
             accessibilityRole="button"
             accessibilityLabel="Edit profile"
@@ -152,13 +219,29 @@ export const CreatorProfile: React.FC<{
           <>
             {/* Identity block */}
             <View style={s.identityBlock}>
-              {avatarUri ? (
-                <Image source={{ uri: avatarUri }} style={s.avatar} accessibilityLabel={`${profile.name}'s profile photo`} />
-              ) : (
-                <View style={[s.avatar, s.avatarEmpty]}>
-                  <Text style={s.avatarInitial}>{profile.name.trim().charAt(0).toUpperCase()}</Text>
-                </View>
-              )}
+              <View style={s.avatarWrap}>
+                {avatarUri ? (
+                  <Image source={{ uri: avatarUri }} style={s.avatar} accessibilityLabel={`${profile.name}'s profile photo`} />
+                ) : (
+                  <View style={[s.avatar, s.avatarEmpty]}>
+                    <Text style={s.avatarInitial}>{profile.name.trim().charAt(0).toUpperCase()}</Text>
+                  </View>
+                )}
+                {uploadingPhoto && (
+                  <View style={s.avatarBusy}>
+                    <ActivityIndicator color="#ffffff" />
+                  </View>
+                )}
+                <Pressable
+                  onPress={handleChangePhoto}
+                  disabled={uploadingPhoto}
+                  style={({ pressed }) => [s.cameraBadge, pressed && s.pressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Change profile photo"
+                >
+                  <Camera size={16} color="#ffffff" strokeWidth={2} />
+                </Pressable>
+              </View>
               <Text style={s.name}>{profile.name}</Text>
               <View style={s.identityMetaRow}>
                 <StarIcon />
@@ -320,6 +403,19 @@ export const CreatorProfile: React.FC<{
 
         <View style={{ height: 8 }} />
       </ScrollView>
+
+      {profile && (
+        <EditProfileSheet
+          visible={editingProfile}
+          currentName={profile.name}
+          currentCityName={profile.city}
+          onClose={() => setEditingProfile(false)}
+          onSaved={() => {
+            setEditingProfile(false);
+            reload();
+          }}
+        />
+      )}
 
       {profile && (
         <EditLanguagesSheet
@@ -511,6 +607,12 @@ const s = StyleSheet.create({
   statLabel: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
 
   // ── Previous contribution ────────────────────────────────────────────────
+  avatarWrap: { width: 96, height: 96, alignSelf: 'center' },
+  avatarBusy: { ...StyleSheet.absoluteFillObject, borderRadius: 48, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  cameraBadge: {
+    position: 'absolute', right: -4, bottom: -2, width: 34, height: 34, borderRadius: 17,
+    backgroundColor: D.secondary, borderWidth: 3, borderColor: '#ffffff', alignItems: 'center', justifyContent: 'center',
+  },
   contribCard: {
     backgroundColor: D.surfaceContainerLowest,
     borderRadius: Radii.lg,
