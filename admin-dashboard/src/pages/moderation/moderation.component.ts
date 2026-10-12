@@ -6,7 +6,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AuthService } from '../../app/core/services/auth.service';
 import { ModerationService } from '../../app/core/services/moderation.service';
-import { ModerationQueueItemResponse, StoryQuizDTO, RegionDTO } from '../../app/core/models/moderation.model';
+import { ModerationQueueItemResponse, StoryQuizDTO, RegionDTO, TagDTO, TagAliasDTO, TagRelationshipDTO } from '../../app/core/models/moderation.model';
 import { SidebarComponent } from '../../components/common/sidebar/sidebar.component';
 import { HeaderComponent } from '../../components/common/header/header.component';
 
@@ -210,6 +210,300 @@ export interface ModerationItem {
         </div>
       }
 
+      <!-- Tag Intelligence & Taxonomy Modal -->
+      @if (showTagManagerModal()) {
+        <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-2xl max-w-6xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in duration-200">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-[#dde3eb] bg-[#f8faf9]">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-[#004343] text-white flex items-center justify-center shadow-xs">
+                  <span class="material-symbols-outlined text-2xl text-amber-300">sell</span>
+                </div>
+                <div>
+                  <h3 class="text-base font-serif font-bold text-[#191c1c]">Cultural Tag Intelligence &amp; Taxonomy Console</h3>
+                  <p class="text-xs text-[#6e7978]">Canonize cultural concepts, multilingual aliases, semantic relationships &amp; AI backfills</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button (click)="handleTriggerBackfill()" [disabled]="isBackfillingTags()"
+                        class="px-3 py-1.5 bg-[#fe893e] hover:bg-[#e0722a] text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs transition-colors cursor-pointer disabled:opacity-50">
+                  <span class="material-symbols-outlined text-sm" [ngClass]="{'animate-spin': isBackfillingTags()}">refresh</span>
+                  <span>{{ isBackfillingTags() ? 'Re-Indexing...' : 'AI Taxonomy Backfill' }}</span>
+                </button>
+                <button (click)="showCreateTagForm.set(!showCreateTagForm())"
+                        class="px-3 py-1.5 bg-[#004343] hover:bg-[#0f5c5c] text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs transition-colors cursor-pointer">
+                  <span class="material-symbols-outlined text-sm">add</span>
+                  <span>New Tag</span>
+                </button>
+                <button (click)="showTagManagerModal.set(false)" class="p-1.5 text-[#6e7978] hover:text-[#191c1c] text-lg font-bold rounded-lg hover:bg-[#dde3eb]/50 transition-colors">✕</button>
+              </div>
+            </div>
+
+            <!-- Create New Tag Form (Collapsible) -->
+            @if (showCreateTagForm()) {
+              <div class="p-4 bg-emerald-50/50 border-b border-emerald-100 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                <div>
+                  <label class="block text-[11px] font-bold text-[#004343] uppercase mb-1">Canonical Name</label>
+                  <input type="text" [(ngModel)]="newTagName" placeholder="e.g. Kandyan Dance"
+                         class="w-full px-3 py-1.5 bg-white border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-[#004343] uppercase mb-1">Category</label>
+                  <select [(ngModel)]="newTagCategory" class="w-full px-3 py-1.5 bg-white border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]">
+                    @for (cat of tagCategoryOptions; track cat) { <option [value]="cat">{{ cat }}</option> }
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-[#004343] uppercase mb-1">Language</label>
+                  <select [(ngModel)]="newTagLanguage" class="w-full px-3 py-1.5 bg-white border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]">
+                    <option value="si">Sinhala (si)</option>
+                    <option value="ta">Tamil (ta)</option>
+                    <option value="en">English (en)</option>
+                    <option value="si-Latn">Sinhala Transliteration (si-Latn)</option>
+                  </select>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button (click)="createCanonicalTag()" [disabled]="!newTagName.trim()"
+                          class="px-4 py-1.5 bg-[#004343] hover:bg-[#0f5c5c] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50">
+                    Create Tag
+                  </button>
+                  <button (click)="showCreateTagForm.set(false)" class="px-3 py-1.5 border border-[#dde3eb] text-xs font-medium rounded-xl hover:bg-gray-100">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            }
+
+            <!-- Modal Content Split View -->
+            <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden divide-y md:divide-y-0 md:divide-x divide-[#dde3eb]">
+              <!-- Left Column: Tag List (5 cols) -->
+              <div class="w-full md:w-5/12 flex flex-col overflow-hidden bg-white">
+                <!-- Search & Filter Controls -->
+                <div class="p-3 border-b border-[#dde3eb] space-y-2 bg-[#f8faf9]">
+                  <div class="relative">
+                    <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6e7978] text-sm">search</span>
+                    <input type="text" [(ngModel)]="tagSearchQuery" (input)="loadCanonicalTags()" placeholder="Search canonical tags or aliases..."
+                           class="w-full pl-8 pr-3 py-1.5 bg-white border border-[#dde3eb] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]" />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <select [(ngModel)]="tagCategoryFilter" (change)="loadCanonicalTags()"
+                            class="w-full px-2 py-1 bg-white border border-[#dde3eb] rounded-xl text-[11px] text-[#3e4948]">
+                      <option value="all">All Categories</option>
+                      @for (cat of tagCategoryOptions; track cat) { <option [value]="cat">{{ cat }}</option> }
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Tag List Items -->
+                <div class="flex-1 overflow-y-auto divide-y divide-[#dde3eb]">
+                  @if (isLoadingTags()) {
+                    <div class="p-8 text-center text-xs text-[#6e7978] flex flex-col items-center gap-2">
+                      <span class="material-symbols-outlined text-2xl animate-spin text-[#004343]">sync</span>
+                      <span>Loading tags...</span>
+                    </div>
+                  } @else {
+                    @for (t of canonicalTagsList(); track t.id) {
+                      <div (click)="selectTagForDetail(t)"
+                           class="p-3.5 hover:bg-[#f8faf9] cursor-pointer transition-colors flex items-center justify-between"
+                           [ngClass]="selectedTagForDetail()?.id === t.id ? 'bg-[#004343]/5 border-l-4 border-l-[#004343]' : ''">
+                        <div class="min-w-0 pr-2">
+                          <div class="text-xs font-bold text-[#191c1c] truncate flex items-center gap-1.5">
+                            <span>{{ t.canonicalName }}</span>
+                            @if (t.isApproved) {
+                              <span class="material-symbols-outlined text-emerald-600 text-xs" title="Approved Concept">verified</span>
+                            }
+                          </div>
+                          <div class="flex items-center gap-1.5 mt-1 flex-wrap">
+                            @if (t.category) {
+                              <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#004343]/10 text-[#004343]">{{ t.category }}</span>
+                            }
+                            @if (t.languageCode) {
+                              <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-[#3e4948]">{{ t.languageCode }}</span>
+                            }
+                            <span class="text-[10px] text-[#6e7978]">{{ t.storyCount || 0 }} stories</span>
+                          </div>
+                        </div>
+                        <span class="material-symbols-outlined text-sm text-[#6e7978]">chevron_right</span>
+                      </div>
+                    } @empty {
+                      <div class="p-8 text-center text-xs text-[#6e7978]">No canonical tags found.</div>
+                    }
+                  }
+                </div>
+              </div>
+
+              <!-- Right Column: Detail & Manage Selected Tag (7 cols) -->
+              <div class="w-full md:w-7/12 flex flex-col overflow-y-auto p-5 bg-[#fafcfb] space-y-5">
+                @if (selectedTagForDetail(); as selTag) {
+                  <!-- Tag Header Info -->
+                  <div class="bg-white p-4 rounded-xl border border-[#dde3eb] shadow-xs space-y-2">
+                    <div class="flex items-start justify-between">
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <h4 class="text-base font-serif font-bold text-[#004343]">{{ selTag.canonicalName }}</h4>
+                          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                                [ngClass]="selTag.isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'">
+                            {{ selTag.isApproved ? 'Approved' : 'Pending Review' }}
+                          </span>
+                        </div>
+                        <div class="text-[11px] text-[#6e7978] mt-0.5">
+                          Normalized: <code class="bg-gray-100 px-1 py-0.5 rounded font-mono">{{ selTag.normalizedName }}</code>
+                        </div>
+                      </div>
+                      <button (click)="handleDeleteTag(selTag.id)" class="text-[#ba1a1a] hover:bg-red-50 p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer">
+                        <span class="material-symbols-outlined text-sm">delete</span>
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                    @if (selTag.description) {
+                      <p class="text-xs text-[#3e4948] leading-relaxed pt-1 border-t border-gray-100">{{ selTag.description }}</p>
+                    }
+                  </div>
+
+                  <!-- 1. Multilingual & Variant Aliases -->
+                  <div class="bg-white p-4 rounded-xl border border-[#dde3eb] shadow-xs space-y-3">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[#004343] text-lg">translate</span>
+                        <h5 class="text-xs font-bold text-[#191c1c] uppercase tracking-wider">Multilingual &amp; Variant Aliases</h5>
+                      </div>
+                      <span class="text-[11px] text-[#6e7978]">{{ selTag.aliases?.length || 0 }} aliases</span>
+                    </div>
+
+                    <!-- Existing Aliases Chips -->
+                    <div class="flex flex-wrap gap-1.5">
+                      @for (al of selTag.aliases || []; track al.id) {
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#f0f4f3] border border-[#dde3eb] text-[#191c1c]">
+                          <span>{{ al.alias }}</span>
+                          <span class="text-[9px] uppercase px-1 py-0.2 bg-white rounded border border-gray-200 text-[#6e7978]">{{ al.aliasType || al.languageCode }}</span>
+                          <button (click)="handleRemoveAlias(al.id)" class="text-gray-400 hover:text-[#ba1a1a] text-xs cursor-pointer ml-1">&#x2715;</button>
+                        </span>
+                      } @empty {
+                        <p class="text-xs text-[#6e7978] italic">No aliases registered yet. Add transliterations or localized names below.</p>
+                      }
+                    </div>
+
+                    <!-- Add Alias Inline Form -->
+                    <div class="flex items-center gap-2 pt-2 border-t border-gray-100 flex-wrap">
+                      <input type="text" [(ngModel)]="newAliasText" placeholder="Alternative name or spelling..."
+                             class="flex-1 min-w-[140px] px-2.5 py-1.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]" />
+                      <select [(ngModel)]="newAliasLanguage" class="px-2 py-1.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c]">
+                        <option value="si">si</option>
+                        <option value="ta">ta</option>
+                        <option value="en">en</option>
+                        <option value="si-Latn">si-Latn</option>
+                      </select>
+                      <select [(ngModel)]="newAliasType" class="px-2 py-1.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c]">
+                        <option value="SYNONYM">Synonym</option>
+                        <option value="TRANSLITERATION">Transliteration</option>
+                        <option value="TRANSLATION">Translation</option>
+                        <option value="SPELLING_VARIANT">Spelling</option>
+                      </select>
+                      <button (click)="handleAddAlias()" [disabled]="!newAliasText.trim()"
+                              class="px-3 py-1.5 bg-[#004343] hover:bg-[#0f5c5c] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer disabled:opacity-50">
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- 2. Cultural Conceptual Relationships -->
+                  <div class="bg-white p-4 rounded-xl border border-[#dde3eb] shadow-xs space-y-3">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[#004343] text-lg">account_tree</span>
+                        <h5 class="text-xs font-bold text-[#191c1c] uppercase tracking-wider">Conceptual Relationships</h5>
+                      </div>
+                      <span class="text-[11px] text-[#6e7978]">{{ selTag.relationships?.length || 0 }} relations</span>
+                    </div>
+
+                    <!-- Relationship List -->
+                    <div class="space-y-1.5">
+                      @for (rel of selTag.relationships || []; track rel.id) {
+                        <div class="p-2 rounded-lg bg-[#f8faf9] border border-[#dde3eb] flex items-center justify-between text-xs">
+                          <div class="flex items-center gap-2">
+                            <span class="font-bold text-[#004343]">{{ rel.sourceTagName || selTag.canonicalName }}</span>
+                            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#fe893e]/15 text-[#9b4600]">{{ rel.relationshipType }}</span>
+                            <span class="font-bold text-[#191c1c]">{{ rel.targetTagName }}</span>
+                            <span class="text-[10px] text-[#6e7978]">(wt: {{ rel.weight }})</span>
+                          </div>
+                          <button (click)="handleRemoveRelationship(rel.id)" class="text-gray-400 hover:text-[#ba1a1a] text-xs cursor-pointer">&#x2715;</button>
+                        </div>
+                      } @empty {
+                        <p class="text-xs text-[#6e7978] italic">No conceptual links established. Connect to broader or related cultural heritage topics.</p>
+                      }
+                    </div>
+
+                    <!-- Add Relationship Form -->
+                    <div class="flex items-center gap-2 pt-2 border-t border-gray-100 flex-wrap">
+                      <select [(ngModel)]="newRelType" class="px-2 py-1.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c]">
+                        <option value="RELATED_TO">RELATED_TO</option>
+                        <option value="BROADER_THAN">BROADER_THAN</option>
+                        <option value="NARROWER_THAN">NARROWER_THAN</option>
+                        <option value="PART_OF">PART_OF</option>
+                        <option value="EXAMPLE_OF">EXAMPLE_OF</option>
+                      </select>
+                      <select [(ngModel)]="newRelTargetTagId" class="flex-1 min-w-[140px] px-2.5 py-1.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c]">
+                        <option value="">Select target concept...</option>
+                        @for (other of canonicalTagsList(); track other.id) {
+                          @if (other.id !== selTag.id) {
+                            <option [value]="other.id">{{ other.canonicalName }} ({{ other.category || 'General' }})</option>
+                          }
+                        }
+                      </select>
+                      <button (click)="handleAddRelationship()" [disabled]="!newRelTargetTagId"
+                              class="px-3 py-1.5 bg-[#004343] hover:bg-[#0f5c5c] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer disabled:opacity-50">
+                        + Link
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- 3. Safe Merge & Consolidation Tool -->
+                  <div class="bg-amber-50/60 p-4 rounded-xl border border-amber-200/80 shadow-xs space-y-2.5">
+                    <div class="flex items-center gap-1.5 text-amber-900">
+                      <span class="material-symbols-outlined text-lg">merge</span>
+                      <h5 class="text-xs font-bold uppercase tracking-wider">Concept Merging &amp; Deduplication</h5>
+                    </div>
+                    <p class="text-[11px] text-amber-800 leading-relaxed">
+                      Safely absorb this tag into another canonical concept. All story tags, aliases, and links will automatically redirect without data loss.
+                    </p>
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <select [(ngModel)]="mergeTargetTagId" class="flex-1 min-w-[180px] px-2.5 py-1.5 bg-white border border-amber-300 rounded-xl text-xs text-[#191c1c]">
+                        <option value="">Select canonical concept to merge into...</option>
+                        @for (other of canonicalTagsList(); track other.id) {
+                          @if (other.id !== selTag.id) {
+                            <option [value]="other.id">{{ other.canonicalName }} ({{ other.category || 'General' }})</option>
+                          }
+                        }
+                      </select>
+                      <button (click)="handleMergeTags()" [disabled]="!mergeTargetTagId || isMergingTags()"
+                              class="px-4 py-1.5 bg-[#ba1a1a] hover:bg-[#93000a] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer disabled:opacity-50">
+                        {{ isMergingTags() ? 'Merging...' : 'Execute Safe Merge' }}
+                      </button>
+                    </div>
+                  </div>
+
+                } @else {
+                  <div class="h-full flex flex-col items-center justify-center text-center p-8 text-[#6e7978] space-y-2">
+                    <span class="material-symbols-outlined text-4xl text-[#004343]/30">touch_app</span>
+                    <h4 class="text-sm font-bold text-[#191c1c]">No Concept Selected</h4>
+                    <p class="text-xs max-w-sm">Select any canonical tag from the left column to inspect its aliases, conceptual connections, or execute safe merges.</p>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-3 border-t border-[#dde3eb] bg-[#f8faf9] flex items-center justify-between">
+              <span class="text-xs text-[#6e7978]">Total Canonical Tags: {{ canonicalTagsList().length }}</span>
+              <button (click)="showTagManagerModal.set(false)" class="px-5 py-2 border border-[#dde3eb] hover:bg-[#f2f4f3] rounded-xl text-xs font-bold text-[#191c1c]">
+                Close Console
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
       <!-- Left Sidebar Navigation -->
       <app-sidebar></app-sidebar>
 
@@ -258,8 +552,14 @@ export interface ModerationItem {
               </p>
             </div>
 
-            <!-- Action Triggers: Sync Button & Export PDF -->
+            <!-- Action Triggers: Tag Intelligence, Sync Button & Export PDF -->
             <div class="flex items-center gap-3 self-start xl:self-auto flex-wrap">
+              <button 
+                (click)="openTagManagerModal()"
+                class="px-4 py-2.5 rounded-xl bg-[#004343] hover:bg-[#0f5c5c] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer">
+                <span class="material-symbols-outlined text-base text-amber-300">sell</span>
+                <span>Tag Intelligence</span>
+              </button>
               <button 
                 (click)="showExportPdfModal.set(true)"
                 class="px-4 py-2.5 rounded-xl bg-white border border-[#dde3eb] hover:bg-[#f2f4f3] text-[#191c1c] text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer">
@@ -1441,6 +1741,50 @@ export class ModerationComponent implements OnInit {
   // Tag editor input
   newTagInput = '';
 
+  // Tag Intelligence Modal State
+  showTagManagerModal = signal<boolean>(false);
+  tagSearchQuery = signal<string>('');
+  tagCategoryFilter = signal<string>('all');
+  canonicalTagsList = signal<TagDTO[]>([]);
+  isLoadingTags = signal<boolean>(false);
+  selectedTagForDetail = signal<TagDTO | null>(null);
+  isBackfillingTags = signal<boolean>(false);
+  isMergingTags = signal<boolean>(false);
+
+  // Available tag categories & options
+  tagCategoryOptions: string[] = [
+    'festival',
+    'traditional game',
+    'folk art',
+    'food',
+    'dance',
+    'music',
+    'ritual',
+    'historical place',
+    'oral tradition',
+    'Cultural Concept'
+  ];
+
+  // New Tag form
+  newTagName = '';
+  newTagCategory = 'Cultural Concept';
+  newTagLanguage = 'si';
+  newTagDescription = '';
+  showCreateTagForm = signal<boolean>(false);
+
+  // Add Alias form
+  newAliasText = '';
+  newAliasLanguage = 'si';
+  newAliasType = 'SYNONYM';
+
+  // Add Relationship form
+  newRelType = 'RELATED_TO';
+  newRelTargetTagId = '';
+  newRelWeight = 0.8;
+
+  // Merge Tag form
+  mergeTargetTagId = '';
+
   // Master Items Data (Loaded directly from backend REST API)
   items = signal<ModerationItem[]>([]);
 
@@ -1906,18 +2250,31 @@ export class ModerationComponent implements OnInit {
       let t = this.newTagInput.trim();
       if (!t.startsWith('#')) t = '#' + t;
       if (!item.tags.includes(t)) {
-        this.items.update(list => list.map(i => i.id === item.id ? { ...i, tags: [...i.tags, t] } : i));
+        const nextTags = [...item.tags, t];
+        this.items.update(list => list.map(i => i.id === item.id ? { ...i, tags: nextTags } : i));
         const updated = this.items().find(i => i.id === item.id) || null;
         if (updated) this.selectedItem.set(updated);
+        this.saveItemTags(item.id, nextTags);
       }
       this.newTagInput = '';
     }
   }
 
   removeTagFromItem(item: ModerationItem, tag: string): void {
-    this.items.update(list => list.map(i => i.id === item.id ? { ...i, tags: i.tags.filter(t => t !== tag) } : i));
+    const nextTags = item.tags.filter(t => t !== tag);
+    this.items.update(list => list.map(i => i.id === item.id ? { ...i, tags: nextTags } : i));
     const updated = this.items().find(i => i.id === item.id) || null;
     if (updated) this.selectedItem.set(updated);
+    this.saveItemTags(item.id, nextTags);
+  }
+
+  saveItemTags(storyId: string, tags: string[]): void {
+    if (storyId && storyId.includes('-')) {
+      this.moderationService.updateItemStatus(storyId, { tags }).subscribe({
+        next: () => console.log(`[Backend] Tags synced for ${storyId}`),
+        error: (err) => console.warn(`[Backend] Error syncing tags for ${storyId}:`, err)
+      });
+    }
   }
 
   generateAiTags(): void {
@@ -1941,6 +2298,7 @@ export class ModerationComponent implements OnInit {
           this.items.update(list => list.map(i => i.id === item.id ? { ...i, tags: merged } : i));
           const updated = this.items().find(i => i.id === item.id) || null;
           if (updated) this.selectedItem.set(updated);
+          this.saveItemTags(item.id, merged);
           this.showToast(`✨ AI generated ${res.tags.length} heritage tags from content!`);
         } else {
           this.showToast('⚠️ AI could not generate tags — try adding more content/description.');
@@ -1949,6 +2307,181 @@ export class ModerationComponent implements OnInit {
       error: () => {
         this.isAutoTagging.set(false);
         this.showToast('❌ Auto-tag failed. Check backend connection.');
+      }
+    });
+  }
+
+  // Tag Intelligence Console Workflows
+  openTagManagerModal(): void {
+    this.showTagManagerModal.set(true);
+    this.loadCanonicalTags();
+  }
+
+  loadCanonicalTags(): void {
+    this.isLoadingTags.set(true);
+    const search = this.tagSearchQuery().trim() || undefined;
+    const category = this.tagCategoryFilter() !== 'all' ? this.tagCategoryFilter() : undefined;
+    this.moderationService.getTags({ search, category, size: 100 }).subscribe({
+      next: (res) => {
+        this.isLoadingTags.set(false);
+        const tags = res?.content || (Array.isArray(res) ? res : []);
+        this.canonicalTagsList.set(tags);
+        if (this.selectedTagForDetail()) {
+          const refreshed = tags.find((t: TagDTO) => t.id === this.selectedTagForDetail()?.id);
+          if (refreshed) this.selectTagForDetail(refreshed);
+        }
+      },
+      error: (err) => {
+        this.isLoadingTags.set(false);
+        console.warn('Error loading tags:', err);
+      }
+    });
+  }
+
+  selectTagForDetail(tag: TagDTO): void {
+    this.moderationService.getTag(tag.id).subscribe({
+      next: (res) => {
+        const fullTag = res?.data || res || tag;
+        this.selectedTagForDetail.set(fullTag);
+      },
+      error: () => this.selectedTagForDetail.set(tag)
+    });
+  }
+
+  createCanonicalTag(): void {
+    if (!this.newTagName.trim()) return;
+    this.moderationService.createTag({
+      canonicalName: this.newTagName.trim(),
+      category: this.newTagCategory,
+      languageCode: this.newTagLanguage,
+      description: this.newTagDescription.trim() || undefined,
+      isApproved: true
+    }).subscribe({
+      next: () => {
+        this.showToast(`✨ Canonical tag "${this.newTagName}" created successfully!`);
+        this.newTagName = '';
+        this.newTagDescription = '';
+        this.showCreateTagForm.set(false);
+        this.loadCanonicalTags();
+      },
+      error: () => this.showToast('❌ Failed to create tag. Check if duplicate.')
+    });
+  }
+
+  handleAddAlias(): void {
+    const selTag = this.selectedTagForDetail();
+    if (!selTag || !this.newAliasText.trim()) return;
+
+    this.moderationService.addAlias(selTag.id, {
+      alias: this.newAliasText.trim(),
+      languageCode: this.newAliasLanguage,
+      aliasType: this.newAliasType
+    }).subscribe({
+      next: () => {
+        this.showToast(`✨ Added alias "${this.newAliasText}" to ${selTag.canonicalName}`);
+        this.newAliasText = '';
+        this.selectTagForDetail(selTag);
+        this.loadCanonicalTags();
+      },
+      error: () => this.showToast('❌ Failed to add alias.')
+    });
+  }
+
+  handleRemoveAlias(aliasId: string): void {
+    const selTag = this.selectedTagForDetail();
+    this.moderationService.removeAlias(aliasId).subscribe({
+      next: () => {
+        this.showToast('Removed alias');
+        if (selTag) this.selectTagForDetail(selTag);
+        this.loadCanonicalTags();
+      },
+      error: () => this.showToast('❌ Failed to remove alias.')
+    });
+  }
+
+  handleAddRelationship(): void {
+    const selTag = this.selectedTagForDetail();
+    if (!selTag || !this.newRelTargetTagId) return;
+
+    this.moderationService.addRelationship(selTag.id, {
+      targetTagId: this.newRelTargetTagId,
+      relationshipType: this.newRelType,
+      weight: this.newRelWeight
+    }).subscribe({
+      next: () => {
+        this.showToast(`✨ Connected ${selTag.canonicalName} via ${this.newRelType}`);
+        this.newRelTargetTagId = '';
+        this.selectTagForDetail(selTag);
+        this.loadCanonicalTags();
+      },
+      error: () => this.showToast('❌ Failed to establish relationship.')
+    });
+  }
+
+  handleRemoveRelationship(relId: string): void {
+    const selTag = this.selectedTagForDetail();
+    this.moderationService.removeRelationship(relId).subscribe({
+      next: () => {
+        this.showToast('Removed relationship');
+        if (selTag) this.selectTagForDetail(selTag);
+        this.loadCanonicalTags();
+      },
+      error: () => this.showToast('❌ Failed to remove relationship.')
+    });
+  }
+
+  handleMergeTags(): void {
+    const selTag = this.selectedTagForDetail();
+    if (!selTag || !this.mergeTargetTagId) return;
+
+    const targetTag = this.canonicalTagsList().find(t => t.id === this.mergeTargetTagId);
+    if (!confirm(`Are you sure you want to merge "${selTag.canonicalName}" into "${targetTag?.canonicalName || 'target'}"? All stories and aliases will be transferred.`)) {
+      return;
+    }
+
+    this.isMergingTags.set(true);
+    this.moderationService.mergeTags({
+      sourceTagId: selTag.id,
+      targetTagId: this.mergeTargetTagId
+    }).subscribe({
+      next: () => {
+        this.isMergingTags.set(false);
+        this.showToast(`✨ Successfully merged "${selTag.canonicalName}" into target concept!`);
+        this.selectedTagForDetail.set(null);
+        this.mergeTargetTagId = '';
+        this.loadCanonicalTags();
+      },
+      error: () => {
+        this.isMergingTags.set(false);
+        this.showToast('❌ Tag merge failed.');
+      }
+    });
+  }
+
+  handleDeleteTag(tagId: string): void {
+    if (!confirm('Are you sure you want to delete this canonical tag?')) return;
+    this.moderationService.deleteTag(tagId).subscribe({
+      next: () => {
+        this.showToast('Tag deleted');
+        this.selectedTagForDetail.set(null);
+        this.loadCanonicalTags();
+      },
+      error: () => this.showToast('❌ Cannot delete tag with active story dependencies.')
+    });
+  }
+
+  handleTriggerBackfill(): void {
+    this.isBackfillingTags.set(true);
+    this.moderationService.triggerTagBackfill().subscribe({
+      next: (res) => {
+        this.isBackfillingTags.set(false);
+        const count = res?.backfilledCount ?? res?.count ?? 'All';
+        this.showToast(`✨ AI Taxonomy re-indexing complete! ${count} stories canonized.`);
+        this.loadCanonicalTags();
+      },
+      error: () => {
+        this.isBackfillingTags.set(false);
+        this.showToast('❌ Backfill task encountered an error.');
       }
     });
   }
@@ -1976,7 +2509,8 @@ export class ModerationComponent implements OnInit {
       this.moderationService.updateItemStatus(item.id, {
         status: 'PUBLISHED',
         region: item.region,
-        district: item.district
+        district: item.district,
+        tags: item.tags
       }).subscribe({
         next: () => console.log(`[Backend] Moderation item ${item.id} published with region ${item.region}`),
         error: (err) => console.warn(`[Backend] Error publishing item ${item.id}:`, err)
