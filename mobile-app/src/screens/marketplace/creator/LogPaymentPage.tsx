@@ -302,7 +302,6 @@ export const LogPaymentPage: React.FC<{
         showsVerticalScrollIndicator={false}
       >
         <Text style={s.pageHeading}>Log a Payment</Text>
-        <Text style={s.pageSubtitle}>Record cash you've just collected from a knowledge holder.</Text>
 
         {/* Select Opportunity */}
         <View style={s.section}>
@@ -473,8 +472,7 @@ const s = StyleSheet.create({
     paddingBottom: Spacing.lg,
     gap: Spacing.md,
   },
-  pageHeading: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: D.onSurface },
-  pageSubtitle: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, marginTop: -Spacing.sm },
+  pageHeading: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, lineHeight: Typography.sizeLG * 1.3, color: D.onSurface },
 
   // ── Sections ─────────────────────────────────────────────────────────────
   section: { gap: Spacing.sm },
