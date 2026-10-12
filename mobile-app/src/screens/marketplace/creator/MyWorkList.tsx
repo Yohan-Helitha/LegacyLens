@@ -436,7 +436,9 @@ export const MyWorkList: React.FC<{
 
   const completedByMonth = useMemo(() => groupCompletedByMonth(completedJobs), [completedJobs]);
 
-  const stillInProgress = activeWithProgress.filter((x) => !x.submitted && !x.draft);
+  // Active is everything not yet submitted - saving a draft does not take a job off it, so the creator
+  // can always see how far along it is. Saved is the same jobs filtered to the ones saved as a draft.
+  const stillInProgress = activeWithProgress.filter((x) => !x.submitted);
   const savedDrafts = activeWithProgress.filter((x) => x.draft);
   const submitted = activeWithProgress.filter((x) => x.submitted);
 

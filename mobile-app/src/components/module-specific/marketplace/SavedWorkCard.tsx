@@ -76,7 +76,7 @@ const TextAnswer: React.FC<{ label: string; value: string | null | undefined }> 
   );
 };
 
-/** What the creator has written and collected so far, so a saved edit can be seen on the card. */
+/** My content: what the creator has written and collected so far, so a saved edit can be seen on the card. */
 const YourContent: React.FC<{ progress: WorkProgressResponse | undefined }> = ({ progress }) => {
   const [open, setOpen] = useState(true);
   const keywords = progress?.seoKeywords ?? [];
@@ -90,9 +90,9 @@ const YourContent: React.FC<{ progress: WorkProgressResponse | undefined }> = ({
         onPress={() => setOpen((v) => !v)}
         style={s.answersHeader}
         accessibilityRole="button"
-        accessibilityLabel={open ? 'Hide your saved content' : 'Show your saved content'}
+        accessibilityLabel={open ? 'Hide my saved content' : 'Show my saved content'}
       >
-        <Text style={s.answersTitle}>Your content</Text>
+        <Text style={s.answersTitle}>My content</Text>
         <Text style={s.answersToggle}>{open ? 'Hide ▴' : 'Show ▾'}</Text>
       </Pressable>
       {open && (
