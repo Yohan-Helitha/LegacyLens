@@ -21,6 +21,10 @@ describe('creatorScreenForNotification', () => {
     expect(creatorScreenForNotification({ type: 'work-approved' })).toBe('my-work');
   });
 
+  it('opens the dashboard for the today-work reminder', () => {
+    expect(creatorScreenForNotification({ type: 'today-work' })).toBe('dashboard');
+  });
+
   it('just opens the app for anything else', () => {
     expect(creatorScreenForNotification({ type: 'something-new' })).toBeNull();
     expect(creatorScreenForNotification({})).toBeNull();

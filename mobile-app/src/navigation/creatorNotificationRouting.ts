@@ -6,6 +6,9 @@ export function creatorScreenForNotification(data: Record<string, unknown> | nul
     // An approved application is booked from the dashboard's Upcoming Booking tab.
     case 'application-approved':
       return 'dashboard';
+    // A reminder about today's scheduled work opens the dashboard, whose Today's Jobs lists it.
+    case 'today-work':
+      return 'dashboard';
     // An urgent opportunity alert opens the opportunities, where it sits in the Urgent section.
     case 'urgent-opportunity':
       return 'market';

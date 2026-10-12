@@ -43,6 +43,14 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
 
     boolean existsByOpportunityIdAndCreatorId(UUID opportunityId, UUID creatorId);
 
+    /** Booked or in-progress jobs scheduled inside a window whose "work today" reminder has not gone out yet. */
+    List<Job> findByStatusInAndScheduledAtBetweenAndReminderSentAtIsNullOrderByScheduledAtAsc(
+            java.util.Collection<JobStatus> statuses, LocalDateTime from, LocalDateTime to);
+
+    /** One creator's booked or in-progress jobs scheduled inside a window, soonest first. */
+    List<Job> findByCreatorIdAndStatusInAndScheduledAtBetweenOrderByScheduledAtAsc(
+            UUID creatorId, java.util.Collection<JobStatus> statuses, LocalDateTime from, LocalDateTime to);
+
     /**
      * Job counts in one status for every creator at once, as [creatorId, count]
      * rows — lets creator recommendations score all candidates in one query
