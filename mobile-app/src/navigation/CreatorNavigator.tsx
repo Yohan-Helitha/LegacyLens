@@ -14,7 +14,6 @@ import { OpportunitySchedulePage } from '../screens/marketplace/creator/Opportun
 import { SavedOpportunityApplication } from '../screens/marketplace/creator/SavedOpportunityApplication';
 import { MyWorkList } from '../screens/marketplace/creator/MyWorkList';
 import { ContinueMyWorkPage } from '../screens/marketplace/creator/ContinueMyWorkPage';
-import { SavedCompletedWorkPage } from '../screens/marketplace/creator/SavedCompletedWorkPage';
 import { PublicationPreviewPage } from '../screens/marketplace/creator/PublicationPreviewPage';
 import type { JobResponse } from '../types/creatorDashboard';
 import { LogPaymentPage } from '../screens/marketplace/creator/LogPaymentPage';
@@ -26,6 +25,7 @@ import { groupApplications } from '../utils/applicationGroups';
 import { creatorScreenForNotification } from './creatorNotificationRouting';
 import { usePushNotificationEvents } from '../hooks/usePushNotifications';
 import type { NavTab } from '../components/BottomNavBar';
+import type { WorkTab } from '../screens/marketplace/creator/MyWorkList';
 
 export type CreatorScreen =
   | 'dashboard'
@@ -42,7 +42,6 @@ export type CreatorScreen =
   | 'saved-applications'
   | 'my-work'
   | 'continue-work'
-  | 'saved-completed-work'
   | 'publication-preview'
   | 'log-payment'
   | 'rejected-work'
@@ -72,6 +71,8 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [previewJob, setPreviewJob] = useState<JobResponse | null>(null);
+  // Which tab My Work opens on: Saved right after "Save As a Draft", and the last one used when coming back.
+  const [myWorkTab, setMyWorkTab] = useState<WorkTab>('active');
   const [selectedJobTitle, setSelectedJobTitle] = useState<string | null>(null);
   const [selectedJobElderName, setSelectedJobElderName] = useState<string | null>(null);
   const [selectedJobLocation, setSelectedJobLocation] = useState<string | null>(null);
@@ -157,7 +158,10 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleOpenSchedule = () => setScreen('schedule');
 
   /** Called when a job card is pressed on CreatorDashboard */
-  const handleOpenMyWork = () => setScreen('my-work');
+  const handleOpenMyWork = () => {
+    setMyWorkTab('active');
+    setScreen('my-work');
+  };
 
   /** Called when "Rejected Submissions" is pressed in the side menu */
   const handleOpenRejectedWork = () => setScreen('rejected-work');
@@ -187,15 +191,10 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleBackToMyWork = () => setScreen('my-work');
 
   /** Called when "Save As a Draft" is pressed on ContinueMyWorkPage */
-  const handleOpenSavedDrafts = () => setScreen('saved-completed-work');
-
-  /** Called when "View & Edit" is pressed on a draft in SavedCompletedWorkPage */
-  const handleEditWorkDraft = (jobId: string, title: string, elderName: string, location: string | null) => {
-    setSelectedJobId(jobId);
-    setSelectedJobTitle(title);
-    setSelectedJobElderName(elderName);
-    setSelectedJobLocation(location);
-    setScreen('continue-work');
+  /** After "Save As a Draft": straight to the Saved tab of My Work. */
+  const handleOpenSavedDrafts = () => {
+    setMyWorkTab('saved');
+    setScreen('my-work');
   };
 
   /** Called when "View Publication" is pressed on a completed job in MyWorkList */
@@ -358,6 +357,8 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onBack={handleBackToDashboard}
           onContinueWork={handleContinueWork}
           onViewPublication={handleOpenPublicationPreview}
+          initialTab={myWorkTab}
+          onTabChange={setMyWorkTab}
         />
       )}
       {screen === 'continue-work' && (
@@ -369,13 +370,6 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           jobTitle={selectedJobTitle}
           elderName={selectedJobElderName}
           location={selectedJobLocation}
-        />
-      )}
-      {screen === 'saved-completed-work' && (
-        <SavedCompletedWorkPage
-          onNavigate={handleNavigate}
-          onBack={handleBackToMyWork}
-          onEditDraft={handleEditWorkDraft}
         />
       )}
       {screen === 'rejected-work' && (

@@ -45,7 +45,7 @@ interface MyWorkProgressState {
   completedStepsByJobId: Record<string, number>;
   materialsByJobId: Record<string, WorkMaterial[]>;
   noteByJobId: Record<string, string>;
-  /** Job ids explicitly saved as a draft from ContinueMyWorkPage's "Save As a Draft" — shown on SavedCompletedWorkPage. */
+  /** Job ids explicitly saved as a draft from ContinueMyWorkPage's "Save As a Draft" — shown on the Saved tab of My Work. */
   savedDraftJobIds: string[];
   /** ISO timestamp of the first moment a job's steps reached TOTAL_WORK_STEPS — the time a job counts as submitted. */
   submittedAtByJobId: Record<string, string>;
@@ -74,7 +74,7 @@ export const useMyWorkProgressStore = create<MyWorkProgressState>()((set, get) =
   completedStepsByJobId: {},
   materialsByJobId: INITIAL_MATERIALS,
   noteByJobId: INITIAL_NOTES,
-  // Seeded so SavedCompletedWorkPage isn't empty on first launch, matching
+  // Seeded so the Saved tab of My Work isn't empty on first launch, matching
   // the demo materials/note already seeded for this same fallback job.
   savedDraftJobIds: [DEMO_JOB_ID],
   submittedAtByJobId: { [DEMO_JOB_ID]: '2026-09-01T10:30:00' },

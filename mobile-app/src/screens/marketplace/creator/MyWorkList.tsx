@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -7,6 +7,8 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
+import { SavedWorkCard } from '../../../components/module-specific/marketplace/SavedWorkCard';
+import { appAlert } from '../../../components/common/AppDialog';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
 import { workProgressApi } from '../../../services/api/workProgressApi';
 import type { JobResponse } from '../../../types/creatorDashboard';
@@ -65,7 +67,7 @@ function formatLkr(amount: number): string {
   return `LKR ${Math.round(amount).toLocaleString('en-US')}`;
 }
 
-type WorkTab = 'active' | 'submitted' | 'completed';
+export type WorkTab = 'active' | 'saved' | 'submitted' | 'completed';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Icons
@@ -342,21 +344,28 @@ export const MyWorkList: React.FC<{
   onBack: () => void;
   onContinueWork: (jobId: string, title: string, elderName: string, location: string | null) => void;
   onViewPublication: (job: JobResponse) => void;
-}> = ({ onNavigate, onBack, onContinueWork, onViewPublication }) => {
+  /** Which tab to open on - Saved right after "Save As a Draft", Active from the menu. */
+  initialTab?: WorkTab;
+  /** Told when the creator switches tab, so coming back from Continue Work lands on the same one. */
+  onTabChange?: (tab: WorkTab) => void;
+}> = ({ onNavigate, onBack, onContinueWork, onViewPublication, initialTab = 'active', onTabChange }) => {
   const [workJobs, setWorkJobs] = useState<JobResponse[]>([]);
   const [completedJobs, setCompletedJobs] = useState<JobResponse[]>([]);
   const [progressByJobId, setProgressByJobId] = useState<Record<string, WorkProgressResponse>>({});
   const [completedPictures, setCompletedPictures] = useState<Record<string, string | null>>({});
-  const [activeTab, setActiveTab] = useState<WorkTab>('active');
+  const [activeTab, setActiveTab] = useState<WorkTab>(initialTab);
+  const selectTab = (tab: WorkTab) => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadWork = useCallback((isCancelled: () => boolean = () => false) => {
     setLoading(true);
     setLoadError(null);
 
-    Promise.all([
+    return Promise.all([
       creatorDashboardApi.getJobs('UPCOMING'),
       creatorDashboardApi.getJobs('ACTIVE'),
       creatorDashboardApi.getJobs('COMPLETED'),
@@ -370,7 +379,7 @@ export const MyWorkList: React.FC<{
         const completedProgress = await Promise.all(
           completed.map((job) => workProgressApi.getProgress(job.id).catch(() => null)),
         );
-        if (cancelled) return;
+        if (isCancelled()) return;
 
         const progressMap: Record<string, WorkProgressResponse> = {};
         progressList.forEach((p) => {
@@ -387,17 +396,22 @@ export const MyWorkList: React.FC<{
         setCompletedPictures(pictures);
       })
       .catch((err) => {
-        if (cancelled) return;
+        if (isCancelled()) return;
         setLoadError(err instanceof ApiError ? err.message : 'Could not load your work.');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!isCancelled()) setLoading(false);
       });
 
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadWork(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadWork]);
 
   const activeWithProgress = useMemo(
     () =>
@@ -413,6 +427,8 @@ export const MyWorkList: React.FC<{
           // review — not just because its checklist happens to read 100%,
           // since a creator can submit early or keep polishing after 100%.
           submitted: Boolean(progress?.submittedAt) && !progress?.draft,
+          // Saved with "Save As a Draft" - lives on the Saved tab until it is submitted.
+          draft: Boolean(progress?.draft),
         };
       }),
     [workJobs, progressByJobId],
@@ -420,8 +436,67 @@ export const MyWorkList: React.FC<{
 
   const completedByMonth = useMemo(() => groupCompletedByMonth(completedJobs), [completedJobs]);
 
-  const stillInProgress = activeWithProgress.filter((x) => !x.submitted);
+  const stillInProgress = activeWithProgress.filter((x) => !x.submitted && !x.draft);
+  const savedDrafts = activeWithProgress.filter((x) => x.draft);
   const submitted = activeWithProgress.filter((x) => x.submitted);
+
+  // A step the creator has not finished yet is worth a warning before submitting, not a block.
+  const unfinishedSteps = (progress: WorkProgressResponse | undefined): string[] => {
+    if (!progress) return [];
+    const missing: string[] = [];
+    if (!progress.prepDone) missing.push('Prep');
+    if (!progress.recordDone) missing.push('Record');
+    if (!progress.editDone) missing.push('Edit content');
+    return missing;
+  };
+
+  const submitDraft = (job: JobResponse) => {
+    appAlert('Submit for review?', `"${job.title}" will be sent to ${job.elderName} and the admin to review.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Submit',
+        onPress: async () => {
+          try {
+            await workProgressApi.submitDraft(job.id);
+            await loadWork();
+            selectTab('submitted');
+          } catch (err) {
+            appAlert('Submit failed', err instanceof ApiError ? err.message : 'Could not submit this draft.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleSubmitForReview = (job: JobResponse) => {
+    const missing = unfinishedSteps(progressByJobId[job.id]);
+    if (missing.length === 0) {
+      submitDraft(job);
+      return;
+    }
+    appAlert('Not everything is finished', `${missing.join(' and ')} ${missing.length === 1 ? 'is' : 'are'} not done yet. Submit anyway?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Continue', onPress: () => submitDraft(job) },
+    ]);
+  };
+
+  const handleDeleteDraft = (job: JobResponse) => {
+    appAlert('Delete this draft?', `All progress on "${job.title}" will be discarded.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await workProgressApi.resetProgress(job.id);
+            await loadWork();
+          } catch (err) {
+            appAlert('Delete failed', err instanceof ApiError ? err.message : 'Could not delete this draft.');
+          }
+        },
+      },
+    ]);
+  };
 
   // Held back until every fetch above settles — real data only, no
   // fallback/mock content, and a genuine failure shows as an error state.
@@ -460,9 +535,10 @@ export const MyWorkList: React.FC<{
       <View style={s.headerSection}>
         <Text style={s.pageHeading}>My work</Text>
         <View style={s.tabsRow}>
-          <TabPill label="Active" active={activeTab === 'active'} onPress={() => setActiveTab('active')} />
-          <TabPill label="Submitted" active={activeTab === 'submitted'} onPress={() => setActiveTab('submitted')} />
-          <TabPill label="Completed" active={activeTab === 'completed'} onPress={() => setActiveTab('completed')} />
+          <TabPill label="Active" active={activeTab === 'active'} onPress={() => selectTab('active')} />
+          <TabPill label={savedDrafts.length > 0 ? `Saved (${savedDrafts.length})` : 'Saved'} active={activeTab === 'saved'} onPress={() => selectTab('saved')} />
+          <TabPill label="Submitted" active={activeTab === 'submitted'} onPress={() => selectTab('submitted')} />
+          <TabPill label="Completed" active={activeTab === 'completed'} onPress={() => selectTab('completed')} />
         </View>
       </View>
 
@@ -485,6 +561,23 @@ export const MyWorkList: React.FC<{
                 doneSteps={steps}
                 variant="continue"
                 onContinue={() => onContinueWork(job.id, job.title, job.elderName, job.location)}
+              />
+            ))
+          )
+        )}
+
+        {activeTab === 'saved' && (
+          savedDrafts.length === 0 ? (
+            <View style={s.emptyState}><Text style={s.emptyStateText}>No saved drafts yet.</Text></View>
+          ) : (
+            savedDrafts.map(({ job }) => (
+              <SavedWorkCard
+                key={job.id}
+                job={job}
+                progress={progressByJobId[job.id]}
+                onEdit={() => onContinueWork(job.id, job.title, job.elderName, job.location)}
+                onSubmit={() => handleSubmitForReview(job)}
+                onDelete={() => handleDeleteDraft(job)}
               />
             ))
           )
