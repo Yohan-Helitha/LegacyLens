@@ -25,6 +25,24 @@ public interface OpportunityRepository extends JpaRepository<Opportunity, UUID> 
     /** Backs "Recent Postings" — newest first. */
     List<Opportunity> findByStatusOrderByCreatedAtDesc(OpportunityStatus status, Pageable pageable);
 
+    List<Opportunity> findByStatus(OpportunityStatus status);
+
     /** A single opportunity's full detail — only if it's actually published. */
     Optional<Opportunity> findByIdAndStatus(UUID id, OpportunityStatus status);
+
+    /**
+     * Backs the filter chips (Photography/Writing/Documentation/Nearby) — a
+     * null parameter is ignored (matches everything), so callers pass only
+     * the filters actually in effect. "Nearby" is resolved by the service
+     * into a location string (the creator's own city) before calling this.
+     */
+    @Query("SELECT o FROM Opportunity o WHERE o.status = :status "
+            + "AND (:category IS NULL OR LOWER(o.category) LIKE LOWER(CONCAT('%', :category, '%'))) "
+            + "AND (:location IS NULL OR LOWER(o.location) LIKE LOWER(CONCAT('%', :location, '%'))) "
+            + "ORDER BY o.createdAt DESC")
+    List<Opportunity> search(
+            @Param("status") OpportunityStatus status,
+            @Param("category") String category,
+            @Param("location") String location,
+            Pageable pageable);
 }

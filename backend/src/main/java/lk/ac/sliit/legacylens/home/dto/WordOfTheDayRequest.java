@@ -7,7 +7,7 @@ import lombok.Data;
 
 import java.time.LocalDate;
 
-/** Request body for creating or updating a Word of the Day entry (admin only). */
+/** Request body for creating or updating a Word of the Day entry. */
 @Data
 public class WordOfTheDayRequest {
 
@@ -23,9 +23,19 @@ public class WordOfTheDayRequest {
     @Size(max = 500)
     private String definition;
 
-    @Size(max = 1000)
-    private String culturalNote;
+    @Size(max = 50)
+    private String partOfSpeech;
+
+    @Size(max = 255)
+    private String audioFilename;
 
     @NotNull(message = "activeDate is required")
     private LocalDate activeDate;
+
+    /** Draft | Scheduled | Published */
+    @Size(max = 20)
+    private String status;
+
+    @Size(max = 20)
+    private String language;
 }

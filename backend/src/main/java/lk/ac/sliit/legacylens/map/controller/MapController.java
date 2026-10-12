@@ -7,10 +7,12 @@ import lk.ac.sliit.legacylens.map.dto.QuestionResponse;
 import lk.ac.sliit.legacylens.map.service.MapService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/map")
@@ -19,9 +21,22 @@ public class MapController {
 
     private final MapService mapService;
 
+    @Value("${app.mapbox.token:${EXPO_PUBLIC_MAPBOX_TOKEN:}}")
+    private String mapboxToken;
+
+    @GetMapping("/token")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getMapboxToken() {
+        return ResponseEntity.ok(ApiResponse.ok("Mapbox token retrieved", Map.of("mapboxToken", mapboxToken != null ? mapboxToken : "")));
+    }
+
     @GetMapping("/landmarks")
     public ResponseEntity<ApiResponse<List<MapLandmarkResponse>>> getAllLandmarks() {
         return ResponseEntity.ok(ApiResponse.ok("Landmarks retrieved", mapService.getAllLandmarks()));
+    }
+
+    @GetMapping("/regions")
+    public ResponseEntity<ApiResponse<List<lk.ac.sliit.legacylens.map.dto.RegionResponse>>> getAllRegions() {
+        return ResponseEntity.ok(ApiResponse.ok("Regions retrieved", mapService.getAllRegions()));
     }
 
     @GetMapping("/badges")
@@ -36,13 +51,59 @@ public class MapController {
 
     @GetMapping("/my-badges")
     public ResponseEntity<ApiResponse<List<String>>> getMyBadges(@AuthenticationPrincipal CustomUserDetails principal) {
-        return ResponseEntity.ok(ApiResponse.ok("Badges retrieved", mapService.getMyBadges(principal.getUser().getId())));
+        return ResponseEntity
+                .ok(ApiResponse.ok("Badges retrieved", mapService.getMyBadges(principal.getUser().getId())));
     }
 
     @PostMapping("/my-badges/{badgeCode}")
-    public ResponseEntity<ApiResponse<String>> unlockBadge(@AuthenticationPrincipal CustomUserDetails principal, @PathVariable String badgeCode) {
+    public ResponseEntity<ApiResponse<String>> unlockBadge(@AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable String badgeCode) {
         mapService.unlockBadge(principal.getUser().getId(), badgeCode);
         return ResponseEntity.ok(ApiResponse.ok("Badge unlocked successfully", badgeCode));
+    }
+
+    @PostMapping("/landmarks")
+    public ResponseEntity<ApiResponse<MapLandmarkResponse>> createLandmark(
+            @jakarta.validation.Valid @RequestBody lk.ac.sliit.legacylens.map.dto.CreateLandmarkRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Landmark created successfully", mapService.createLandmark(request)));
+    }
+
+    @PutMapping("/landmarks/{id}")
+    public ResponseEntity<ApiResponse<MapLandmarkResponse>> updateLandmark(
+            @PathVariable Long id,
+            @jakarta.validation.Valid @RequestBody lk.ac.sliit.legacylens.map.dto.CreateLandmarkRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Landmark updated successfully", mapService.updateLandmark(id, request)));
+    }
+
+    @DeleteMapping("/landmarks/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteLandmark(@PathVariable Long id) {
+        mapService.deleteLandmark(id);
+        return ResponseEntity.ok(ApiResponse.ok("Landmark deleted successfully", null));
+    }
+
+    @PostMapping("/badges/upload")
+    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> uploadBadgeImage(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        String url = mapService.uploadBadgeImage(file);
+        return ResponseEntity.ok(ApiResponse.ok("Badge image uploaded successfully", java.util.Map.of("imageUrl", url)));
+    }
+
+    @PostMapping("/badges")
+    public ResponseEntity<ApiResponse<lk.ac.sliit.legacylens.map.dto.BadgeResponse>> saveBadge(
+            @jakarta.validation.Valid @RequestBody lk.ac.sliit.legacylens.map.dto.SaveBadgeRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Badge saved successfully", mapService.saveBadge(request)));
+    }
+
+    @PostMapping("/quests")
+    public ResponseEntity<ApiResponse<lk.ac.sliit.legacylens.map.dto.QuestResponse>> saveQuest(
+            @jakarta.validation.Valid @RequestBody lk.ac.sliit.legacylens.map.dto.SaveQuestRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Quest saved successfully", mapService.saveQuest(request)));
+    }
+
+    @DeleteMapping("/quests/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteQuest(@PathVariable Long id) {
+        mapService.deleteQuest(id);
+        return ResponseEntity.ok(ApiResponse.ok("Quest deleted successfully", null));
     }
 
     @PostMapping("/seed")

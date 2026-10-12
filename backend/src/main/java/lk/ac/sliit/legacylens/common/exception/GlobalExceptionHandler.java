@@ -1,12 +1,18 @@
 package lk.ac.sliit.legacylens.common.exception;
 
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
+import lk.ac.sliit.legacylens.speech.exception.ProviderNotFoundException;
+import lk.ac.sliit.legacylens.speech.exception.SpeechProviderException;
+import lk.ac.sliit.legacylens.speech.exception.UnsupportedAudioException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.LinkedHashMap;
@@ -19,6 +25,8 @@ import java.util.Map;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleValidation(
@@ -99,6 +107,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidApplicationStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidApplicationState(InvalidApplicationStateException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidFileUploadException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidFileUpload(InvalidFileUploadException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ex.getMessage()));
@@ -122,11 +135,44 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(FileStorageException.class)
     public ResponseEntity<ApiResponse<Void>> handleFileStorage(FileStorageException ex) {
+        // Handled exceptions don't reach Spring's own unhandled-exception
+        // logging, so without this a misconfigured bucket/endpoint fails
+        // silently server-side — the client only ever sees ex.getMessage().
+        log.error("File storage failure: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(StateTransitionException.class)
+    public ResponseEntity<ApiResponse<Void>> handleStateTransition(StateTransitionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(UnsupportedAudioException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnsupportedAudio(UnsupportedAudioException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ProviderNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleProviderNotFound(ProviderNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(SpeechProviderException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSpeechProvider(SpeechProviderException ex) {
+        log.warn("Speech provider failure: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    /** e.g. an unparseable enum or UUID passed as a @RequestParam/@PathVariable — a client input error, not a server one. */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error("Invalid value for '" + ex.getName() + "': " + ex.getValue()));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneric(Exception ex) {
+        log.error("Unhandled exception occurred: ", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Something went wrong. Please try again."));
     }

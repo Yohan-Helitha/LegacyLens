@@ -11,6 +11,7 @@ import lk.ac.sliit.legacylens.users.entity.RoleType;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.entity.UserRole;
 import lk.ac.sliit.legacylens.users.entity.VerificationStatus;
+import lk.ac.sliit.legacylens.users.repository.CityRepository;
 import lk.ac.sliit.legacylens.users.repository.CreatorProfileRepository;
 import lk.ac.sliit.legacylens.users.repository.KnowledgeHolderProfileRepository;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
@@ -28,6 +29,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +37,9 @@ class UserProfileServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private CityRepository cityRepository;
 
     @Mock
     private KnowledgeHolderProfileRepository knowledgeHolderProfileRepository;
@@ -47,7 +52,7 @@ class UserProfileServiceImplTest {
     @BeforeEach
     void setUp() {
         userProfileService = new UserProfileServiceImpl(
-                userRepository, knowledgeHolderProfileRepository, creatorProfileRepository);
+                userRepository, cityRepository, knowledgeHolderProfileRepository, creatorProfileRepository);
     }
 
     @Test
@@ -126,6 +131,42 @@ class UserProfileServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> userProfileService.getMyProfile(userId));
+    }
+
+    // ── markTutorialComplete ──────────────────────────────────────────────
+
+    @Test
+    void markTutorialComplete_setsFlagTrue() {
+        UUID userId = UUID.randomUUID();
+        User user = buildUser(userId, RoleType.GENERAL_USER);
+        user.setTutorialCompleted(false);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        userProfileService.markTutorialComplete(userId);
+
+        assertThat(user.isTutorialCompleted()).isTrue();
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void markTutorialComplete_idempotentOnRepeatedCalls() {
+        UUID userId = UUID.randomUUID();
+        User user = buildUser(userId, RoleType.GENERAL_USER);
+        user.setTutorialCompleted(true);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        userProfileService.markTutorialComplete(userId);
+        userProfileService.markTutorialComplete(userId);
+
+        assertThat(user.isTutorialCompleted()).isTrue();
+    }
+
+    @Test
+    void markTutorialComplete_unknownUserId_throwsResourceNotFoundException() {
+        UUID userId = UUID.randomUUID();
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userProfileService.markTutorialComplete(userId));
     }
 
     private User buildUser(UUID userId, RoleType roleType) {

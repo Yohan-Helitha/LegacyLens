@@ -107,6 +107,43 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
+    public AuthResponse registerAdmin(RegisterRequest request) {
+        if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
+            throw new DuplicatePhoneNumberException("An account with this phone number already exists");
+        }
+
+        if (userRepository.existsByNicNumber(request.getNicNumber())) {
+            throw new DuplicateNicException("An account with this NIC number already exists");
+        }
+
+        City city = cityRepository.findById(request.getCityId())
+                .orElseThrow(() -> new ResourceNotFoundException("Selected city was not found"));
+
+        User user = new User();
+        user.setFullName(request.getFullName());
+        user.setPhoneNumber(request.getPhoneNumber());
+        user.setDateOfBirth(request.getDateOfBirth());
+        user.setNicNumber(request.getNicNumber());
+        user.setCity(city);
+        user.setPinHash(passwordEncoder.encode(request.getPin()));
+        user.setAccountStatus(AccountStatus.ACTIVE);
+        user.setPhoneVerified(true);
+        userRepository.save(user);
+
+        UserRole role = new UserRole();
+        role.setUser(user);
+        role.setRoleType(RoleType.ADMIN);
+        role.setStatus(RoleStatus.ACTIVE);
+        role.setActivatedAt(LocalDateTime.now());
+        userRoleRepository.save(role);
+        
+        user.getRoles().add(role);
+
+        return buildAuthResponse(user);
+    }
+
+    @Override
+    @Transactional
     public AuthResponse verifyOtpAndActivate(VerifyOtpRequest request) {
         otpService.verifyOtp(request.getPhoneNumber(), request.getOtpCode(), OtpPurpose.REGISTRATION);
 

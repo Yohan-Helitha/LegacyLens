@@ -3,7 +3,15 @@
  * (POST/GET/DELETE /api/stories/**).
  */
 
-export type StoryStatus = 'PENDING' | 'PUBLISHED';
+/**
+ * Mirrors the backend's unified StoryStatus enum (stories/entity/StoryStatus.java) —
+ * the single status vocabulary shared with the admin moderation side
+ * (ModerationQueueItem maps the same column). No separate "approved" state:
+ * the admin's "Approve & Publish Live" action moves PENDING straight to
+ * PUBLISHED. DRAFT is elder-only — a draft is never submitted to admin, so
+ * it never becomes visible on the moderation side.
+ */
+export type StoryStatus = 'DRAFT' | 'PENDING' | 'PUBLISHED' | 'REJECTED' | 'ARCHIVED';
 export type StoryMethod = 'RECORDED' | 'UPLOADED' | 'WRITTEN';
 export type StoryMediaType = 'AUDIO' | 'VIDEO';
 
@@ -41,4 +49,25 @@ export interface CreateStoryPayload {
 export interface UpdateStoryPayload {
   title: string;
   description?: string;
+}
+
+/** Mirrors StorySummaryDto — the row shape GET /api/stories/mine returns (Screen 6, My Stories). */
+export interface StorySummary {
+  id: string;
+  title: string;
+  status: StoryStatus;
+  mediaType: StoryMediaType | null;
+  /** Root-relative — prefix with the API host to get a playable URL. */
+  mediaUrl: string | null;
+  viewCount: number;
+  createdAt: string;
+}
+
+/** Mirrors common.dto.PagedResponse — the wrapper every paginated endpoint returns. */
+export interface PagedResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }

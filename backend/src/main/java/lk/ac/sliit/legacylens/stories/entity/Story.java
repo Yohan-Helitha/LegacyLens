@@ -44,7 +44,12 @@ public class Story {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Enumerated(EnumType.STRING)
+    /**
+     * Mapped via StoryStatusConverter (autoApply), not @Enumerated — an
+     * explicit @Enumerated on this field would suppress the auto-apply
+     * converter per the JPA spec, defeating its whole purpose (see the
+     * converter's own doc comment for why that matters here).
+     */
     @Column(nullable = false, length = 20)
     private StoryStatus status = StoryStatus.PENDING;
 
@@ -80,4 +85,8 @@ public class Story {
 
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
+
+    /** Debounced view count — see StoryViewTrackingService. Never written to directly. */
+    @Column(name = "view_count", nullable = false)
+    private long viewCount = 0;
 }

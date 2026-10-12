@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface FeedItemCommentRepository extends JpaRepository<FeedItemComment, Long> {
     List<FeedItemComment> findByFeedItemIdOrderByCreatedAtDesc(Long feedItemId);
+
+    List<FeedItemComment> findByStoryIdOrderByCreatedAtDesc(java.util.UUID storyId);
 }

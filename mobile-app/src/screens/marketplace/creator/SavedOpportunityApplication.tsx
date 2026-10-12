@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -6,10 +6,10 @@ import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
-import {
-  useOpportunityApplicationStore,
-  type OpportunityApplicationRecord,
-} from '../../../store/opportunityApplicationStore';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
+import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
+import { ApiError } from '../../../services/api/client';
+import type { OpportunityApplicationResponse } from '../../../types/opportunityApplication';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -28,6 +28,11 @@ const D = {
 
 function formatSavedDate(iso: string): string {
   return `Saved ${new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+}
+
+function formatScheduledDate(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,23 +74,6 @@ const TrashIcon: React.FC<IconProps> = ({ size = 18, color = D.secondary }) => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC<{ onBack: () => void }> = ({ onBack }) => (
-  <View style={s.appBar}>
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} onPress={onBack} accessibilityRole="button" accessibilityLabel="Go back">
-      <Text style={s.backArrow}>{'←'}</Text>
-    </Pressable>
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Notifications">
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared bits
@@ -96,7 +84,7 @@ const StatusBadge: React.FC<{ label: string }> = ({ label }) => (
   </View>
 );
 
-const DetailRows: React.FC<{ record: OpportunityApplicationRecord }> = ({ record }) => (
+const DetailRows: React.FC<{ record: OpportunityApplicationResponse }> = ({ record }) => (
   <View style={{ gap: 6 }}>
     <View style={s.infoRow}>
       <PersonIcon />
@@ -111,7 +99,7 @@ const DetailRows: React.FC<{ record: OpportunityApplicationRecord }> = ({ record
     <View style={s.dateTimeRow}>
       <View style={s.infoRow}>
         <CalendarIcon />
-        <Text style={s.infoTextStrong}>{record.scheduledDateText ?? '—'}</Text>
+        <Text style={s.infoTextStrong}>{formatScheduledDate(record.scheduledDate) ?? '—'}</Text>
       </View>
       {record.timeWindowText && <Text style={s.infoTextStrong}>{record.timeWindowText}</Text>}
     </View>
@@ -124,47 +112,89 @@ const DetailRows: React.FC<{ record: OpportunityApplicationRecord }> = ({ record
 export const SavedOpportunityApplication: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
-  onEditDraft: (draftId: string, opportunityId: string | null) => void;
+  onEditDraft: (opportunityId: string) => void;
   onViewOpportunity: (opportunityId: string) => void;
 }> = ({ onNavigate, onBack, onEditDraft, onViewOpportunity }) => {
-  const applications = useOpportunityApplicationStore((s) => s.applications);
-  const submitApplication = useOpportunityApplicationStore((s) => s.submitApplication);
-  const removeApplication = useOpportunityApplicationStore((s) => s.removeApplication);
+  const [applications, setApplications] = useState<OpportunityApplicationResponse[]>([]);
+
+  const loadApplications = useCallback(() => {
+    opportunityApplicationApi.getMyApplications().then(setApplications).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadApplications();
+  }, [loadApplications]);
 
   const saved = applications.filter((a) => a.status === 'SAVED');
-  const submitted = applications.filter((a) => a.status === 'PENDING' || a.status === 'APPROVED');
+  // APPROVED deliberately excluded — once approved it moves to the
+  // dashboard's Upcoming Booking tab and no longer shows here.
+  const submitted = applications.filter((a) => a.status === 'PENDING' || a.status === 'REJECTED');
 
-  const confirmDelete = (record: OpportunityApplicationRecord) => {
+  const confirmDelete = (record: OpportunityApplicationResponse) => {
     Alert.alert(
       'Delete this application?',
       `"${record.title}" will be removed${record.status === 'SAVED' ? ' from your saved drafts' : ''}.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => removeApplication(record.id) },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await opportunityApplicationApi.remove(record.id);
+              loadApplications();
+            } catch (err) {
+              const message = err instanceof ApiError ? err.message : 'Could not delete this application.';
+              Alert.alert('Delete failed', message);
+            }
+          },
+        },
       ],
     );
   };
 
-  const handleView = (record: OpportunityApplicationRecord) => {
-    if (record.opportunityId) {
-      onViewOpportunity(record.opportunityId);
-    } else {
-      // Demo entries aren't linked to a real opportunity row.
-      Alert.alert(record.title, 'This is a sample application — no linked opportunity to open yet.');
+  const handleSubmit = async (record: OpportunityApplicationResponse) => {
+    try {
+      await opportunityApplicationApi.submit(record.id);
+      loadApplications();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not submit this application.';
+      Alert.alert('Submit failed', message);
     }
   };
 
-  const handleBook = (record: OpportunityApplicationRecord) => {
-    // There's no real booking/assignment backend yet — this just confirms
-    // the intent locally, same stopgap used for the schedule page's "View".
-    Alert.alert('Booking requested', `The knowledge holder will confirm your booking for "${record.title}".`);
+  const handleView = (record: OpportunityApplicationResponse) => {
+    onViewOpportunity(record.opportunityId);
+  };
+
+  // TEMPORARY: self-approve until a real knowledge-holder review UI exists —
+  // see OpportunityApplicationController#approve's javadoc on the backend.
+  const handleApprove = async (record: OpportunityApplicationResponse) => {
+    try {
+      await opportunityApplicationApi.approve(record.id);
+      loadApplications();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not approve this application.';
+      Alert.alert('Approve failed', message);
+    }
+  };
+
+  // TEMPORARY: self-reject, standing in for the knowledge holder the same way handleApprove does.
+  const handleReject = async (record: OpportunityApplicationResponse) => {
+    try {
+      await opportunityApplicationApi.reject(record.id);
+      loadApplications();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not reject this application.';
+      Alert.alert('Reject failed', message);
+    }
   };
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar onBack={onBack} />
+      <CreatorTopAppBar variant="back" onBack={onBack} />
 
       <ScrollView
         style={s.scroll}
@@ -194,7 +224,7 @@ export const SavedOpportunityApplication: React.FC<{
                 <View style={s.actionsRow}>
                   <View style={s.actionsLeft}>
                     <Pressable
-                      onPress={() => onEditDraft(record.id, record.opportunityId)}
+                      onPress={() => onEditDraft(record.opportunityId)}
                       style={({ pressed }) => [s.outlineBtn, pressed && s.pressed]}
                       accessibilityRole="button"
                       accessibilityLabel={`Edit ${record.title}`}
@@ -202,7 +232,7 @@ export const SavedOpportunityApplication: React.FC<{
                       <Text style={s.outlineBtnText}>Edit</Text>
                     </Pressable>
                     <Pressable
-                      onPress={() => submitApplication(record.id)}
+                      onPress={() => handleSubmit(record)}
                       style={({ pressed }) => [s.fillBtn, pressed && s.pressed]}
                       accessibilityRole="button"
                       accessibilityLabel={`Submit ${record.title}`}
@@ -239,42 +269,57 @@ export const SavedOpportunityApplication: React.FC<{
             submitted.map((record) => (
               <View key={record.id} style={s.card}>
                 <View style={s.cardTopRow}>
-                  <StatusBadge label={record.status === 'PENDING' ? 'Pending' : 'Approved'} />
-                  <Pressable
-                    onPress={() => confirmDelete(record)}
-                    style={({ pressed }) => [s.trashBtn, pressed && s.pressed]}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Cancel ${record.title}`}
-                  >
-                    <TrashIcon />
-                  </Pressable>
+                  <StatusBadge label={record.status === 'PENDING' ? 'Pending' : 'Rejected'} />
+                  {/* Only a rejected request is the creator's to remove — while
+                      pending, the decision belongs to the knowledge holder. */}
+                  {record.status === 'REJECTED' && (
+                    <Pressable
+                      onPress={() => confirmDelete(record)}
+                      style={({ pressed }) => [s.trashBtn, pressed && s.pressed]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete ${record.title}`}
+                    >
+                      <TrashIcon />
+                    </Pressable>
+                  )}
                 </View>
 
                 <Text style={s.cardTitle} numberOfLines={2}>{record.title}</Text>
 
                 <DetailRows record={record} />
 
-                <View style={s.actionsRow}>
-                  {record.status === 'APPROVED' ? (
+                {record.status === 'PENDING' ? (
+                  <View style={{ gap: Spacing.sm }}>
+                    <Pressable
+                      onPress={() => handleView(record)}
+                      style={({ pressed }) => [s.outlineBtn, { flex: 0, alignSelf: 'flex-start', minWidth: 112, maxWidth: 140 }, pressed && s.pressed]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View ${record.title}`}
+                    >
+                      <Text style={s.outlineBtnText}>View</Text>
+                    </Pressable>
+                    {/* TEMPORARY: both stand in for the knowledge holder's own decision until that review UI exists. */}
                     <View style={s.actionsLeft}>
                       <Pressable
-                        onPress={() => handleView(record)}
-                        style={({ pressed }) => [s.outlineBtn, pressed && s.pressed]}
+                        onPress={() => handleReject(record)}
+                        style={({ pressed }) => [s.dangerBtn, pressed && s.pressed]}
                         accessibilityRole="button"
-                        accessibilityLabel={`View ${record.title}`}
+                        accessibilityLabel={`Reject ${record.title}`}
                       >
-                        <Text style={s.outlineBtnText}>View</Text>
+                        <Text style={s.dangerBtnText}>Reject (Test)</Text>
                       </Pressable>
                       <Pressable
-                        onPress={() => handleBook(record)}
+                        onPress={() => handleApprove(record)}
                         style={({ pressed }) => [s.fillBtn, pressed && s.pressed]}
                         accessibilityRole="button"
-                        accessibilityLabel={`Book ${record.title}`}
+                        accessibilityLabel={`Approve ${record.title}`}
                       >
-                        <Text style={s.fillBtnText}>Book</Text>
+                        <Text style={s.fillBtnText}>Approve (Test)</Text>
                       </Pressable>
                     </View>
-                  ) : (
+                  </View>
+                ) : (
+                  <View style={s.actionsRow}>
                     <Pressable
                       onPress={() => handleView(record)}
                       style={({ pressed }) => [s.fillBtn, { flex: 0, minWidth: 112 }, pressed && s.pressed]}
@@ -283,8 +328,8 @@ export const SavedOpportunityApplication: React.FC<{
                     >
                       <Text style={s.fillBtnText}>View</Text>
                     </Pressable>
-                  )}
-                </View>
+                  </View>
+                )}
               </View>
             ))
           )}
@@ -401,6 +446,12 @@ const s = StyleSheet.create({
     backgroundColor: D.primary, alignItems: 'center', justifyContent: 'center', minHeight: 40,
   },
   fillBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#ffffff' },
+  // TEMPORARY (see handleReject) — a distinct destructive tone, not otherwise used in this palette.
+  dangerBtn: {
+    flex: 1, paddingVertical: 9, borderRadius: Radii.full,
+    borderWidth: 1.5, borderColor: '#C0392B', alignItems: 'center', justifyContent: 'center', minHeight: 40,
+  },
+  dangerBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#C0392B' },
   trashBtn: { padding: 4 },
 
   // ── Press feedback ───────────────────────────────────────────────────────

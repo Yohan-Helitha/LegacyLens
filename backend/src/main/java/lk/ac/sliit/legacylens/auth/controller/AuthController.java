@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Public auth endpoints — all permitted without a token (see SecurityConfig).
  * Thin by design: validates input via @Valid, delegates everything to AuthService.
+ * Thin by design: validates input via @Valid, delegates everything to
+ * AuthService.
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -38,6 +40,14 @@ public class AuthController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Registration successful", response));
+    }
+
+    @PostMapping("/register-admin")
+    public ResponseEntity<ApiResponse<AuthResponse>> registerAdmin(@Valid @RequestBody RegisterRequest request) {
+        AuthResponse response = authService.registerAdmin(request);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Admin registered successfully", response));
     }
 
     @PostMapping("/verify-otp")

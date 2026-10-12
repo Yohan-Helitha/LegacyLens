@@ -96,12 +96,12 @@
     { "id": "a20", "name": "Jayatissa", "location": "Puttalam", "duration": "12 mins", "topic": "Coastal fishing traditions and salt production", "tags": ["rural","stilt","oral","village","memory","folk","fishing"], "avatar": "https://i.pravatar.cc/150?img=26", "bars": [2,4,3,5,2,6,4,2,3,5,2] }
   ],
   "mapLocations": [
-    { "id": "kandy", "name": "Temple of the Tooth", "description": "A sacred Buddhist temple...", "lng": 80.6416, "lat": 7.2936, "icon": "🛕", "image": "https://images.unsplash.com/photo-1620025983849-01eaae8b7c7b?q=80&w=200&h=200&fit=crop", "modelUrl": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb", "region": "Central Highlands" },
-    { "id": "sigiriya", "name": "Sigiriya Rock Fortress", "description": "Ancient palace and fortress...", "lng": 80.7603, "lat": 7.9570, "icon": "🏔️", "image": "https://images.unsplash.com/photo-1586220742614-eb06ec4a3629?q=80&w=200&h=200&fit=crop", "modelUrl": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb", "region": "North Central Province" },
-    { "id": "galle", "name": "Galle Dutch Fort", "description": "A historical heritage monument...", "lng": 80.2170, "lat": 6.0267, "icon": "🏰", "image": "https://images.unsplash.com/photo-1590480376288-7243c5bdf13c?q=80&w=200&h=200&fit=crop", "modelUrl": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb", "region": "Southern Province" },
-    { "id": "anuradhapura", "name": "Ruwanwelisaya", "description": "A hemispherical structure...", "lng": 80.3965, "lat": 8.3444, "icon": "🛕", "image": "https://images.unsplash.com/photo-1616853755490-8edb8be232b7?q=80&w=200&h=200&fit=crop", "modelUrl": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb", "region": "North Central Province" },
-    { "id": "ella", "name": "Nine Arches Bridge", "description": "Colonial-era railway construction...", "lng": 81.0608, "lat": 6.8767, "icon": "🚂", "image": "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?q=80&w=200&h=200&fit=crop", "modelUrl": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb", "region": "Uva Province" },
-    { "id": "jaffna", "name": "Nallur Kovil", "description": "Significant Hindu temple...", "lng": 80.0306, "lat": 9.6738, "icon": "🔱", "image": "https://images.unsplash.com/photo-1658428384165-f123dcd2f33c?q=80&w=200&h=200&fit=crop", "modelUrl": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb", "region": "Northern Province" }
+    { "id": "kandy", "name": "Temple of the Tooth", "type": "Religious & Sacred Places", "description": "A sacred Buddhist temple...", "lng": 80.6416, "lat": 7.2936, "icon": "🛕", "region": "Central Highlands" },
+    { "id": "sigiriya", "name": "Sigiriya Rock Fortress", "type": "Historical & Archaeological Sites", "description": "Ancient palace and fortress...", "lng": 80.7603, "lat": 7.9570, "icon": "🏔️", "region": "North Central Province" },
+    { "id": "galle", "name": "Galle Dutch Fort", "type": "Colonial & Architectural Heritage", "description": "A historical heritage monument...", "lng": 80.2170, "lat": 6.0267, "icon": "🏰", "region": "Southern Province" },
+    { "id": "anuradhapura", "name": "Ruwanwelisaya", "type": "Religious & Sacred Places", "description": "A hemispherical structure...", "lng": 80.3965, "lat": 8.3444, "icon": "🛕", "region": "North Central Province" },
+    { "id": "ella", "name": "Nine Arches Bridge", "type": "Colonial & Architectural Heritage", "description": "Colonial-era railway construction...", "lng": 81.0608, "lat": 6.8767, "icon": "🚂", "region": "Uva Province" },
+    { "id": "jaffna", "name": "Nallur Kovil", "type": "Religious & Sacred Places", "description": "Significant Hindu temple...", "lng": 80.0306, "lat": 9.6738, "icon": "🔱", "region": "Northern Province" }
   ],
   "adventureStages": [
     {
@@ -314,6 +314,98 @@
           ]
         }
       ]
+    }
+  ],
+  "culturalRegions": [
+    {
+      "id": "all",
+      "label": "All Regions",
+      "regionName": "All",
+      "description": "Explore the entire island",
+      "districts": "Jaffna, Kilinochchi, Mannar, Mullaitivu, Vavuniya, Anuradhapura, Polonnaruwa, Trincomalee, Batticaloa, Ampara, Puttalam, Kurunegala, Kandy, Matale, Nuwara Eliya, Badulla, Monaragala, Colombo, Gampaha, Kalutara, Galle, Matara, Hambantota, Ratnapura, Kegalle",
+      "lng": 80.85,
+      "lat": 7.8,
+      "zoom": 7.2
+    },
+    {
+      "id": "r1",
+      "label": "Northern Sri Lanka",
+      "regionName": "Northern Province",
+      "description": "Jaffna / Mannar / Kilinochchi / Mullaitivu",
+      "districts": "Jaffna, Mannar, Kilinochchi, Mullaitivu, Vavuniya",
+      "lng": 80.4,
+      "lat": 9.3,
+      "zoom": 7.5
+    },
+    {
+      "id": "r2",
+      "label": "North Central",
+      "regionName": "North Central Province",
+      "description": "Anuradhapura / Polonnaruwa",
+      "districts": "Anuradhapura, Polonnaruwa",
+      "lng": 80.5,
+      "lat": 8.2,
+      "zoom": 8.2
+    },
+    {
+      "id": "r3",
+      "label": "Eastern Sri Lanka",
+      "regionName": "Eastern Province",
+      "description": "Trincomalee / Batticaloa / Ampara",
+      "districts": "Trincomalee, Batticaloa, Ampara",
+      "lng": 81.4,
+      "lat": 7.8,
+      "zoom": 7.5
+    },
+    {
+      "id": "r4",
+      "label": "North Western",
+      "regionName": "North Western Province",
+      "description": "Puttalam / Kurunegala",
+      "districts": "Puttalam, Kurunegala",
+      "lng": 80.1,
+      "lat": 7.7,
+      "zoom": 8.2
+    },
+    {
+      "id": "r5",
+      "label": "Central Highlands",
+      "regionName": "Central Highlands",
+      "description": "Kandy / Matale / Nuwara Eliya",
+      "districts": "Kandy, Matale, Nuwara Eliya",
+      "lng": 80.7,
+      "lat": 7.1,
+      "zoom": 8.5
+    },
+    {
+      "id": "r6",
+      "label": "Uva & Eastern Highlands",
+      "regionName": "Uva Province",
+      "description": "Badulla / Monaragala",
+      "districts": "Badulla, Monaragala",
+      "lng": 81.2,
+      "lat": 6.9,
+      "zoom": 8.2
+    },
+    {
+      "id": "r7",
+      "label": "Western Sri Lanka",
+      "regionName": "Western Province",
+      "description": "Colombo / Gampaha / Kalutara",
+      "districts": "Colombo, Gampaha, Kalutara",
+      "lng": 80.0,
+      "lat": 6.9,
+      "zoom": 8.5
+    },
+    {
+      "id": "r8",
+      "label": "Southern & Sabaragamuwa",
+      "regionName": "Southern Province",
+      "description": "Galle / Matara / Ratnapura / Kegalle",
+      "districts": "Galle, Matara, Hambantota, Ratnapura, Kegalle",
+      "lng": 80.5,
+      "lat": 6.3,
+      "zoom": 8.2
     }
   ]
 }

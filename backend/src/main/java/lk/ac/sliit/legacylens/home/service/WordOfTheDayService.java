@@ -43,10 +43,12 @@ public class WordOfTheDayService {
     @Transactional
     public WordOfTheDayResponse createWord(WordOfTheDayRequest request) {
         WordOfTheDay word = repository.findByActiveDate(request.getActiveDate()).orElse(new WordOfTheDay());
+        word.setLanguage(request.getLanguage() != null && !request.getLanguage().isBlank() ? request.getLanguage() : "Sinhala");
         word.setWord(request.getWord());
         word.setTransliteration(request.getTransliteration());
         word.setDefinition(request.getDefinition());
-        word.setCulturalNote(request.getCulturalNote());
+        word.setPartOfSpeech(request.getPartOfSpeech());
+        word.setAudioFilename(request.getAudioFilename());
         word.setActiveDate(request.getActiveDate());
 
         WordOfTheDay saved = repository.save(word);
@@ -59,8 +61,10 @@ public class WordOfTheDayService {
                 .word(word.getWord())
                 .transliteration(word.getTransliteration())
                 .definition(word.getDefinition())
-                .culturalNote(word.getCulturalNote())
+                .partOfSpeech(word.getPartOfSpeech())
+                .audioFilename(word.getAudioFilename())
                 .activeDate(word.getActiveDate())
+                .language(word.getLanguage())
                 .build();
     }
 }

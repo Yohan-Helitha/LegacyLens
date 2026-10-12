@@ -13,6 +13,8 @@ public class WordOfTheDayResponse {
     private String word;
     private String transliteration;
     private String definition;
-    private String culturalNote;
+    private String partOfSpeech;
+    private String audioFilename;
     private LocalDate activeDate;
+    private String language;
 }

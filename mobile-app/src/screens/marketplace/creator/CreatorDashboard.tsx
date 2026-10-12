@@ -1,26 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Image,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle, Path } from 'react-native-svg';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
+import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
+import { ApiError } from '../../../services/api/client';
 import type {
   CreatorDashboardSummaryResponse,
   DashboardJobStatus,
   JobResponse,
 } from '../../../types/creatorDashboard';
+import type { OpportunityApplicationResponse } from '../../../types/opportunityApplication';
 
 // Recent Work gallery — bundled locally so the viva demo never depends on network access.
 const POTTERY_IMAGE = require('../../../../assets/images/recent-work/pottery-making.jpg');
@@ -87,51 +92,6 @@ const TAB_TO_STATUS: Record<JobTab, DashboardJobStatus> = {
   completed: 'COMPLETED',
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Fallback data — shown only if the /api/creator-dashboard/** call fails
-// (e.g. no connectivity), so the screen never renders blank or broken.
-// ─────────────────────────────────────────────────────────────────────────────
-const FALLBACK_SUMMARY: CreatorDashboardSummaryResponse = {
-  rating: 4.8,
-  completedJobsCount: 24,
-  contributionsCount: 38,
-  collectedToday: 2300,
-};
-
-const FALLBACK_ACTIVE_JOBS: ActiveJobItem[] = [
-  {
-    id: 'fallback-1',
-    icon: '🎥',
-    title: 'Recording Local History',
-    client: 'Mrs. Kamala Wijesinghe',
-    description:
-      'Recording oral history regarding the 1970s textile industry in Colombo, focusing on traditional methods and personal anecdotes.',
-    location: 'Colombo South',
-    dueText: 'Due in 3 days',
-    statusLabel: 'IN PROGRESS',
-  },
-  {
-    id: 'fallback-2',
-    icon: '🎥',
-    title: 'Traditional Food Recipe Documentation',
-    client: 'Mrs. Kamala Wijesinghe',
-    description:
-      'Recording the step-by-step preparation of a traditional Negombo family recipe, including ingredient measurements and cooking techniques.',
-    location: 'Negombo',
-    dueText: 'Due in 3 days',
-    statusLabel: 'IN PROGRESS',
-  },
-];
-
-const FALLBACK_REVIEWS: ReviewItem[] = [
-  {
-    id: 'fallback-1',
-    quote:
-      'Incredibly patient and captured my grandmother’s stories perfectly. The audio quality is fantastic.',
-    author: 'Surangi D.',
-  },
-];
-
 function formatDueDate(iso: string): string {
   const diffDays = Math.round((new Date(iso).getTime() - Date.now()) / 86400000);
   if (diffDays > 1) return `Due in ${diffDays} days`;
@@ -142,6 +102,33 @@ function formatDueDate(iso: string): string {
 
 function formatCompletedDate(iso: string): string {
   return `Completed ${new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+}
+
+function formatAppDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+// Local (not UTC) y-m-d / HH:mm — avoids the date/time shifting a day or hour
+// off that toISOString() would cause for users west of UTC.
+function toDateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function toTimeKey(d: Date): string {
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${min}`;
+}
+
+function formatLongDate(d: Date): string {
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function formatClockTime(d: Date): string {
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
 function mapJobToItem(job: JobResponse): ActiveJobItem {
@@ -192,38 +179,6 @@ const ClockIcon: React.FC<IconProps> = ({ size = 13, color = '#E8792E' }) => (
   </Svg>
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC = () => (
-  <View style={s.appBar}>
-    <Pressable
-      style={({ pressed }) => [s.appBarIconBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Open menu"
-    >
-      <View style={s.hamburger}>
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-      </View>
-    </Pressable>
-
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-
-    <Pressable
-      style={({ pressed }) => [s.appBarIconBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Notifications"
-    >
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GreetingSection
@@ -248,7 +203,7 @@ const GreetingSection: React.FC = () => (
 // MetricsSection  (stats card + balance card)
 // ─────────────────────────────────────────────────────────────────────────────
 const MetricsSection: React.FC<{
-  summary: CreatorDashboardSummaryResponse;
+  summary: CreatorDashboardSummaryResponse | null;
   onOpenHistory: () => void;
   onAddPayment: () => void;
 }> = ({ summary, onOpenHistory, onAddPayment }) => (
@@ -256,12 +211,12 @@ const MetricsSection: React.FC<{
     {/* ── Stats row ─────────────────────────────────────────────────────── */}
     <View style={s.statsCard}>
       <View style={s.ratingRow}>
-        <Text style={s.ratingValue}>{summary.rating != null ? summary.rating.toFixed(1) : '—'}</Text>
+        <Text style={s.ratingValue}>{summary?.rating != null ? summary.rating.toFixed(1) : '—'}</Text>
         <StarIcon size={20} color={D.tertiaryContainer} />
       </View>
       <View style={s.statsRight}>
-        <Text style={s.statsJobCount}>{summary.completedJobsCount} completed jobs</Text>
-        <Text style={s.statsContrib}>{summary.contributionsCount} contributions</Text>
+        <Text style={s.statsJobCount}>{summary ? `${summary.completedJobsCount} completed jobs` : 'Loading…'}</Text>
+        <Text style={s.statsContrib}>{summary ? `${summary.contributionsCount} contributions` : ''}</Text>
       </View>
     </View>
 
@@ -272,7 +227,7 @@ const MetricsSection: React.FC<{
 
       <Text style={s.balanceLabel}>COLLECTED TODAY</Text>
       <Text style={s.balanceAmount}>
-        LKR {Math.round(summary.collectedToday ?? 0).toLocaleString('en-US')}
+        {summary ? `LKR ${Math.round(summary.collectedToday ?? 0).toLocaleString('en-US')}` : 'LKR —'}
       </Text>
 
       <View style={s.balanceBtnRow}>
@@ -372,9 +327,67 @@ const ActiveJobCard: React.FC<{ item: ActiveJobItem; onPress: () => void }> = ({
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ApprovedApplicationCard — an approved OpportunityApplication shown
+// alongside real Jobs in the Upcoming Booking tab. TEMPORARY: once approving
+// creates a real Job (see OpportunityApplicationStatus's javadoc), this can
+// likely be retired in favour of ActiveJobCard alone.
+// ─────────────────────────────────────────────────────────────────────────────
+const ApprovedApplicationCard: React.FC<{
+  item: OpportunityApplicationResponse;
+  onBook: () => void;
+}> = ({ item, onBook }) => (
+  <View style={s.jobCard}>
+    <View style={s.jobCardHeader}>
+      <View style={s.jobCardLeft}>
+        <View style={s.jobIconBox}>
+          <Text style={{ fontSize: 18 }}>🎥</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.jobTitle}>{item.title}</Text>
+          <Text style={s.jobClient}>{item.elderName}</Text>
+        </View>
+      </View>
+      <View style={s.jobStatusBadge}>
+        <Text style={s.jobStatusText}>APPROVED</Text>
+      </View>
+    </View>
+
+    <View style={s.jobMeta}>
+      {item.location && (
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}>
+            <PinIcon />
+          </View>
+          <Text style={s.jobMetaText}>{item.location}</Text>
+        </View>
+      )}
+      {item.scheduledDate && (
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}>
+            <ClockIcon />
+          </View>
+          <Text style={[s.jobMetaText, { color: D.secondary }]}>{formatAppDate(item.scheduledDate)}</Text>
+        </View>
+      )}
+    </View>
+
+    <View style={s.jobViewDetailsRow}>
+      <Pressable
+        onPress={onBook}
+        style={({ pressed }) => [s.bookBtn, pressed && s.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`Book ${item.title}`}
+      >
+        <Text style={s.bookBtnText}>Book</Text>
+      </Pressable>
+    </View>
+  </View>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // FeedbackSection
 // ─────────────────────────────────────────────────────────────────────────────
-const FeedbackSection: React.FC<{ rating: number | null; reviews: ReviewItem[] }> = ({ rating, reviews }) => (
+const FeedbackSection: React.FC<{ rating: number | null; reviews: ReviewItem[] | null }> = ({ rating, reviews }) => (
   <View style={s.section}>
     <View style={s.sectionHeader}>
       <Text style={s.sectionTitle}>Client Feedback</Text>
@@ -384,18 +397,28 @@ const FeedbackSection: React.FC<{ rating: number | null; reviews: ReviewItem[] }
       </View>
     </View>
 
-    <View style={{ gap: Spacing.sm }}>
-      {reviews.map((review) => (
-        <View key={review.id} style={s.feedbackCard}>
-          {/* Decorative large quote mark */}
-          <Text style={s.quoteDecor}>{'“'}</Text>
-          {/* Left accent bar */}
-          <View style={s.quoteBar} />
-          <Text style={s.quoteText}>{`“${review.quote}”`}</Text>
-          <Text style={s.quoteAuthor}>{`— ${review.author}`}</Text>
-        </View>
-      ))}
-    </View>
+    {reviews === null ? (
+      <View style={s.emptyState}>
+        <Text style={s.emptyStateText}>Loading…</Text>
+      </View>
+    ) : reviews.length === 0 ? (
+      <View style={s.emptyState}>
+        <Text style={s.emptyStateText}>No reviews yet.</Text>
+      </View>
+    ) : (
+      <View style={{ gap: Spacing.sm }}>
+        {reviews.map((review) => (
+          <View key={review.id} style={s.feedbackCard}>
+            {/* Decorative large quote mark */}
+            <Text style={s.quoteDecor}>{'“'}</Text>
+            {/* Left accent bar */}
+            <View style={s.quoteBar} />
+            <Text style={s.quoteText}>{`“${review.quote}”`}</Text>
+            <Text style={s.quoteAuthor}>{`— ${review.author}`}</Text>
+          </View>
+        ))}
+      </View>
+    )}
   </View>
 );
 
@@ -480,54 +503,95 @@ export const CreatorDashboard: React.FC<{
   onOpenHistory: () => void;
   onOpenSchedule: () => void;
   onOpenMyWork: () => void;
-}> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork }) => {
+  onAddPayment: () => void;
+  onOpenSavedApplications: () => void;
+  onOpenRejectedWork: () => void;
+}> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork, onAddPayment, onOpenSavedApplications, onOpenRejectedWork }) => {
   const [activeTab, setActiveTab] = useState<JobTab>('active');
-  const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
-  const [reviews, setReviews] = useState<ReviewItem[]>(FALLBACK_REVIEWS);
+  const [summary, setSummary] = useState<CreatorDashboardSummaryResponse | null>(null);
+  const [reviews, setReviews] = useState<ReviewItem[] | null>(null);
   const [jobsByTab, setJobsByTab] = useState<Partial<Record<JobTab, ActiveJobItem[]>>>({});
   const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobsError, setJobsError] = useState(false);
 
-  const [addModalVisible, setAddModalVisible] = useState(false);
-  const [amountInput, setAmountInput] = useState('');
-  const [noteInput, setNoteInput] = useState('');
-  const [addSubmitting, setAddSubmitting] = useState(false);
+  // Approved-but-not-yet-booked applications — shown alongside real Jobs in
+  // the Upcoming Booking tab. See ApprovedApplicationCard's comment above.
+  const [approvedApplications, setApprovedApplications] = useState<OpportunityApplicationResponse[]>([]);
 
-  const refreshSummary = () => {
-    creatorDashboardApi.getSummary().then(setSummary).catch(() => {});
-  };
+  // "Confirm Booking" modal state — bookingTarget non-null means it's open.
+  const [bookingTarget, setBookingTarget] = useState<OpportunityApplicationResponse | null>(null);
+  const [confirmedDate, setConfirmedDate] = useState(new Date());
+  const [confirmedStartTime, setConfirmedStartTime] = useState(new Date());
+  const [confirmedEndTime, setConfirmedEndTime] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [booking, setBooking] = useState(false);
 
   useEffect(() => {
-    refreshSummary();
+    creatorDashboardApi
+      .getSummary()
+      .then(setSummary)
+      .catch(() => setSummary({ rating: null, completedJobsCount: 0, contributionsCount: 0, collectedToday: 0 }));
     creatorDashboardApi
       .getReviews(5)
-      .then((data) => {
-        if (data.length > 0) {
-          setReviews(data.map((r) => ({ id: r.id, quote: r.comment, author: r.elderName })));
-        }
-      })
+      .then((data) => setReviews(data.map((r) => ({ id: r.id, quote: r.comment, author: r.elderName }))))
+      .catch(() => setReviews([]));
+
+    opportunityApplicationApi
+      .getMyApplications()
+      .then((apps) => setApprovedApplications(apps.filter((a) => a.status === 'APPROVED')))
       .catch(() => {});
   }, []);
 
-  const handleAddPayment = () => {
-    const amount = parseFloat(amountInput);
-    if (!amount || amount <= 0) return;
+  const openBookingModal = (app: OpportunityApplicationResponse) => {
+    const initialDate = app.scheduledDate ? new Date(app.scheduledDate) : new Date();
+    const defaultStart = new Date(initialDate);
+    defaultStart.setHours(9, 0, 0, 0);
+    const defaultEnd = new Date(initialDate);
+    defaultEnd.setHours(11, 0, 0, 0);
 
-    setAddSubmitting(true);
-    creatorDashboardApi
-      .addPayment(amount, noteInput.trim() || 'Cash payment')
-      .then(() => {
-        setAddModalVisible(false);
-        setAmountInput('');
-        setNoteInput('');
-        refreshSummary();
-      })
-      .catch(() => {})
-      .finally(() => setAddSubmitting(false));
+    setBookingTarget(app);
+    setConfirmedDate(initialDate);
+    setConfirmedStartTime(defaultStart);
+    setConfirmedEndTime(defaultEnd);
+  };
+
+  const handleConfirmBooking = async () => {
+    if (!bookingTarget) return;
+
+    setBooking(true);
+    try {
+      await opportunityApplicationApi.book(bookingTarget.id, {
+        confirmedDate: toDateKey(confirmedDate),
+        startTime: toTimeKey(confirmedStartTime),
+        endTime: toTimeKey(confirmedEndTime),
+      });
+      setApprovedApplications((prev) => prev.filter((a) => a.id !== bookingTarget.id));
+      setBookingTarget(null);
+
+      // The booking just created a real Job — refresh the Upcoming tab so it
+      // appears immediately instead of only after switching tabs.
+      creatorDashboardApi
+        .getJobs('UPCOMING')
+        .then((data) => setJobsByTab((prev) => ({ ...prev, upcoming: data.map(mapJobToItem) })))
+        .catch(() => {});
+
+      // Booking confirmed — jump straight to the Schedule page so the
+      // creator sees it marked on the calendar right away.
+      onOpenSchedule();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not confirm this booking.';
+      Alert.alert('Booking failed', message);
+    } finally {
+      setBooking(false);
+    }
   };
 
   useEffect(() => {
     let cancelled = false;
     setJobsLoading(true);
+    setJobsError(false);
 
     creatorDashboardApi
       .getJobs(TAB_TO_STATUS[activeTab])
@@ -537,9 +601,7 @@ export const CreatorDashboard: React.FC<{
         }
       })
       .catch(() => {
-        if (!cancelled && activeTab === 'active') {
-          setJobsByTab((prev) => (prev.active ? prev : { ...prev, active: FALLBACK_ACTIVE_JOBS }));
-        }
+        if (!cancelled) setJobsError(true);
       })
       .finally(() => {
         if (!cancelled) setJobsLoading(false);
@@ -556,7 +618,7 @@ export const CreatorDashboard: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} onOpenRejectedWork={onOpenRejectedWork} />
 
       <ScrollView
         style={s.scroll}
@@ -567,7 +629,7 @@ export const CreatorDashboard: React.FC<{
         <MetricsSection
           summary={summary}
           onOpenHistory={onOpenHistory}
-          onAddPayment={() => setAddModalVisible(true)}
+          onAddPayment={onAddPayment}
         />
 
         {/* ── Job Management ───────────────────────────────────────────── */}
@@ -600,71 +662,142 @@ export const CreatorDashboard: React.FC<{
             />
           </ScrollView>
 
-          {currentJobs && currentJobs.length > 0 ? (
+          {(currentJobs && currentJobs.length > 0) ||
+          (activeTab === 'upcoming' && approvedApplications.length > 0) ? (
             <View style={{ gap: Spacing.sm }}>
-              {currentJobs.map((item) => (
+              {currentJobs?.map((item) => (
                 <ActiveJobCard key={item.id} item={item} onPress={onOpenMyWork} />
               ))}
+              {activeTab === 'upcoming' &&
+                approvedApplications.map((app) => (
+                  <ApprovedApplicationCard key={app.id} item={app} onBook={() => openBookingModal(app)} />
+                ))}
             </View>
           ) : (
             <View style={s.emptyState}>
               <Text style={s.emptyStateText}>
-                {jobsLoading && !currentJobs ? 'Loading…' : 'No jobs to show.'}
+                {jobsLoading && !currentJobs
+                  ? 'Loading…'
+                  : jobsError
+                    ? "Couldn't load jobs. Pull down to try again."
+                    : 'No jobs to show.'}
               </Text>
             </View>
           )}
         </View>
 
-        <FeedbackSection rating={summary.rating} reviews={reviews} />
+        <FeedbackSection rating={summary?.rating ?? null} reviews={reviews} />
         <RecentWorkSection />
         <View style={{ height: 8 }} />
       </ScrollView>
 
       <BottomNavBar activeTab="home" onNavigate={onNavigate} />
 
-      {/* Add Payment modal */}
-      <Modal visible={addModalVisible} transparent animationType="fade" onRequestClose={() => setAddModalVisible(false)}>
+      <Modal
+        visible={bookingTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBookingTarget(null)}
+      >
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
-            <Text style={s.modalTitle}>Log a Payment</Text>
-            <Text style={s.modalSubtitle}>Record cash you've just collected from an elder.</Text>
+            <Text style={s.modalTitle}>Confirm Booking</Text>
 
-            <Text style={s.modalLabel}>Amount (LKR)</Text>
-            <TextInput
-              style={s.modalInput}
-              value={amountInput}
-              onChangeText={setAmountInput}
-              placeholder="e.g. 1500"
-              placeholderTextColor={D.onSurfaceVariant}
-              keyboardType="numeric"
-              accessibilityLabel="Payment amount"
-            />
+            <Text style={s.modalLabel}>Opportunity</Text>
+            <Text style={s.modalValue}>{bookingTarget?.title}</Text>
 
-            <Text style={s.modalLabel}>Note (optional)</Text>
-            <TextInput
-              style={s.modalInput}
-              value={noteInput}
-              onChangeText={setNoteInput}
-              placeholder="e.g. Cash tip"
-              placeholderTextColor={D.onSurfaceVariant}
-              accessibilityLabel="Payment note"
-            />
+            <Text style={s.modalLabel}>Elder</Text>
+            <Text style={s.modalValue}>{bookingTarget?.elderName}</Text>
+
+            {bookingTarget?.location && (
+              <>
+                <Text style={s.modalLabel}>Location</Text>
+                <Text style={s.modalValue}>{bookingTarget.location}</Text>
+              </>
+            )}
+
+            <Text style={s.modalLabel}>Select Date</Text>
+            <Pressable
+              onPress={() => setShowDatePicker(true)}
+              style={({ pressed }) => [s.pickerField, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Select date"
+            >
+              <Text style={s.pickerFieldText}>{formatLongDate(confirmedDate)}</Text>
+            </Pressable>
+            {showDatePicker && (
+              <DateTimePicker
+                value={confirmedDate}
+                mode="date"
+                display="default"
+                minimumDate={new Date()}
+                onChange={(event: any, date?: Date) => {
+                  setShowDatePicker(false);
+                  if (event.type === 'set' && date) setConfirmedDate(date);
+                }}
+              />
+            )}
+
+            <Text style={s.modalLabel}>Select Time</Text>
+            <View style={s.timeRow}>
+              <Pressable
+                onPress={() => setShowStartTimePicker(true)}
+                style={({ pressed }) => [s.pickerField, { flex: 1 }, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Select start time"
+              >
+                <Text style={s.pickerFieldText}>{formatClockTime(confirmedStartTime)}</Text>
+              </Pressable>
+              <Text style={s.timeRowDash}>—</Text>
+              <Pressable
+                onPress={() => setShowEndTimePicker(true)}
+                style={({ pressed }) => [s.pickerField, { flex: 1 }, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Select end time"
+              >
+                <Text style={s.pickerFieldText}>{formatClockTime(confirmedEndTime)}</Text>
+              </Pressable>
+            </View>
+            {showStartTimePicker && (
+              <DateTimePicker
+                value={confirmedStartTime}
+                mode="time"
+                display="default"
+                onChange={(event: any, date?: Date) => {
+                  setShowStartTimePicker(false);
+                  if (event.type === 'set' && date) setConfirmedStartTime(date);
+                }}
+              />
+            )}
+            {showEndTimePicker && (
+              <DateTimePicker
+                value={confirmedEndTime}
+                mode="time"
+                display="default"
+                onChange={(event: any, date?: Date) => {
+                  setShowEndTimePicker(false);
+                  if (event.type === 'set' && date) setConfirmedEndTime(date);
+                }}
+              />
+            )}
 
             <View style={s.modalBtnRow}>
               <Pressable
-                onPress={() => setAddModalVisible(false)}
+                onPress={() => setBookingTarget(null)}
                 style={({ pressed }) => [s.modalBtnCancel, pressed && s.pressed]}
                 accessibilityRole="button"
+                accessibilityLabel="Cancel booking"
               >
                 <Text style={s.modalBtnCancelText}>Cancel</Text>
               </Pressable>
               <Pressable
-                onPress={handleAddPayment}
-                disabled={addSubmitting}
-                style={({ pressed }) => [s.modalBtnAdd, pressed && s.pressed, addSubmitting && { opacity: 0.6 }]}
+                onPress={handleConfirmBooking}
+                disabled={booking}
+                style={({ pressed }) => [s.modalBtnConfirm, pressed && s.pressed, booking && { opacity: 0.7 }]}
                 accessibilityRole="button"
+                accessibilityLabel="Confirm booking"
               >
-                <Text style={s.modalBtnAddText}>{addSubmitting ? 'Adding…' : 'Add'}</Text>
+                <Text style={s.modalBtnConfirmText}>{booking ? 'Booking…' : 'Confirm Booking'}</Text>
               </Pressable>
             </View>
           </View>
@@ -681,40 +814,6 @@ const GALLERY_SIZE = 128;
 
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
-
-  // ── App Bar ────────────────────────────────────────────────────────────────
-  appBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    height: 56,
-    backgroundColor: D.surfaceContainerLowest,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: D.surfaceVariant,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  appBarIconBtn: {
-    width: 44, height: 44, borderRadius: Radii.full,  // 44pt touch target
-    alignItems: 'center', justifyContent: 'center',
-  },
-  appBarTitle: {
-    fontFamily: Typography.fontDisplay,
-    fontSize: Typography.sizeLG,      // 18sp
-    lineHeight: Typography.sizeLG * 1.4,
-    color: '#0F5C5C',                 // teal (30% rule)
-    letterSpacing: -0.3,
-  },
-  hamburger:     { gap: 4 },
-  hamburgerLine: { width: 18, height: 2, borderRadius: 1, backgroundColor: '#0F5C5C' },
-  bellWrapper: { alignItems: 'center' },
-  bellTop:     { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#0F5C5C', marginBottom: 1 },
-  bellBody:    { width: 14, height: 13, borderWidth: 1.5, borderColor: '#0F5C5C', borderRadius: 7, borderBottomWidth: 0 },
-  bellClapper: { width: 5, height: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: '#0F5C5C' },
 
   // ── Scroll ─────────────────────────────────────────────────────────────────
   scroll: { flex: 1 },
@@ -849,6 +948,17 @@ const s = StyleSheet.create({
     minHeight: 44,
     textAlignVertical: 'center',
   },
+  bookBtn: {
+    alignSelf: 'flex-end',
+    backgroundColor: D.primary,
+    borderRadius: Radii.full,
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#ffffff' },
 
   // ── Empty state ────────────────────────────────────────────────────────────
   emptyState:     { paddingVertical: Spacing.xl, alignItems: 'center' },
@@ -884,67 +994,63 @@ const s = StyleSheet.create({
   pressedDark:  { backgroundColor: 'rgba(255,255,255,0.14)' },
   pressedLight: { opacity: 0.88 },
 
-  // ── Add Payment modal ──────────────────────────────────────────────────────
+  // ── Confirm Booking modal ────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: Spacing.lg,
+    padding: Spacing.md,
   },
   modalCard: {
     width: '100%',
+    maxWidth: 420,
     backgroundColor: D.surfaceContainerLowest,
     borderRadius: Radii.xl,
-    padding: Spacing.lg,
-    gap: Spacing.xs,
+    padding: Spacing.md,
+    gap: 4,
   },
-  modalTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: D.onSurface },
-  modalSubtitle: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeSM,
-    color: D.onSurfaceVariant,
-    marginBottom: Spacing.sm,
-  },
-  modalLabel: {
-    fontFamily: Typography.fontBodyMed,
-    fontSize: Typography.sizeXS,
-    color: D.onSurfaceVariant,
-    marginTop: Spacing.sm,
-  },
-  modalInput: {
-    fontFamily: Typography.fontBody,
+  modalTitle: {
+    fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeMD,
     color: D.onSurface,
+    marginBottom: 6,
+  },
+  modalLabel: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeXS,
+    color: D.onSurfaceVariant,
+    marginTop: 8,
+  },
+  modalValue: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeSM,
+    color: D.onSurface,
+  },
+  pickerField: {
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
     borderRadius: Radii.lg,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     marginTop: 4,
   },
-  modalBtnRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg },
+  pickerFieldText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurface },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  timeRowDash: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+  modalBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.md },
   modalBtnCancel: {
-    flex: 1,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: D.surfaceVariant,
-    borderRadius: Radii.lg,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
+    paddingVertical: 10, paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full, borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+    alignItems: 'center', justifyContent: 'center', minHeight: 44,
   },
-  modalBtnCancelText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
-  modalBtnAdd: {
-    flex: 1,
-    backgroundColor: '#E8792E',
-    borderRadius: Radii.lg,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
+  modalBtnCancelText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
+  modalBtnConfirm: {
+    paddingVertical: 10, paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full, backgroundColor: D.primary,
+    alignItems: 'center', justifyContent: 'center', minHeight: 44,
   },
-  modalBtnAddText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
+  modalBtnConfirmText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
 });
 
 export default CreatorDashboard;
