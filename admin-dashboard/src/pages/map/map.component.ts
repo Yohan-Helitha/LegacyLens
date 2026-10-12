@@ -320,6 +320,23 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
               </span>
             </button>
           </div>
+        } @else if (activeTab() === 'treasure_hunt') {
+          <div class="shrink-0 bg-white border-b border-[#dde3eb] px-6 py-2 flex items-center gap-2 overflow-x-auto custom-scrollbar">
+            <button
+              (click)="setTreasureHuntSubTab('quests')"
+              [class]="treasureHuntSubTab() === 'quests' ? 'bg-[#004343] text-white font-bold' : 'bg-[#f2f4f3] text-[#3f4948] hover:bg-[#e1e3e2] font-semibold'"
+              class="px-3.5 py-2 rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer shrink-0">
+              <span class="material-symbols-outlined text-sm">list</span>
+              <span>Quests & Badges List</span>
+            </button>
+            <button
+              (click)="setTreasureHuntSubTab('builder')"
+              [class]="treasureHuntSubTab() === 'builder' ? 'bg-[#004343] text-white font-bold' : 'bg-[#f2f4f3] text-[#3f4948] hover:bg-[#e1e3e2] font-semibold'"
+              class="px-3.5 py-2 rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer shrink-0">
+              <span class="material-symbols-outlined text-sm">build</span>
+              <span>Quest Builder</span>
+            </button>
+          </div>
         }
 
         <!-- Main Body Scrollable View -->
@@ -1193,259 +1210,322 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
           @if (activeTab() === 'treasure_hunt') {
             <div class="space-y-6">
               
-              <!-- Select Target Landmark Banner -->
-              <div class="bg-white rounded-2xl border border-[#dde3eb] p-5 shadow-xs flex items-center justify-between flex-wrap gap-4">
-                <div class="flex items-center gap-3">
-                  <div class="w-12 h-12 rounded-xl bg-[#fe893e]/20 text-[#9b4600] flex items-center justify-center font-bold">
-                    <span class="material-symbols-outlined text-2xl">military_tech</span>
+              @if (treasureHuntSubTab() === 'quests') {
+                <div class="bg-white rounded-2xl border border-[#dde3eb] p-5 shadow-xs space-y-4">
+                  <div class="flex items-center gap-2 pb-3 border-b border-[#dde3eb]">
+                    <span class="material-symbols-outlined text-[#fe893e] text-2xl">list_alt</span>
+                    <h2 class="text-base font-bold text-[#191c1c]">Quests & Badges Directory</h2>
                   </div>
-                  <div>
-                    <h2 class="text-base font-bold text-[#191c1c]">Treasure Hunt & Spatial Badge Studio</h2>
-                    <p class="text-xs text-[#6e7978]">Configure interactive location-based unlockable badges, riddles, and multi-stage questions for mobile explorers.</p>
-                  </div>
-                </div>
-
-                <!-- Choose Target Landmark Dropdown -->
-                <div class="flex items-center gap-2">
-                  <span class="text-xs font-bold text-[#191c1c]">Active Landmark Node:</span>
-                  <select 
-                    [ngModel]="selectedHuntLandmark()?.id"
-                    (ngModelChange)="onHuntLandmarkSelected($event)"
-                    class="text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-4 py-2.5 font-bold text-[#004343] focus:outline-hidden focus:border-[#004343] transition-all cursor-pointer">
-                    @for (landmark of landmarks(); track landmark.id) {
-                      <option [value]="landmark.id">{{ landmark.name }} ({{ landmark.region }})</option>
-                    }
-                  </select>
-                </div>
-              </div>
-
-              @if (selectedHuntLandmark()) {
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                   
-                  <!-- Left: Badge Asset Uploader Card (5 Cols) -->
-                  <div class="lg:col-span-5 bg-white rounded-2xl border border-[#dde3eb] p-5 shadow-xs space-y-4">
-                    <div class="flex items-center justify-between pb-3 border-b border-[#dde3eb]">
-                      <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[#9b4600]">workspace_premium</span>
-                        <h3 class="font-bold text-sm text-[#191c1c]">Unlockable Cultural Badge</h3>
-                      </div>
-                      <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                        {{ badgeForm.image ? 'Badge Configured' : 'Pending Image' }}
-                      </span>
-                    </div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    @for (landmark of landmarks(); track landmark.id) {
+                      <div class="p-4 rounded-xl border border-[#dde3eb] bg-[#f8faf9] flex flex-col justify-between space-y-3 shadow-2xs hover:shadow-md transition-all">
+                        <div class="flex items-start justify-between gap-2">
+                          <div class="flex items-center gap-2 min-w-0">
+                            <span class="material-symbols-outlined text-[#004343] shrink-0">{{ landmark.icon || 'location_on' }}</span>
+                            <div class="min-w-0">
+                              <h3 class="font-bold text-sm text-[#191c1c] truncate" [title]="landmark.name">{{ landmark.name }}</h3>
+                              <p class="text-[10px] text-[#6e7978] truncate">{{ landmark.region }}</p>
+                            </div>
+                          </div>
+                        </div>
 
-                    <!-- Badge Preview Area -->
-                    <div class="flex flex-col items-center justify-center p-6 bg-radial from-amber-100/50 to-[#f8faf9] rounded-2xl border border-dashed border-[#dde3eb] text-center">
-                      @if (badgeForm.image) {
-                        <div class="relative group">
-                          <img [src]="badgeForm.image" alt="Badge Image" class="w-32 h-32 object-contain drop-shadow-xl animate-pulse">
-                          <div class="absolute -bottom-2 inset-x-0 mx-auto text-center">
-                            <span class="bg-[#004343] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md">
-                              {{ badgeForm.title || 'Explorer Badge' }}
+                        <div class="flex items-center gap-3 py-2 border-y border-[#dde3eb]/50">
+                          <div class="flex items-center gap-1.5 flex-1">
+                            <span class="material-symbols-outlined text-[14px] text-[#9b4600]">workspace_premium</span>
+                            <span class="text-xs font-medium text-[#3f4948]">
+                              {{ landmark.badge?.title || 'No Badge' }}
+                            </span>
+                          </div>
+                          <div class="flex items-center gap-1.5 flex-1">
+                            <span class="material-symbols-outlined text-[14px] text-[#fe893e]">quiz</span>
+                            <span class="text-xs font-medium text-[#3f4948]">
+                              {{ landmark.quests?.length || 0 }} Quests
                             </span>
                           </div>
                         </div>
-                      } @else {
-                        <div class="w-24 h-24 rounded-full bg-[#dde3eb] flex items-center justify-center text-[#6e7978] mb-2">
-                          <span class="material-symbols-outlined text-4xl">shield</span>
-                        </div>
-                        <div class="text-xs font-bold text-[#191c1c]">No Badge Image Uploaded</div>
-                        <p class="text-[10px] text-[#6e7978] mt-0.5">Upload a badge graphic to reward users upon completing this hunt.</p>
-                      }
+
+                        <button 
+                          (click)="onHuntLandmarkSelected(landmark.id); setTreasureHuntSubTab('builder')"
+                          class="w-full py-2 bg-[#004343] hover:bg-[#003333] text-white text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5">
+                          <span class="material-symbols-outlined text-[14px]">edit_note</span>
+                          <span>{{ (landmark.quests?.length || 0) > 0 || landmark.badge ? 'Edit Quests & Badge' : 'Add Quest & Badge' }}</span>
+                        </button>
+                      </div>
+                    }
+                  </div>
+                </div>
+              } @else if (treasureHuntSubTab() === 'builder') {
+
+                <!-- Select Target Landmark Banner -->
+                <div class="bg-white rounded-2xl border border-[#dde3eb] p-5 shadow-xs flex items-center justify-between flex-wrap gap-4">
+                  <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-xl bg-[#fe893e]/20 text-[#9b4600] flex items-center justify-center font-bold">
+                      <span class="material-symbols-outlined text-2xl">military_tech</span>
                     </div>
-
-                    <!-- Badge Form Fields -->
-                    <div class="space-y-3">
-                      <div>
-                        <label class="block text-xs font-bold text-[#191c1c] mb-1">Badge Title</label>
-                        <input 
-                          type="text" 
-                          [(ngModel)]="badgeForm.title"
-                          placeholder="e.g. Master of the Sigiriya Citadel"
-                          class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2 text-[#191c1c] focus:outline-hidden focus:border-[#004343]">
-                      </div>
-
-                      <div>
-                        <label class="block text-xs font-bold text-[#191c1c] mb-1">Badge Code</label>
-                        <input 
-                          type="text" 
-                          [(ngModel)]="badgeForm.badgeCode"
-                          placeholder="e.g. sigiriya_conqueror"
-                          class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2 text-[#191c1c] font-mono focus:outline-hidden focus:border-[#004343]">
-                      </div>
-
-                      <!-- Badge Image Upload Input -->
-                      <div>
-                        <label class="block text-xs font-bold text-[#191c1c] mb-1">Upload Badge Graphic</label>
-                        <input 
-                          type="file" 
-                          accept="image/*"
-                          (change)="onBadgeFileSelected($event)"
-                          class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl p-2 text-[#191c1c] file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#004343] file:text-white file:cursor-pointer cursor-pointer">
-                        <p class="text-[10px] text-[#6e7978] mt-1">Saved to backend <code class="bg-gray-100 px-1 py-0.5 rounded">uploads/badges</code> directory.</p>
-                      </div>
-
-                      <button 
-                        (click)="saveBadgeConfig()"
-                        [disabled]="isSavingBadge()"
-                        class="w-full py-2.5 bg-[#004343] hover:bg-[#003333] text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2">
-                        <span class="material-symbols-outlined text-sm" [class.animate-spin]="isSavingBadge()">
-                          {{ isSavingBadge() ? 'sync' : 'verified' }}
-                        </span>
-                        <span>Save Badge Configuration</span>
-                      </button>
+                    <div>
+                      <h2 class="text-base font-bold text-[#191c1c]">Treasure Hunt & Spatial Badge Studio</h2>
+                      <p class="text-xs text-[#6e7978]">Configure interactive location-based unlockable badges, riddles, and multi-stage questions for mobile explorers.</p>
                     </div>
                   </div>
+                </div>
 
-                  <!-- Right: Multi-Stage Riddle & Quest Builder (7 Cols) -->
-                  <div class="lg:col-span-7 bg-white rounded-2xl border border-[#dde3eb] p-5 shadow-xs space-y-4">
-                    <div class="flex items-center justify-between pb-3 border-b border-[#dde3eb]">
-                      <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[#fe893e]">quiz</span>
-                        <div>
-                          <h3 class="font-bold text-sm text-[#191c1c]">Treasure Hunt Stage Riddles & Questions</h3>
-                          <p class="text-[10px] text-[#6e7978]">Construct sequential questions and multiple-choice answers for explorers.</p>
+                 <!-- Quest Builder Content -->
+                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    
+                     <!-- Left: Badge Asset Uploader Card (5 Cols) -->
+                     <div class="lg:col-span-5 bg-white rounded-2xl border border-[#dde3eb] p-5 shadow-xs space-y-4">
+                       
+                      <div class="flex items-center justify-between pb-3 border-b border-[#dde3eb]">
+                        <div class="flex items-center gap-2">
+                          <span class="material-symbols-outlined text-[#9b4600]">workspace_premium</span>
+                          <h3 class="font-bold text-sm text-[#191c1c]">Unlockable Cultural Badge</h3>
                         </div>
-                      </div>
+                        <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                          {{ badgeForm.image ? 'Badge Configured' : 'Pending Image' }}
+                        </span>
+                       </div>
 
-                      <button 
-                        (click)="addNewQuestion()"
-                        class="px-3 py-1.5 bg-[#004343]/10 hover:bg-[#004343] text-[#004343] hover:text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1">
-                        <span class="material-symbols-outlined text-sm">add</span>
-                        <span>Add Question</span>
-                      </button>
-                    </div>
+                       <!-- Targeting Landmark Dropdown -->
+                       <div>
+                         <label class="block text-xs font-bold text-[#191c1c] mb-1">Targeting Landmark <span class="text-red-500">*</span></label>
+                         <select 
+                           [(ngModel)]="selectedHuntLandmarkId"
+                           (ngModelChange)="onBuilderLandmarkChange($event)"
+                           class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2.5 font-medium text-[#191c1c] focus:outline-hidden focus:border-[#004343] focus:bg-white transition-all cursor-pointer">
+                           <option [ngValue]="null">Select Landmark</option>
+                           @for (landmark of landmarks(); track landmark.id) {
+                             <option [ngValue]="landmark.id">{{ landmark.name }}</option>
+                           }
+                         </select>
+                       </div>
 
-                    <!-- Quest Main Metadata -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label class="block text-xs font-bold text-[#191c1c] mb-1">Quest Title <span class="text-red-500">*</span></label>
-                        <input 
-                          type="text" 
-                          [(ngModel)]="questForm.title"
-                          placeholder="e.g. Whispers of the Cloud Maidens"
-                          class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2 text-[#191c1c] focus:outline-hidden focus:border-[#004343]">
-                      </div>
-                      <div>
-                        <label class="block text-xs font-bold text-[#191c1c] mb-1">Short Description</label>
-                        <input 
-                          type="text" 
-                          [(ngModel)]="questForm.description"
-                          placeholder="Solve the architectural riddles of the fortress..."
-                          class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2 text-[#191c1c] focus:outline-hidden focus:border-[#004343]">
-                      </div>
-                    </div>
-
-                    <!-- Questions List -->
-                    <div class="space-y-4 pt-2">
-                      @for (q of questForm.questions; track qIndex; let qIndex = $index) {
-                        <div class="p-4 rounded-xl border border-[#dde3eb] bg-[#f8faf9] space-y-3">
-                          
-                          <!-- Question Header -->
-                          <div class="flex items-center justify-between">
-                            <span class="px-2.5 py-0.5 rounded-md bg-[#004343] text-white text-[10px] font-bold">
-                              Riddle Stage #{{ qIndex + 1 }}
-                            </span>
-                            @if (questForm.questions.length > 1) {
-                              <button 
-                                (click)="removeQuestion(qIndex)"
-                                class="text-red-500 hover:text-red-700 text-xs font-bold flex items-center gap-0.5 cursor-pointer">
-                                <span class="material-symbols-outlined text-sm">delete</span>
-                                <span>Remove</span>
-                              </button>
-                            }
-                          </div>
-
-                          <!-- Riddle Text -->
-                          <div>
-                            <label class="block text-[11px] font-bold text-[#191c1c] mb-1">Riddle Prompt / Question</label>
-                            <textarea 
-                              rows="2"
-                              [(ngModel)]="q.riddle"
-                              placeholder="I stand flanked by giant paws of stone, carved on a high cliff terrace. What am I?"
-                              class="w-full text-xs bg-white border border-[#dde3eb] rounded-xl p-2.5 text-[#191c1c] focus:outline-hidden focus:border-[#004343] resize-none"></textarea>
-                          </div>
-
-                          <!-- Multiple Choices -->
-                          <div>
-                            <div class="flex items-center justify-between mb-1.5">
-                              <label class="text-[11px] font-bold text-[#191c1c]">Answer Choices (Check correct answer)</label>
-                              <button 
-                                (click)="addChoice(qIndex)"
-                                class="text-[10px] text-[#004343] font-bold hover:underline cursor-pointer">
-                                + Add Choice Option
-                              </button>
+                        <!-- Badge Preview Area -->
+                      <div class="flex flex-col items-center justify-center p-6 bg-radial from-amber-100/50 to-[#f8faf9] rounded-2xl border border-dashed border-[#dde3eb] text-center">
+                        @if (badgeForm.image) {
+                          <div class="relative group">
+                            <img [src]="badgeForm.image" alt="Badge Image" class="w-32 h-32 object-contain drop-shadow-xl animate-pulse">
+                            <div class="absolute -bottom-2 inset-x-0 mx-auto text-center">
+                              <span class="bg-[#004343] text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md">
+                                {{ badgeForm.title || 'Explorer Badge' }}
+                              </span>
                             </div>
+                          </div>
+                        } @else {
+                          <div class="w-24 h-24 rounded-full bg-[#dde3eb] flex items-center justify-center text-[#6e7978] mb-2">
+                            <span class="material-symbols-outlined text-4xl">shield</span>
+                          </div>
+                          <div class="text-xs font-bold text-[#191c1c]">No Badge Image Uploaded</div>
+                          <p class="text-[10px] text-[#6e7978] mt-0.5">Upload a badge graphic to reward users upon completing this hunt.</p>
+                        }
+                      </div>
 
-                            <div class="space-y-2">
-                              @for (choice of q.choices; track cIndex; let cIndex = $index) {
-                                <div class="flex items-center gap-2">
-                                  <input 
-                                    type="radio" 
-                                    [name]="'correct_choice_' + qIndex"
-                                    [checked]="choice.isCorrect"
-                                    (change)="setCorrectChoice(qIndex, cIndex)"
-                                    class="w-4 h-4 text-[#004343] focus:ring-[#004343] cursor-pointer shrink-0">
-                                  <input 
-                                    type="text" 
-                                    [(ngModel)]="choice.label"
-                                    placeholder="Option label text..."
-                                    class="flex-1 text-xs bg-white border border-[#dde3eb] rounded-lg px-3 py-1.5 text-[#191c1c] focus:outline-hidden focus:border-[#004343]">
-                                  @if (choice.isCorrect) {
-                                    <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0">
-                                      Correct
-                                    </span>
-                                  }
-                                  @if (q.choices.length > 2) {
-                                    <button 
-                                      (click)="removeChoice(qIndex, cIndex)"
-                                      class="text-gray-400 hover:text-red-500 p-1 cursor-pointer">
-                                      ✕
-                                    </button>
+                      <!-- Badge Form Fields -->
+                      <div class="space-y-3">
+                        <div>
+                          <label class="block text-xs font-bold text-[#191c1c] mb-1">Badge Title <span class="text-red-500">*</span></label>
+                          <input 
+                            type="text" 
+                            [(ngModel)]="badgeForm.title"
+                            (ngModelChange)="onBadgeTitleChange($event)"
+                            placeholder="e.g. Master of the Sigiriya Citadel"
+                            class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2 text-[#191c1c] focus:outline-hidden focus:border-[#004343]">
+                        </div>
+
+                        <div>
+                          <label class="block text-xs font-bold text-[#191c1c] mb-1">Badge Code</label>
+                          <input 
+                            type="text" 
+                            [(ngModel)]="badgeForm.badgeCode"
+                            placeholder="Auto-generated from title"
+                            class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2 text-[#191c1c] font-mono focus:outline-hidden focus:border-[#004343]">
+                        </div>
+
+                        <!-- Badge Image Upload Input -->
+                        <div>
+                          <label class="block text-xs font-bold text-[#191c1c] mb-1">Upload Badge Graphic <span class="text-red-500">*</span></label>
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            (change)="onBadgeFileSelected($event)"
+                            class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl p-2 text-[#191c1c] file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#004343] file:text-white file:cursor-pointer cursor-pointer">
+                          <p class="text-[10px] text-[#6e7978] mt-1">Saved to backend <code class="bg-gray-100 px-1 py-0.5 rounded">uploads/badges</code> directory.</p>
+                        </div>
+
+                        <button 
+                          (click)="saveBadgeConfig()"
+                          [disabled]="isSavingBadge()"
+                          class="w-full py-2.5 bg-[#004343] hover:bg-[#003333] text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2">
+                          <span class="material-symbols-outlined text-sm" [class.animate-spin]="isSavingBadge()">
+                            {{ isSavingBadge() ? 'sync' : 'verified' }}
+                          </span>
+                          <span>Save Badge Configuration</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    @if (badgeFormValid()) {
+                      <!-- Right: Multi-Stage Riddle & Quest Builder (7 Cols) -->
+                      <div class="lg:col-span-7 bg-white rounded-2xl border border-[#dde3eb] p-5 shadow-xs space-y-4">
+                        <div class="flex items-center justify-between pb-3 border-b border-[#dde3eb]">
+                          <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[#fe893e]">quiz</span>
+                            <div>
+                              <h3 class="font-bold text-sm text-[#191c1c]">Treasure Hunt Stage Riddles & Questions</h3>
+                              <p class="text-[10px] text-[#6e7978]">Construct sequential questions and multiple-choice answers for explorers.</p>
+                            </div>
+                          </div>
+
+                          <button 
+                            (click)="addNewQuestion()"
+                            class="px-3 py-1.5 bg-[#004343]/10 hover:bg-[#004343] text-[#004343] hover:text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1">
+                            <span class="material-symbols-outlined text-sm">add</span>
+                            <span>Add Question</span>
+                          </button>
+                        </div>
+
+                        <!-- Quest Main Metadata -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label class="block text-xs font-bold text-[#191c1c] mb-1">Quest Title <span class="text-red-500">*</span></label>
+                            <input 
+                              type="text" 
+                              [(ngModel)]="questForm.title"
+                              placeholder="e.g. Whispers of the Cloud Maidens"
+                              class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2 text-[#191c1c] focus:outline-hidden focus:border-[#004343]">
+                          </div>
+                          <div>
+                            <label class="block text-xs font-bold text-[#191c1c] mb-1">Short Description</label>
+                            <input 
+                              type="text" 
+                              [(ngModel)]="questForm.description"
+                              placeholder="Solve the architectural riddles of the fortress..."
+                              class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3.5 py-2 text-[#191c1c] focus:outline-hidden focus:border-[#004343]">
+                          </div>
+                        </div>
+
+                        <!-- Questions List -->
+                        <div class="space-y-4 pt-2">
+                          @for (q of questForm.questions; track qIndex; let qIndex = $index) {
+                            <div class="p-4 rounded-xl border border-[#dde3eb] bg-[#f8faf9] space-y-3">
+                              
+                              <!-- Question Header -->
+                              <div class="flex items-center justify-between">
+                                <span class="px-2.5 py-0.5 rounded-md bg-[#004343] text-white text-[10px] font-bold">
+                                  Riddle Stage #{{ qIndex + 1 }}
+                                </span>
+                                @if (questForm.questions.length > 1) {
+                                  <button 
+                                    (click)="removeQuestion(qIndex)"
+                                    class="text-red-500 hover:text-red-700 text-xs font-bold flex items-center gap-0.5 cursor-pointer">
+                                    <span class="material-symbols-outlined text-sm">delete</span>
+                                    <span>Remove</span>
+                                  </button>
+                                }
+                              </div>
+
+                              <!-- Riddle Text -->
+                              <div>
+                                <label class="block text-[11px] font-bold text-[#191c1c] mb-1">Riddle Prompt / Question</label>
+                                <textarea 
+                                  rows="2"
+                                  [(ngModel)]="q.riddle"
+                                  placeholder="I stand flanked by giant paws of stone, carved on a high cliff terrace. What am I?"
+                                  class="w-full text-xs bg-white border border-[#dde3eb] rounded-xl p-2.5 text-[#191c1c] focus:outline-hidden focus:border-[#004343] resize-none"></textarea>
+                              </div>
+
+                              <!-- Multiple Choices -->
+                              <div>
+                                <div class="flex items-center justify-between mb-1.5">
+                                  <label class="text-[11px] font-bold text-[#191c1c]">Answer Choices (Check correct answer)</label>
+                                  <button 
+                                    (click)="addChoice(qIndex)"
+                                    class="text-[10px] text-[#004343] font-bold hover:underline cursor-pointer">
+                                    + Add Choice Option
+                                  </button>
+                                </div>
+
+                                <div class="space-y-2">
+                                  @for (choice of q.choices; track cIndex; let cIndex = $index) {
+                                    <div class="flex items-center gap-2">
+                                      <input 
+                                        type="radio" 
+                                        [name]="'correct_choice_' + qIndex"
+                                        [checked]="choice.isCorrect"
+                                        (change)="setCorrectChoice(qIndex, cIndex)"
+                                        class="w-4 h-4 text-[#004343] focus:ring-[#004343] cursor-pointer shrink-0">
+                                      <input 
+                                        type="text" 
+                                        [(ngModel)]="choice.label"
+                                        placeholder="Option label text..."
+                                        class="flex-1 text-xs bg-white border border-[#dde3eb] rounded-lg px-3 py-1.5 text-[#191c1c] focus:outline-hidden focus:border-[#004343]">
+                                      @if (choice.isCorrect) {
+                                        <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0">
+                                          Correct
+                                        </span>
+                                      }
+                                      @if (q.choices.length > 2) {
+                                        <button 
+                                          (click)="removeChoice(qIndex, cIndex)"
+                                          class="text-gray-400 hover:text-red-500 p-1 cursor-pointer">
+                                          ✕
+                                        </button>
+                                      }
+                                    </div>
                                   }
                                 </div>
-                              }
+                              </div>
+
+                            </div>
+                          }
+                        </div>
+
+                        <!-- Save Quest Action Bar -->
+                        <div class="pt-4 border-t border-[#dde3eb] flex items-center justify-between">
+                          <button 
+                            (click)="addNewQuestion()"
+                            class="px-4 py-2 bg-[#f0f4f3] hover:bg-[#dde3eb] text-[#191c1c] text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-sm">add_circle</span>
+                            <span>Add Another Stage</span>
+                          </button>
+
+                          <button 
+                            (click)="saveQuestConfig()"
+                            [disabled]="isSavingQuest()"
+                            class="px-6 py-2.5 bg-[#fe893e] hover:bg-[#e67328] text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-sm" [class.animate-spin]="isSavingQuest()">
+                              {{ isSavingQuest() ? 'sync' : 'save' }}
+                            </span>
+                            <span>Publish Quest & Riddles</span>
+                          </button>
+                        </div>
+
+                      </div>
+                    } @else {
+                      <div class="lg:col-span-7 bg-white rounded-2xl border border-[#dde3eb] p-5 shadow-xs space-y-4 opacity-60">
+                        <div class="flex items-center justify-between pb-3 border-b border-[#dde3eb]">
+                          <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[#fe893e]">quiz</span>
+                            <div>
+                              <h3 class="font-bold text-sm text-[#191c1c]">Treasure Hunt Stage Riddles & Questions</h3>
+                              <p class="text-[10px] text-[#6e7978]">Construct sequential questions and multiple-choice answers for explorers.</p>
                             </div>
                           </div>
-
+                          <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-gray-200 text-gray-500">Locked</span>
                         </div>
-                      }
-                    </div>
-
-                    <!-- Save Quest Action Bar -->
-                    <div class="pt-4 border-t border-[#dde3eb] flex items-center justify-between">
-                      <button 
-                        (click)="addNewQuestion()"
-                        class="px-4 py-2 bg-[#f0f4f3] hover:bg-[#dde3eb] text-[#191c1c] text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-sm">add_circle</span>
-                        <span>Add Another Stage</span>
-                      </button>
-
-                      <button 
-                        (click)="saveQuestConfig()"
-                        [disabled]="isSavingQuest()"
-                        class="px-6 py-2.5 bg-[#fe893e] hover:bg-[#e67328] text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2">
-                        <span class="material-symbols-outlined text-sm" [class.animate-spin]="isSavingQuest()">
-                          {{ isSavingQuest() ? 'sync' : 'save' }}
-                        </span>
-                        <span>Publish Quest & Riddles</span>
-                      </button>
-                    </div>
-
-                  </div>
-
-                </div>
-              } @else {
-                <div class="p-12 text-center text-[#6e7978] bg-white rounded-2xl border border-[#dde3eb]">
-                  <span class="material-symbols-outlined text-4xl text-gray-300 block mb-2">map</span>
-                  <div class="text-sm font-bold text-[#191c1c]">No Landmark Selected</div>
-                  <p class="text-xs text-[#6e7978] mt-1">Please select a landmark from the dropdown to build its badge and quests.</p>
-                </div>
-              }
+                        <div class="text-center text-[#6e7978] py-12">
+                          <span class="material-symbols-outlined text-5xl text-gray-300 block mb-3">lock</span>
+                          <div class="text-sm font-bold text-[#191c1c] mb-1">Complete Badge Setup First</div>
+                          <p class="text-xs text-[#6e7978]">Please select a landmark, enter a badge title, and upload a badge graphic to unlock the quest builder.</p>
+                        </div>
+                      </div>  
+                    }
+              </div>
+            }
             </div>
           }
           }
-        </main>
+          </main>
 
       </div>
     </div>
@@ -1476,12 +1556,14 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   // Active Tab & Sub Tab States
   activeTab = signal<'landmarks' | 'treasure_hunt'>('landmarks');
   landmarkSubTab = signal<'add_edit' | 'details'>('add_edit');
+  treasureHuntSubTab = signal<'quests' | 'builder'>('quests');
   
   // State Signals (Initialized with robust defaults)
   landmarks = signal<LandmarkDTO[]>(DEFAULT_LANDMARKS);
   regions = signal<RegionDTO[]>(DEFAULT_REGIONS);
   publishedStories = signal<ModerationQueueItemResponse[]>([]);
-  selectedHuntLandmark = signal<LandmarkDTO | null>(DEFAULT_LANDMARKS[0]);
+  selectedHuntLandmark = signal<LandmarkDTO | null>(null);
+  selectedHuntLandmarkId: string | null = null;
 
   // Status & Loading
   isLoading = signal<boolean>(false);
@@ -1493,6 +1575,13 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   isSavingQuest = signal<boolean>(false);
   toastMessage = signal<string | null>(null);
   isDestructiveToast = signal<boolean>(false);
+
+  // Badge validation state
+  badgeFormValid = computed(() => {
+    return !!this.selectedHuntLandmarkId && 
+           !!this.badgeForm.title?.trim() && 
+           !!this.badgeForm.image;
+  });
 
   // Export PDF Modal
   showExportPdfModal = signal<boolean>(false);
@@ -1735,6 +1824,11 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.tokenLoadPromise?.then(() => {
       setTimeout(() => this.initMapbox(), 250);
     });
+  }
+
+  setTreasureHuntSubTab(subTab: 'quests' | 'builder'): void {
+    if (this.treasureHuntSubTab() === subTab) return;
+    this.treasureHuntSubTab.set(subTab);
   }
 
   refreshAllData(): void {
@@ -2949,6 +3043,20 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onHuntLandmarkSelected(landmarkId: string): void {
+    this.selectedHuntLandmarkId = landmarkId;
+    const found = this.landmarks().find(l => l.id === landmarkId);
+    if (found) {
+      this.selectedHuntLandmark.set(found);
+      this.loadHuntDataForLandmark(found);
+    }
+  }
+
+  onBuilderLandmarkChange(landmarkId: string | null): void {
+    this.selectedHuntLandmarkId = landmarkId;
+    if (!landmarkId) {
+      this.selectedHuntLandmark.set(null);
+      return;
+    }
     const found = this.landmarks().find(l => l.id === landmarkId);
     if (found) {
       this.selectedHuntLandmark.set(found);
@@ -3024,6 +3132,21 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  onBadgeTitleChange(title: string): void {
+    this.badgeForm.title = title;
+    this.badgeForm.badgeCode = this.generateBadgeCode(title);
+  }
+
+  generateBadgeCode(title: string): string {
+    return title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '_')
+      .replace(/-+/g, '_')
+      .substring(0, 50) || `${Date.now()}`;
+  }
+
   onModelFileSelected(event: any): void {
     const file = event.target.files[0];
     if (file) {
@@ -3051,8 +3174,20 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   saveBadgeConfig(): void {
-    if (!this.badgeForm.title || !this.badgeForm.badgeCode) {
-      this.showToast('Please enter Badge Title and Badge Code.', true);
+    if (!this.selectedHuntLandmarkId) {
+      this.showToast('Please select a Targeting Landmark.', true);
+      return;
+    }
+    if (!this.badgeForm.title?.trim()) {
+      this.showToast('Please enter a Badge Title.', true);
+      return;
+    }
+    if (!this.badgeForm.image) {
+      this.showToast('Please upload a Badge Graphic.', true);
+      return;
+    }
+    if (!this.badgeForm.badgeCode?.trim()) {
+      this.showToast('Please enter a Badge Code.', true);
       return;
     }
 
@@ -3102,6 +3237,10 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   saveQuestConfig(): void {
+    if (!this.badgeFormValid()) {
+      this.showToast('Please complete the Unlockable Cultural Badge setup first.', true);
+      return;
+    }
     if (!this.questForm.title) {
       this.showToast('Please enter a Quest Title.', true);
       return;
