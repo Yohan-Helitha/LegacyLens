@@ -36,16 +36,23 @@ public interface OpportunityRepository extends JpaRepository<Opportunity, UUID> 
     /**
      * Backs the filter chips (Photography/Writing/Documentation/Nearby) — a
      * null parameter is ignored (matches everything), so callers pass only
-     * the filters actually in effect. "Nearby" is resolved by the service
+     * the filters actually in effect. {@code text} is what the creator typed in the search box: it matches
+     * the title, description, location, category or the knowledge holder's name. "Nearby" is resolved by the service
      * into a location string (the creator's own city) before calling this.
      */
-    @Query("SELECT o FROM Opportunity o WHERE o.status = :status "
+    @Query("SELECT o FROM Opportunity o LEFT JOIN o.elder e WHERE o.status = :status "
             + "AND (:category IS NULL OR LOWER(o.category) LIKE LOWER(CONCAT('%', :category, '%'))) "
             + "AND (:location IS NULL OR LOWER(o.location) LIKE LOWER(CONCAT('%', :location, '%'))) "
+            + "AND (:text IS NULL OR LOWER(o.title) LIKE LOWER(CONCAT('%', :text, '%')) "
+            + "  OR LOWER(o.description) LIKE LOWER(CONCAT('%', :text, '%')) "
+            + "  OR LOWER(o.location) LIKE LOWER(CONCAT('%', :text, '%')) "
+            + "  OR LOWER(o.category) LIKE LOWER(CONCAT('%', :text, '%')) "
+            + "  OR LOWER(e.fullName) LIKE LOWER(CONCAT('%', :text, '%'))) "
             + "ORDER BY o.createdAt DESC")
     List<Opportunity> search(
             @Param("status") OpportunityStatus status,
             @Param("category") String category,
             @Param("location") String location,
+            @Param("text") String text,
             Pageable pageable);
 }

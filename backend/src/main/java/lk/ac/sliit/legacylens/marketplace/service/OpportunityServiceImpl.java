@@ -142,7 +142,7 @@ public class OpportunityServiceImpl implements OpportunityService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OpportunityCardResponse> search(int limit, UUID creatorId, String category, boolean nearby) {
+    public List<OpportunityCardResponse> search(int limit, UUID creatorId, String category, boolean nearby, String text) {
         User creator = creatorId == null ? null : userRepository.findById(creatorId).orElse(null);
 
         String location = null;
@@ -156,7 +156,8 @@ public class OpportunityServiceImpl implements OpportunityService {
         CreatorMatching matching = matcher.forCreator(creatorId);
         Set<UUID> applied = alreadyAppliedTo(creatorId);
         return opportunityRepository
-                .search(OpportunityStatus.PUBLISHED, category, location, PageRequest.of(0, limit + applied.size()))
+                .search(OpportunityStatus.PUBLISHED, category, location, text == null || text.isBlank() ? null : text.trim(),
+                        PageRequest.of(0, limit + applied.size()))
                 .stream()
                 .filter(o -> !applied.contains(o.getId()))
                 .limit(limit)

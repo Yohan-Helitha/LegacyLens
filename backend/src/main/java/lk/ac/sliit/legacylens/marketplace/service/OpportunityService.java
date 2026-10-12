@@ -34,5 +34,5 @@ public interface OpportunityService {
      * set, this correctly returns no results rather than silently ignoring
      * the filter.
      */
-    List<OpportunityCardResponse> search(int limit, UUID creatorId, String category, boolean nearby);
+    List<OpportunityCardResponse> search(int limit, UUID creatorId, String category, boolean nearby, String text);
 }
