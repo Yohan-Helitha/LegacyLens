@@ -47,6 +47,31 @@ class MediaStorageServiceTest {
     }
 
     @Test
+    void store_withExplicitBucket_localProvider_foldsBucketIntoThePath() {
+        MediaStorageService mediaStorageService = new MediaStorageService(fileStorageService, supabaseStorageClient, "local");
+        MockMultipartFile file = new MockMultipartFile("media", "cover.jpg", "image/jpeg", "x".getBytes());
+        when(fileStorageService.store(file, "story-thumbnail/covers")).thenReturn("story-thumbnail/covers/generated.jpg");
+
+        String url = mediaStorageService.store(file, "story-thumbnail", "covers");
+
+        assertThat(url).isEqualTo("/uploads/story-thumbnail/covers/generated.jpg");
+        verify(supabaseStorageClient, never()).upload(any(), any(), any());
+    }
+
+    @Test
+    void store_withExplicitBucket_supabaseProvider_passesTheBucketThrough() {
+        MediaStorageService mediaStorageService = new MediaStorageService(fileStorageService, supabaseStorageClient, "supabase");
+        MockMultipartFile file = new MockMultipartFile("media", "cover.jpg", "image/jpeg", "x".getBytes());
+        when(supabaseStorageClient.upload(file, "story-thumbnail", "covers"))
+                .thenReturn("https://project.supabase.co/storage/v1/object/public/story-thumbnail/covers/generated.jpg");
+
+        String url = mediaStorageService.store(file, "story-thumbnail", "covers");
+
+        assertThat(url).isEqualTo("https://project.supabase.co/storage/v1/object/public/story-thumbnail/covers/generated.jpg");
+        verify(fileStorageService, never()).store(any(), any());
+    }
+
+    @Test
     void store_providerNameIsCaseInsensitive() {
         MediaStorageService mediaStorageService = new MediaStorageService(fileStorageService, supabaseStorageClient, "SUPABASE");
         MockMultipartFile file = new MockMultipartFile("media", "clip.m4a", "audio/m4a", "x".getBytes());

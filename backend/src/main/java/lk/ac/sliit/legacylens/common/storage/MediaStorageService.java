@@ -5,18 +5,26 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * Where story media and hire-request voice notes are actually stored,
- * switched by app.storage.provider (STORAGE_PROVIDER env var) — "local"
- * (default, FileStorageService under /uploads/**) or "supabase"
- * (SupabaseStorageClient, the story-media bucket). Every caller gets back
+ * Where media files are actually stored, switched by app.storage.provider
+ * (STORAGE_PROVIDER env var) — "local" (default, FileStorageService under
+ * /uploads/**) or "supabase" (SupabaseStorageClient). Every caller gets back
  * a complete, playable URL either way, and passes that same URL back to
- * delete() — neither caller needs to know which provider is active.
+ * delete() — neither caller needs to know which provider is active, or
+ * which bucket a given URL lives in.
  *
- * Deliberately scoped to just these two callers (StoryServiceImpl,
- * JobRequestServiceImpl) rather than folding every FileStorageService.store
- * call over to this — creator-proof documents, payment proofs, work
- * materials and voice replies stay on local disk; their buckets/limits
- * weren't part of this migration.
+ * Any feature that uploads media can use this — not just today's two
+ * callers (StoryServiceImpl, JobRequestServiceImpl). A caller happy with the
+ * configured default bucket (app.storage.supabase.bucket, currently
+ * "story-media") uses the one-arg store()/delete(); a caller that needs its
+ * own bucket (story thumbnails, cultural-map assets, app icons, …) passes
+ * that bucket name explicitly via the three-arg store(). Bucket names are
+ * stable per-feature, not an environment secret, so they belong as a
+ * constant in that feature's own service (same pattern as MEDIA_SUBFOLDER in
+ * StoryServiceImpl), not as a new property here — just create the bucket in
+ * Supabase (public, so uploaded URLs are directly playable) and pass its
+ * name in. Creator-proof documents, payment proofs, work materials and
+ * voice replies are the one exception: those stay on local disk only,
+ * regardless of provider — they were never folded into this class.
  */
 @Service
 public class MediaStorageService {
@@ -34,7 +42,7 @@ public class MediaStorageService {
         this.provider = provider;
     }
 
-    /** Stores the file and returns a complete URL — "/uploads/..." locally, or the bucket's public URL on Supabase. */
+    /** Stores to the configured default bucket (app.storage.supabase.bucket) and returns a complete, playable URL. */
     public String store(MultipartFile file, String subfolder) {
         if (isSupabase()) {
             return supabaseStorageClient.upload(file, subfolder);
@@ -42,7 +50,25 @@ public class MediaStorageService {
         return "/uploads/" + fileStorageService.store(file, subfolder);
     }
 
-    /** Takes whatever store() returned — this class resolves it back to whichever provider actually holds the file. */
+    /**
+     * Like {@link #store(MultipartFile, String)}, but into the given bucket
+     * instead of the configured default — for a feature that needs its own
+     * Supabase bucket. On the local provider there's no real bucket
+     * concept, so `bucket` is just folded into the stored path, keeping the
+     * same per-feature separation in dev as in production.
+     */
+    public String store(MultipartFile file, String bucket, String subfolder) {
+        if (isSupabase()) {
+            return supabaseStorageClient.upload(file, bucket, subfolder);
+        }
+        return "/uploads/" + fileStorageService.store(file, bucket + "/" + subfolder);
+    }
+
+    /**
+     * Takes whatever a store() call returned — this class resolves it back
+     * to whichever provider (and, on Supabase, whichever bucket) actually
+     * holds the file, so callers never need to pass the bucket back in.
+     */
     public void delete(String url) {
         if (url == null || url.isBlank()) return;
 

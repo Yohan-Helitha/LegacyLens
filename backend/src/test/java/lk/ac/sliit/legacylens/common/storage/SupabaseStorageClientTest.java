@@ -77,6 +77,22 @@ class SupabaseStorageClientTest {
     }
 
     @Test
+    void upload_withExplicitBucket_usesThatBucketInsteadOfTheDefault() {
+        String otherBucket = "story-thumbnail";
+        String prefix = java.util.regex.Pattern.quote(PROJECT_URL + "/storage/v1/object/" + otherBucket + "/covers/");
+        mockServer.expect(requestTo(matchesPattern(prefix + "[0-9a-fA-F-]{36}" + java.util.regex.Pattern.quote(".jpg"))))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess());
+
+        MockMultipartFile file = new MockMultipartFile("media", "cover.jpg", "image/jpeg", "hello".getBytes());
+
+        String publicUrl = newClient().upload(file, otherBucket, "covers");
+
+        assertThat(publicUrl).startsWith(PROJECT_URL + "/storage/v1/object/public/" + otherBucket + "/covers/");
+        mockServer.verify();
+    }
+
+    @Test
     void upload_blankEndpoint_throwsCleanlyWithoutARealCall() {
         properties.setUrl("");
         MockMultipartFile file = new MockMultipartFile("media", "clip.m4a", "audio/m4a", "hello".getBytes());
@@ -100,9 +116,22 @@ class SupabaseStorageClientTest {
     }
 
     @Test
-    void delete_urlNotFromThisBucket_isANoOp() {
+    void delete_urlThatIsNotASupabasePublicObjectUrl_isANoOp() {
         // No expectation registered — if the client made a request anyway, mockServer.verify() below would fail.
         newClient().delete("https://somewhere-else.example.com/file.m4a");
+
+        mockServer.verify();
+    }
+
+    @Test
+    void delete_publicUrlFromADifferentBucket_stillDeletesIt_byTheBucketEmbeddedInTheUrl() {
+        String otherBucket = "story-thumbnail";
+        String publicUrl = PROJECT_URL + "/storage/v1/object/public/" + otherBucket + "/covers/existing.jpg";
+        mockServer.expect(requestTo(PROJECT_URL + "/storage/v1/object/" + otherBucket + "/covers/existing.jpg"))
+                .andExpect(method(HttpMethod.DELETE))
+                .andRespond(withSuccess());
+
+        newClient().delete(publicUrl);
 
         mockServer.verify();
     }

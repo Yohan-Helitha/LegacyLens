@@ -110,6 +110,11 @@ export const PostHireRequestScreen: React.FC<PostHireRequestScreenProps> = ({
             onChangeText={setTitle}
             placeholder={t('post.titlePlaceholder')}
             maxLength={200}
+            // Long dictated titles were clipped to one line with no way to
+            // see the start again (the cursor pins the view to the end) —
+            // wrapping across a few lines keeps the whole thing visible.
+            multiline
+            minInputHeight={56}
             errorText={titleError}
             voiceLang={speechLang}
             voiceLabels={voiceLabels(t('post.field.title'))}
