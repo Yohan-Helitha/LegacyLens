@@ -297,7 +297,7 @@ const ScheduledJobCard: React.FC<{
   onView: () => void;
   onRemove: () => void;
 }> = ({ item, onView, onRemove }) => (
-  <View style={[s.jobCard, { borderLeftColor: item.urgent ? D.urgentDot : D.primary }]}>
+  <View style={[s.jobCard, { borderLeftColor: item.urgent ? D.urgentDot : D.secondary }]}>
     <View style={s.jobCardHeaderRow}>
       <View style={s.jobIconBox}>
         <Text style={{ fontSize: 18 }}>🎥</Text>

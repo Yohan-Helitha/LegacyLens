@@ -83,6 +83,8 @@ type ActiveJobItem = {
   /** The time range of the visit, e.g. "10:00 AM - 2:00 PM"; empty when not set. */
   timeText: string;
   statusLabel: string;
+  /** Urgent work gets a red edge on its card instead of the usual orange. */
+  urgent: boolean;
 };
 
 type ReviewItem = {
@@ -146,6 +148,7 @@ function mapJobToItem(job: JobResponse): ActiveJobItem {
     dateText,
     timeText,
     statusLabel,
+    urgent: job.urgent,
   };
 }
 
@@ -289,9 +292,9 @@ const TabPill: React.FC<{
 const ActiveJobCard: React.FC<{ item: ActiveJobItem; onPress: () => void }> = ({ item, onPress }) => (
   <Pressable
     onPress={onPress}
-    style={({ pressed }) => [s.jobCard, pressed && s.jobCardPressed]}
+    style={({ pressed }) => [s.jobCard, item.urgent && s.jobCardUrgent, pressed && s.jobCardPressed]}
     accessibilityRole="button"
-    accessibilityLabel={`${item.title} — ${item.statusLabel}`}
+    accessibilityLabel={`${item.urgent ? 'Urgent. ' : ''}${item.title} — ${item.statusLabel}`}
   >
     {/* Header */}
     <View style={s.jobCardHeader}>
@@ -1006,6 +1009,7 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 4, elevation: 1, gap: Spacing.sm,
   },
+  jobCardUrgent:  { borderLeftColor: '#C0392B' },
   jobCardPressed: { shadowOpacity: 0.12, elevation: 3 },
   jobCardHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.sm },
   jobCardLeft:    { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, flex: 1 },

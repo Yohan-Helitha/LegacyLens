@@ -339,7 +339,7 @@ const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; p
   const doneOn = formatDoneDate(job.completedAt);
 
   return (
-    <View style={s.doneCard}>
+    <View style={[s.doneCard, job.urgent && s.doneCardUrgent]}>
       <View style={s.doneTopRow}>
         <View style={s.donePill}>
           <View style={s.doneCheck}>
@@ -949,12 +949,16 @@ const s = StyleSheet.create({
   monthHeader: { paddingHorizontal: 4, marginTop: Spacing.sm, marginBottom: Spacing.sm, gap: 2 },
   monthLabel: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, color: D.onSurface },
   monthStats: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.primary },
+  doneCardUrgent: { borderLeftColor: '#C0392B' },
   doneCard: {
     backgroundColor: D.surfaceContainerLowest,
     borderRadius: Radii.xl,
     padding: Spacing.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
+    // Orange edge for ordinary work, red for urgent work - same as the dashboard and Schedule cards.
+    borderLeftWidth: 3,
+    borderLeftColor: D.secondary,
     shadowColor: D.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
