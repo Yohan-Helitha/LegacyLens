@@ -3,8 +3,10 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
+  StatusBar as RNStatusBar,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -131,6 +133,41 @@ export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBa
   const [recordingVoice, setRecordingVoice] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
+  // On many Android phones the keyboard covers the bottom of the screen instead of pushing it up, which hides
+  // the message box. When it opens, measure where the box really is, lift it by however much the keyboard
+  // covers (checking again after each lift, since phones report the keyboard's size slightly differently),
+  // and tuck the bottom navigation away while typing - the keyboard would be on top of it anyway.
+  const inputRowRef = useRef<View>(null);
+  const [keyboardLift, setKeyboardLift] = useState(0);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return undefined;
+    const settle = (keyboardTop: number, attempt: number) => {
+      inputRowRef.current?.measureInWindow((_x, y, _w, height) => {
+        // The window position excludes the status bar while the keyboard's position includes it, so add it back.
+        const covered = y + height + (RNStatusBar.currentHeight ?? 0) - (keyboardTop - 12);
+        if (covered > 2 && attempt < 4) {
+          setKeyboardLift((lift) => lift + covered);
+          setTimeout(() => settle(keyboardTop, attempt + 1), 150);
+        } else {
+          scrollRef.current?.scrollToEnd({ animated: true });
+        }
+      });
+    };
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardOpen(true);
+      setTimeout(() => settle(e.endCoordinates.screenY, 0), 120);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardOpen(false);
+      setKeyboardLift(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
   const locale = useLocaleStore((state) => state.locale);
   const voice = useVoiceToText({
     lang: LOCALE_SPEECH_TAG[locale],
@@ -211,7 +248,7 @@ export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBa
         )}
       </View>
 
-      <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={[s.flex, keyboardLift > 0 && { paddingBottom: keyboardLift }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {loading && !detail ? (
           <View style={s.stateBox}>
             <ActivityIndicator size="large" color={D.primary} accessibilityLabel="Loading conversation" />
@@ -283,7 +320,7 @@ export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBa
         )}
 
         {/* Input row */}
-        <View style={s.inputRow}>
+        <View ref={inputRowRef} collapsable={false} style={s.inputRow}>
           <View style={[s.inputPill, voice.isListening && s.inputPillListening]}>
             <TextInput
               style={s.textInput}
@@ -343,7 +380,7 @@ export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBa
         onSave={handleVoiceClip}
       />
 
-      {footer}
+      {!keyboardOpen && footer}
     </SafeAreaView>
   );
 };
