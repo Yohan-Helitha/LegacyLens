@@ -161,9 +161,9 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
         if (jobId != null) {
             job = jobRepository.findByIdAndCreatorId(jobId, creatorId)
                     .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
-            // Cash is collected for work that is under way or done - not for a job that is only booked or was cancelled.
-            if (job.getStatus() == JobStatus.UPCOMING || job.getStatus() == JobStatus.CANCELLED) {
-                throw new InvalidApplicationStateException("A payment can only be logged for work that has started.");
+            // A booked job (UPCOMING) is the creator's work to do, so cash can be logged for it; a cancelled one cannot.
+            if (job.getStatus() == JobStatus.CANCELLED) {
+                throw new InvalidApplicationStateException("A payment cannot be logged for a cancelled job.");
             }
         }
 

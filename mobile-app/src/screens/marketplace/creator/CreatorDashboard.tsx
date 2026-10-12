@@ -690,8 +690,11 @@ export const CreatorDashboard: React.FC<{
     setJobsLoading(true);
     setJobsError(false);
 
-    creatorDashboardApi
-      .getJobs(TAB_TO_STATUS[activeTab])
+    // A booked job is UPCOMING until it is completed, so "today's jobs" look at both kinds.
+    const request = activeTab === 'active'
+      ? Promise.all([creatorDashboardApi.getJobs('ACTIVE'), creatorDashboardApi.getJobs('UPCOMING')]).then(([a, u]) => [...a, ...u])
+      : creatorDashboardApi.getJobs(TAB_TO_STATUS[activeTab]);
+    request
       .then((data) => {
         if (!cancelled) {
           // The Active tab is "what I have to do today": only the jobs scheduled for today. The full list lives on My Work.
@@ -699,7 +702,11 @@ export const CreatorDashboard: React.FC<{
           const shown = activeTab === 'active'
             ? data.filter((j) => !!j.scheduledAt && toDateKey(new Date(j.scheduledAt)) === todayKey)
             : data;
-          setJobsByTab((prev) => ({ ...prev, [activeTab]: shown.map(mapJobToItem) }));
+          setJobsByTab((prev) => ({
+            ...prev,
+            // Work scheduled for today counts as in progress, whether or not it has been started yet.
+            [activeTab]: shown.map((j) => (activeTab === 'active' ? { ...mapJobToItem(j), statusLabel: 'IN PROGRESS' } : mapJobToItem(j))),
+          }));
         }
       })
       .catch(() => {
