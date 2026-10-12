@@ -12,12 +12,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
+import { Hand } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
+import { profileApi } from '../../../services/api/profileApi';
+import { useAuthStore } from '../../../store/authStore';
 import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
 import { ApiError } from '../../../services/api/client';
 import type {
@@ -183,17 +186,27 @@ const ClockIcon: React.FC<IconProps> = ({ size = 13, color = '#E8792E' }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 // GreetingSection
 // ─────────────────────────────────────────────────────────────────────────────
-const GreetingSection: React.FC = () => (
+// Greeting follows the phone's clock: morning until noon, afternoon until 5 pm, evening after that.
+function greetingForHour(hour: number): string {
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
+
+const GreetingSection: React.FC<{ name: string }> = ({ name }) => (
   <View style={s.greetingRow}>
     <Image
       source={{
         uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBdmWxeiutm8VuCuwb8B-bcbY4uwLEOEIZpHad16sSCOnOCn176-8moOj3W6uDPAciix85yHVNmpAd1RTzDZNIib4AVMq68gwoQfyYec-CiNygpv3Rti52MfEWixskGSi9K2HzQJc1XhIg649C9xWHdmBqgXNA5LsR-CP4PfF7fUKsBLElU0twICuF7-ZcI9Vlnj9GgnzoL4Bqj9ilpxA4BZs3oFt_0h7PcPdk4HDm4JKWKr6S3bofO2g',
       }}
       style={s.avatar}
-      accessibilityLabel="Inothma's profile photo"
+      accessibilityLabel="Your profile photo"
     />
     <View style={s.greetingText}>
-      <Text style={s.greetingHeadline}>Good Morning, Inothma 👋</Text>
+      <View style={s.greetingHeadlineRow}>
+        <Text style={s.greetingHeadline}>{`${greetingForHour(new Date().getHours())}${name ? `, ${name}` : ''}`}</Text>
+        <Hand size={20} color={D.secondary} strokeWidth={2} />
+      </View>
       <Text style={s.greetingSubtitle}>Ready to preserve a story today?</Text>
     </View>
   </View>
@@ -572,7 +585,13 @@ export const CreatorDashboard: React.FC<{
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [booking, setBooking] = useState(false);
 
+  // The greeting uses the first name from the creator's own profile (the login's name shows until it loads).
+  const cachedName = useAuthStore((st) => st.user?.fullName ?? '');
+  const [profileName, setProfileName] = useState('');
+  const firstName = (profileName || cachedName).trim().split(/\s+/)[0] ?? '';
+
   useEffect(() => {
+    profileApi.getMe().then((p) => setProfileName(p.fullName)).catch(() => {});
     creatorDashboardApi
       .getSummary()
       .then(setSummary)
@@ -669,7 +688,7 @@ export const CreatorDashboard: React.FC<{
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <GreetingSection />
+        <GreetingSection name={firstName} />
         <MetricsSection
           summary={summary}
           onOpenHistory={onOpenHistory}
@@ -879,6 +898,7 @@ const s = StyleSheet.create({
     shadowOpacity: 0.1, shadowRadius: 3, elevation: 2,
   },
   greetingText:     { flex: 1, justifyContent: 'center' },
+  greetingHeadlineRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   greetingHeadline: {
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeMD, lineHeight: 24, color: D.onSurface,
