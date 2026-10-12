@@ -36,6 +36,7 @@ import { VideoCard } from '../../components/home/VideoCard';
 import { BlogCard } from '../../components/home/BlogCard';
 import { AudioCard } from '../../components/home/AudioCard';
 import { homeApi, CategoryResponse } from '../../services/api/homeApi';
+import { discoveryApi, mapDiscoveryToFeedItem } from '../../services/api/discoveryApi';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH - Spacing.md * 2;
@@ -185,6 +186,18 @@ export const HomeScreen: React.FC<{
 
   const fetchFeedItems = useCallback(async () => {
     try {
+      // 1. Try personalized cultural recommendations based on story_views history
+      const recommended = await discoveryApi.getHomeRecommendations(15);
+      if (recommended && recommended.length > 0) {
+        setAllFeedItems(recommended.map(mapDiscoveryToFeedItem));
+        return;
+      }
+    } catch (discoveryErr) {
+      console.log('Discovery home recommendations fallback to general feed:', discoveryErr);
+    }
+
+    try {
+      // 2. Fallback to default community feed
       const response = await homeApi.getFeedItems();
       if (response && response.length > 0) {
         setAllFeedItems(response as any);
