@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { StarRating } from '../../../components/module-specific/marketplace/StarRating';
+import { FeedbackCarousel } from '../../../components/module-specific/marketplace/FeedbackCarousel';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path } from 'react-native-svg';
@@ -282,20 +282,19 @@ export const CreatorProfile: React.FC<{
               </View>
             </View>
 
-            {/* Client Feedback - plain lines, not cards: who said it, about which work, and what they said */}
+            {/* Client Feedback - the newest four, swiped sideways like on the dashboard */}
             {profile.recentFeedback.length > 0 && (
               <View style={s.section}>
                 <Text style={s.sectionTitleStandalone}>Client Feedback</Text>
-                <View>
-                  {profile.recentFeedback.map((item, index) => (
-                    <View key={item.jobId} style={[s.feedbackItem, index > 0 && s.feedbackItemDivider]}>
-                      <StarRating rating={item.rating} size={16} />
-                      {!!item.comment && <Text style={s.feedbackQuote}>{`“${item.comment}”`}</Text>}
-                      <Text style={s.feedbackBy}>{`— ${item.elderName}`}</Text>
-                      <Text style={s.feedbackFor}>{item.opportunityTitle}</Text>
-                    </View>
-                  ))}
-                </View>
+                <FeedbackCarousel
+                  items={profile.recentFeedback.map((item) => ({
+                    id: item.jobId,
+                    rating: item.rating,
+                    comment: item.comment,
+                    elderName: item.elderName,
+                    opportunityTitle: item.opportunityTitle,
+                  }))}
+                />
               </View>
             )}
 
@@ -512,11 +511,6 @@ const s = StyleSheet.create({
   statLabel: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
 
   // ── Previous contribution ────────────────────────────────────────────────
-  feedbackItem: { gap: 4, paddingVertical: Spacing.sm },
-  feedbackItemDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant },
-  feedbackQuote: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: D.onSurface, fontStyle: 'italic' },
-  feedbackBy: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.primary },
-  feedbackFor: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
   contribCard: {
     backgroundColor: D.surfaceContainerLowest,
     borderRadius: Radii.lg,

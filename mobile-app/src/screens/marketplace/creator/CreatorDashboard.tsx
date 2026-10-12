@@ -18,7 +18,7 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
-import { StarRating } from '../../../components/module-specific/marketplace/StarRating';
+import { FeedbackCarousel } from '../../../components/module-specific/marketplace/FeedbackCarousel';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
 import { profileApi } from '../../../services/api/profileApi';
 import { useAuthStore } from '../../../store/authStore';
@@ -497,24 +497,15 @@ const FeedbackSection: React.FC<{
         <Text style={s.emptyStateText}>No feedback yet.</Text>
       </View>
     ) : (
-      // Swipe sideways: newest first, one card per review, never more than FEEDBACK_SHOWN of them.
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.feedbackRow}
-        decelerationRate="fast"
-        snapToInterval={FEEDBACK_CARD_WIDTH + Spacing.sm}
-      >
-        {reviews.map((review) => (
-          <View key={review.id} style={s.feedbackCard}>
-            <StarRating rating={review.rating} size={18} />
-            {!!review.quote && <Text style={s.quoteText} numberOfLines={5}>{`“${review.quote}”`}</Text>}
-            <View style={{ flex: 1 }} />
-            <Text style={s.quoteAuthor} numberOfLines={1}>{`— ${review.author}`}</Text>
-            <Text style={s.quoteOpportunity} numberOfLines={1}>{review.opportunityTitle}</Text>
-          </View>
-        ))}
-      </ScrollView>
+      <FeedbackCarousel
+        items={reviews.map((review) => ({
+          id: review.id,
+          rating: review.rating,
+          comment: review.quote,
+          elderName: review.author,
+          opportunityTitle: review.opportunityTitle,
+        }))}
+      />
     )}
   </View>
 );
@@ -926,7 +917,6 @@ export const CreatorDashboard: React.FC<{
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
 const GALLERY_SIZE = 128;
-const FEEDBACK_CARD_WIDTH = 280;
 
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
@@ -1088,16 +1078,6 @@ const s = StyleSheet.create({
   feedbackTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexShrink: 1 },
   feedbackRating: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.tertiaryContainer, lineHeight: 20 },
   viewAllBtn: { minHeight: 44, justifyContent: 'center' },
-  feedbackRow: { flexDirection: 'row', gap: Spacing.sm, paddingBottom: 4 },
-  feedbackCard: {
-    width: FEEDBACK_CARD_WIDTH, minHeight: 170, gap: Spacing.xs,
-    backgroundColor: D.surfaceContainerLowest, borderRadius: Radii.xl, padding: Spacing.md,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
-    borderLeftWidth: 3, borderLeftColor: D.secondary,
-  },
-  quoteText:   { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: D.onSurface, fontStyle: 'italic' },
-  quoteAuthor: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.primary, letterSpacing: 0.3 },
-  quoteOpportunity: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
 
   // ── Gallery ────────────────────────────────────────────────────────────────
   viewAllText:            { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.secondary, letterSpacing: 0.2 },
