@@ -8,6 +8,7 @@ import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { SavedWorkCard } from '../../../components/module-specific/marketplace/SavedWorkCard';
+import { WorkContent } from '../../../components/module-specific/marketplace/WorkContent';
 import { appAlert } from '../../../components/common/AppDialog';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
 import { workProgressApi } from '../../../services/api/workProgressApi';
@@ -185,9 +186,12 @@ const WorkCard: React.FC<{
   progressPercentage: number;
   doneSteps: boolean[];
   variant: 'continue' | 'submitted';
+  /** The full progress record - the submitted card shows what was written from it. */
+  progress?: WorkProgressResponse;
   onContinue: () => void;
-}> = ({ job, heroImageUrl, materialsCount, progressPercentage, doneSteps, variant, onContinue }) => {
-  const dueText = formatDueText(job.scheduledAt);
+}> = ({ job, heroImageUrl, materialsCount, progressPercentage, doneSteps, variant, progress, onContinue }) => {
+  // A job already sent for review is no longer "due" - the chip would only mislead.
+  const dueText = variant === 'submitted' ? null : formatDueText(job.scheduledAt);
   const overdue = dueText === 'Overdue';
   const scheduledOn = formatScheduleDate(job.scheduledAt);
 
@@ -262,6 +266,11 @@ const WorkCard: React.FC<{
         <Pressable onPress={onContinue} style={({ pressed }) => [s.continueBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel={`Continue work on ${job.title}`}>
           <Text style={s.continueBtnText}>{'Continue Work  →'}</Text>
         </Pressable>
+      )}
+      {variant === 'submitted' && (
+        <View style={{ marginTop: Spacing.md }}>
+          <WorkContent progress={progress} />
+        </View>
       )}
       {variant === 'submitted' && (
         <View style={s.awaitingPill}>
@@ -598,6 +607,7 @@ export const MyWorkList: React.FC<{
                 progressPercentage={percentage}
                 doneSteps={steps}
                 variant="submitted"
+                progress={progressByJobId[job.id]}
                 onContinue={() => {}}
               />
             ))

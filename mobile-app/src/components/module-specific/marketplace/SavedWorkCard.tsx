@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import type { JobResponse } from '../../../types/creatorDashboard';
 import type { WorkProgressResponse } from '../../../types/workProgress';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
+import { WorkContent } from './WorkContent';
 
 // Only for jobs with no photo of their own and no linked opportunity either.
 const GENERIC_HERO_IMAGE = require('../../../../assets/images/work/traditional-rice-menu.jpg');
@@ -65,67 +66,6 @@ function formatDate(iso: string | null): string | null {
   if (!iso) return null;
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
-
-const TextAnswer: React.FC<{ label: string; value: string | null | undefined }> = ({ label, value }) => {
-  if (!value?.trim()) return null;
-  return (
-    <View style={s.answerBlock}>
-      <Text style={s.answerLabel}>{label}</Text>
-      <Text style={s.answerText} numberOfLines={6}>{value}</Text>
-    </View>
-  );
-};
-
-/** My content: what the creator has written and collected so far, so a saved edit can be seen on the card. */
-const YourContent: React.FC<{ progress: WorkProgressResponse | undefined }> = ({ progress }) => {
-  const [open, setOpen] = useState(true);
-  const keywords = progress?.seoKeywords ?? [];
-  const materials = progress?.materials ?? [];
-  const nothingYet = !progress?.introduction?.trim() && !progress?.story?.trim() && !progress?.seoSummary?.trim()
-    && keywords.length === 0 && materials.length === 0;
-
-  return (
-    <View style={s.answers}>
-      <Pressable
-        onPress={() => setOpen((v) => !v)}
-        style={s.answersHeader}
-        accessibilityRole="button"
-        accessibilityLabel={open ? 'Hide my saved content' : 'Show my saved content'}
-      >
-        <Text style={s.answersTitle}>My content</Text>
-        <Text style={s.answersToggle}>{open ? 'Hide ▴' : 'Show ▾'}</Text>
-      </Pressable>
-      {open && (
-        <View style={{ gap: Spacing.sm }}>
-          {nothingYet && <Text style={s.answerEmpty}>Nothing written or collected yet.</Text>}
-          <TextAnswer label="Introduction" value={progress?.introduction} />
-          <TextAnswer label="Story / main content" value={progress?.story} />
-          <TextAnswer label="Search summary" value={progress?.seoSummary} />
-          {keywords.length > 0 && (
-            <View style={s.answerBlock}>
-              <Text style={s.answerLabel}>Keywords</Text>
-              <View style={s.chipWrap}>
-                {keywords.map((k) => (
-                  <View key={k} style={s.chip}>
-                    <Text style={s.chipText}>{k}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-          {materials.length > 0 && (
-            <View style={s.answerBlock}>
-              <Text style={s.answerLabel}>{`Materials (${materials.length})`}</Text>
-              {materials.map((m) => (
-                <Text key={m.id} style={s.answerText} numberOfLines={1}>{m.fileName}</Text>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
-    </View>
-  );
-};
 
 /**
  * One saved draft of a piece of work: the opportunity, when and for how much, what has been written so
@@ -200,7 +140,7 @@ export const SavedWorkCard: React.FC<{
         )}
       </View>
 
-      <YourContent progress={progress} />
+      <WorkContent progress={progress} />
 
       <View style={s.actionsRow}>
         <Pressable
@@ -253,18 +193,6 @@ const s = StyleSheet.create({
   },
   stripRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   stripText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurface },
-
-  answers: { borderRadius: Radii.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant, padding: 10, gap: Spacing.sm },
-  answersHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32 },
-  answersTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.primary },
-  answersToggle: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.secondary },
-  answerBlock: { gap: 4 },
-  answerLabel: { fontFamily: Typography.fontBodySemi, fontSize: 11, color: D.onSurfaceVariant, letterSpacing: 0.3 },
-  answerText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, lineHeight: 18, color: D.onSurface },
-  answerEmpty: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: { borderRadius: Radii.full, backgroundColor: D.surfaceContainerLow, paddingHorizontal: 10, paddingVertical: 4 },
-  chipText: { fontFamily: Typography.fontBodyMed, fontSize: 11.5, color: D.primary },
 
   actionsRow: { flexDirection: 'row', gap: Spacing.sm },
   outlineBtn: {
