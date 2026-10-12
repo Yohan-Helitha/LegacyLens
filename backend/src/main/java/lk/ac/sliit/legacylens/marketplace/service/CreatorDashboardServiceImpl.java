@@ -31,8 +31,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -99,15 +97,15 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
                 .build();
     }
 
+    /**
+     * Money counts as collected only when the creator logs it: cash is handed over in person, so a job being
+     * finished says nothing about whether it has actually been paid.
+     */
     private BigDecimal sumCollectedToday(UUID creatorId) {
         LocalDateTime start = LocalDate.now().atStartOfDay();
         LocalDateTime end = LocalDate.now().atTime(LocalTime.MAX);
 
-        BigDecimal fromJobs = jobRepository.sumOfferedAmountByCreatorIdAndStatusAndCompletedAtBetween(
-                creatorId, JobStatus.COMPLETED, start, end);
-        BigDecimal fromPayments = paymentRecordRepository.sumByCreatorIdAndCollectedAtBetween(creatorId, start, end);
-
-        return fromJobs.add(fromPayments);
+        return paymentRecordRepository.sumByCreatorIdAndCollectedAtBetween(creatorId, start, end);
     }
 
     @Override
@@ -145,27 +143,10 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
     @Override
     @Transactional(readOnly = true)
     public List<PaymentHistoryItemResponse> getPaymentHistory(UUID creatorId, int limit) {
-        List<PaymentHistoryItemResponse> items = new ArrayList<>();
-
-        jobRepository.findByCreatorIdAndStatus(creatorId, JobStatus.COMPLETED, PageRequest.of(0, limit))
-                .forEach(job -> items.add(PaymentHistoryItemResponse.builder()
-                        .id(job.getId())
-                        .jobId(job.getId())
-                        .opportunityTitle(job.getTitle())
-                        .elderName(job.getElder().getFullName())
-                        .amount(job.getOfferedAmount())
-                        .tipAmount(BigDecimal.ZERO)
-                        .totalAmount(job.getOfferedAmount())
-                        .collectedAt(job.getCompletedAt())
-                        .note(job.getTitle() + " — " + job.getElder().getFullName())
-                        .build()));
-
-        paymentRecordRepository.findByCreatorIdOrderByCollectedAtDesc(creatorId, PageRequest.of(0, limit))
-                .forEach(payment -> items.add(mapPaymentRecord(payment)));
-
-        items.sort(Comparator.comparing(PaymentHistoryItemResponse::getCollectedAt).reversed());
-
-        return items.size() > limit ? items.subList(0, limit) : items;
+        // Only payments the creator actually logged - a completed job's agreed price is not income until then.
+        return paymentRecordRepository.findByCreatorIdOrderByCollectedAtDesc(creatorId, PageRequest.of(0, limit)).stream()
+                .map(this::mapPaymentRecord)
+                .collect(Collectors.toList());
     }
 
     @Override
