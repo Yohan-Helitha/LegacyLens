@@ -257,7 +257,12 @@ export const CreatorProfile: React.FC<{
               <DetailRow label="Full Name" value={profile.name} isLast={!profile.city && !owner} />
               {!!profile.city && <DetailRow label="City" value={profile.city} isLast={!owner} />}
               {!!owner?.email && <DetailRow label="Email" value={owner.email} />}
-              {!!owner?.phoneNumber && <DetailRow label="Phone Number" value={owner.phoneNumber} />}
+              {!!owner?.phoneNumber && (
+                <DetailRow
+                  label="Phone Number"
+                  value={[owner.phoneNumber, ...(owner.additionalPhoneNumbers ?? [])].join('\n')}
+                />
+              )}
               {!!owner?.nicNumber && <DetailRow label="NIC Number" value={owner.nicNumber} isLast />}
             </View>
 
@@ -407,8 +412,7 @@ export const CreatorProfile: React.FC<{
       {profile && (
         <EditProfileSheet
           visible={editingProfile}
-          currentName={profile.name}
-          currentCityName={profile.city}
+          profile={profile}
           onClose={() => setEditingProfile(false)}
           onSaved={() => {
             setEditingProfile(false);

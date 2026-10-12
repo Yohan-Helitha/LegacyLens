@@ -19,6 +19,9 @@ public class CreatorOwnerDetailsResponse {
     private String email;
     private String phoneNumber;
 
+    /** Other numbers the creator added for being reached on. */
+    private java.util.List<String> additionalPhoneNumbers;
+
     /** The full, unmasked NIC number. */
     private String nicNumber;
 

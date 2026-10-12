@@ -2,6 +2,7 @@ package lk.ac.sliit.legacylens.marketplace.service;
 
 import lk.ac.sliit.legacylens.marketplace.dto.CreatorApplicationRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.CreatorApplicationResponse;
+import lk.ac.sliit.legacylens.marketplace.dto.UpdateCreatorDetailsRequest;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,4 +24,7 @@ public interface CreatorApplicationService {
      * review status and does not send the application back for review.
      */
     CreatorApplicationResponse updateMyLanguages(UUID userId, List<String> languages);
+
+    /** Changes the creator's own contact email, extra numbers, about text, skills, interests and experience. */
+    CreatorApplicationResponse updateMyDetails(UUID userId, UpdateCreatorDetailsRequest request);
 }

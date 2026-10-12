@@ -4,6 +4,7 @@ import {
   CreatorApplicationResponse,
   LanguageChoice,
   SubmitCreatorApplicationRequest,
+  UpdateCreatorDetailsRequest,
 } from '../../types/creatorApplication';
 
 /** Matches ApiEnvelope in client.ts — not exported there, so mirrored here. */
@@ -29,6 +30,10 @@ export const creatorApplicationApi = {
     apiPut<CreatorApplicationResponse, { languages: string[] }>('/creator-applications/me/languages', {
       languages: toWireFormat(languages),
     }),
+
+  /** Changes the creator's own email, extra phone numbers, about text, skills, interests and experience. */
+  updateDetails: (details: UpdateCreatorDetailsRequest) =>
+    apiPut<CreatorApplicationResponse, UpdateCreatorDetailsRequest>('/creator-applications/me/details', details),
 
   submit: async (
     request: SubmitCreatorApplicationRequest,

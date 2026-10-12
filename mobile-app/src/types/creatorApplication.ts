@@ -66,3 +66,14 @@ export interface SubmitCreatorApplicationRequest {
   experienceDescription: string;
   proofDocument: CreatorApplicationProofFile;
 }
+
+/** What a creator can change on their own profile after applying. */
+export interface UpdateCreatorDetailsRequest {
+  email: string;
+  aboutYou: string;
+  skills: string[];
+  interests: string[];
+  experienceLevel: ExperienceLevel;
+  experienceDescription: string;
+  additionalPhoneNumbers: string[];
+}

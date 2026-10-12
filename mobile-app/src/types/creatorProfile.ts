@@ -14,6 +14,8 @@ export type CreatorApplicationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
 export interface CreatorOwnerDetails {
   email: string | null;
   phoneNumber: string | null;
+  /** Other numbers the creator added for being reached on. */
+  additionalPhoneNumbers: string[];
   /** The full, unmasked NIC number. */
   nicNumber: string | null;
   applicationStatus: CreatorApplicationStatus | null;
@@ -47,6 +49,8 @@ export interface CreatorProfileData {
   /** BigDecimal on the server, so it can arrive as a string. */
   rating: number | string | null;
   contributionsCount: number;
+  /** The NIC with only its first two and last two characters shown - what other people may see. */
+  maskedNic: string | null;
   aboutYou: string | null;
   skills: string[];
   languages: CreatorLanguage[];

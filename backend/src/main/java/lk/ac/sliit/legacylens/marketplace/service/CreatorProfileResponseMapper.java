@@ -33,6 +33,7 @@ public class CreatorProfileResponseMapper {
                 .city(user.getCity() != null ? user.getCity().getName() : null)
                 .rating(creator.rating())
                 .contributionsCount(stats.contributions())
+                .maskedNic(maskNic(user.getNicNumber()))
                 .aboutYou(creator.about())
                 .skills(creator.skills())
                 .languages(LanguageSkills.toResponses(creator.languageSkills()))
@@ -46,6 +47,26 @@ public class CreatorProfileResponseMapper {
                 .previousContributions(previousJobs.stream().map(CreatorProfileResponseMapper::toContribution).toList())
                 .ownerDetails(includePrivateDetails ? toOwnerDetails(user, application) : null)
                 .build();
+    }
+
+    /** "200272401447" becomes "20XXXXXXXX47": only the first two and last two characters are shown. */
+    static String maskNic(String nic) {
+        if (nic == null || nic.isBlank()) {
+            return null;
+        }
+        String clean = nic.trim();
+        if (clean.length() <= 4) {
+            return "X".repeat(clean.length());
+        }
+        return clean.substring(0, 2) + "X".repeat(clean.length() - 4) + clean.substring(clean.length() - 2);
+    }
+
+    private static List<String> additionalNumbers(CreatorApplication application) {
+        if (application == null || application.getAdditionalPhoneNumbers() == null || application.getAdditionalPhoneNumbers().isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(application.getAdditionalPhoneNumbers().split(","))
+                .map(String::trim).filter(number -> !number.isEmpty()).toList();
     }
 
     private static CreatorContributionResponse toContribution(Job job) {
@@ -62,6 +83,7 @@ public class CreatorProfileResponseMapper {
         return CreatorOwnerDetailsResponse.builder()
                 .email(application != null ? application.getEmail() : null)
                 .phoneNumber(user.getPhoneNumber())
+                .additionalPhoneNumbers(additionalNumbers(application))
                 .nicNumber(user.getNicNumber())
                 .applicationStatus(application != null ? application.getStatus().name() : null)
                 .proofUploaded(proofUploaded)

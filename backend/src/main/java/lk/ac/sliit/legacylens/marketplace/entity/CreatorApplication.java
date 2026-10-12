@@ -58,6 +58,10 @@ public class CreatorApplication {
     @Column(nullable = false, length = 150)
     private String email;
 
+    /** Other numbers the creator can be reached on, comma separated - the login number stays in phoneNumber. */
+    @Column(name = "additional_phone_numbers", columnDefinition = "TEXT")
+    private String additionalPhoneNumbers;
+
     @Column(name = "about_you", columnDefinition = "TEXT")
     private String aboutYou;
 

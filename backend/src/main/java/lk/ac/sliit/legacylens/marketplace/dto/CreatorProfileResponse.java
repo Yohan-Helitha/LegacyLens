@@ -29,6 +29,8 @@ public class CreatorProfileResponse {
     /** Distinct elders this creator has completed work for. */
     private long contributionsCount;
 
+    /** The NIC with everything but its first two and last two characters hidden - safe for anyone to see. */
+    private String maskedNic;
     private String aboutYou;
     private List<String> skills;
     private List<LanguageSkillResponse> languages;

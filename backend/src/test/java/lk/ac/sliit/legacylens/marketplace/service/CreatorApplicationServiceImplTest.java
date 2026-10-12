@@ -38,13 +38,14 @@ class CreatorApplicationServiceImplTest {
     @Mock private CreatorApplicationRepository creatorApplicationRepository;
     @Mock private UserRepository userRepository;
     @Mock private FileStorageService fileStorageService;
+    @Mock private lk.ac.sliit.legacylens.users.repository.CreatorProfileRepository creatorProfileRepository;
 
     private CreatorApplicationServiceImpl service;
     private User user;
 
     @BeforeEach
     void setUp() {
-        service = new CreatorApplicationServiceImpl(creatorApplicationRepository, userRepository, fileStorageService);
+        service = new CreatorApplicationServiceImpl(creatorApplicationRepository, userRepository, fileStorageService, creatorProfileRepository);
 
         user = new User();
         user.setId(UUID.randomUUID());
@@ -140,5 +141,43 @@ class CreatorApplicationServiceImplTest {
     void updateLanguages_forSomeoneWhoNeverApplied_isNotFound() {
         assertThrows(lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException.class,
                 () -> service.updateMyLanguages(user.getId(), List.of("Sinhala:FLUENT")));
+    }
+
+    @Test
+    void updateMyDetails_replacesTheEditableFieldsAndKeepsTheProfileInStep() {
+        CreatorApplication application = existingApplication(null);
+        lk.ac.sliit.legacylens.users.entity.CreatorProfile profile = new lk.ac.sliit.legacylens.users.entity.CreatorProfile();
+        profile.setSkills("Old skill");
+        when(creatorApplicationRepository.findByUserId(user.getId())).thenReturn(Optional.of(application));
+        when(creatorApplicationRepository.save(application)).thenReturn(application);
+        when(creatorProfileRepository.findByUserId(user.getId())).thenReturn(Optional.of(profile));
+
+        lk.ac.sliit.legacylens.marketplace.dto.UpdateCreatorDetailsRequest request =
+                new lk.ac.sliit.legacylens.marketplace.dto.UpdateCreatorDetailsRequest();
+        request.setEmail("  new@example.com ");
+        request.setAboutYou("  I record stories  ");
+        request.setSkills(List.of("Photography", " photography ", "Drone filming"));
+        request.setInterests(List.of("Local History"));
+        request.setExperienceLevel(lk.ac.sliit.legacylens.marketplace.entity.ExperienceLevel.EXPERIENCED);
+        request.setExperienceDescription(" Five years of field work ");
+        request.setAdditionalPhoneNumbers(List.of("+94771234567", "+94771234567", "0712345678"));
+
+        service.updateMyDetails(user.getId(), request);
+
+        assertThat(application.getEmail()).isEqualTo("new@example.com");
+        assertThat(application.getAboutYou()).isEqualTo("I record stories");
+        assertThat(application.getSkills()).isEqualTo("Photography, Drone filming");
+        assertThat(application.getInterests()).isEqualTo("Local History");
+        assertThat(application.getExperienceDescription()).isEqualTo("Five years of field work");
+        assertThat(application.getAdditionalPhoneNumbers()).isEqualTo("+94771234567,0712345678");
+        assertThat(profile.getSkills()).isEqualTo("Photography, Drone filming");
+    }
+
+    @Test
+    void updateMyDetails_withoutAnApplication_isNotFound() {
+        when(creatorApplicationRepository.findByUserId(user.getId())).thenReturn(Optional.empty());
+
+        org.junit.jupiter.api.Assertions.assertThrows(lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException.class,
+                () -> service.updateMyDetails(user.getId(), new lk.ac.sliit.legacylens.marketplace.dto.UpdateCreatorDetailsRequest()));
     }
 }
