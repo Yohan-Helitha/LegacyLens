@@ -61,6 +61,8 @@ public class WorkProgressResponse {
     /** The two reviewers' notes on this submission - shown to the creator only, never in the published content. */
     /** Where the review stands: who has approved so far, and when the work was published. */
     private boolean elderApproved;
+    /** Null until the creator first opens the job - the "New" tag on My Work shows until then. */
+    private LocalDateTime openedAt;
     private boolean adminApproved;
     private LocalDateTime publishedAt;
     private String elderFeedback;

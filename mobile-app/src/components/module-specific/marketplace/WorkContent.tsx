@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Typography, Spacing, Radii } from '../../../theme';
-import type { WorkProgressResponse } from '../../../types/workProgress';
+import type { WorkMaterialResponse, WorkProgressResponse } from '../../../types/workProgress';
+import { MaterialViewer } from './MaterialViewer';
 
 const D = {
   surfaceContainerLow: '#f0f5f5',
@@ -40,6 +41,7 @@ export const WorkContent: React.FC<{
   defaultOpen?: boolean;
 }> = ({ progress, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
+  const [viewing, setViewing] = useState<WorkMaterialResponse | null>(null);
   const keywords = progress?.seoKeywords ?? [];
   const materials = progress?.materials ?? [];
   const nothingYet = !progress?.introduction?.trim() && !progress?.story?.trim() && !progress?.seoSummary?.trim()
@@ -77,12 +79,22 @@ export const WorkContent: React.FC<{
           {materials.length > 0 && (
             <Part heading={`Materials (${materials.length})`}>
               {materials.map((m) => (
-                <Text key={m.id} style={s.body} numberOfLines={2}>{m.fileName}</Text>
+                <Pressable
+                  key={m.id}
+                  onPress={() => setViewing(m)}
+                  style={({ pressed }) => [s.materialRow, pressed && { opacity: 0.7 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${m.fileName}`}
+                >
+                  <Text style={s.materialName} numberOfLines={2}>{m.fileName}</Text>
+                  <Text style={s.materialOpen}>Open ›</Text>
+                </Pressable>
               ))}
             </Part>
           )}
         </View>
       )}
+      <MaterialViewer material={viewing} onClose={() => setViewing(null)} />
     </View>
   );
 };
@@ -100,6 +112,12 @@ const s = StyleSheet.create({
   heading: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, letterSpacing: 0.4, color: D.primary },
   rule: { height: StyleSheet.hairlineWidth, backgroundColor: D.surfaceVariant },
   body: { fontFamily: Typography.fontBody, fontSize: Typography.sizeMD, lineHeight: 26, color: D.onSurface },
+  materialRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm, minHeight: 48,
+    backgroundColor: D.surfaceContainerLow, borderRadius: Radii.lg, paddingHorizontal: Spacing.md, paddingVertical: 8,
+  },
+  materialName: { flex: 1, fontFamily: Typography.fontBody, fontSize: Typography.sizeMD, color: D.onSurface },
+  materialOpen: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
   empty: { fontFamily: Typography.fontBody, fontSize: Typography.sizeMD, color: D.onSurfaceVariant },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderRadius: Radii.full, backgroundColor: D.surfaceContainerLow, paddingHorizontal: 14, paddingVertical: 6 },

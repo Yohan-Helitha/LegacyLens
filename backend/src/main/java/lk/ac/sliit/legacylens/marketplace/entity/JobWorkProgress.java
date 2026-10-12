@@ -121,6 +121,10 @@ public class JobWorkProgress {
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
 
+    /** When the creator first opened this job to work on it; null until then - what the "New" tag on My Work follows. */
+    @Column(name = "opened_at")
+    private LocalDateTime openedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

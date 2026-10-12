@@ -79,6 +79,8 @@ export interface WorkProgressResponse {
   elderApproved: boolean;
   adminApproved: boolean;
   publishedAt: string | null;
+  /** Null until the creator first opens the job - the "New" tag shows until then. */
+  openedAt: string | null;
   /** The two "Note & Written Content" sub-sections — kept as separate fields, not one combined note. */
   introduction: string | null;
   story: string | null;

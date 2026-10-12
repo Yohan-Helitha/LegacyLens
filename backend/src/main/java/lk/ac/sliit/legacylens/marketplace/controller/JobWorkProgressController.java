@@ -127,6 +127,16 @@ public class JobWorkProgressController {
     }
 
     /** Discards all progress, materials, notes and checklist completion for this job. */
+    /** The creator opened this job - the "New" tag on My Work goes away. */
+    @PostMapping("/opened")
+    public ResponseEntity<ApiResponse<Void>> markOpened(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID jobId) {
+
+        jobWorkProgressService.markOpened(principal.getUser().getId(), jobId);
+        return ResponseEntity.ok(ApiResponse.ok("Job marked as opened", null));
+    }
+
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> resetProgress(
             @AuthenticationPrincipal CustomUserDetails principal,

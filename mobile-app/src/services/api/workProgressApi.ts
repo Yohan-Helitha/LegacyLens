@@ -43,6 +43,10 @@ export const workProgressApi = {
   testReview: (jobId: string, by: 'elder' | 'admin', action: 'approve' | 'reject') =>
     apiPost<unknown, undefined>(`/jobs/${jobId}/work-progress/test/${by}/${action}`, undefined),
 
+  /** The creator opened the job - its "New" tag goes away. */
+  markOpened: (jobId: string) =>
+    apiPost<void, undefined>(`/jobs/${jobId}/work-progress/opened`, undefined),
+
   resetProgress: (jobId: string) => apiDelete<void>(`/jobs/${jobId}/work-progress`),
 
   /** multipart/form-data — same file-part pattern as creatorDashboardApi.addPayment. */

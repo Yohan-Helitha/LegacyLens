@@ -199,11 +199,25 @@ const WorkCard: React.FC<{
 
   return (
     <View style={s.card}>
-      {dueText && (
+      {(dueText || variant === 'continue') && (
         <View style={s.chipsRow}>
-          <View style={[s.dueChip, overdue && s.dueChipOverdue]}>
-            <Text style={[s.dueChipText, overdue && s.dueChipTextOverdue]}>{dueText}</Text>
+          <View style={s.chipsLeft}>
+            {variant === 'continue' && (
+              <View style={[s.statusChip, progress?.draft && s.statusChipSaved]}>
+                <Text style={[s.statusChipText, progress?.draft && s.statusChipTextSaved]}>{progress?.draft ? 'Saved' : 'Pending'}</Text>
+              </View>
+            )}
+            {!!dueText && (
+              <View style={[s.dueChip, overdue && s.dueChipOverdue]}>
+                <Text style={[s.dueChipText, overdue && s.dueChipTextOverdue]}>{dueText}</Text>
+              </View>
+            )}
           </View>
+          {variant === 'continue' && !!progress && !progress.openedAt && (
+            <View style={s.newTag}>
+              <Text style={s.newTagText}>New</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -495,6 +509,14 @@ export const MyWorkList: React.FC<{
   // Waiting on the reviewers. Work they sent back lives on Rejected Submissions until it is submitted again.
   const submitted = activeWithProgress.filter((x) => x.submitted && !x.rejected);
 
+  // Opening a job is what takes its "New" tag away - told to the server (fire and forget), then on to the work.
+  const openJob = (job: JobResponse) => {
+    if (!progressByJobId[job.id]?.openedAt) {
+      workProgressApi.markOpened(job.id).catch(() => {});
+    }
+    onContinueWork(job.id, job.title, job.elderName, job.location);
+  };
+
   // A step the creator has not finished yet is worth a warning before submitting, not a block.
   const unfinishedSteps = (progress: WorkProgressResponse | undefined): string[] => {
     if (!progress) return [];
@@ -625,7 +647,8 @@ export const MyWorkList: React.FC<{
                 progressPercentage={percentage}
                 doneSteps={steps}
                 variant="continue"
-                onContinue={() => onContinueWork(job.id, job.title, job.elderName, job.location)}
+                progress={progressByJobId[job.id]}
+                onContinue={() => openJob(job)}
               />
             ))
           )
@@ -640,7 +663,7 @@ export const MyWorkList: React.FC<{
                 key={job.id}
                 job={job}
                 progress={progressByJobId[job.id]}
-                onEdit={() => onContinueWork(job.id, job.title, job.elderName, job.location)}
+                onEdit={() => openJob(job)}
                 onSubmit={() => handleSubmitForReview(job)}
                 onDelete={() => handleDeleteDraft(job)}
               />
@@ -799,7 +822,14 @@ const s = StyleSheet.create({
   contributorText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
 
   // ── Chips ────────────────────────────────────────────────────────────────
-  chipsRow: { flexDirection: 'row', gap: Spacing.xs },
+  chipsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.xs },
+  chipsLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexShrink: 1 },
+  statusChip: { backgroundColor: '#FFF0E0', borderRadius: Radii.full, paddingHorizontal: 10, paddingVertical: 3 },
+  statusChipSaved: { backgroundColor: '#E3F1F0' },
+  statusChipText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#9E4A0D', letterSpacing: 0.3 },
+  statusChipTextSaved: { color: D.primary },
+  newTag: { backgroundColor: '#2E8B57', borderRadius: Radii.full, paddingHorizontal: 10, paddingVertical: 3 },
+  newTagText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.3 },
   dueChip: {
     backgroundColor: D.secondaryContainer, borderRadius: Radii.full,
     paddingHorizontal: 10, paddingVertical: 3,

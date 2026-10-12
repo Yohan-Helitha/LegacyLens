@@ -30,5 +30,8 @@ public interface JobWorkProgressService {
     WorkProgressResponse submitDraft(UUID creatorId, UUID jobId);
 
     /** Discards all progress, materials, notes and checklist completion for a job — "Delete" on a saved draft. */
+    /** The creator opened this job to work on it - it stops being "New". Only the first time counts. */
+    void markOpened(UUID creatorId, UUID jobId);
+
     void resetProgress(UUID creatorId, UUID jobId);
 }

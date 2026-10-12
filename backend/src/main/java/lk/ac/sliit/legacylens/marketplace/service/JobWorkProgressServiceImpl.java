@@ -199,6 +199,17 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
 
     @Override
     @Transactional
+    public void markOpened(UUID creatorId, UUID jobId) {
+        Job job = getOwnedJob(creatorId, jobId);
+        JobWorkProgress progress = getOrCreateProgress(job);
+        if (progress.getOpenedAt() == null) {
+            progress.setOpenedAt(LocalDateTime.now());
+            workProgressRepository.save(progress);
+        }
+    }
+
+    @Override
+    @Transactional
     public void resetProgress(UUID creatorId, UUID jobId) {
         Job job = getOwnedJob(creatorId, jobId);
         workMaterialRepository.deleteByJobId(job.getId());
@@ -402,6 +413,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .rejectionReason(progress.getRejectionReason())
                 .rejectedAt(progress.getRejectedAt())
                 .elderApproved(progress.isElderApproved())
+                .openedAt(progress.getOpenedAt())
                 .adminApproved(progress.isAdminApproved())
                 .publishedAt(progress.getPublishedAt())
                 .elderFeedback(progress.getElderFeedback())

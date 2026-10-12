@@ -178,6 +178,19 @@ class JobWorkProgressServiceImplTest {
         assertThat(service.updateNote(creatorId, job.getId(), "New intro", "Story").getProgressPercentage()).isEqualTo(75);
     }
 
+    @Test
+    void aJob_isNew_untilTheCreatorFirstOpensIt_andOnlyTheFirstOpenCounts() {
+        assertThat(read().getOpenedAt()).isNull();
+
+        service.markOpened(creatorId, job.getId());
+        LocalDateTime first = progress.getOpenedAt();
+        assertThat(first).isNotNull();
+        assertThat(read().getOpenedAt()).isEqualTo(first);
+
+        service.markOpened(creatorId, job.getId());
+        assertThat(progress.getOpenedAt()).isEqualTo(first);
+    }
+
     // ── Percentage: four steps, a quarter each ──────────────────────────────
 
     @Test
