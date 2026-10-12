@@ -17,6 +17,4 @@ public class JobRequestSummaryDto {
     private JobRequestStatus status;
     private Long applicantCount;
     private LocalDateTime createdAt;
-    /** Null when the request has no recorded Details clip (inputMode TEXT). Lets "My Requests" play it back inline, no per-row fetch needed. */
-    private String voiceNoteUrl;
 }

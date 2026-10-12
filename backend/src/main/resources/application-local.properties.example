@@ -9,26 +9,3 @@ DB_PASSWORD=YOUR_SUPABASE_DB_PASSWORD
 
 # JWT secret — generate a strong random string (min 32 chars)
 JWT_SECRET=YOUR_JWT_SECRET_KEY_MIN_32_CHARACTERS_LONG
-
-# Azure Speech (Keys and Endpoint page of your Speech resource in the Azure
-# portal). AZURE_SPEECH_ENDPOINT is unverified as either the regional address
-# (https://{region}.api.cognitive.microsoft.com) or the resource's own
-# address (https://{resource-name}.cognitiveservices.azure.com) — try the
-# regional one first, and if /api/speech/transcribe 404s or 401s, switch to
-# the resource's own address shown on that Azure portal page. No code change
-# needed either way, only this value. See AzureFastTranscriptionProvider's
-# class javadoc.
-AZURE_SPEECH_ENDPOINT=YOUR_AZURE_SPEECH_ENDPOINT
-AZURE_SPEECH_KEY=YOUR_AZURE_SPEECH_KEY
-AZURE_SPEECH_REGION=YOUR_AZURE_SPEECH_REGION
-
-# Media storage (story media + hire-request voice notes). Leave
-# STORAGE_PROVIDER unset (or "local") to keep saving to local disk — only
-# set it to "supabase" once the three values below are filled in. The
-# service_role key is highly sensitive: never commit it, never log it,
-# never send it to the mobile app. story-media must be a PUBLIC bucket —
-# see SupabaseStorageClient's doc comment for why.
-STORAGE_PROVIDER=local
-SUPABASE_URL=YOUR_SUPABASE_PROJECT_URL
-SUPABASE_SERVICE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY
-SUPABASE_STORAGE_BUCKET=story-media

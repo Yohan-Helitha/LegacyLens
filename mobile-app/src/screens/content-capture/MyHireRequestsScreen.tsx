@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { CircleAlert, HandHeart, Plus, Sparkles, X } from 'lucide-react-native';
-import { ConfirmDialog, Header, UserFooter } from '../../components/common';
+import { Header, UserFooter } from '../../components/common';
 import type { UserTabKey } from '../../components/common';
 import {
   ElderNavDrawer,
@@ -44,18 +43,8 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
 }) => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [noticeDismissed, setNoticeDismissed] = useState(false);
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const insets = useSafeAreaInsets();
   const { t } = useHireStrings();
-  const { requests, loading, refreshing, loadError, deletingId, deleteError, refresh, reload, removeRequest } =
-    useHireRequests();
-
-  const confirmDelete = async () => {
-    if (!deleteTargetId) return;
-    if (await removeRequest(deleteTargetId)) setDeleteTargetId(null);
-    // On failure, leave the dialog open with removeRequest's own `deleting`
-    // state cleared — the elder sees the inline deleteError text and can retry.
-  };
+  const { requests, loading, refreshing, loadError, refresh, reload } = useHireRequests();
 
   const showNotice = justPosted && !noticeDismissed;
   const showEmpty = !loading && !loadError && requests.length === 0;
@@ -152,8 +141,6 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
                 item={request}
                 onViewApplicants={onViewApplicants}
                 onMessage={onMessageCreator}
-                onRequestDelete={(item) => setDeleteTargetId(item.id)}
-                deleting={deletingId === request.id}
               />
             ))}
 
@@ -167,29 +154,6 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
         )}
       </ScrollView>
 
-      {/* Persistent shortcut to post a new request — the drawer no longer has
-          a direct "Hire a Creator" item, so this (plus the inline button at
-          the end of the list, and the empty state's own CTA) is how a new
-          request gets started from here. */}
-      <Pressable
-        onPress={onPostRequest}
-        style={({ pressed }) => [
-          s.fab,
-          // UserFooter's own container is a fixed 64px tall, plus whatever
-          // bottom safe-area inset this device needs under it (its own
-          // SafeAreaView adds that padding) — bottom:76 alone undershot that
-          // inset on a phone with a tall gesture bar, so the button sat
-          // right on the footer instead of floating above it.
-          { bottom: 64 + insets.bottom + Spacing.md },
-          pressed && s.pressedLight,
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel={t('requests.askForHelp')}
-      >
-        <HandHeart size={22} color={D.onPrimary} strokeWidth={2} />
-        <Text style={s.fabText}>{t('requests.askForHelp')}</Text>
-      </Pressable>
-
       <UserFooter activeTab="home" onTabSelect={(tab) => onTabPress?.(tab)} />
 
       <ElderNavDrawer
@@ -198,16 +162,6 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
         activeItem="myRequests"
         onNavigate={onDrawerNavigate}
         onLogout={onLogout}
-      />
-
-      <ConfirmDialog
-        visible={!!deleteTargetId}
-        title={t('requests.deleteConfirmTitle')}
-        message={deleteError ? `${t('requests.deleteConfirmBody')}\n\n${t('requests.deleteError')}` : t('requests.deleteConfirmBody')}
-        confirmLabel={deletingId === deleteTargetId ? t('requests.deleting') : t('requests.deleteAction')}
-        cancelLabel={t('common.cancel')}
-        onCancel={() => setDeleteTargetId(null)}
-        onConfirm={confirmDelete}
       />
     </View>
   );
@@ -305,28 +259,6 @@ const s = StyleSheet.create({
     textAlign: 'center',
   },
   stateBtn: { alignSelf: 'stretch', marginTop: Spacing.md },
-
-  // Matches your_stories.tsx's own FAB positioning (bottom: 76 clears the
-  // UserFooter without overlapping it) — mango/secondary instead of teal so
-  // it reads as a distinct action from "New Request".
-  fab: {
-    position: 'absolute',
-    right: Spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: D.secondary,
-    borderRadius: Radii.full,
-    paddingVertical: 14,
-    paddingHorizontal: Spacing.md,
-    shadowColor: D.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  fabText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onPrimary },
-  pressedLight: { opacity: 0.88 },
 });
 
 export default MyHireRequestsScreen;

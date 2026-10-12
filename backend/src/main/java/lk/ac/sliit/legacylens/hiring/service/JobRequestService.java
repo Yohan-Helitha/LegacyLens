@@ -16,12 +16,4 @@ public interface JobRequestService {
 
     /** Transitions an existing DRAFT to PENDING_ADMIN_REVIEW and notifies the admin queue. */
     JobRequestResponse submitDraft(UUID elderId, UUID jobRequestId);
-
-    /**
-     * Permanently removes one of the elder's own requests (and its recorded
-     * Details clip, if any) — but only within DELETE_WINDOW of posting it,
-     * and only while still DRAFT or PENDING_ADMIN_REVIEW, i.e. before an
-     * admin has acted on it. Throws StateTransitionException otherwise.
-     */
-    void delete(UUID elderId, UUID jobRequestId);
 }
