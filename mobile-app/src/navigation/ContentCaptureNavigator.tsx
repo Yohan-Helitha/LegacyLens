@@ -15,6 +15,7 @@ import { YourStories } from '../screens/content-capture/your_stories';
 import { TrustScoreDetail } from '../screens/content-capture/trust_score_detail';
 import { ReviewsRatingsScreen } from '../screens/content-capture/ReviewsRatingsScreen';
 import { useStoryDraft } from '../hooks/useStoryDraft';
+import type { HireRequestVoiceNote } from '../hooks/usePostHireRequest';
 import { useAuthStore } from '../store/authStore';
 import type { ElderDrawerItem } from '../components/module-specific/content-capture';
 import type { HireRequestItem } from '../hooks/useHireRequests';
@@ -32,6 +33,7 @@ type Step =
   | 'trustScore'
   | 'reviews'
   | 'hirePost'
+  | 'hirePostRecording'
   | 'hireRequests'
   | 'hireApplicants'
   | 'hireConversation';
@@ -66,6 +68,8 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
 
   /** Hire flow: shows the "we're reviewing it" banner on My Requests right after posting. */
   const [hireJustPosted, setHireJustPosted] = useState(false);
+  /** The in-progress voice note for Screen 8's Details — lives here (not in the screen itself) so it survives the round trip to AudioRecordingScreen and back. */
+  const [hirePostVoiceNote, setHirePostVoiceNote] = useState<HireRequestVoiceNote | null>(null);
   const [applicantsRequest, setApplicantsRequest] = useState<{ id: string; title: string } | null>(null);
   const [conversation, setConversation] = useState<{ creatorName: string; jobTitle: string } | null>(null);
 
@@ -75,6 +79,7 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
   useEffect(() => {
     const target: Partial<Record<Step, Step>> = {
       hirePost: 'dashboard',
+      hirePostRecording: 'hirePost',
       hireRequests: 'dashboard',
       hireApplicants: 'hireRequests',
       hireConversation: 'hireRequests',
@@ -118,7 +123,12 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
     if (item === 'stories') setStep('stories');
     if (item === 'trust') setStep('trustScore');
     if (item === 'reviews') setStep('reviews');
-    if (item === 'hire') setStep('hirePost');
+    if (item === 'hire') {
+      // A fresh visit from the drawer starts a clean request — a clip left
+      // over from an abandoned one shouldn't silently reappear.
+      setHirePostVoiceNote(null);
+      setStep('hirePost');
+    }
     if (item === 'myRequests') {
       setHireJustPosted(false);
       setStep('hireRequests');
@@ -235,13 +245,26 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
 
       {step === 'hirePost' && (
         <PostHireRequestScreen
+          voiceNote={hirePostVoiceNote}
+          onRecordVoiceNote={() => setStep('hirePostRecording')}
           onSubmitted={() => {
+            setHirePostVoiceNote(null);
             setHireJustPosted(true);
             setStep('hireRequests');
           }}
           onDrawerNavigate={handleDrawerNavigate}
           onTabPress={handleTabPress}
           onLogout={handleLogout}
+        />
+      )}
+
+      {step === 'hirePostRecording' && (
+        <AudioRecordingScreen
+          onClose={() => setStep('hirePost')}
+          onFinish={({ uri, durationMillis }) => {
+            setHirePostVoiceNote({ uri, durationMillis });
+            setStep('hirePost');
+          }}
         />
       )}
 

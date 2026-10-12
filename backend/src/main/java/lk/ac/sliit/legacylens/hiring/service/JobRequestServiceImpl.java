@@ -3,7 +3,7 @@ package lk.ac.sliit.legacylens.hiring.service;
 import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.common.exception.StateTransitionException;
-import lk.ac.sliit.legacylens.common.storage.FileStorageService;
+import lk.ac.sliit.legacylens.common.storage.MediaStorageService;
 import lk.ac.sliit.legacylens.hiring.dto.JobRequestResponse;
 import lk.ac.sliit.legacylens.hiring.dto.JobRequestSubmissionDto;
 import lk.ac.sliit.legacylens.hiring.entity.JobRequest;
@@ -25,20 +25,20 @@ public class JobRequestServiceImpl implements JobRequestService {
 
     private final JobRequestRepository jobRequestRepository;
     private final UserRepository userRepository;
-    private final FileStorageService fileStorageService;
+    private final MediaStorageService mediaStorageService;
     private final JobRequestStateMachine jobRequestStateMachine;
     private final AdminNotificationPort adminNotificationPort;
 
     public JobRequestServiceImpl(
             JobRequestRepository jobRequestRepository,
             UserRepository userRepository,
-            FileStorageService fileStorageService,
+            MediaStorageService mediaStorageService,
             JobRequestStateMachine jobRequestStateMachine,
             AdminNotificationPort adminNotificationPort) {
 
         this.jobRequestRepository = jobRequestRepository;
         this.userRepository = userRepository;
-        this.fileStorageService = fileStorageService;
+        this.mediaStorageService = mediaStorageService;
         this.jobRequestStateMachine = jobRequestStateMachine;
         this.adminNotificationPort = adminNotificationPort;
     }
@@ -102,8 +102,7 @@ public class JobRequestServiceImpl implements JobRequestService {
         jobRequest.setInputMode(request.getInputMode());
 
         if (hasVoiceNote) {
-            String relativePath = fileStorageService.store(request.getVoiceNote(), VOICE_NOTE_SUBFOLDER);
-            jobRequest.setVoiceNoteUrl("/uploads/" + relativePath);
+            jobRequest.setVoiceNoteUrl(mediaStorageService.store(request.getVoiceNote(), VOICE_NOTE_SUBFOLDER));
         }
 
         return jobRequest;

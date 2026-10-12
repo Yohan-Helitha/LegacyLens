@@ -3,7 +3,7 @@ package lk.ac.sliit.legacylens.hiring.service;
 import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.common.exception.StateTransitionException;
-import lk.ac.sliit.legacylens.common.storage.FileStorageService;
+import lk.ac.sliit.legacylens.common.storage.MediaStorageService;
 import lk.ac.sliit.legacylens.hiring.dto.JobRequestResponse;
 import lk.ac.sliit.legacylens.hiring.dto.JobRequestSubmissionDto;
 import lk.ac.sliit.legacylens.hiring.entity.InputMode;
@@ -44,7 +44,7 @@ class JobRequestServiceImplTest {
     private UserRepository userRepository;
 
     @Mock
-    private FileStorageService fileStorageService;
+    private MediaStorageService mediaStorageService;
 
     @Mock
     private JobRequestStateMachine jobRequestStateMachine;
@@ -57,7 +57,7 @@ class JobRequestServiceImplTest {
     @BeforeEach
     void setUp() {
         jobRequestService = new JobRequestServiceImpl(
-                jobRequestRepository, userRepository, fileStorageService, jobRequestStateMachine, adminNotificationPort);
+                jobRequestRepository, userRepository, mediaStorageService, jobRequestStateMachine, adminNotificationPort);
     }
 
     private User buildElder() {
@@ -111,7 +111,7 @@ class JobRequestServiceImplTest {
     @Test
     void submit_blankDescriptionButHasVoiceNote_succeeds() {
         when(userRepository.findById(ELDER_ID)).thenReturn(Optional.of(buildElder()));
-        when(fileStorageService.store(any(), eq("job-requests"))).thenReturn("job-requests/clip.m4a");
+        when(mediaStorageService.store(any(), eq("job-requests"))).thenReturn("/uploads/job-requests/clip.m4a");
 
         JobRequestSubmissionDto dto = buildRequest("   ");
         dto.setInputMode(InputMode.VOICE);

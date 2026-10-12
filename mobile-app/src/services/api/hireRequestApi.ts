@@ -9,8 +9,10 @@ import type {
 function toFormData(payload: SubmitHireRequestPayload): FormData {
   const formData = new FormData();
   formData.append('title', payload.title);
-  formData.append('description', payload.description);
   formData.append('inputMode', payload.inputMode);
+  // React Native's FormData accepts this {uri, name, type} shape directly —
+  // it isn't a real web File/Blob, so the DOM FormData typings don't cover it.
+  formData.append('voiceNote', payload.voiceNote as unknown as Blob);
   return formData;
 }
 

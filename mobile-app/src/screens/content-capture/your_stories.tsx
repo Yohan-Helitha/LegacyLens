@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { BookOpen, Plus } from 'lucide-react-native';
 import { Header, UserFooter } from '../../components/common';
@@ -42,6 +43,7 @@ export const YourStories: React.FC<YourStoriesProps> = ({
   onLogout,
 }) => {
   const [drawerVisible, setDrawerVisible] = React.useState(false);
+  const insets = useSafeAreaInsets();
   const { query, setQuery, stories, loading, loadError, totalCount } = useStorySearch();
   const firstName = useAuthStore((state) => state.user?.fullName.split(' ')[0]) ?? 'there';
 
@@ -125,7 +127,14 @@ export const YourStories: React.FC<YourStoriesProps> = ({
       {stories.length > 0 && (
         <Pressable
           onPress={onNewStory}
-          style={({ pressed }) => [s.fab, pressed && s.pressedLight]}
+          style={({ pressed }) => [
+            s.fab,
+            // See MyHireRequestsScreen's matching FAB for why this isn't a
+            // hardcoded bottom: UserFooter's own safe-area inset varies by
+            // device, and a fixed guess undershot it on a tall gesture bar.
+            { bottom: 64 + insets.bottom + Spacing.md },
+            pressed && s.pressedLight,
+          ]}
           accessibilityRole="button"
           accessibilityLabel="New Story"
         >
@@ -220,7 +229,6 @@ const s = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: Spacing.md,
-    bottom: 76,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

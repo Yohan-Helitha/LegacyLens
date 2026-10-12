@@ -6,15 +6,27 @@ type SubmitErrorKey =
   | 'post.error.descriptionRequired'
   | 'post.error.submitFailed';
 
+export interface HireRequestVoiceNote {
+  uri: string;
+  durationMillis: number;
+}
+
 /**
  * State + submit logic for Screen 8 (Request Creator Assistance): a title
- * and free-text details, nothing else. Where and how the elder wants it
- * recorded goes in the details themselves, so there is no structured region
- * or format input to validate.
+ * and a recorded voice note for the details — nothing else. The details are
+ * voice-only by design (not transcribed): the admin reviewing a request
+ * hears it directly, which catches things a speech-to-text pass can lose.
+ * Where and how the elder wants the story captured goes in that recording
+ * itself, so there is no structured region or format input to validate.
+ *
+ * `voiceNote` is NOT owned here — it lives in ContentCaptureNavigator,
+ * because recording it means leaving this screen entirely (for
+ * AudioRecordingScreen) and coming back, which would unmount and reset any
+ * state kept in this hook. The caller passes the current clip in; this hook
+ * only reads it for validation and the submit payload.
  */
-export function usePostHireRequest() {
+export function usePostHireRequest(voiceNote: HireRequestVoiceNote | null) {
   const [title, setTitleState] = useState('');
-  const [description, setDescriptionState] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorKey, setErrorKey] = useState<SubmitErrorKey | null>(null);
 
@@ -23,20 +35,14 @@ export function usePostHireRequest() {
     setErrorKey((current) => (current === 'post.error.titleRequired' ? null : current));
   }, []);
 
-  const setDescription = useCallback((value: string) => {
-    setDescriptionState(value);
-    setErrorKey((current) => (current === 'post.error.descriptionRequired' ? null : current));
-  }, []);
-
   /** Resolves true once the request is sent; false on validation or network failure (see `errorKey`). */
   const submit = useCallback(async (): Promise<boolean> => {
     const trimmedTitle = title.trim();
-    const trimmedDescription = description.trim();
     if (!trimmedTitle) {
       setErrorKey('post.error.titleRequired');
       return false;
     }
-    if (!trimmedDescription) {
+    if (!voiceNote) {
       setErrorKey('post.error.descriptionRequired');
       return false;
     }
@@ -46,9 +52,8 @@ export function usePostHireRequest() {
     try {
       await hireRequestApi.submit({
         title: trimmedTitle,
-        description: trimmedDescription,
-        // The details are always text here — dictation is transcribed on-device by the mic field.
-        inputMode: 'TEXT',
+        inputMode: 'VOICE',
+        voiceNote: { uri: voiceNote.uri, name: 'details.m4a', type: 'audio/m4a' },
       });
       return true;
     } catch {
@@ -57,9 +62,9 @@ export function usePostHireRequest() {
     } finally {
       setSubmitting(false);
     }
-  }, [title, description]);
+  }, [title, voiceNote]);
 
-  return { title, setTitle, description, setDescription, submitting, errorKey, submit };
+  return { title, setTitle, submitting, errorKey, submit };
 }
 
 export default usePostHireRequest;
