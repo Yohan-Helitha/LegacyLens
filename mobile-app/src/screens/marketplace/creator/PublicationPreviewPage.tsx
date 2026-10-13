@@ -1,5 +1,5 @@
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Typography, Spacing, Radii } from '../../../theme';
@@ -7,6 +7,13 @@ import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import type { JobResponse } from '../../../types/creatorDashboard';
+import { PublicationBlogPreview } from './PublicationBlogPreview';
+import { PublicationVideoPreview } from './PublicationVideoPreview';
+
+import { workProgressApi } from '../../../services/api/workProgressApi';
+import type { WorkProgressResponse } from '../../../types/workProgress';
+
+const VIDEO = /\.(mp4|mov|m4v|webm|3gp|mkv)$/i;
 
 const D = {
   surface:                '#EDEFEE',
@@ -26,18 +33,6 @@ function formatPublishedOn(iso: string | null): string | null {
 }
 
 /**
- * Where the structured publication content goes - laid out the same way the admin's Publish Content
- * page arranges it. That structure is built by another part of the team, so this is only the empty
- * slot: when it is ready, render it here from `job` and nothing around it needs to change.
- */
-const PublicationContent: React.FC<{ job: JobResponse }> = () => (
-  <View style={s.slot}>
-    <Text style={s.slotTitle}>Publication content</Text>
-    <Text style={s.slotText}>The published content will be shown here.</Text>
-  </View>
-);
-
-/**
  * A read-only look at one published job from the creator's side, so a creator can review what was
  * published from their work at any time. Opened from "View Publication" on a completed job in My Work.
  */
@@ -47,6 +42,20 @@ export const PublicationPreviewPage: React.FC<{
   onBack: () => void;
 }> = ({ job, onNavigate, onBack }) => {
   const publishedOn = formatPublishedOn(job.completedAt);
+  const [progress, setProgress] = useState<WorkProgressResponse | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    workProgressApi.getProgress(job.id).then(p => alive && setProgress(p)).catch(() => alive && setFailed(true));
+    return () => { alive = false; };
+  }, [job.id]);
+
+  // The format follows what the creator uploaded: a video file means the video layout, otherwise the blog layout.
+  const hasVideo = !!progress?.materials.some(m => VIDEO.test(m.fileName) || VIDEO.test(m.fileUrl));
+  // Starts on the detected layout; the creator can flip it (e.g. to see a dance or cooking job as a blog).
+  const [chosen, setChosen] = useState<'blog' | 'video' | null>(null);
+  const isVideo = (chosen ?? (hasVideo ? 'video' : 'blog')) === 'video';
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
@@ -59,12 +68,28 @@ export const PublicationPreviewPage: React.FC<{
           <View style={s.previewPill}>
             <Text style={s.previewPillText}>Preview</Text>
           </View>
-          <Text style={s.title}>{job.title}</Text>
-          <Text style={s.meta}>{job.elderName}</Text>
-          {!!publishedOn && <Text style={s.meta}>{`Published ${publishedOn}`}</Text>}
         </View>
 
-        <PublicationContent job={job} />
+        {failed ? (
+          <Text style={s.note}>Could not load this publication. Please try again.</Text>
+        ) : !progress ? (
+          <ActivityIndicator color={D.primary} style={{ marginTop: Spacing.lg }} />
+        ) : (
+          <>
+            <View style={s.switchRow}>
+              {(['blog', 'video'] as const).map(f => (
+                <TouchableOpacity key={f} style={[s.switchBtn, (f === 'video') === isVideo && s.switchBtnActive]} onPress={() => setChosen(f)} activeOpacity={0.8}>
+                  <Text style={[s.switchText, (f === 'video') === isVideo && s.switchTextActive]}>{f === 'blog' ? 'Blog' : 'Video'}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          <View style={s.frame}>
+            {isVideo
+              ? <PublicationVideoPreview job={job} progress={progress} publishedOn={publishedOn} />
+              : <PublicationBlogPreview job={job} progress={progress} publishedOn={publishedOn} />}
+          </View>
+          </>
+        )}
 
         <View style={{ height: 8 }} />
       </ScrollView>
@@ -87,13 +112,14 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 4,
   },
   previewPillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.primary, letterSpacing: 0.3 },
-  title: { fontFamily: Typography.fontDisplay, fontSize: 22, lineHeight: 28, color: D.primary },
-  meta: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
 
-  slot: {
-    minHeight: 220, borderRadius: Radii.xl, borderWidth: 1, borderStyle: 'dashed', borderColor: D.surfaceVariant,
-    backgroundColor: D.surfaceContainerLowest, alignItems: 'center', justifyContent: 'center', padding: Spacing.lg, gap: 6,
-  },
-  slotTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: D.onSurface },
-  slotText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, textAlign: 'center' },
+  note: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, textAlign: 'center', marginTop: Spacing.lg },
+
+  switchRow: { flexDirection: 'row', alignSelf: 'flex-start', backgroundColor: '#dfe5e4', borderRadius: Radii.full, padding: 3 },
+  switchBtn: { paddingHorizontal: 18, paddingVertical: 6, borderRadius: Radii.full },
+  switchBtnActive: { backgroundColor: D.surfaceContainerLowest },
+  switchText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+  switchTextActive: { color: D.primary, fontFamily: Typography.fontBodySemi },
+
+  frame: { borderRadius: Radii.xl, overflow: 'hidden', borderWidth: 1, borderColor: D.surfaceVariant },
 });
