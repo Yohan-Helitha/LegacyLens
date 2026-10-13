@@ -73,7 +73,7 @@ public class AdminCulturalMapController {
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadModelFile(
             @RequestParam("file") MultipartFile file) {
         String url = culturalMapService.uploadModelFile(file);
-        return ResponseEntity.ok(ApiResponse.ok("Model uploaded successfully", Map.of("modelUrl", "/uploads/" + url)));
+        return ResponseEntity.ok(ApiResponse.ok("Model uploaded successfully", Map.of("modelUrl", url)));
     }
 
     @PostMapping("/badges")

@@ -119,8 +119,9 @@ class StoryRepositoryIntegrationTest {
         first.setMethod(StoryMethod.WRITTEN);
         storyRepository.save(first);
 
-        // Ensure a strictly later createdAt timestamp for a deterministic order.
-        Thread.sleep(5);
+        // Ensure a strictly later createdAt timestamp for a deterministic order (the OS clock can be coarser
+        // than 5ms, which made this test flaky).
+        Thread.sleep(50);
 
         Story second = new Story();
         second.setAuthor(author);

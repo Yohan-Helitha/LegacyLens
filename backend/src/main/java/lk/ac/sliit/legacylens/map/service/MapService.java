@@ -31,6 +31,13 @@ public class MapService {
     private final BadgeRepository badgeRepository;
     private final RegionRepository regionRepository;
     private final lk.ac.sliit.legacylens.common.storage.FileStorageService fileStorageService;
+    private final lk.ac.sliit.legacylens.common.storage.MediaStorageService mediaStorageService;
+
+    /**
+     * Supabase bucket for 3D landmark models (GLB) uploaded from the admin dashboard. Must exist in
+     * Supabase as a public bucket so the mobile app can load the returned URL directly.
+     */
+    private static final String MODEL_BUCKET = "cultural-model";
 
     @PostConstruct
     public void seedData() {
@@ -263,7 +270,8 @@ public class MapService {
 
     @Transactional
     public String uploadModelFile(org.springframework.web.multipart.MultipartFile file) {
-        return fileStorageService.store(file, "models");
+        // Returns a complete URL (Supabase public URL, or a root-relative /uploads/... path on the local provider).
+        return mediaStorageService.store(file, MODEL_BUCKET, "models");
     }
 
     @Transactional

@@ -92,7 +92,7 @@ public class MapController {
     public ResponseEntity<ApiResponse<java.util.Map<String, String>>> uploadModelFile(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
         String url = mapService.uploadModelFile(file);
-        return ResponseEntity.ok(ApiResponse.ok("Model uploaded successfully", java.util.Map.of("modelUrl", "/uploads/" + url)));
+        return ResponseEntity.ok(ApiResponse.ok("Model uploaded successfully", java.util.Map.of("modelUrl", url)));
     }
 
     @PostMapping("/badges")
