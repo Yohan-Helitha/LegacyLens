@@ -106,7 +106,7 @@ export const styles = StyleSheet.create({
   // ── Video Loader ──────────────────────────────────────────────────────────
   loaderContainer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0a1010',
+    backgroundColor: '#F4F6F5',
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -125,8 +125,8 @@ export const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderWidth: 2,
-    borderColor: '#fe893e',
-    backgroundColor: 'transparent',
+    borderColor: '#0f5c5c',
+    backgroundColor: 'rgba(15, 92, 92, 0.08)',
   },
 
   // ── Card Actions ──────────────────────────────────────────────────────────
