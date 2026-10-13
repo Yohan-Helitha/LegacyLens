@@ -15,6 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Typography } from '../../../theme';
 import { styles } from './BlogDetailScreen.styles';
+import { AvatarPlaceholder } from '../../../components/common/AvatarPlaceholder';
 
 export interface BlogDetailScreenProps {
   post?: any;
@@ -107,7 +108,12 @@ export const BlogDetailScreen: React.FC<BlogDetailScreenProps> = ({
 
                 <View style={styles.authorRow}>
                   <View style={styles.authorGroup}>
-                    <Image source={{ uri: avatar }} style={styles.authorImg} />
+                    <AvatarPlaceholder
+                      name={author}
+                      avatarUrl={post?.avatar}
+                      size={32}
+                      theme="dark"
+                    />
                     <Text style={styles.authorName}>{author}</Text>
                   </View>
                   <View style={styles.dotSeparator} />
