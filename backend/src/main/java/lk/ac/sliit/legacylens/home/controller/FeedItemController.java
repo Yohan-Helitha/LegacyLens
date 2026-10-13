@@ -20,9 +20,38 @@ public class FeedItemController {
         this.service = service;
     }
 
+    private String resolveUserIdentifier(
+            String xUserId,
+            String xClientId,
+            java.security.Principal principal,
+            jakarta.servlet.http.HttpServletRequest request) {
+        if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
+            return principal.getName();
+        }
+        if (xUserId != null && !xUserId.isBlank()) {
+            return xUserId.trim();
+        }
+        if (xClientId != null && !xClientId.isBlank()) {
+            return xClientId.trim();
+        }
+        if (request != null) {
+            String remote = request.getHeader("X-Forwarded-For");
+            if (remote != null && !remote.isBlank()) {
+                return remote.split(",")[0].trim();
+            }
+            return request.getRemoteAddr();
+        }
+        return "anonymous";
+    }
+
     @GetMapping
-    public ResponseEntity<ApiResponse<List<FeedItemResponse>>> getAllFeedItems() {
-        return ResponseEntity.ok(ApiResponse.ok(service.getAllFeedItems()));
+    public ResponseEntity<ApiResponse<List<FeedItemResponse>>> getAllFeedItems(
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Id", required = false) String xUserId,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-Client-Id", required = false) String xClientId,
+            java.security.Principal principal,
+            jakarta.servlet.http.HttpServletRequest request) {
+        String userIdentifier = resolveUserIdentifier(xUserId, xClientId, principal, request);
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllFeedItems(userIdentifier)));
     }
 
     @GetMapping("/{id}/comments")
@@ -74,20 +103,38 @@ public class FeedItemController {
     }
 
     @org.springframework.web.bind.annotation.PostMapping("/{id}/like")
-    public ResponseEntity<ApiResponse<Integer>> likePost(@org.springframework.web.bind.annotation.PathVariable String id) {
-        int count = service.likePost(id);
+    public ResponseEntity<ApiResponse<Integer>> likePost(
+            @org.springframework.web.bind.annotation.PathVariable String id,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Id", required = false) String xUserId,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-Client-Id", required = false) String xClientId,
+            java.security.Principal principal,
+            jakarta.servlet.http.HttpServletRequest request) {
+        String userIdentifier = resolveUserIdentifier(xUserId, xClientId, principal, request);
+        int count = service.likePost(id, userIdentifier);
         return ResponseEntity.ok(ApiResponse.ok("Post liked successfully", count));
     }
 
     @org.springframework.web.bind.annotation.PostMapping("/{id}/unlike")
-    public ResponseEntity<ApiResponse<Integer>> unlikePost(@org.springframework.web.bind.annotation.PathVariable String id) {
-        int count = service.unlikePost(id);
+    public ResponseEntity<ApiResponse<Integer>> unlikePost(
+            @org.springframework.web.bind.annotation.PathVariable String id,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Id", required = false) String xUserId,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-Client-Id", required = false) String xClientId,
+            java.security.Principal principal,
+            jakarta.servlet.http.HttpServletRequest request) {
+        String userIdentifier = resolveUserIdentifier(xUserId, xClientId, principal, request);
+        int count = service.unlikePost(id, userIdentifier);
         return ResponseEntity.ok(ApiResponse.ok("Post unliked successfully", count));
     }
 
     @org.springframework.web.bind.annotation.DeleteMapping("/{id}/like")
-    public ResponseEntity<ApiResponse<Integer>> unlikePostDelete(@org.springframework.web.bind.annotation.PathVariable String id) {
-        int count = service.unlikePost(id);
+    public ResponseEntity<ApiResponse<Integer>> unlikePostDelete(
+            @org.springframework.web.bind.annotation.PathVariable String id,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Id", required = false) String xUserId,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-Client-Id", required = false) String xClientId,
+            java.security.Principal principal,
+            jakarta.servlet.http.HttpServletRequest request) {
+        String userIdentifier = resolveUserIdentifier(xUserId, xClientId, principal, request);
+        int count = service.unlikePost(id, userIdentifier);
         return ResponseEntity.ok(ApiResponse.ok("Post unliked successfully", count));
     }
 }
