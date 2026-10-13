@@ -2,6 +2,7 @@ package lk.ac.sliit.legacylens.discovery.service;
 
 import lk.ac.sliit.legacylens.discovery.dto.DiscoveryStoryResponse;
 import lk.ac.sliit.legacylens.home.entity.AudioItem;
+import lk.ac.sliit.legacylens.home.repository.FeedItemCommentRepository;
 import lk.ac.sliit.legacylens.home.repository.FeedItemRepository;
 import lk.ac.sliit.legacylens.moderation.entity.ModerationQueueItem;
 import lk.ac.sliit.legacylens.moderation.repository.ModerationQueueRepository;
@@ -47,6 +48,8 @@ class CulturalDiscoveryServiceTest {
     private JdbcTemplate jdbcTemplate;
     @Mock
     private FeedItemRepository feedItemRepository;
+    @Mock
+    private FeedItemCommentRepository commentRepository;
 
     @InjectMocks
     private CulturalDiscoveryService service;
