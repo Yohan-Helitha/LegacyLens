@@ -26,6 +26,7 @@ export interface FeedItemResponse {
   tags: string[];
   likesCount?: number;
   commentsCount?: number;
+  liked?: boolean;
   thumbnail?: string;
   videoUrl?: string;
   duration?: string;
