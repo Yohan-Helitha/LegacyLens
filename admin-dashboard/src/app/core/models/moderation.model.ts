@@ -31,9 +31,9 @@ export interface UpdateModerationStatusRequest {
 
 export interface TagAliasDTO {
   id: string;
-  tagId: string;
+  tagId?: string;
   alias: string;
-  normalizedAlias: string;
+  normalizedAlias?: string;
   languageCode?: string;
   aliasType?: string;
   createdAt?: string;
@@ -41,12 +41,12 @@ export interface TagAliasDTO {
 
 export interface TagRelationshipDTO {
   id: string;
-  sourceTagId: string;
-  sourceTagName: string;
+  sourceTagId?: string;
+  sourceTagName?: string;
   targetTagId: string;
-  targetTagName: string;
+  targetTagName?: string;
   relationshipType: string;
-  weight: number;
+  weight?: number;
   createdAt?: string;
 }
 
