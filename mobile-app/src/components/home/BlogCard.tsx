@@ -5,8 +5,9 @@ import { styles } from './BlogCard.styles';
 import { FeedCardActions } from './FeedCardActions';
 import { homeApi } from '../../services/api/homeApi';
 import { getMediaUrl } from '../../constants/api';
+import { AvatarPlaceholder } from '../common/AvatarPlaceholder';
 
-export const BlogCard = ({ b, item, setActivePostId, setCommentModalVisible, onNavigate, onLikeChange }: any) => {
+export const BlogCard = ({ b, item, setActivePostId, setCommentModalVisible, onNavigate, onLikeChange, initialLiked }: any) => {
   const rawThumb = b.thumbnail || item?.thumbnail || item?.imageUrl;
   const resolvedThumbnail = rawThumb && !rawThumb.startsWith('http')
     ? getMediaUrl(rawThumb.startsWith('/uploads/') ? rawThumb : (rawThumb.startsWith('uploads/') ? `/${rawThumb}` : `/uploads/${rawThumb.replace(/^\/+/, '')}`))
@@ -29,7 +30,12 @@ export const BlogCard = ({ b, item, setActivePostId, setCommentModalVisible, onN
 
         <View style={styles.premiumFooter}>
           <View style={styles.premiumAuthorBox}>
-            <Image source={{ uri: b.avatar || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200' }} style={styles.premiumAvatar} />
+            <AvatarPlaceholder
+              name={b.author}
+              avatarUrl={b.avatar || item?.avatar}
+              size={36}
+              theme="dark"
+            />
             <View>
               <Text style={styles.premiumAuthorName}>{b.author}</Text>
               <Text style={styles.premiumAuthorSub}>{'Blog · ' + (b.readTime || '')}</Text>
@@ -42,6 +48,7 @@ export const BlogCard = ({ b, item, setActivePostId, setCommentModalVisible, onN
           theme="dark"
           initialLikes={b.likesCount ?? item?.likesCount ?? 0}
           initialComments={b.commentsCount ?? item?.commentsCount ?? 0}
+          initialLiked={initialLiked ?? item?.liked ?? b?.liked ?? false}
           onLikeChange={onLikeChange}
           onCommentPress={() => {
             setActivePostId(item?.id || b?.id);
