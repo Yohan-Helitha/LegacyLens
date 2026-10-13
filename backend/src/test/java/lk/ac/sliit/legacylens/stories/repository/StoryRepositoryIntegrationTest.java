@@ -117,17 +117,18 @@ class StoryRepositoryIntegrationTest {
         first.setAuthor(author);
         first.setTitle("Recorded first");
         first.setMethod(StoryMethod.WRITTEN);
-        storyRepository.save(first);
+        // createdAt is stamped when the row is INSERTed (at flush), not when save() is called — so flush
+        // first, otherwise both stories get inserted together at the final flush and the sleep below is moot.
+        storyRepository.saveAndFlush(first);
 
-        // Ensure a strictly later createdAt timestamp for a deterministic order (the OS clock can be coarser
-        // than 5ms, which made this test flaky).
+        // Ensure a strictly later createdAt timestamp for a deterministic order.
         Thread.sleep(50);
 
         Story second = new Story();
         second.setAuthor(author);
         second.setTitle("Recorded second");
         second.setMethod(StoryMethod.WRITTEN);
-        storyRepository.save(second);
+        storyRepository.saveAndFlush(second);
 
         Story someoneElses = new Story();
         someoneElses.setAuthor(otherAuthor);
