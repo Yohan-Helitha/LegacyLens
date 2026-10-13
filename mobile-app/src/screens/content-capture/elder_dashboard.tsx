@@ -8,24 +8,19 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
-import {
-  Award,
-  Mic,
-  Clock,
-  ChevronDown,
-  Wallet,
-} from 'lucide-react-native';
+import { Award, Mic, ChevronDown } from 'lucide-react-native';
 import { Typography, Spacing, Radii } from '../../theme';
 import { ConfirmDialog, Header, UserFooter } from '../../components/common';
 import type { UserTabKey } from '../../components/common';
 import {
+  AnalyticsSummaryCard,
   ElderNavDrawer,
   StoryCard,
   toStoryCardItem,
   ContentCaptureColors as D,
 } from '../../components/module-specific/content-capture';
 import type { ElderDrawerItem } from '../../components/module-specific/content-capture';
+import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
 import { useStoriesList } from '../../hooks/useStoriesList';
 import type { StoryResponse } from '../../types/story';
 
@@ -51,74 +46,6 @@ const TrustBadgeSection: React.FC<{ onPress?: () => void }> = ({ onPress }) => (
     </View>
   </Pressable>
 );
-
-// ─────────────────────────────────────────────────────────────────────────────
-// BalanceCard — "Your Balance"
-// ─────────────────────────────────────────────────────────────────────────────
-interface BalanceCardProps {
-  onHistoryPress?: () => void;
-  onWithdrawPress?: () => void;
-}
-
-const BalanceCard: React.FC<BalanceCardProps> = ({ onHistoryPress, onWithdrawPress }) => {
-  const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
-
-  return (
-  <View
-    style={s.balanceCard}
-    onLayout={(e) => {
-      const { width, height } = e.nativeEvent.layout;
-      setCardSize({ width, height });
-    }}
-  >
-    {cardSize.width > 0 && cardSize.height > 0 && (
-      <Svg style={StyleSheet.absoluteFill as any} width={cardSize.width} height={cardSize.height}>
-        <Defs>
-          <LinearGradient id="balanceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor={D.primaryContainer} />
-            <Stop offset="100%" stopColor={D.primary} />
-          </LinearGradient>
-        </Defs>
-        <Rect x={0} y={0} width={cardSize.width} height={cardSize.height} rx={Radii.xl} fill="url(#balanceGrad)" />
-      </Svg>
-    )}
-
-    <View style={s.balanceTopRow}>
-      <View style={s.balanceIconWrap}>
-        <Wallet size={24} color={D.onPrimary} strokeWidth={2} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={s.balanceLabel}>YOUR BALANCE</Text>
-        <Text style={s.balanceAmount}>LKR 8,400</Text>
-      </View>
-    </View>
-
-    <View style={s.balancePendingRow}>
-      <Clock size={14} color={D.onPrimary} strokeWidth={2} />
-      <Text style={s.balancePendingText}>LKR 1,200 pending clearance</Text>
-    </View>
-
-    <View style={s.balanceDivider} />
-
-    <View style={s.balanceBtnRow}>
-      <Pressable
-        onPress={onHistoryPress}
-        style={({ pressed }) => [s.balanceBtnOutline, pressed && s.pressedDark]}
-        accessibilityRole="button"
-      >
-        <Text style={s.balanceBtnOutlineText}>History</Text>
-      </Pressable>
-      <Pressable
-        onPress={onWithdrawPress}
-        style={({ pressed }) => [s.balanceBtnFill, pressed && s.pressedLight]}
-        accessibilityRole="button"
-      >
-        <Text style={s.balanceBtnFillText}>Withdraw</Text>
-      </Pressable>
-    </View>
-  </View>
-  );
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PrimaryActionSection — "Record a new story"
@@ -233,9 +160,9 @@ interface ElderDashboardProps {
   onRecordStory?: () => void;
   onReplyToRequest?: () => void;
   onViewAllStories?: () => void;
+  /** Opens My Stories on its Published tab — where the analytics for each story live. */
+  onOpenAnalytics?: () => void;
   onReviewStory?: (story: StoryResponse) => void;
-  onHistoryPress?: () => void;
-  onWithdrawPress?: () => void;
   /** Fired when a drawer item other than "Home" is tapped — no screens exist for these yet */
   onDrawerNavigate?: (item: ElderDrawerItem) => void;
   onLogout?: () => void;
@@ -247,14 +174,14 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
   onRecordStory,
   onReplyToRequest,
   onViewAllStories,
+  onOpenAnalytics,
   onReviewStory,
-  onHistoryPress,
-  onWithdrawPress,
   onDrawerNavigate,
   onLogout,
 }) => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const { stories, loading: storiesLoading, deletingId, deleteStory } = useStoriesList();
+  const { summary: analytics, loading: analyticsLoading, loadError: analyticsError } = useAnalyticsSummary();
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const confirmDelete = async () => {
@@ -274,6 +201,12 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <AnalyticsSummaryCard
+          summary={analytics}
+          loading={analyticsLoading}
+          loadError={analyticsError}
+          onPress={onOpenAnalytics ?? onViewAllStories}
+        />
         <TrustBadgeSection onPress={onOpenTrustScore} />
         <PrimaryActionSection onPress={onRecordStory} />
         <RequestsSection onReplyPress={onReplyToRequest} />
@@ -284,7 +217,6 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
           onReview={onReviewStory}
           onRequestDelete={setDeleteTargetId}
         />
-        <BalanceCard onHistoryPress={onHistoryPress} onWithdrawPress={onWithdrawPress} />
         <View style={{ height: 8 }} />
       </ScrollView>
 
@@ -343,53 +275,6 @@ const s = StyleSheet.create({
   },
   trustTitle:    { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeXL, color: D.onSurface, marginBottom: 2 },
   trustSubtitle: { fontFamily: Typography.fontBody, fontSize: Typography.sizeMD, color: D.onSurfaceVariant },
-
-  // ── Balance card ───────────────────────────────────────────────────────────
-  balanceCard: {
-    borderRadius: Radii.xl, padding: Spacing.md, overflow: 'hidden',
-    shadowColor: D.primary, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28, shadowRadius: 14, elevation: 5,
-  },
-  balanceTopRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  balanceIconWrap: {
-    width: 56, height: 56, borderRadius: Radii.full,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  balanceLabel: {
-    fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onPrimary,
-    letterSpacing: 1.2, opacity: 0.85, marginBottom: 2,
-  },
-  balanceAmount: {
-    fontFamily: Typography.fontDisplay, fontSize: 28, lineHeight: 34,
-    letterSpacing: -0.5, color: D.onPrimary,
-  },
-  balancePendingRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginTop: Spacing.sm,
-  },
-  balancePendingText: {
-    fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onPrimary, opacity: 0.85,
-  },
-  balanceDivider: {
-    height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(255,255,255,0.22)',
-    marginVertical: Spacing.md,
-  },
-  balanceBtnRow: { flexDirection: 'row', gap: Spacing.sm },
-  balanceBtnOutline: {
-    flex: 1, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', borderRadius: Radii.lg,
-    paddingVertical: 12, alignItems: 'center', justifyContent: 'center',
-    minHeight: 48, backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  balanceBtnOutlineText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onPrimary },
-  balanceBtnFill: {
-    flex: 1, backgroundColor: D.onPrimary, borderRadius: Radii.lg,
-    paddingVertical: 12, alignItems: 'center', justifyContent: 'center',
-    minHeight: 48,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
-  },
-  balanceBtnFillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.primary },
 
   // ── Record button ──────────────────────────────────────────────────────────
   recordBtn: {
@@ -450,7 +335,6 @@ const s = StyleSheet.create({
 
   // ── Press feedback ─────────────────────────────────────────────────────────
   pressed:      { opacity: 0.75 },
-  pressedDark:  { backgroundColor: 'rgba(255,255,255,0.14)' },
   pressedLight: { opacity: 0.88 },
 });
 

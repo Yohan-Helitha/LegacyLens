@@ -21,10 +21,37 @@ import { Typography, Spacing, Radii } from '../../theme';
 interface YourStoriesProps {
   onTabPress?: (tab: UserTabKey) => void;
   onOpenStory?: (storyId: string, status: StoryStatus) => void;
+  /** A published story opens its analytics (views, likes, reviews) instead of the read-only form. */
+  onOpenPublishedStory?: (storyId: string) => void;
+  /** Which tab to show first — the navigator remembers it, since leaving for a story's analytics unmounts this screen. */
+  initialTab?: StoriesTab;
+  onTabChange?: (tab: StoriesTab) => void;
   onNewStory?: () => void;
   onDrawerNavigate?: (item: ElderDrawerItem) => void;
   onLogout?: () => void;
 }
+
+export type StoriesTab = 'inProgress' | 'published';
+
+const TabButton: React.FC<{ label: string; count: number; selected: boolean; onPress: () => void }> = ({
+  label,
+  count,
+  selected,
+  onPress,
+}) => (
+  <Pressable
+    onPress={onPress}
+    style={({ pressed }) => [s.tab, selected && s.tabSelected, pressed && s.pressedLight]}
+    accessibilityRole="tab"
+    accessibilityState={{ selected }}
+    accessibilityLabel={`${label}, ${count} ${count === 1 ? 'story' : 'stories'}`}
+  >
+    <Text style={[s.tabText, selected && s.tabTextSelected]}>{label}</Text>
+    <View style={[s.tabCount, selected && s.tabCountSelected]}>
+      <Text style={[s.tabCountText, selected && s.tabCountTextSelected]}>{count}</Text>
+    </View>
+  </Pressable>
+);
 
 /**
  * The full personal record of everything the storyteller has saved — a
@@ -38,19 +65,35 @@ interface YourStoriesProps {
 export const YourStories: React.FC<YourStoriesProps> = ({
   onTabPress,
   onOpenStory,
+  onOpenPublishedStory,
+  initialTab = 'inProgress',
+  onTabChange,
   onNewStory,
   onDrawerNavigate,
   onLogout,
 }) => {
   const [drawerVisible, setDrawerVisible] = React.useState(false);
+  const [tab, setTab] = React.useState<StoriesTab>(initialTab);
+  const selectTab = (next: StoriesTab) => {
+    setTab(next);
+    onTabChange?.(next);
+  };
   const insets = useSafeAreaInsets();
   const { query, setQuery, stories, loading, loadError, totalCount } = useStorySearch();
   const firstName = useAuthStore((state) => state.user?.fullName.split(' ')[0]) ?? 'there';
 
   const isSearching = query.trim().length > 0;
-  const [hero, ...rest] = stories;
+  // A story moves to the Published tab the moment its status becomes PUBLISHED.
+  const publishedStories = stories.filter((story) => story.status === 'PUBLISHED');
+  const inProgressStories = stories.filter((story) => story.status !== 'PUBLISHED');
+  const visibleStories = tab === 'published' ? publishedStories : inProgressStories;
+  const [hero, ...rest] = visibleStories;
+  const openStory = (story: StorySummary) =>
+    story.status === 'PUBLISHED' ? onOpenPublishedStory?.(story.id) : onOpenStory?.(story.id, story.status);
+
   const showEmptyState = !loading && !loadError && stories.length === 0 && !isSearching;
   const showNoSearchResults = !loading && !loadError && stories.length === 0 && isSearching;
+  const showEmptyTab = !loading && !loadError && stories.length > 0 && visibleStories.length === 0;
 
   return (
     <View style={s.safeArea}>
@@ -74,6 +117,21 @@ export const YourStories: React.FC<YourStoriesProps> = ({
         </View>
 
         <VoiceSearchBar value={query} onChangeText={setQuery} />
+
+        <View style={s.tabBar} accessibilityRole="tablist">
+          <TabButton
+            label="In progress"
+            count={inProgressStories.length}
+            selected={tab === 'inProgress'}
+            onPress={() => selectTab('inProgress')}
+          />
+          <TabButton
+            label="Published"
+            count={publishedStories.length}
+            selected={tab === 'published'}
+            onPress={() => selectTab('published')}
+          />
+        </View>
 
         {loadError && (
           <View style={s.emptyState}>
@@ -111,14 +169,22 @@ export const YourStories: React.FC<YourStoriesProps> = ({
           </View>
         )}
 
-        {!!hero && (
-          <StoryHeroCard story={hero as StorySummary} onPress={() => onOpenStory?.(hero.id, hero.status)} />
+        {showEmptyTab && (
+          <View style={s.noResults}>
+            <Text style={s.noResultsText}>
+              {tab === 'published'
+                ? 'No published stories yet. Once a story is approved, it will appear here with its views, likes and reviews.'
+                : 'Nothing in progress right now.'}
+            </Text>
+          </View>
         )}
+
+        {!!hero && <StoryHeroCard story={hero as StorySummary} onPress={() => openStory(hero)} />}
 
         {rest.length > 0 && (
           <View style={{ gap: Spacing.sm }}>
             {rest.map((story) => (
-              <StoryListCard key={story.id} story={story} onPress={() => onOpenStory?.(story.id, story.status)} />
+              <StoryListCard key={story.id} story={story} onPress={() => openStory(story)} />
             ))}
           </View>
         )}
@@ -179,6 +245,39 @@ const s = StyleSheet.create({
     fontSize: Typography.sizeSM,
     color: D.onSurfaceVariant,
   },
+
+  tabBar: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    padding: 4,
+    backgroundColor: D.surfaceContainerLow,
+    borderRadius: Radii.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 44,
+    borderRadius: Radii.full,
+  },
+  tabSelected: { backgroundColor: D.primaryContainer },
+  tabText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+  tabTextSelected: { color: D.onPrimary },
+  tabCount: {
+    minWidth: 24,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: Radii.full,
+    backgroundColor: D.surfaceVariant,
+    alignItems: 'center',
+  },
+  tabCountSelected: { backgroundColor: D.secondaryContainer },
+  tabCountText: { fontFamily: Typography.fontBodySemi, fontSize: 12, color: D.onSurfaceVariant },
+  tabCountTextSelected: { color: D.onSecondaryContainer },
 
   noResults: { paddingVertical: Spacing.lg, alignItems: 'center' },
   noResultsText: {

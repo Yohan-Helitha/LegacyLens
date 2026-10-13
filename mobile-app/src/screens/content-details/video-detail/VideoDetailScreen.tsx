@@ -16,6 +16,7 @@ import { CommentModal } from '../../../components/common/CommentModal';
 import { homeApi, FeedItemResponse } from '../../../services/api/homeApi';
 import { discoveryApi } from '../../../services/api/discoveryApi';
 import { styles } from './VideoDetailScreen.styles';
+import { useRecordStoryView } from '../../../hooks/useRecordStoryView';
 
 export interface VideoDetailScreenProps {
   post?: any;
@@ -68,6 +69,8 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
   onSelectRelatedPost,
 }) => {
   const [currentPost, setCurrentPost] = useState<any>(post);
+  // Counts a view for the story being watched (re-runs when a related video is selected).
+  useRecordStoryView(currentPost?.id);
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [saved, setSaved] = useState(false);
   const [liked, setLiked] = useState(false);
