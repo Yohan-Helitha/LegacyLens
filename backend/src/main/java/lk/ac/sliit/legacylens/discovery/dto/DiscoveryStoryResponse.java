@@ -33,5 +33,13 @@ public class DiscoveryStoryResponse {
     private int commentsCount;
     private Double score;
     private String matchReason;
+
+    // Audio-specific properties for Home Page audio cards
+    private String duration;
+    private String topic;
+    private String mediaUrl;
+
+    @Builder.Default
+    private List<Integer> audioBars = new ArrayList<>();
 }
 

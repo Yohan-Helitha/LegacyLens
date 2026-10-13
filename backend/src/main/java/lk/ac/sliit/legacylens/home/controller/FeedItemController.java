@@ -38,9 +38,56 @@ public class FeedItemController {
         return ResponseEntity.ok(ApiResponse.ok(service.addComment(id, request)));
     }
 
+    @org.springframework.web.bind.annotation.PutMapping("/comments/{commentId}")
+    public ResponseEntity<ApiResponse<lk.ac.sliit.legacylens.home.dto.CommentResponse>> updateComment(
+            @org.springframework.web.bind.annotation.PathVariable Long commentId,
+            @org.springframework.web.bind.annotation.RequestBody lk.ac.sliit.legacylens.home.dto.CommentRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(service.updateComment(commentId, request)));
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{id}/comments/{commentId}")
+    public ResponseEntity<ApiResponse<lk.ac.sliit.legacylens.home.dto.CommentResponse>> updateCommentWithPostId(
+            @org.springframework.web.bind.annotation.PathVariable String id,
+            @org.springframework.web.bind.annotation.PathVariable Long commentId,
+            @org.springframework.web.bind.annotation.RequestBody lk.ac.sliit.legacylens.home.dto.CommentRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(service.updateComment(commentId, request)));
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/comments/{commentId}")
+    public ResponseEntity<ApiResponse<Void>> deleteComment(
+            @org.springframework.web.bind.annotation.PathVariable Long commentId) {
+        service.deleteComment(commentId);
+        return ResponseEntity.ok(ApiResponse.ok("Comment deleted successfully", null));
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}/comments/{commentId}")
+    public ResponseEntity<ApiResponse<Void>> deleteCommentWithPostId(
+            @org.springframework.web.bind.annotation.PathVariable String id,
+            @org.springframework.web.bind.annotation.PathVariable Long commentId) {
+        service.deleteComment(commentId);
+        return ResponseEntity.ok(ApiResponse.ok("Comment deleted successfully", null));
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping("/{id}/likes")
+    public ResponseEntity<ApiResponse<Integer>> getLikesCount(@org.springframework.web.bind.annotation.PathVariable String id) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getLikesCount(id)));
+    }
+
     @org.springframework.web.bind.annotation.PostMapping("/{id}/like")
-    public ResponseEntity<ApiResponse<Void>> likePost(@org.springframework.web.bind.annotation.PathVariable String id) {
-        service.likePost(id);
-        return ResponseEntity.ok(ApiResponse.ok("Post liked successfully", null));
+    public ResponseEntity<ApiResponse<Integer>> likePost(@org.springframework.web.bind.annotation.PathVariable String id) {
+        int count = service.likePost(id);
+        return ResponseEntity.ok(ApiResponse.ok("Post liked successfully", count));
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/{id}/unlike")
+    public ResponseEntity<ApiResponse<Integer>> unlikePost(@org.springframework.web.bind.annotation.PathVariable String id) {
+        int count = service.unlikePost(id);
+        return ResponseEntity.ok(ApiResponse.ok("Post unliked successfully", count));
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}/like")
+    public ResponseEntity<ApiResponse<Integer>> unlikePostDelete(@org.springframework.web.bind.annotation.PathVariable String id) {
+        int count = service.unlikePost(id);
+        return ResponseEntity.ok(ApiResponse.ok("Post unliked successfully", count));
     }
 }

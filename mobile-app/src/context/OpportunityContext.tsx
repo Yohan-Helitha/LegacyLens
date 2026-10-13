@@ -21,27 +21,47 @@ interface OpportunityContextType {
 
 const OpportunityContext = createContext<OpportunityContextType>({} as OpportunityContextType);
 
+let cachedOpportunities: AdminOpportunityResponse[] = [];
+let cachedAudioSubmissions: OpportunityAudioResponse[] = [];
+
+// Eager background preload
+Promise.all([
+  adminOpportunityApi.getAllOpportunities('ALL'),
+  adminOpportunityApi.getAudioSubmissions('ALL'),
+]).then(([opps, audios]) => {
+  if (opps && Array.isArray(opps)) cachedOpportunities = opps;
+  if (audios && Array.isArray(audios)) cachedAudioSubmissions = audios;
+}).catch(() => {});
+
 export const OpportunityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [drafts, setDrafts] = useState<OpportunityDraft[]>([]);
-  const [allOpportunities, setAllOpportunities] = useState<AdminOpportunityResponse[]>([]);
-  const [audioSubmissions, setAudioSubmissions] = useState<OpportunityAudioResponse[]>([]);
+  const [allOpportunities, setAllOpportunities] = useState<AdminOpportunityResponse[]>(cachedOpportunities);
+  const [audioSubmissions, setAudioSubmissions] = useState<OpportunityAudioResponse[]>(cachedAudioSubmissions);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [originTab, setOriginTab] = useState<string>('intake');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(cachedOpportunities.length === 0 && cachedAudioSubmissions.length === 0);
 
   const publishedOpportunities = allOpportunities.filter(o => o.status === 'PUBLISHED');
   const closedOpportunities = allOpportunities.filter(o => o.status === 'CLOSED');
   const draftOpportunities = allOpportunities.filter(o => o.status === 'DRAFT');
 
   const refreshAll = async () => {
-    setLoading(true);
+    if (allOpportunities.length === 0 && audioSubmissions.length === 0) {
+      setLoading(true);
+    }
     try {
       const [opps, audios] = await Promise.all([
         adminOpportunityApi.getAllOpportunities('ALL'),
         adminOpportunityApi.getAudioSubmissions('ALL'),
       ]);
-      setAllOpportunities(opps || []);
-      setAudioSubmissions(audios || []);
+      if (opps) {
+        cachedOpportunities = opps;
+        setAllOpportunities(opps);
+      }
+      if (audios) {
+        cachedAudioSubmissions = audios;
+        setAudioSubmissions(audios);
+      }
     } catch (e) {
       console.warn('Failed to refresh opportunity data', e);
     } finally {

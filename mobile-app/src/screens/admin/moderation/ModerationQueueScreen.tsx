@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Text,
   View,
@@ -26,6 +26,8 @@ type ContentTypeFilter = 'all' | 'video' | 'blog' | 'audio';
 export const ModerationQueueScreen: React.FC<{ initialItemId?: string }> = ({ initialItemId }) => {
   const [activeTab, setActiveTab] = useState<Tab>('review');
   const [viewState, setViewState] = useState<ViewState>('list');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const handledInitialItemIdRef = React.useRef<string | null>(null);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,6 +66,7 @@ export const ModerationQueueScreen: React.FC<{ initialItemId?: string }> = ({ in
   const [quizSaved, setQuizSaved] = useState(false);
 
   const fetchModerationData = useCallback(async () => {
+    setIsLoading(true);
     try {
       const [pending, published, rejected, archived] = await Promise.all([
         moderationApi.getQueueItems('PENDING'),
@@ -98,6 +101,8 @@ export const ModerationQueueScreen: React.FC<{ initialItemId?: string }> = ({ in
       setArchivedItems(archived.map(mapToUIItem));
     } catch (error) {
       console.error('Error fetching moderation data:', error);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -603,6 +608,30 @@ export const ModerationQueueScreen: React.FC<{ initialItemId?: string }> = ({ in
     setVideoProgress(33);
   };
 
+  useEffect(() => {
+    if (!initialItemId || isLoading) return;
+    if (handledInitialItemIdRef.current === initialItemId) return;
+
+    const allItems = [...queueItems, ...publishedItems, ...rejectedItems, ...archivedItems];
+    const target = allItems.find(i => String(i.id) === String(initialItemId));
+    if (target) {
+      handledInitialItemIdRef.current = initialItemId;
+      if (rejectedItems.some(i => String(i.id) === String(initialItemId))) {
+        setActiveTab('rejected');
+        handleSelectRejectedDetail(target);
+      } else if (archivedItems.some(i => String(i.id) === String(initialItemId))) {
+        setActiveTab('archived');
+        handleSelectArchivedDetail(target);
+      } else if (publishedItems.some(i => String(i.id) === String(initialItemId))) {
+        setActiveTab('published');
+        handleSelectReview(target);
+      } else {
+        setActiveTab('review');
+        handleSelectReview(target);
+      }
+    }
+  }, [initialItemId, isLoading, queueItems, publishedItems, rejectedItems, archivedItems]);
+
   const handleConfirmRestore = async () => {
     if (!selectedItem) return;
     try {
@@ -861,7 +890,7 @@ export const ModerationQueueScreen: React.FC<{ initialItemId?: string }> = ({ in
     ));
   };
 
-  // â”€â”€â”€ LIST VIEW (Review Queue & Archived) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // LIST VIEW (Review Queue & Archived) 
   const renderListView = () => (
     <View style={styles.flex1}>
       <ScrollView 
@@ -885,10 +914,21 @@ export const ModerationQueueScreen: React.FC<{ initialItemId?: string }> = ({ in
         {/* Segmented Control */}
         {renderSegmentedControl()}
 
-        {activeTab === 'review' && renderReviewQueue()}
-        {activeTab === 'published' && renderPublishedQueue()}
-        {activeTab === 'rejected' && renderRejectedQueue()}
-        {activeTab === 'archived' && renderArchivedQueue()}
+        {(isLoading || (initialItemId && !selectedItem && !handledInitialItemIdRef.current)) ? (
+          <View style={{ paddingVertical: 48, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color="#0f5c5c" />
+            <Text style={{ marginTop: 12, fontFamily: Typography.fontBodyMed, fontSize: 14, color: Colors.textMuted }}>
+              {initialItemId ? 'Loading submission details...' : 'Loading moderation queue...'}
+            </Text>
+          </View>
+        ) : (
+          <>
+            {activeTab === 'review' && renderReviewQueue()}
+            {activeTab === 'published' && renderPublishedQueue()}
+            {activeTab === 'rejected' && renderRejectedQueue()}
+            {activeTab === 'archived' && renderArchivedQueue()}
+          </>
+        )}
       </ScrollView>
       {/* FAB for Archived Tab */}
       {activeTab === 'archived' && (
@@ -1127,7 +1167,7 @@ export const ModerationQueueScreen: React.FC<{ initialItemId?: string }> = ({ in
                     <MaterialIcons name="person" size={14} color={Colors.textMuted} />
                     <Text style={styles.metaText}> {item.author}</Text>
                   </View>
-                  <Text style={styles.metaTextMuted}>â€¢ {item.time}</Text>
+                  <Text style={styles.metaTextMuted}>{item.time}</Text>
                 </View>
                 <View style={styles.cardActionsRow}>
                   <TouchableOpacity
@@ -1153,7 +1193,7 @@ export const ModerationQueueScreen: React.FC<{ initialItemId?: string }> = ({ in
             </View>
           </TouchableOpacity>
         ))}
-        {filtered.length === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <View style={{ padding: 24, alignItems: 'center' }}>
             <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 16, color: Colors.textMuted }}>
               No items matching criteria!
@@ -1367,7 +1407,7 @@ export const ModerationQueueScreen: React.FC<{ initialItemId?: string }> = ({ in
           ))}
         </View>
 
-        {filtered.length === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <View style={{ padding: 24, alignItems: 'center' }}>
             <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 16, color: Colors.textMuted }}>
               No items matching criteria!
@@ -1602,7 +1642,7 @@ export const ModerationQueueScreen: React.FC<{ initialItemId?: string }> = ({ in
           </View>
         ))}
 
-        {filtered.length === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <View style={{ padding: 24, alignItems: 'center' }}>
             <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 16, color: Colors.textMuted }}>
               No items matching criteria!
@@ -1827,7 +1867,7 @@ export const ModerationQueueScreen: React.FC<{ initialItemId?: string }> = ({ in
           </TouchableOpacity>
         ))}
 
-        {filtered.length === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <View style={{ padding: 24, alignItems: 'center' }}>
             <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 16, color: Colors.textMuted }}>
               No items matching criteria!

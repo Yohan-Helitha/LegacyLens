@@ -6,11 +6,17 @@ import { styles } from './VideoCard.styles';
 import { FeedCardActions } from './FeedCardActions';
 import { VideoLoader } from './VideoLoader';
 import { homeApi } from '../../services/api/homeApi';
+import { getMediaUrl } from '../../constants/api';
 
-export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModalVisible, onNavigate, loadedVideoIds }: any) => {
+export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModalVisible, onNavigate, loadedVideoIds, onLikeChange }: any) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isReady, setIsReady] = useState(() => loadedVideoIds?.has?.(v.id) ?? false);
   const [showLoader, setShowLoader] = useState(false);
+
+  const rawUrl = v.videoUrl || item?.videoUrl || item?.mediaUrl;
+  const resolvedVideoUri = rawUrl && !rawUrl.startsWith('http')
+    ? getMediaUrl(rawUrl.startsWith('/uploads/') ? rawUrl : (rawUrl.startsWith('uploads/') ? `/${rawUrl}` : `/uploads/${rawUrl.replace(/^\/+/, '')}`))
+    : (rawUrl || 'https://www.w3schools.com/html/mov_bbb.mp4');
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -27,7 +33,7 @@ export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModal
       <View style={styles.premiumHeroBox}>
         {(showLoader && !isReady) ? <VideoLoader /> : null}
         <Video
-          source={{ uri: v.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4' }}
+          source={{ uri: resolvedVideoUri }}
           style={[styles.premiumHeroImg, !isReady && { opacity: 0 }]}
           resizeMode={ResizeMode.COVER}
           shouldPlay={isPlaying}
@@ -69,14 +75,13 @@ export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModal
         </View>
 
         <FeedCardActions
+          postId={item?.id || v?.id}
           theme="dark"
-          initialLikes={v.likesCount || 0}
-          initialComments={v.commentsCount || 0}
-          onLikePress={() => {
-            if (v.id) homeApi.likePost(v.id).catch(console.error);
-          }}
+          initialLikes={v.likesCount ?? item?.likesCount ?? 0}
+          initialComments={v.commentsCount ?? item?.commentsCount ?? 0}
+          onLikeChange={onLikeChange}
           onCommentPress={() => {
-            setActivePostId(item.id);
+            setActivePostId(item?.id || v?.id);
             setCommentModalVisible(true);
           }}
         />

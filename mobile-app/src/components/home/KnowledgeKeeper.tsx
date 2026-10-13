@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { styles } from './KnowledgeKeeper.styles';
+import { getMediaUrl } from '../../constants/api';
 
 export interface KnowledgeKeeperProps {
   name: string;
@@ -20,8 +21,12 @@ export const KnowledgeKeeper: React.FC<KnowledgeKeeperProps> = ({
   tag,
   quote,
   avatarUrl,
-  likesCount: initialLikesCount = 892,
+  likesCount: initialLikesCount = 0,
 }) => {
+  const resolvedAvatar = avatarUrl && !avatarUrl.startsWith('http')
+    ? getMediaUrl(avatarUrl.startsWith('/uploads/') ? avatarUrl : (avatarUrl.startsWith('uploads/') ? `/${avatarUrl}` : `/uploads/${avatarUrl.replace(/^\/+/, '')}`))
+    : (avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200');
+
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [following, setFollowing] = useState(false);
@@ -103,7 +108,7 @@ export const KnowledgeKeeper: React.FC<KnowledgeKeeperProps> = ({
 
         <View style={styles.knowledgeProfileRow}>
           <Image 
-            source={{ uri: avatarUrl }} 
+            source={{ uri: resolvedAvatar }} 
             style={styles.knowledgeAvatar} 
           />
           <View style={styles.knowledgeInfo}>

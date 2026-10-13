@@ -1,6 +1,8 @@
 package lk.ac.sliit.legacylens.discovery.service;
 
 import lk.ac.sliit.legacylens.discovery.dto.DiscoveryStoryResponse;
+import lk.ac.sliit.legacylens.home.entity.AudioItem;
+import lk.ac.sliit.legacylens.home.repository.FeedItemRepository;
 import lk.ac.sliit.legacylens.moderation.entity.ModerationQueueItem;
 import lk.ac.sliit.legacylens.moderation.repository.ModerationQueueRepository;
 import lk.ac.sliit.legacylens.stories.entity.StoryStatus;
@@ -43,6 +45,8 @@ class CulturalDiscoveryServiceTest {
     private TagNormalizationService tagNormalizationService;
     @Mock
     private JdbcTemplate jdbcTemplate;
+    @Mock
+    private FeedItemRepository feedItemRepository;
 
     @InjectMocks
     private CulturalDiscoveryService service;
@@ -151,5 +155,62 @@ class CulturalDiscoveryServiceTest {
         List<DiscoveryStoryResponse> recommendations = service.getPersonalizedRecommendations(viewerId, 5);
 
         assertThat(recommendations).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("Audio Search: Filters by type=audio and returns rich audio metadata and tags")
+    void testSearchPublishedStories_audioFilter() {
+        AudioItem audioItem = new AudioItem();
+        audioItem.setId(101L);
+        audioItem.setTitle("Village kitchen memories and Ambulla recipes");
+        audioItem.setTopic("Village kitchen memories and Ambulla recipes");
+        audioItem.setAuthor("Kamalawathi");
+        audioItem.setLocation("Matara");
+        audioItem.setDuration("12 mins");
+        audioItem.setAvatar("https://i.pravatar.cc/150?img=1");
+        audioItem.setBars(List.of(2, 4, 3, 5, 2));
+        audioItem.setTags(List.of("ambulla", "village", "cooking"));
+        audioItem.setLikesCount(15);
+
+        when(moderationQueueRepository.findByStatus(StoryStatus.PUBLISHED)).thenReturn(Collections.emptyList());
+        when(feedItemRepository.findAll()).thenReturn(List.of(audioItem));
+
+        when(tagNormalizationService.normalizeTagName(any())).thenAnswer(inv -> inv.getArgument(0) != null ? inv.getArgument(0).toString().trim().toLowerCase() : "");
+        when(tagNormalizationService.resolveCanonicalTag(any())).thenReturn(Optional.empty());
+
+        Page<DiscoveryStoryResponse> results = service.searchPublishedStories(
+                "Ambulla", null, null, null, null, "audio", false, 0, 10);
+
+        assertThat(results.getContent()).isNotEmpty();
+        DiscoveryStoryResponse item = results.getContent().get(0);
+        assertThat(item.getType()).isEqualTo("audio");
+        assertThat(item.getTitle()).contains("Ambulla");
+        assertThat(item.getDuration()).isEqualTo("12 mins");
+        assertThat(item.getAudioBars()).containsExactly(2, 4, 3, 5, 2);
+    }
+
+    @Test
+    @DisplayName("Audio Recommendations: Returns personalized cultural audios when type=audio")
+    void testPersonalizedRecommendations_forAudioTab() {
+        UUID viewerId = UUID.randomUUID();
+        when(moderationQueueRepository.findByStatus(StoryStatus.PUBLISHED)).thenReturn(Collections.emptyList());
+
+        AudioItem audioItem = new AudioItem();
+        audioItem.setId(102L);
+        audioItem.setTitle("Kandyan drum rhythms");
+        audioItem.setTopic("Kandyan drum rhythms");
+        audioItem.setAuthor("Dingiri Banda");
+        audioItem.setLocation("Kandy");
+        audioItem.setDuration("8 mins");
+        audioItem.setTags(List.of("kandyan", "drums", "music"));
+        audioItem.setLikesCount(25);
+
+        when(feedItemRepository.findAll()).thenReturn(List.of(audioItem));
+
+        List<DiscoveryStoryResponse> audioRecs = service.getPersonalizedRecommendations(viewerId, "audio", 5);
+
+        assertThat(audioRecs).isNotEmpty();
+        assertThat(audioRecs.get(0).getType()).isEqualTo("audio");
+        assertThat(audioRecs.get(0).getAuthorName()).isEqualTo("Dingiri Banda");
     }
 }

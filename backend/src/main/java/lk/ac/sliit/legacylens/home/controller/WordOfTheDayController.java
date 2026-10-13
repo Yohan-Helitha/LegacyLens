@@ -16,7 +16,7 @@ public class WordOfTheDayController {
 
     private final WordOfTheDayService service;
 
-    @GetMapping("/today")
+    @GetMapping({"", "/today"})
     public ResponseEntity<ApiResponse<WordOfTheDayResponse>> getWordOfToday() {
         return ResponseEntity.ok(ApiResponse.ok(service.getWordOfToday()));
     }

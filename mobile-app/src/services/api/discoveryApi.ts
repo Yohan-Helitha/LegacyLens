@@ -17,6 +17,10 @@ export interface DiscoveryStoryItem {
   commentsCount?: number;
   score?: number;
   matchReason?: string;
+  duration?: string;
+  topic?: string;
+  mediaUrl?: string;
+  audioBars?: number[];
 }
 
 export interface SearchDiscoveryParams {
@@ -73,13 +77,32 @@ export const discoveryApi = {
 
   /**
    * Personalized Home recommendations based on user view history
-   * GET /api/v1/discovery/recommendations/home?limit=10
+   * GET /api/v1/discovery/recommendations/home?limit=10&type=audio
    */
-  getHomeRecommendations: async (limit: number = 10): Promise<DiscoveryStoryItem[]> => {
-    const response = await apiGet<DiscoveryStoryItem[]>(`/v1/discovery/recommendations/home?limit=${limit}`);
+  getHomeRecommendations: async (limit: number = 10, type?: string): Promise<DiscoveryStoryItem[]> => {
+    let url = `/v1/discovery/recommendations/home?limit=${limit}`;
+    if (type && type.trim() && type !== 'all' && type !== 'Explore all') {
+      let normalizedType = type.toLowerCase().trim();
+      if (normalizedType.endsWith('s')) {
+        normalizedType = normalizedType.slice(0, -1);
+      }
+      url += `&type=${encodeURIComponent(normalizedType)}`;
+    }
+    const response = await apiGet<DiscoveryStoryItem[]>(url);
     return Array.isArray(response) ? response : [];
   },
 };
+
+import { getMediaUrl } from '../../constants/api';
+
+function resolveMediaUri(url?: string): string | undefined {
+  if (!url || typeof url !== 'string' || !url.trim()) return undefined;
+  const trimmed = url.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  const cleaned = trimmed.startsWith('/') ? trimmed.slice(1) : trimmed;
+  const path = cleaned.startsWith('uploads/') ? `/${cleaned}` : `/uploads/${cleaned}`;
+  return getMediaUrl(path);
+}
 
 /**
  * Normalizes a DiscoveryStoryItem into the unified FeedItemResponse format
@@ -92,17 +115,19 @@ export function mapDiscoveryToFeedItem(item: DiscoveryStoryItem): any {
   const author = item.authorName || 'Elder Storyteller';
   const location = item.district ? `${item.district}, ${item.region || 'Sri Lanka'}` : (item.region || 'Sri Lanka');
   const tags = item.tags && item.tags.length > 0 ? item.tags : ['heritage'];
-  const thumbnail = item.imageUrl || 'https://images.unsplash.com/photo-1546707012-c46675f12716?auto=format&fit=crop&q=80&w=600';
+  const rawThumbnail = item.imageUrl || (item as any).thumbnail;
+  const thumbnail = resolveMediaUri(rawThumbnail) || 'https://images.unsplash.com/photo-1546707012-c46675f12716?auto=format&fit=crop&q=80&w=600';
 
   if (baseType === 'video') {
+    const rawVideo = (item as any).videoUrl || item.mediaUrl;
     return {
       id,
       title,
       author,
       location,
       thumbnail,
-      videoUrl: (item as any).videoUrl || 'https://assets.mixkit.co/videos/preview/mixkit-traditional-cultural-dance-41484-large.mp4',
-      duration: '4:20',
+      videoUrl: resolveMediaUri(rawVideo) || 'https://assets.mixkit.co/videos/preview/mixkit-traditional-cultural-dance-41484-large.mp4',
+      duration: item.duration || '4:20',
       tags,
       type: 'video',
       likesCount: item.likesCount ?? 0,
@@ -112,18 +137,20 @@ export function mapDiscoveryToFeedItem(item: DiscoveryStoryItem): any {
       ...(item as any),
     };
   } else if (baseType === 'audio') {
+    const rawAudio = item.mediaUrl || (item as any).audioUrl;
     return {
       id,
       name: author,
       title,
       author,
       location,
-      duration: '5:10',
-      topic: title,
+      duration: item.duration || '5:10',
+      topic: item.topic || title,
       tags,
       avatar: thumbnail,
       thumbnail,
-      bars: [30, 45, 60, 80, 55, 40, 70, 90, 65, 45, 30],
+      mediaUrl: resolveMediaUri(rawAudio) || item.mediaUrl,
+      bars: (item.audioBars && item.audioBars.length > 0) ? item.audioBars : [30, 45, 60, 80, 55, 40, 70, 90, 65, 45, 30],
       type: 'audio',
       likesCount: item.likesCount ?? 0,
       commentsCount: item.commentsCount ?? 0,

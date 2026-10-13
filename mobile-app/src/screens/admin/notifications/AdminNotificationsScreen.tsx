@@ -1,5 +1,5 @@
-﻿import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { styles } from './AdminNotificationsScreen.styles';
@@ -27,11 +27,13 @@ type AppNotification = {
 
 export const AdminNotificationsScreen = ({ onBack, onNavigate }: { onBack?: () => void, onNavigate?: (tab: string, item?: any) => void }) => {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [loading, setLoading] = useState<boolean>(true);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const { refreshAll } = useOpportunity();
   
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         await refreshAll();
         const adminNotifs = await adminNotificationApi.getNotifications();
@@ -65,6 +67,8 @@ export const AdminNotificationsScreen = ({ onBack, onNavigate }: { onBack?: () =
         setNotifications(generatedNotifications.sort((a, b) => b.timeMs - a.timeMs));
       } catch (err) {
         console.error(err);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();

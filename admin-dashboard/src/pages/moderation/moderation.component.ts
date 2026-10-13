@@ -210,299 +210,7 @@ export interface ModerationItem {
         </div>
       }
 
-      <!-- Tag Intelligence & Taxonomy Modal -->
-      @if (showTagManagerModal()) {
-        <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-2xl max-w-6xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in duration-200">
-            <!-- Modal Header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-[#dde3eb] bg-[#f8faf9]">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-[#004343] text-white flex items-center justify-center shadow-xs">
-                  <span class="material-symbols-outlined text-2xl text-amber-300">sell</span>
-                </div>
-                <div>
-                  <h3 class="text-base font-serif font-bold text-[#191c1c]">Cultural Tag Intelligence &amp; Taxonomy Console</h3>
-                  <p class="text-xs text-[#6e7978]">Canonize cultural concepts, multilingual aliases, semantic relationships &amp; AI backfills</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <button (click)="handleTriggerBackfill()" [disabled]="isBackfillingTags()"
-                        class="px-3 py-1.5 bg-[#fe893e] hover:bg-[#e0722a] text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs transition-colors cursor-pointer disabled:opacity-50">
-                  <span class="material-symbols-outlined text-sm" [ngClass]="{'animate-spin': isBackfillingTags()}">refresh</span>
-                  <span>{{ isBackfillingTags() ? 'Re-Indexing...' : 'AI Taxonomy Backfill' }}</span>
-                </button>
-                <button (click)="showCreateTagForm.set(!showCreateTagForm())"
-                        class="px-3 py-1.5 bg-[#004343] hover:bg-[#0f5c5c] text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs transition-colors cursor-pointer">
-                  <span class="material-symbols-outlined text-sm">add</span>
-                  <span>New Tag</span>
-                </button>
-                <button (click)="showTagManagerModal.set(false)" class="p-1.5 text-[#6e7978] hover:text-[#191c1c] text-lg font-bold rounded-lg hover:bg-[#dde3eb]/50 transition-colors">✕</button>
-              </div>
-            </div>
 
-            <!-- Create New Tag Form (Collapsible) -->
-            @if (showCreateTagForm()) {
-              <div class="p-4 bg-emerald-50/50 border-b border-emerald-100 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                <div>
-                  <label class="block text-[11px] font-bold text-[#004343] uppercase mb-1">Canonical Name</label>
-                  <input type="text" [(ngModel)]="newTagName" placeholder="e.g. Kandyan Dance"
-                         class="w-full px-3 py-1.5 bg-white border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]" />
-                </div>
-                <div>
-                  <label class="block text-[11px] font-bold text-[#004343] uppercase mb-1">Category</label>
-                  <select [(ngModel)]="newTagCategory" class="w-full px-3 py-1.5 bg-white border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]">
-                    @for (cat of tagCategoryOptions; track cat) { <option [value]="cat">{{ cat }}</option> }
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-[11px] font-bold text-[#004343] uppercase mb-1">Language</label>
-                  <select [(ngModel)]="newTagLanguage" class="w-full px-3 py-1.5 bg-white border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]">
-                    <option value="si">Sinhala (si)</option>
-                    <option value="ta">Tamil (ta)</option>
-                    <option value="en">English (en)</option>
-                    <option value="si-Latn">Sinhala Transliteration (si-Latn)</option>
-                  </select>
-                </div>
-                <div class="flex items-center gap-2">
-                  <button (click)="createCanonicalTag()" [disabled]="!newTagName.trim()"
-                          class="px-4 py-1.5 bg-[#004343] hover:bg-[#0f5c5c] text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50">
-                    Create Tag
-                  </button>
-                  <button (click)="showCreateTagForm.set(false)" class="px-3 py-1.5 border border-[#dde3eb] text-xs font-medium rounded-xl hover:bg-gray-100">
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            }
-
-            <!-- Modal Content Split View -->
-            <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden divide-y md:divide-y-0 md:divide-x divide-[#dde3eb]">
-              <!-- Left Column: Tag List (5 cols) -->
-              <div class="w-full md:w-5/12 flex flex-col overflow-hidden bg-white">
-                <!-- Search & Filter Controls -->
-                <div class="p-3 border-b border-[#dde3eb] space-y-2 bg-[#f8faf9]">
-                  <div class="relative">
-                    <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6e7978] text-sm">search</span>
-                    <input type="text" [(ngModel)]="tagSearchQuery" (input)="loadCanonicalTags()" placeholder="Search canonical tags or aliases..."
-                           class="w-full pl-8 pr-3 py-1.5 bg-white border border-[#dde3eb] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]" />
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <select [(ngModel)]="tagCategoryFilter" (change)="loadCanonicalTags()"
-                            class="w-full px-2 py-1 bg-white border border-[#dde3eb] rounded-xl text-[11px] text-[#3e4948]">
-                      <option value="all">All Categories</option>
-                      @for (cat of tagCategoryOptions; track cat) { <option [value]="cat">{{ cat }}</option> }
-                    </select>
-                  </div>
-                </div>
-
-                <!-- Tag List Items -->
-                <div class="flex-1 overflow-y-auto divide-y divide-[#dde3eb]">
-                  @if (isLoadingTags()) {
-                    <div class="p-8 text-center text-xs text-[#6e7978] flex flex-col items-center gap-2">
-                      <span class="material-symbols-outlined text-2xl animate-spin text-[#004343]">sync</span>
-                      <span>Loading tags...</span>
-                    </div>
-                  } @else {
-                    @for (t of canonicalTagsList(); track t.id) {
-                      <div (click)="selectTagForDetail(t)"
-                           class="p-3.5 hover:bg-[#f8faf9] cursor-pointer transition-colors flex items-center justify-between"
-                           [ngClass]="selectedTagForDetail()?.id === t.id ? 'bg-[#004343]/5 border-l-4 border-l-[#004343]' : ''">
-                        <div class="min-w-0 pr-2">
-                          <div class="text-xs font-bold text-[#191c1c] truncate flex items-center gap-1.5">
-                            <span>{{ t.canonicalName }}</span>
-                            @if (t.isApproved) {
-                              <span class="material-symbols-outlined text-emerald-600 text-xs" title="Approved Concept">verified</span>
-                            }
-                          </div>
-                          <div class="flex items-center gap-1.5 mt-1 flex-wrap">
-                            @if (t.category) {
-                              <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#004343]/10 text-[#004343]">{{ t.category }}</span>
-                            }
-                            @if (t.languageCode) {
-                              <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-[#3e4948]">{{ t.languageCode }}</span>
-                            }
-                            <span class="text-[10px] text-[#6e7978]">{{ t.storyCount || 0 }} stories</span>
-                          </div>
-                        </div>
-                        <span class="material-symbols-outlined text-sm text-[#6e7978]">chevron_right</span>
-                      </div>
-                    } @empty {
-                      <div class="p-8 text-center text-xs text-[#6e7978]">No canonical tags found.</div>
-                    }
-                  }
-                </div>
-              </div>
-
-              <!-- Right Column: Detail & Manage Selected Tag (7 cols) -->
-              <div class="w-full md:w-7/12 flex flex-col overflow-y-auto p-5 bg-[#fafcfb] space-y-5">
-                @if (selectedTagForDetail(); as selTag) {
-                  <!-- Tag Header Info -->
-                  <div class="bg-white p-4 rounded-xl border border-[#dde3eb] shadow-xs space-y-2">
-                    <div class="flex items-start justify-between">
-                      <div>
-                        <div class="flex items-center gap-2">
-                          <h4 class="text-base font-serif font-bold text-[#004343]">{{ selTag.canonicalName }}</h4>
-                          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                                [ngClass]="selTag.isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'">
-                            {{ selTag.isApproved ? 'Approved' : 'Pending Review' }}
-                          </span>
-                        </div>
-                        <div class="text-[11px] text-[#6e7978] mt-0.5">
-                          Normalized: <code class="bg-gray-100 px-1 py-0.5 rounded font-mono">{{ selTag.normalizedName }}</code>
-                        </div>
-                      </div>
-                      <button (click)="handleDeleteTag(selTag.id)" class="text-[#ba1a1a] hover:bg-red-50 p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer">
-                        <span class="material-symbols-outlined text-sm">delete</span>
-                        <span>Delete</span>
-                      </button>
-                    </div>
-                    @if (selTag.description) {
-                      <p class="text-xs text-[#3e4948] leading-relaxed pt-1 border-t border-gray-100">{{ selTag.description }}</p>
-                    }
-                  </div>
-
-                  <!-- 1. Multilingual & Variant Aliases -->
-                  <div class="bg-white p-4 rounded-xl border border-[#dde3eb] shadow-xs space-y-3">
-                    <div class="flex items-center justify-between">
-                      <div class="flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[#004343] text-lg">translate</span>
-                        <h5 class="text-xs font-bold text-[#191c1c] uppercase tracking-wider">Multilingual &amp; Variant Aliases</h5>
-                      </div>
-                      <span class="text-[11px] text-[#6e7978]">{{ selTag.aliases?.length || 0 }} aliases</span>
-                    </div>
-
-                    <!-- Existing Aliases Chips -->
-                    <div class="flex flex-wrap gap-1.5">
-                      @for (al of selTag.aliases || []; track al.id) {
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#f0f4f3] border border-[#dde3eb] text-[#191c1c]">
-                          <span>{{ al.alias }}</span>
-                          <span class="text-[9px] uppercase px-1 py-0.2 bg-white rounded border border-gray-200 text-[#6e7978]">{{ al.aliasType || al.languageCode }}</span>
-                          <button (click)="handleRemoveAlias(al.id)" class="text-gray-400 hover:text-[#ba1a1a] text-xs cursor-pointer ml-1">&#x2715;</button>
-                        </span>
-                      } @empty {
-                        <p class="text-xs text-[#6e7978] italic">No aliases registered yet. Add transliterations or localized names below.</p>
-                      }
-                    </div>
-
-                    <!-- Add Alias Inline Form -->
-                    <div class="flex items-center gap-2 pt-2 border-t border-gray-100 flex-wrap">
-                      <input type="text" [(ngModel)]="newAliasText" placeholder="Alternative name or spelling..."
-                             class="flex-1 min-w-[140px] px-2.5 py-1.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]" />
-                      <select [(ngModel)]="newAliasLanguage" class="px-2 py-1.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c]">
-                        <option value="si">si</option>
-                        <option value="ta">ta</option>
-                        <option value="en">en</option>
-                        <option value="si-Latn">si-Latn</option>
-                      </select>
-                      <select [(ngModel)]="newAliasType" class="px-2 py-1.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c]">
-                        <option value="SYNONYM">Synonym</option>
-                        <option value="TRANSLITERATION">Transliteration</option>
-                        <option value="TRANSLATION">Translation</option>
-                        <option value="SPELLING_VARIANT">Spelling</option>
-                      </select>
-                      <button (click)="handleAddAlias()" [disabled]="!newAliasText.trim()"
-                              class="px-3 py-1.5 bg-[#004343] hover:bg-[#0f5c5c] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer disabled:opacity-50">
-                        + Add
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- 2. Cultural Conceptual Relationships -->
-                  <div class="bg-white p-4 rounded-xl border border-[#dde3eb] shadow-xs space-y-3">
-                    <div class="flex items-center justify-between">
-                      <div class="flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[#004343] text-lg">account_tree</span>
-                        <h5 class="text-xs font-bold text-[#191c1c] uppercase tracking-wider">Conceptual Relationships</h5>
-                      </div>
-                      <span class="text-[11px] text-[#6e7978]">{{ selTag.relationships?.length || 0 }} relations</span>
-                    </div>
-
-                    <!-- Relationship List -->
-                    <div class="space-y-1.5">
-                      @for (rel of selTag.relationships || []; track rel.id) {
-                        <div class="p-2 rounded-lg bg-[#f8faf9] border border-[#dde3eb] flex items-center justify-between text-xs">
-                          <div class="flex items-center gap-2">
-                            <span class="font-bold text-[#004343]">{{ rel.sourceTagName || selTag.canonicalName }}</span>
-                            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#fe893e]/15 text-[#9b4600]">{{ rel.relationshipType }}</span>
-                            <span class="font-bold text-[#191c1c]">{{ rel.targetTagName }}</span>
-                            <span class="text-[10px] text-[#6e7978]">(wt: {{ rel.weight }})</span>
-                          </div>
-                          <button (click)="handleRemoveRelationship(rel.id)" class="text-gray-400 hover:text-[#ba1a1a] text-xs cursor-pointer">&#x2715;</button>
-                        </div>
-                      } @empty {
-                        <p class="text-xs text-[#6e7978] italic">No conceptual links established. Connect to broader or related cultural heritage topics.</p>
-                      }
-                    </div>
-
-                    <!-- Add Relationship Form -->
-                    <div class="flex items-center gap-2 pt-2 border-t border-gray-100 flex-wrap">
-                      <select [(ngModel)]="newRelType" class="px-2 py-1.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c]">
-                        <option value="RELATED_TO">RELATED_TO</option>
-                        <option value="BROADER_THAN">BROADER_THAN</option>
-                        <option value="NARROWER_THAN">NARROWER_THAN</option>
-                        <option value="PART_OF">PART_OF</option>
-                        <option value="EXAMPLE_OF">EXAMPLE_OF</option>
-                      </select>
-                      <select [(ngModel)]="newRelTargetTagId" class="flex-1 min-w-[140px] px-2.5 py-1.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c]">
-                        <option value="">Select target concept...</option>
-                        @for (other of canonicalTagsList(); track other.id) {
-                          @if (other.id !== selTag.id) {
-                            <option [value]="other.id">{{ other.canonicalName }} ({{ other.category || 'General' }})</option>
-                          }
-                        }
-                      </select>
-                      <button (click)="handleAddRelationship()" [disabled]="!newRelTargetTagId"
-                              class="px-3 py-1.5 bg-[#004343] hover:bg-[#0f5c5c] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer disabled:opacity-50">
-                        + Link
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- 3. Safe Merge & Consolidation Tool -->
-                  <div class="bg-amber-50/60 p-4 rounded-xl border border-amber-200/80 shadow-xs space-y-2.5">
-                    <div class="flex items-center gap-1.5 text-amber-900">
-                      <span class="material-symbols-outlined text-lg">merge</span>
-                      <h5 class="text-xs font-bold uppercase tracking-wider">Concept Merging &amp; Deduplication</h5>
-                    </div>
-                    <p class="text-[11px] text-amber-800 leading-relaxed">
-                      Safely absorb this tag into another canonical concept. All story tags, aliases, and links will automatically redirect without data loss.
-                    </p>
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <select [(ngModel)]="mergeTargetTagId" class="flex-1 min-w-[180px] px-2.5 py-1.5 bg-white border border-amber-300 rounded-xl text-xs text-[#191c1c]">
-                        <option value="">Select canonical concept to merge into...</option>
-                        @for (other of canonicalTagsList(); track other.id) {
-                          @if (other.id !== selTag.id) {
-                            <option [value]="other.id">{{ other.canonicalName }} ({{ other.category || 'General' }})</option>
-                          }
-                        }
-                      </select>
-                      <button (click)="handleMergeTags()" [disabled]="!mergeTargetTagId || isMergingTags()"
-                              class="px-4 py-1.5 bg-[#ba1a1a] hover:bg-[#93000a] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer disabled:opacity-50">
-                        {{ isMergingTags() ? 'Merging...' : 'Execute Safe Merge' }}
-                      </button>
-                    </div>
-                  </div>
-
-                } @else {
-                  <div class="h-full flex flex-col items-center justify-center text-center p-8 text-[#6e7978] space-y-2">
-                    <span class="material-symbols-outlined text-4xl text-[#004343]/30">touch_app</span>
-                    <h4 class="text-sm font-bold text-[#191c1c]">No Concept Selected</h4>
-                    <p class="text-xs max-w-sm">Select any canonical tag from the left column to inspect its aliases, conceptual connections, or execute safe merges.</p>
-                  </div>
-                }
-              </div>
-            </div>
-
-            <!-- Modal Footer -->
-            <div class="px-6 py-3 border-t border-[#dde3eb] bg-[#f8faf9] flex items-center justify-between">
-              <span class="text-xs text-[#6e7978]">Total Canonical Tags: {{ canonicalTagsList().length }}</span>
-              <button (click)="showTagManagerModal.set(false)" class="px-5 py-2 border border-[#dde3eb] hover:bg-[#f2f4f3] rounded-xl text-xs font-bold text-[#191c1c]">
-                Close Console
-              </button>
-            </div>
-          </div>
-        </div>
-      }
 
       <!-- Left Sidebar Navigation -->
       <app-sidebar></app-sidebar>
@@ -552,14 +260,8 @@ export interface ModerationItem {
               </p>
             </div>
 
-            <!-- Action Triggers: Tag Intelligence, Sync Button & Export PDF -->
+            <!-- Action Triggers: Sync Button & Export PDF -->
             <div class="flex items-center gap-3 self-start xl:self-auto flex-wrap">
-              <button 
-                (click)="openTagManagerModal()"
-                class="px-4 py-2.5 rounded-xl bg-[#004343] hover:bg-[#0f5c5c] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer">
-                <span class="material-symbols-outlined text-base text-amber-300">sell</span>
-                <span>Tag Intelligence</span>
-              </button>
               <button 
                 (click)="showExportPdfModal.set(true)"
                 class="px-4 py-2.5 rounded-xl bg-white border border-[#dde3eb] hover:bg-[#f2f4f3] text-[#191c1c] text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer">
@@ -963,7 +665,11 @@ export interface ModerationItem {
                       }
                       @if (item.type === 'video') {
                         <div class="rounded-xl bg-[#191c1c] overflow-hidden relative group aspect-video max-h-[380px] flex items-center justify-center shadow-inner">
-                          <div class="absolute inset-0 bg-cover bg-center opacity-40" style="background-image: url('https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=1200');"></div>
+                          @if (item.imageUrl) {
+                            <div class="absolute inset-0 bg-cover bg-center opacity-40" [style.backgroundImage]="'url(' + item.imageUrl + ')'"></div>
+                          } @else {
+                            <div class="absolute inset-0 bg-[#121414]"></div>
+                          }
                           <div class="relative z-10 text-center text-white space-y-3">
                             <button (click)="toggleVideoPlayback()" class="w-16 h-16 rounded-full bg-white/20 hover:bg-[#fe893e] backdrop-blur-md flex items-center justify-center text-white hover:scale-105 transition-all shadow-xl cursor-pointer">
                               <span class="material-symbols-outlined text-3xl">{{ isPlayingVideo ? 'pause' : 'play_arrow' }}</span>
@@ -1008,7 +714,47 @@ export interface ModerationItem {
                         </div>
                       } @else {
                         <div class="p-5 rounded-xl bg-white border border-[#dde3eb] space-y-4">
-                          <div class="aspect-video max-h-[260px] rounded-xl overflow-hidden bg-cover bg-center border border-[#dde3eb]" style="background-image: url('https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=1200');"></div>
+                          @if (coverImagePreview() || coverImageUrl() || item.imageUrl) {
+                            <div class="relative group aspect-video max-h-[300px] rounded-xl overflow-hidden border border-[#dde3eb] bg-[#191c1c] flex items-center justify-center">
+                              <img [src]="coverImagePreview() || coverImageUrl() || item.imageUrl" [alt]="item.title" class="w-full h-full object-cover" />
+                              <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                                <label class="px-3.5 py-2 bg-white text-[#191c1c] text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer hover:bg-[#f2f4f3] transition-colors shadow-lg">
+                                  <span class="material-symbols-outlined text-base">upload</span>
+                                  <span>Change Cover Image</span>
+                                  <input type="file" accept="image/*" class="hidden" (change)="onCoverImageFileSelected($event)" />
+                                </label>
+                                <button (click)="removeCoverImage()" class="px-3.5 py-2 bg-[#ba1a1a] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer hover:bg-[#93000a] transition-colors shadow-lg">
+                                  <span class="material-symbols-outlined text-base">delete</span>
+                                  <span>Remove</span>
+                                </button>
+                              </div>
+                            </div>
+                          } @else {
+                            <div (dragover)="onCoverDragOver($event)" (dragleave)="onCoverDragLeave()" (drop)="onCoverImageDrop($event)"
+                                 class="border-2 border-dashed rounded-xl p-6 text-center transition-all space-y-3"
+                                 [ngClass]="isDraggingCover() ? 'border-[#004343] bg-[#004343]/5' : 'border-[#dde3eb] bg-[#f8faf9] hover:border-[#004343]/50'">
+                              <div class="w-10 h-10 rounded-xl bg-[#004343]/10 text-[#004343] flex items-center justify-center mx-auto">
+                                <span class="material-symbols-outlined text-2xl">add_photo_alternate</span>
+                              </div>
+                              <div class="space-y-0.5">
+                                <p class="text-xs font-bold text-[#191c1c]">No cover image submitted</p>
+                                <p class="text-[11px] text-[#6e7978]">Upload a cover image for this blog post — Drag &amp; drop, browse file, or enter an image URL</p>
+                              </div>
+                              <div class="pt-1 flex items-center justify-center gap-2">
+                                <label class="inline-flex items-center gap-1.5 px-4 py-2 bg-[#004343] text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-[#003131] transition-colors shadow-xs">
+                                  <span class="material-symbols-outlined text-sm">upload_file</span>
+                                  <span>Browse Image File</span>
+                                  <input type="file" accept="image/*" class="hidden" (change)="onCoverImageFileSelected($event)" />
+                                </label>
+                              </div>
+                              <div class="max-w-md mx-auto pt-1 flex items-center gap-2">
+                                <input type="url" [ngModel]="coverImageUrl()" (ngModelChange)="updateCoverImageUrl($event)"
+                                       placeholder="Or paste image URL (https://...)"
+                                       class="flex-1 px-3 py-1.5 bg-white border border-[#c2c8c7] rounded-lg text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]" />
+                              </div>
+                              <p class="text-[10px] text-[#6e7978]">Supported formats: JPG, PNG, WebP (up to 5 MB)</p>
+                            </div>
+                          }
                           <div class="prose prose-sm max-w-none text-[#3e4948] font-serif leading-relaxed max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
                             <p class="font-bold text-sm text-[#191c1c]">{{ item.excerpt }}</p>
                             <p>{{ item.bodyContent || 'The master artisans maintain an oral tradition where every grain and incision represents an elemental spirit. During the early morning rituals, blessed timber is soaked in herbal resin before carving the sacred eyes.' }}</p>
@@ -1219,95 +965,97 @@ export interface ModerationItem {
                     }
                   </div>
 
-                  <!-- 5. Cover Image Upload (Collapsible, Optional) -->
-                  <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-xs overflow-hidden">
-                    <button (click)="sectionCoverImageOpen.set(!sectionCoverImageOpen())"
-                            class="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[#f8faf9] transition-colors cursor-pointer">
-                      <div class="flex items-center gap-2.5">
-                        <span class="material-symbols-outlined text-[#004343] text-xl">add_photo_alternate</span>
-                        <div class="text-left">
-                          <h3 class="text-sm font-serif font-bold text-[#191c1c]">Cover Image</h3>
-                          <p class="text-[10px] text-[#6e7978]">
-                            @if (coverImagePreview() || coverImageUrl()) { Cover image set — click to change }
-                            @else { Optional — upload a representative thumbnail for this heritage entry }
-                          </p>
+                  <!-- 5. Cover Image Details (Collapsible - Blogs Only when image is present) -->
+                  @if (item.type === 'blog' && (coverImagePreview() || coverImageUrl() || item.imageUrl)) {
+                    <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-xs overflow-hidden">
+                      <button (click)="sectionCoverImageOpen.set(!sectionCoverImageOpen())"
+                              class="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[#f8faf9] transition-colors cursor-pointer">
+                        <div class="flex items-center gap-2.5">
+                          <span class="material-symbols-outlined text-[#004343] text-xl">add_photo_alternate</span>
+                          <div class="text-left">
+                            <h3 class="text-sm font-serif font-bold text-[#191c1c]">Cover Image</h3>
+                            <p class="text-[10px] text-[#6e7978]">
+                              @if (coverImagePreview() || coverImageUrl()) { Cover image set — click to change }
+                              @else { Optional — upload a representative thumbnail for this heritage entry }
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div class="flex items-center gap-2">
-                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border"
-                              [ngClass]="(coverImagePreview() || coverImageUrl()) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-[#f2f4f7] text-[#6e7978] border-[#dde3eb]'">
-                          {{ (coverImagePreview() || coverImageUrl()) ? 'Image Set' : 'Optional' }}
-                        </span>
-                        <span class="material-symbols-outlined text-[#6e7978] text-xl transition-transform duration-200" [ngClass]="sectionCoverImageOpen() ? 'rotate-180' : ''">expand_more</span>
-                      </div>
-                    </button>
-                    @if (sectionCoverImageOpen()) {
-                      <div class="px-5 pb-5 border-t border-[#dde3eb] pt-4 space-y-4">
-                        @if (coverImagePreview()) {
-                          <div class="relative group rounded-xl overflow-hidden border border-[#dde3eb]">
-                            <img [src]="coverImagePreview()" alt="Cover preview" class="w-full max-h-52 object-cover" />
-                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                              <button (click)="removeCoverImage()" class="px-3 py-1.5 bg-[#ba1a1a] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer hover:bg-[#93000a] transition-colors">
-                                <span class="material-symbols-outlined text-sm">delete</span> Remove
-                              </button>
-                              <label class="px-3 py-1.5 bg-white text-[#191c1c] text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer hover:bg-[#f2f4f3] transition-colors">
-                                <span class="material-symbols-outlined text-sm">upload</span> Change
+                        <div class="flex items-center gap-2">
+                          <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border"
+                                [ngClass]="(coverImagePreview() || coverImageUrl()) ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-[#f2f4f7] text-[#6e7978] border-[#dde3eb]'">
+                            {{ (coverImagePreview() || coverImageUrl()) ? 'Image Set' : 'Optional' }}
+                          </span>
+                          <span class="material-symbols-outlined text-[#6e7978] text-xl transition-transform duration-200" [ngClass]="sectionCoverImageOpen() ? 'rotate-180' : ''">expand_more</span>
+                        </div>
+                      </button>
+                      @if (sectionCoverImageOpen()) {
+                        <div class="px-5 pb-5 border-t border-[#dde3eb] pt-4 space-y-4">
+                          @if (coverImagePreview()) {
+                            <div class="relative group rounded-xl overflow-hidden border border-[#dde3eb]">
+                              <img [src]="coverImagePreview()" alt="Cover preview" class="w-full max-h-52 object-cover" />
+                              <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                                <button (click)="removeCoverImage()" class="px-3 py-1.5 bg-[#ba1a1a] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer hover:bg-[#93000a] transition-colors">
+                                  <span class="material-symbols-outlined text-sm">delete</span> Remove
+                                </button>
+                                <label class="px-3 py-1.5 bg-white text-[#191c1c] text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer hover:bg-[#f2f4f3] transition-colors">
+                                  <span class="material-symbols-outlined text-sm">upload</span> Change
+                                  <input type="file" accept="image/*" class="hidden" (change)="onCoverImageFileSelected($event)" />
+                                </label>
+                              </div>
+                            </div>
+                            <p class="text-[10px] text-[#6e7978] flex items-center gap-1">
+                              <span class="material-symbols-outlined text-xs text-emerald-600">check_circle</span>
+                              File selected: {{ coverImageFile?.name || 'image' }}
+                            </p>
+                          } @else if (coverImageUrl()) {
+                            <div class="relative group rounded-xl overflow-hidden border border-[#dde3eb]">
+                              <img [src]="coverImageUrl()" alt="Cover preview" class="w-full max-h-52 object-cover" />
+                              <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <button (click)="removeCoverImage()" class="px-3 py-1.5 bg-[#ba1a1a] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer hover:bg-[#93000a] transition-colors">
+                                  <span class="material-symbols-outlined text-sm">delete</span> Remove
+                                </button>
+                              </div>
+                            </div>
+                          } @else {
+                            <div (dragover)="onCoverDragOver($event)" (dragleave)="onCoverDragLeave()" (drop)="onCoverImageDrop($event)"
+                                 class="border-2 border-dashed rounded-xl p-6 text-center transition-all space-y-3"
+                                 [ngClass]="isDraggingCover() ? 'border-[#004343] bg-[#004343]/5' : 'border-[#dde3eb] bg-[#f8faf9] hover:border-[#004343]/40'">
+                              <div class="w-12 h-12 rounded-xl bg-[#004343]/10 text-[#004343] flex items-center justify-center mx-auto">
+                                <span class="material-symbols-outlined text-2xl">cloud_upload</span>
+                              </div>
+                              <div>
+                                <p class="text-xs font-bold text-[#191c1c]">Drag &amp; drop an image here</p>
+                                <p class="text-[10px] text-[#6e7978] mt-0.5">or click to browse — JPG, PNG, WebP up to 5 MB</p>
+                              </div>
+                              <label class="inline-flex items-center gap-1.5 px-4 py-2 bg-[#004343] text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-[#003131] transition-colors shadow-xs">
+                                <span class="material-symbols-outlined text-sm">upload_file</span> Browse File
                                 <input type="file" accept="image/*" class="hidden" (change)="onCoverImageFileSelected($event)" />
                               </label>
                             </div>
-                          </div>
-                          <p class="text-[10px] text-[#6e7978] flex items-center gap-1">
-                            <span class="material-symbols-outlined text-xs text-emerald-600">check_circle</span>
-                            File selected: {{ coverImageFile?.name || 'image' }}
-                          </p>
-                        } @else if (coverImageUrl()) {
-                          <div class="relative group rounded-xl overflow-hidden border border-[#dde3eb]">
-                            <img [src]="coverImageUrl()" alt="Cover preview" class="w-full max-h-52 object-cover" />
-                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <button (click)="removeCoverImage()" class="px-3 py-1.5 bg-[#ba1a1a] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer hover:bg-[#93000a] transition-colors">
-                                <span class="material-symbols-outlined text-sm">delete</span> Remove
-                              </button>
-                            </div>
-                          </div>
-                        } @else {
-                          <div (dragover)="onCoverDragOver($event)" (dragleave)="onCoverDragLeave()" (drop)="onCoverImageDrop($event)"
-                               class="border-2 border-dashed rounded-xl p-6 text-center transition-all space-y-3"
-                               [ngClass]="isDraggingCover() ? 'border-[#004343] bg-[#004343]/5' : 'border-[#dde3eb] bg-[#f8faf9] hover:border-[#004343]/40'">
-                            <div class="w-12 h-12 rounded-xl bg-[#004343]/10 text-[#004343] flex items-center justify-center mx-auto">
-                              <span class="material-symbols-outlined text-2xl">cloud_upload</span>
-                            </div>
-                            <div>
-                              <p class="text-xs font-bold text-[#191c1c]">Drag &amp; drop an image here</p>
-                              <p class="text-[10px] text-[#6e7978] mt-0.5">or click to browse — JPG, PNG, WebP up to 5 MB</p>
-                            </div>
-                            <label class="inline-flex items-center gap-1.5 px-4 py-2 bg-[#004343] text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-[#003131] transition-colors shadow-xs">
-                              <span class="material-symbols-outlined text-sm">upload_file</span> Browse File
-                              <input type="file" accept="image/*" class="hidden" (change)="onCoverImageFileSelected($event)" />
-                            </label>
-                          </div>
-                        }
-                        <div class="flex items-center gap-2">
-                          <div class="flex-1 h-px bg-[#dde3eb]"></div>
-                          <span class="text-[10px] text-[#6e7978] font-semibold uppercase">or enter image URL</span>
-                          <div class="flex-1 h-px bg-[#dde3eb]"></div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                          <input type="url" [ngModel]="coverImageUrl()" (ngModelChange)="coverImageUrl.set($event); coverImagePreview.set('')"
-                                 placeholder="https://example.com/cover-image.jpg"
-                                 class="flex-1 p-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all" />
-                          @if (coverImageUrl()) {
-                            <button (click)="removeCoverImage()" class="p-2.5 text-[#ba1a1a] border border-[#ba1a1a]/20 rounded-xl hover:bg-[#ba1a1a]/10 transition-colors cursor-pointer" title="Clear URL">
-                              <span class="material-symbols-outlined text-sm">close</span>
-                            </button>
                           }
+                          <div class="flex items-center gap-2">
+                            <div class="flex-1 h-px bg-[#dde3eb]"></div>
+                            <span class="text-[10px] text-[#6e7978] font-semibold uppercase">or enter image URL</span>
+                            <div class="flex-1 h-px bg-[#dde3eb]"></div>
+                          </div>
+                          <div class="flex items-center gap-2">
+                            <input type="url" [ngModel]="coverImageUrl()" (ngModelChange)="updateCoverImageUrl($event)"
+                                   placeholder="https://example.com/cover-image.jpg"
+                                   class="flex-1 p-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white transition-all" />
+                            @if (coverImageUrl()) {
+                              <button (click)="removeCoverImage()" class="p-2.5 text-[#ba1a1a] border border-[#ba1a1a]/20 rounded-xl hover:bg-[#ba1a1a]/10 transition-colors cursor-pointer" title="Clear URL">
+                                <span class="material-symbols-outlined text-sm">close</span>
+                              </button>
+                            }
+                          </div>
+                          <p class="text-[10px] text-[#6e7978]">
+                            <span class="material-symbols-outlined text-xs align-middle">info</span>
+                            The cover image will be used as the thumbnail across the heritage feed and mobile app cards.
+                          </p>
                         </div>
-                        <p class="text-[10px] text-[#6e7978]">
-                          <span class="material-symbols-outlined text-xs align-middle">info</span>
-                          The cover image will be used as the thumbnail across the heritage feed and mobile app cards.
-                        </p>
-                      </div>
-                    }
-                  </div>
+                      }
+                    </div>
+                  }
 
                   <!-- 6. Guideline Checklist & Decision Controls (Collapsible) -->
                   <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-xs overflow-hidden">
@@ -1682,8 +1430,14 @@ export class ModerationComponent implements OnInit {
       this.coverImageFile = file;
       const reader = new FileReader();
       reader.onload = (e) => {
-        this.coverImagePreview.set(e.target?.result as string);
+        const preview = (e.target?.result as string) || '';
+        this.coverImagePreview.set(preview);
         this.coverImageUrl.set('');
+        const item = this.selectedItem();
+        if (item) {
+          item.imageUrl = preview;
+          this.items.update(list => list.map(i => i.id === item.id ? { ...i, imageUrl: preview } : i));
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -1697,8 +1451,14 @@ export class ModerationComponent implements OnInit {
       this.coverImageFile = file;
       const reader = new FileReader();
       reader.onload = (e) => {
-        this.coverImagePreview.set(e.target?.result as string);
+        const preview = (e.target?.result as string) || '';
+        this.coverImagePreview.set(preview);
         this.coverImageUrl.set('');
+        const item = this.selectedItem();
+        if (item) {
+          item.imageUrl = preview;
+          this.items.update(list => list.map(i => i.id === item.id ? { ...i, imageUrl: preview } : i));
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -1717,6 +1477,22 @@ export class ModerationComponent implements OnInit {
     this.coverImageFile = null;
     this.coverImagePreview.set('');
     this.coverImageUrl.set('');
+    const item = this.selectedItem();
+    if (item) {
+      item.imageUrl = '';
+      this.items.update(list => list.map(i => i.id === item.id ? { ...i, imageUrl: '' } : i));
+    }
+  }
+
+  updateCoverImageUrl(url: string): void {
+    this.coverImageUrl.set(url);
+    this.coverImagePreview.set('');
+    this.coverImageFile = null;
+    const item = this.selectedItem();
+    if (item) {
+      item.imageUrl = url;
+      this.items.update(list => list.map(i => i.id === item.id ? { ...i, imageUrl: url } : i));
+    }
   }
 
   // Media Simulation
@@ -2041,6 +1817,11 @@ export class ModerationComponent implements OnInit {
     this.isPlayingVideo = false;
     this.videoProgress = 33;
     this.quizSaved.set(false);
+
+    // Sync cover image state with selected item
+    this.coverImageUrl.set(item.imageUrl || '');
+    this.coverImagePreview.set('');
+    this.coverImageFile = null;
 
     // Populate or reset quiz state
     if (item.quiz) {

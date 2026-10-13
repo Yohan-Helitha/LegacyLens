@@ -27,12 +27,13 @@ public class DiscoveryController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String district,
             @RequestParam(required = false) String region,
+            @RequestParam(required = false) String type,
             @RequestParam(defaultValue = "false") boolean includeRelated,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
         Page<DiscoveryStoryResponse> results = discoveryService.searchPublishedStories(
-                query, tags, category, district, region, includeRelated, page, size);
+                query, tags, category, district, region, type, includeRelated, page, size);
 
         return ResponseEntity.ok(ApiResponse.ok(results));
     }
@@ -50,6 +51,7 @@ public class DiscoveryController {
     public ResponseEntity<ApiResponse<List<DiscoveryStoryResponse>>> getHomeRecommendations(
             @AuthenticationPrincipal CustomUserDetails principal,
             @RequestParam(required = false) UUID viewerId,
+            @RequestParam(required = false) String type,
             @RequestParam(defaultValue = "10") int limit) {
 
         UUID effectiveViewerId = null;
@@ -60,7 +62,7 @@ public class DiscoveryController {
         }
 
         List<DiscoveryStoryResponse> recommendations = discoveryService.getPersonalizedRecommendations(
-                effectiveViewerId, limit);
+                effectiveViewerId, type, limit);
 
         return ResponseEntity.ok(ApiResponse.ok(recommendations));
     }

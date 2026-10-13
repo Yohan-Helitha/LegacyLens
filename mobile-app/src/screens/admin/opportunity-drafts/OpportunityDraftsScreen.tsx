@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image, Alert, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Typography } from '../../../theme';
 import { styles } from './OpportunityDraftsScreen.styles';
@@ -49,7 +49,7 @@ const toDraftItem = (opp: AdminOpportunityResponse) => ({
 });
 
 export const OpportunityDraftsScreen: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
-  const { drafts, setActiveDraftId, setOriginTab, draftOpportunities, publishedOpportunities, closedOpportunities, refreshAll } = useOpportunity();
+  const { drafts, setActiveDraftId, setOriginTab, draftOpportunities, publishedOpportunities, closedOpportunities, refreshAll, loading } = useOpportunity();
   const [activeTab, setActiveTab] = useState<'drafts' | 'published' | 'removed'>('drafts');
   const [removingId, setRemovingId] = useState<string | null>(null);
 
@@ -127,6 +127,18 @@ export const OpportunityDraftsScreen: React.FC<{ onNavigate?: (tab: string) => v
       <Text style={styles.sectionTitle}>Opportunities still in progress</Text>
       <Text style={styles.sectionDesc}>Continue creating opportunities that help preserve local knowledge.</Text>
       <Text style={styles.sectionMeta}>{combinedDrafts.length} drafts: {readyCount} ready to publish, {needsMoreCount} need more details</Text>
+
+      {loading && combinedDrafts.length === 0 ? (
+        <View style={{ padding: 48, alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={Colors.secondary} />
+          <Text style={{ marginTop: 12, fontFamily: Typography.fontBodyMed, color: Colors.textMuted }}>Loading drafts...</Text>
+        </View>
+      ) : combinedDrafts.length === 0 ? (
+        <View style={{ padding: 48, alignItems: 'center' }}>
+          <MaterialIcons name="edit-note" size={48} color={Colors.textMuted} />
+          <Text style={{ marginTop: 12, fontFamily: Typography.fontBodyMed, color: Colors.textMuted }}>No drafts found</Text>
+        </View>
+      ) : null}
 
       {featuredDraft && (
         <>
@@ -268,6 +280,18 @@ export const OpportunityDraftsScreen: React.FC<{ onNavigate?: (tab: string) => v
           <View style={styles.statPillActive}><Text style={styles.statPillActiveText}>{publishedItems.filter(i => i.status === 'ACTIVE').length} active</Text></View>
         </View>
 
+        {loading && publishedItems.length === 0 ? (
+          <View style={{ padding: 48, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={Colors.secondary} />
+            <Text style={{ marginTop: 12, fontFamily: Typography.fontBodyMed, color: Colors.textMuted }}>Loading published opportunities...</Text>
+          </View>
+        ) : publishedItems.length === 0 ? (
+          <View style={{ padding: 48, alignItems: 'center' }}>
+            <MaterialIcons name="campaign" size={48} color={Colors.textMuted} />
+            <Text style={{ marginTop: 12, fontFamily: Typography.fontBodyMed, color: Colors.textMuted }}>No published opportunities</Text>
+          </View>
+        ) : null}
+
         {featured && (
           <>
             <Text style={[styles.labelHeader, { marginTop: 32 }]}>FEATURED ACTIVE OPPORTUNITY</Text>
@@ -362,7 +386,12 @@ export const OpportunityDraftsScreen: React.FC<{ onNavigate?: (tab: string) => v
         <Text style={styles.sectionDesc}>These opportunities are no longer visible to the public.</Text>
 
         <View style={{ marginTop: 24 }}>
-          {removedItems.length > 0 ? (
+          {loading && removedItems.length === 0 ? (
+            <View style={{ padding: 48, alignItems: 'center' }}>
+              <ActivityIndicator size="large" color={Colors.secondary} />
+              <Text style={{ marginTop: 12, fontFamily: Typography.fontBodyMed, color: Colors.textMuted }}>Loading removed opportunities...</Text>
+            </View>
+          ) : removedItems.length > 0 ? (
             <>
               {featured && (
                 <View style={styles.featuredCard}>
