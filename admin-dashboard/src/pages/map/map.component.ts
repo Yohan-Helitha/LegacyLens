@@ -1632,10 +1632,10 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // Search & Filters
-  searchQuery: string = '';
-  catalogSearchQuery: string = '';
-  selectedFilterRegion: string = 'all';
-  selectedFilterDistrict: string = 'all';
+  searchQuery = '';
+  catalogSearchQuery = '';
+  selectedFilterRegion = 'all';
+  selectedFilterDistrict = 'all';
 
   // Landmark Studio State
   landmarkTypes = LANDMARK_TYPES;
@@ -1682,9 +1682,9 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   // Mapbox Instance & Settings
   mapInstance: any = null;
   pickerMarker: any = null;
-  showPointer: boolean = false;
+  showPointer = false;
   landmarkMarkers: any[] = [];
-  activeMapStyle: string = 'outdoors-v12';
+  activeMapStyle = 'outdoors-v12';
 
   // Computed Properties
   totalQuestsCount = computed(() => {
@@ -2007,7 +2007,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
               ) {
                 try {
                   this.mapInstance.setLayoutProperty(id, 'visibility', 'none');
-                } catch (e) {}
+                } catch { /* best-effort: map layer/source may not exist yet */ }
               }
             });
           }
@@ -2018,7 +2018,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
               this.mapInstance.setConfigProperty('basemap', 'showRoadLabels', false);
               this.mapInstance.setConfigProperty('basemap', 'showTransitLabels', false);
             }
-          } catch (e) {}
+          } catch { /* best-effort: map layer/source may not exist yet */ }
         } catch (err) {
           console.warn('Terrain/fog setup notice:', err);
         }
@@ -2084,7 +2084,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
               id.includes('bridge') || id.includes('motorway') ||
               id.includes('street') || id.includes('transit')
             ) {
-              try { this.mapInstance.setLayoutProperty(id, 'visibility', 'none'); } catch (e) {}
+              try { this.mapInstance.setLayoutProperty(id, 'visibility', 'none'); } catch { /* best-effort: map layer/source may not exist yet */ }
             }
           });
         }
@@ -2093,7 +2093,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
             this.mapInstance.setConfigProperty('basemap', 'showRoadLabels', false);
             this.mapInstance.setConfigProperty('basemap', 'showTransitLabels', false);
           }
-        } catch (e) {}
+        } catch { /* best-effort: map layer/source may not exist yet */ }
 
         this.renderLandmarkMarkersOnMap();
         if (this.landmarkSubTab() === 'add_edit') {
@@ -2312,7 +2312,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
           if (!this.mapInstance.hasModel || !this.mapInstance.hasModel(model)) {
             this.mapInstance.addModel(model, resolvedUrl);
           }
-        } catch (e) {}
+        } catch { /* best-effort: map layer/source may not exist yet */ }
 
         return {
           type: 'Feature',

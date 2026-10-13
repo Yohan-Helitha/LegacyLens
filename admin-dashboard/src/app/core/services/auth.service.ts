@@ -50,7 +50,7 @@ export class AuthService {
     );
   }
 
-  login(phoneNumber: string, pin: string, rememberDevice: boolean = false): Observable<AuthResponse> {
+  login(phoneNumber: string, pin: string, rememberDevice = false): Observable<AuthResponse> {
     const payload = {
       phoneNumber,
       pin

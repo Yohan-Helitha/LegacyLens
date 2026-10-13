@@ -35,7 +35,7 @@ export class VerificationService {
    * Fetch all user verifications from backend
    * Endpoint: GET /api/admin/verifications?role=ALL|ELDER|YOUTH_CREATOR|...&status=ALL|PENDING|VERIFIED|...
    */
-  getAllVerifications(role: string = 'ALL', status: string = 'ALL'): Observable<AdminUserVerificationResponse[]> {
+  getAllVerifications(role = 'ALL', status = 'ALL'): Observable<AdminUserVerificationResponse[]> {
     let params = new HttpParams();
     if (role && role !== 'ALL') {
       params = params.set('role', role);

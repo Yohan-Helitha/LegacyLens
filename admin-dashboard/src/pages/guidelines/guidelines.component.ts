@@ -1,10 +1,10 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 
 @Component({
   selector: 'app-guidelines',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
     <main class="w-full min-h-screen p-8 bg-background font-body-md text-on-surface">
       <div class="max-w-3xl mx-auto bg-surface-container-lowest rounded-xl shadow p-8 border border-surface-container-high/40">

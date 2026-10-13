@@ -1704,7 +1704,7 @@ export class ModerationComponent implements OnInit {
     });
   }
 
-  loadQueueFromBackend(silent: boolean = false): void {
+  loadQueueFromBackend(silent = false): void {
     this.isLoading.set(true);
     this.hasError.set(false);
     this.isSyncing.set(true);

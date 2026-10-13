@@ -40,7 +40,7 @@ export class ModerationService {
    * Fetch all moderation queue items from backend
    * Endpoint: GET /api/admin/moderation/queue?status=ALL|PENDING|PUBLISHED|REJECTED|ARCHIVED
    */
-  getQueueItems(status: string = 'ALL'): Observable<ModerationQueueItemResponse[]> {
+  getQueueItems(status = 'ALL'): Observable<ModerationQueueItemResponse[]> {
     const params = new HttpParams().set('status', status);
     return this.http.get<any>(
       `${environment.apiUrl}/admin/moderation/queue`,
@@ -200,7 +200,7 @@ export class ModerationService {
   // ─────────────────────────────────────────────────────────────────────────
 
   getTags(params?: { search?: string; category?: string; isApproved?: boolean; page?: number; size?: number }): Observable<any> {
-    let httpParams: any = {};
+    const httpParams: any = {};
     if (params?.search) httpParams.search = params.search;
     if (params?.category) httpParams.category = params.category;
     if (params?.isApproved !== undefined) httpParams.isApproved = params.isApproved;

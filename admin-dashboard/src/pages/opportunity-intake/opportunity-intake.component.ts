@@ -1169,7 +1169,7 @@ export interface OpportunityItem {
 
                             <!-- Host + Location -->
                             <div class="flex items-center gap-2.5 pt-2 border-t border-[#f2f4f3] text-xs text-[#3f4948]">
-                              <img [src]="opp.elderAvatarUrl" class="w-7 h-7 rounded-full object-cover border border-[#dde3eb]" />
+                              <img [src]="opp.elderAvatarUrl" alt="" class="w-7 h-7 rounded-full object-cover border border-[#dde3eb]" />
                               <div class="min-w-0 flex-1 truncate">
                                 <span class="font-bold text-[#191c1c]">{{ opp.elderName }}</span>
                                 <span class="text-[#6f7978] block text-[11px] truncate">{{ opp.location }}</span>
@@ -1223,7 +1223,7 @@ export interface OpportunityItem {
                     @for (item of filteredRemovedOpportunities(); track item.id) {
                       <div class="bg-white border border-[#dde3eb] rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
                         <div class="flex items-center gap-3">
-                          <img [src]="item.heroImageUrl" class="w-16 h-16 rounded-xl object-cover opacity-80" />
+                          <img [src]="item.heroImageUrl" alt="" class="w-16 h-16 rounded-xl object-cover opacity-80" />
                           <div>
                             <div class="flex items-center gap-2 mb-1">
                               <span class="px-2 py-0.5 rounded bg-gray-200 text-gray-700 text-[10px] font-bold">ARCHIVED</span>
@@ -1348,7 +1348,7 @@ export interface OpportunityItem {
                       
                       @if (oppCoverImage()) {
                         <div class="relative h-48 sm:h-56 rounded-xl overflow-hidden border border-[#dde3eb]">
-                          <img [src]="oppCoverImage()" class="w-full h-full object-cover" />
+                          <img [src]="oppCoverImage()" alt="Opportunity cover image" class="w-full h-full object-cover" />
                           <div class="absolute top-2.5 right-2.5 flex items-center gap-1.5">
                             <button 
                               (click)="deviceFileInput.click()" 
@@ -1791,7 +1791,7 @@ export interface OpportunityItem {
                       
                       <div class="border-2 border-[#004343]/30 rounded-2xl overflow-hidden shadow-md bg-white max-w-md mx-auto">
                         <div class="relative h-44 bg-[#f2f4f3]">
-                          <img [src]="oppCoverImage() || sampleCoverImages[0].url" class="w-full h-full object-cover" />
+                          <img [src]="oppCoverImage() || sampleCoverImages[0].url" alt="Opportunity cover image" class="w-full h-full object-cover" />
                           <div class="absolute top-2.5 left-2.5 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                             PREVIEW
                           </div>
@@ -1802,7 +1802,7 @@ export interface OpportunityItem {
 
                         <div class="p-3.5 space-y-2.5">
                           <div class="flex items-center gap-2">
-                            <img [src]="selectedKnowledgeHolderObj()?.avatarUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80'" class="w-7 h-7 rounded-full object-cover border border-[#dde3eb]" />
+                            <img [src]="selectedKnowledgeHolderObj()?.avatarUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80'" alt="" class="w-7 h-7 rounded-full object-cover border border-[#dde3eb]" />
                             <div class="min-w-0">
                               <span class="text-xs font-bold text-[#191c1c] block truncate">Hosted by {{ selectedKnowledgeHolderObj()?.name || 'Selected Custodian' }}</span>
                               <span class="text-[10px] text-[#6f7978] block truncate">{{ oppLocationText() || 'Location TBD' }}</span>
@@ -2002,7 +2002,7 @@ export interface OpportunityItem {
             </div>
 
             <div class="bg-[#f8faf9] p-3 rounded-2xl border border-[#dde3eb] flex items-center gap-3 text-left">
-              <img [src]="oppCoverImage() || sampleCoverImages[0].url" class="w-14 h-14 rounded-xl object-cover" />
+              <img [src]="oppCoverImage() || sampleCoverImages[0].url" alt="Opportunity cover image" class="w-14 h-14 rounded-xl object-cover" />
               <div class="min-w-0 flex-1">
                 <span class="text-[10px] font-bold text-[#fe893e] uppercase">Preservation Task</span>
                 <h5 class="text-xs font-bold text-[#191c1c] truncate">{{ oppTitle() }}</h5>
@@ -2149,7 +2149,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   oppMapMarker: any = null;
   isMapLoading = signal<boolean>(false);
   isSearchingMap = signal<boolean>(false);
-  mapSearchResults = signal<Array<{ id: string; placeName: string; text: string; lng: number; lat: number }>>([]);
+  mapSearchResults = signal<{ id: string; placeName: string; text: string; lng: number; lat: number }[]>([]);
   showMapSearchResults = signal<boolean>(false);
   currentMapboxToken = signal<string>(environment.mapboxToken || '');
 
@@ -2558,7 +2558,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadOpportunitiesFromBackend(silent: boolean = false): void {
+  loadOpportunitiesFromBackend(silent = false): void {
     this.isLoading.set(true);
     this.hasError.set(false);
     this.isSyncingOpportunities.set(true);
@@ -2609,7 +2609,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadAudiosFromBackend(silent: boolean = false): void {
+  loadAudiosFromBackend(silent = false): void {
     this.isSyncingAudios.set(true);
     this.opportunityService.getAudioSubmissions('ALL').subscribe({
       next: (data: OpportunityAudioResponse[]) => {
@@ -2833,7 +2833,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     }
   }
 
-  seekBackward(seconds: number = 10): void {
+  seekBackward(seconds = 10): void {
     this.waveformBars.update(bars => {
       const activeIdx = bars.findIndex(b => b.active);
       const newIdx = Math.max(0, activeIdx - 4);
@@ -2850,7 +2850,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     this.showToastNotification(`Rewound ${seconds}s`, 'info');
   }
 
-  seekForward(seconds: number = 10): void {
+  seekForward(seconds = 10): void {
     this.waveformBars.update(bars => {
       const activeIdx = bars.findIndex(b => b.active);
       const newIdx = Math.min(bars.length - 1, activeIdx + 4);
@@ -3348,7 +3348,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     });
   }
 
-  handleLocationSearch(showNotification: boolean = true): void {
+  handleLocationSearch(showNotification = true): void {
     const query = this.oppLocationText().trim();
     if (!query) return;
 
