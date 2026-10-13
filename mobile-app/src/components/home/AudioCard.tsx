@@ -4,9 +4,9 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../theme';
 import { styles } from './AudioCard.styles';
 import { FeedCardActions } from './FeedCardActions';
-import { homeApi } from '../../services/api/homeApi';
 import { apiPost } from '../../services/api/client';
 import { getMediaUrl } from '../../constants/api';
+import { AvatarPlaceholder } from '../common/AvatarPlaceholder';
 
 const TOTAL_BARS = 30; // number of waveform bars rendered
 
@@ -16,18 +16,15 @@ export const AudioCard = ({
   setActivePostId,
   setCommentModalVisible,
   onLikeChange,
+  initialLiked,
 }: {
   a: any;
   item: any;
   setActivePostId: (id: string) => void;
   setCommentModalVisible: (v: boolean) => void;
   onLikeChange?: (postId: string, newLikesCount: number, liked: boolean) => void;
+  initialLiked?: boolean;
 }) => {
-  const rawAvatar = a.avatar || a.thumbnail || item?.avatar || item?.thumbnail || item?.imageUrl;
-  const resolvedAvatar = rawAvatar && !rawAvatar.startsWith('http')
-    ? getMediaUrl(rawAvatar.startsWith('/uploads/') ? rawAvatar : (rawAvatar.startsWith('uploads/') ? `/${rawAvatar}` : `/uploads/${rawAvatar.replace(/^\/+/, '')}`))
-    : (rawAvatar || 'https://i.pravatar.cc/150?img=1');
-
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0 … TOTAL_BARS
 
@@ -67,7 +64,12 @@ export const AudioCard = ({
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.authorRow}>
-          <Image source={{ uri: resolvedAvatar }} style={styles.avatar} />
+          <AvatarPlaceholder
+            name={a.name}
+            avatarUrl={a.avatar || item?.avatar}
+            size={40}
+            theme="light"
+          />
           <View>
             <Text style={styles.authorName}>{a.name}</Text>
             <Text style={styles.timeAgo}>{a.location}</Text>
@@ -126,6 +128,7 @@ export const AudioCard = ({
           theme="light"
           initialLikes={a.likesCount ?? item?.likesCount ?? 0}
           initialComments={a.commentsCount ?? item?.commentsCount ?? 0}
+          initialLiked={initialLiked ?? item?.liked ?? a?.liked ?? false}
           onLikeChange={onLikeChange}
           onCommentPress={() => {
             setActivePostId(item?.id || a?.id);
