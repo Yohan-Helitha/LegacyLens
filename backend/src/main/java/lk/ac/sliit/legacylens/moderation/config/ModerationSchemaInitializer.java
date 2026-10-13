@@ -58,6 +58,18 @@ public class ModerationSchemaInitializer implements CommandLineRunner {
                         is_correct BOOLEAN NOT NULL DEFAULT FALSE
                     )
                 """);
+
+                jdbcTemplate.execute("""
+                    CREATE TABLE IF NOT EXISTS post_likes (
+                        id BIGSERIAL PRIMARY KEY,
+                        user_identifier VARCHAR(120) NOT NULL,
+                        post_id VARCHAR(120) NOT NULL,
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        CONSTRAINT uq_post_likes UNIQUE (user_identifier, post_id)
+                    )
+                """);
+
+                jdbcTemplate.execute("UPDATE feed_items SET video_url = NULL WHERE video_url LIKE '%w3schools%' OR video_url LIKE '%mov_bbb%'");
             } catch (Exception e) {
                 log.debug("Column addition check: {}", e.getMessage());
             }
