@@ -16,11 +16,12 @@ import {
   Animated,
   Alert,
   Share,
-StyleSheet,} from 'react-native';
+  StyleSheet,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode, Audio } from 'expo-av';
+
 import * as Haptics from 'expo-haptics';
 import { VoiceSearchModal } from '../../components/common/VoiceSearchModal';
 import { CommentModal } from '../../components/common/CommentModal';
@@ -46,9 +47,9 @@ const CARD_WIDTH = SCREEN_WIDTH - Spacing.md * 2;
 const DEFAULT_CATEGORIES: Array<{
   id: string; label: string; icon: string; color: string; tags: string[];
 }> = [
-  { id: "c1", label: "Traditional Food", icon: "restaurant", color: "#e05d1a", tags: ["food"] },
-  { id: "c2", label: "Performing Arts", icon: "music-note", color: "#0f7c6b", tags: ["dance"] },
-];
+    { id: "c1", label: "Traditional Food", icon: "restaurant", color: "#e05d1a", tags: ["food"] },
+    { id: "c2", label: "Performing Arts", icon: "music-note", color: "#0f7c6b", tags: ["dance"] },
+  ];
 
 const MEDIA_TABS = ['Explore all', 'Videos', 'Blogs', 'Audio'];
 
@@ -151,10 +152,10 @@ export interface AItem {
 // ─────────────────────────────────────────────────────────────────────────────
 // Component Definition
 // ─────────────────────────────────────────────────────────────────────────────
-export const HomeScreen: React.FC<{ 
-  onNavigate?: (tab: string, item?: any) => void, 
+export const HomeScreen: React.FC<{
+  onNavigate?: (tab: string, item?: any) => void,
   isOverlayActive?: boolean,
-  initialSearchQuery?: string 
+  initialSearchQuery?: string
 }> = ({ onNavigate, isOverlayActive, initialSearchQuery }) => {
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery || '');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -289,9 +290,9 @@ export const HomeScreen: React.FC<{
   // 🎙️ Filtering logic 🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️
   const filterMatches = (keywords: string[]) => {
     if (!searchQuery && !selectedCategoryId) return true;
-    
+
     const lower = keywords.map(k => k.toLowerCase());
-    
+
     // 1. Search bar filter
     if (searchQuery) {
       const queryParts = searchQuery.toLowerCase().split(' ').map(p => p.replace(/^#/, '')).filter(p => p.trim() !== '');
@@ -324,11 +325,11 @@ export const HomeScreen: React.FC<{
 
     return pool.filter(item => {
       const kw = [
-        (item as any).title  || (item as any).name  || '',
-        (item as any).author || (item as any).name  || '',
+        (item as any).title || (item as any).name || '',
+        (item as any).author || (item as any).name || '',
         (item as any).location || '',
-        (item as any).topic    || '',
-        (item as any).excerpt  || '',
+        (item as any).topic || '',
+        (item as any).excerpt || '',
         ...((item as any).tags || []),
       ];
       return filterMatches(kw);
@@ -380,46 +381,46 @@ export const HomeScreen: React.FC<{
     <View style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#0f5c5c" />
 
-      <CommentModal 
-        visible={commentModalVisible} 
-        onClose={() => setCommentModalVisible(false)} 
-        postId={activePostId} 
+      <CommentModal
+        visible={commentModalVisible}
+        onClose={() => setCommentModalVisible(false)}
+        postId={activePostId}
       />
 
       <View style={{ flex: 1, overflow: 'hidden' }}>
         <Animated.View style={[styles.stickyHeader, { transform: [{ translateY: headerTranslateY }] }]}>
-        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.accent, opacity: headerOrangeOpacity }]} />
-        
-        <Header onNavigate={onNavigate} />
+          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.accent, opacity: headerOrangeOpacity }]} />
 
-        <View style={styles.searchBarSection}>
-          <View style={styles.searchContainer}>
-            <MaterialIcons
-              name="search"
-              size={26}
-              color={Colors.textMuted}
-              style={styles.searchIcon}
-            />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search stories, words, places, traditions..."
-              placeholderTextColor="#6F7978"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            <TouchableOpacity
-              style={styles.micButton}
-              activeOpacity={0.8}
-              accessibilityLabel="Voice search"
-              onPress={() => setIsVoiceModalVisible(true)}
-            >
-              <MaterialIcons name="mic" size={26} color={Colors.white} />
-            </TouchableOpacity>
+          <Header onNavigate={onNavigate} />
+
+          <View style={styles.searchBarSection}>
+            <View style={styles.searchContainer}>
+              <MaterialIcons
+                name="search"
+                size={26}
+                color={Colors.textMuted}
+                style={styles.searchIcon}
+              />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search stories, words, places, traditions..."
+                placeholderTextColor="#6F7978"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              <TouchableOpacity
+                style={styles.micButton}
+                activeOpacity={0.8}
+                accessibilityLabel="Voice search"
+                onPress={() => setIsVoiceModalVisible(true)}
+              >
+                <MaterialIcons name="mic" size={26} color={Colors.white} />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
 
-        {/* SECTION 2: Category Pills + Explore Filter Tabs (Stays fixed at top on scroll down) */}
-        <Animated.View style={[styles.pillsAndFilterSection, { paddingTop: pillsTopPadding }]}>
+          {/* SECTION 2: Category Pills + Explore Filter Tabs (Stays fixed at top on scroll down) */}
+          <Animated.View style={[styles.pillsAndFilterSection, { paddingTop: pillsTopPadding }]}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -509,102 +510,102 @@ export const HomeScreen: React.FC<{
               </ScrollView>
             </View>
           </Animated.View>
-      </Animated.View>
+        </Animated.View>
 
-      <Animated.FlatList
-        data={feed}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: 275 }]}
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[Colors.secondary, Colors.accent]}
-            tintColor={Colors.secondary}
-            progressViewOffset={190}
-          />
-        }
-        ListHeaderComponent={
-          <>
-            {activeTab === 'Explore all' && !searchQuery && !selectedCategoryId && (
-              <>
-                <WordOfTheDay />
-                {featuredKeeper && (
-                  <KnowledgeKeeper 
-                    name={featuredKeeper.name}
-                    title={featuredKeeper.title}
-                    tag={featuredKeeper.tag}
-                    quote={featuredKeeper.quote}
-                    avatarUrl={featuredKeeper.avatarUrl}
-                    likesCount={featuredKeeper.likesCount}
-                  />
-                )}
-              </>
-            )}
-          </>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <MaterialIcons name="search-off" size={48} color={Colors.textMuted} />
-            <Text style={styles.emptyStateText}>No results found</Text>
-            <Text style={styles.emptyStateSubtext}>Try a different keyword or category</Text>
-          </View>
-        }
-        renderItem={({ item }: any) => {
-                /* ── VIDEO CARD ──────────────────────────────────────── */
-                if (item.type === 'video') {
-                  const v = item as VItem;
-                  const isPlaying = visibleVideoId === v.id && !isOverlayActive;
-                  return (
-                    <VideoCard 
-                      v={v} 
-                      isPlaying={isPlaying} 
-                      item={item} 
-                      setActivePostId={setActivePostId} 
-                      setCommentModalVisible={setCommentModalVisible} 
-                      onNavigate={onNavigate}
+        <Animated.FlatList
+          data={feed}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: 275 }]}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors.secondary, Colors.accent]}
+              tintColor={Colors.secondary}
+              progressViewOffset={190}
+            />
+          }
+          ListHeaderComponent={
+            <>
+              {activeTab === 'Explore all' && !searchQuery && !selectedCategoryId && (
+                <>
+                  <WordOfTheDay />
+                  {featuredKeeper && (
+                    <KnowledgeKeeper
+                      name={featuredKeeper.name}
+                      title={featuredKeeper.title}
+                      tag={featuredKeeper.tag}
+                      quote={featuredKeeper.quote}
+                      avatarUrl={featuredKeeper.avatarUrl}
+                      likesCount={featuredKeeper.likesCount}
                     />
-                  );
-                }
+                  )}
+                </>
+              )}
+            </>
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <MaterialIcons name="search-off" size={48} color={Colors.textMuted} />
+              <Text style={styles.emptyStateText}>No results found</Text>
+              <Text style={styles.emptyStateSubtext}>Try a different keyword or category</Text>
+            </View>
+          }
+          renderItem={({ item }: any) => {
+            /* ── VIDEO CARD ──────────────────────────────────────── */
+            if (item.type === 'video') {
+              const v = item as VItem;
+              const isPlaying = visibleVideoId === v.id && !isOverlayActive;
+              return (
+                <VideoCard
+                  v={v}
+                  isPlaying={isPlaying}
+                  item={item}
+                  setActivePostId={setActivePostId}
+                  setCommentModalVisible={setCommentModalVisible}
+                  onNavigate={onNavigate}
+                />
+              );
+            }
 
-                /* ── BLOG / STORY CARD ───────────────────────────────── */
-                if (item.type === 'blog') {
-                  const b = item as BItem;
-                  return (
-                    <BlogCard 
-                      b={b} 
-                      item={item} 
-                      setActivePostId={setActivePostId} 
-                      setCommentModalVisible={setCommentModalVisible} 
-                      onNavigate={onNavigate} 
-                    />
-                  );
-                }
+            /* ── BLOG / STORY CARD ───────────────────────────────── */
+            if (item.type === 'blog') {
+              const b = item as BItem;
+              return (
+                <BlogCard
+                  b={b}
+                  item={item}
+                  setActivePostId={setActivePostId}
+                  setCommentModalVisible={setCommentModalVisible}
+                  onNavigate={onNavigate}
+                />
+              );
+            }
 
-                /* ── AUDIO CARD ──────────────────────────────────────── */
-                const a = item as AItem;
-                return (
-                  <AudioCard
-                    a={a}
-                    item={item}
-                    setActivePostId={setActivePostId}
-                    setCommentModalVisible={setCommentModalVisible}
-                    onNavigate={onNavigate}
-                  />
-                );
-        }}
-        ListFooterComponent={<View style={styles.bottomSpacer} />}
-      />
+            /* ── AUDIO CARD ──────────────────────────────────────── */
+            const a = item as AItem;
+            return (
+              <AudioCard
+                a={a}
+                item={item}
+                setActivePostId={setActivePostId}
+                setCommentModalVisible={setCommentModalVisible}
+                onNavigate={onNavigate}
+              />
+            );
+          }}
+          ListFooterComponent={<View style={styles.bottomSpacer} />}
+        />
 
-      {/* ── Voice Search ─────────────────────────────────────────────────── */}
+        {/* ── Voice Search ─────────────────────────────────────────────────── */}
       </View>
       <VoiceSearchModal
         visible={isVoiceModalVisible}

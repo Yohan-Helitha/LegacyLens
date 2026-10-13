@@ -53,7 +53,11 @@ public class ModerationQueueItem {
     @Column(name = "district", length = 100)
     private String district;
 
-    // Must match Story.author (nullable = false) — both entities map the same "stories" table.
+    /**
+     * Same column as Story.author (stories.author_id, NOT NULL). Declared non-nullable here too:
+     * both entities map the one "stories" table and Hibernate merges the two column definitions,
+     * so a nullable declaration on this side silently drops the NOT NULL constraint from the schema.
+     */
     @Column(name = "author_id", nullable = false)
     private UUID authorId;
 

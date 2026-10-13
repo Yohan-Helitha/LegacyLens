@@ -43,6 +43,7 @@ function loadNative(): { Notifications: NotificationsModule; Device: DeviceModul
   }
   try {
     // Required here, not imported at the top, so a build without the native module cannot crash at start-up.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate lazy require, see comment above
     cachedNative = { Notifications: require('expo-notifications'), Device: require('expo-device') };
   } catch {
     cachedNative = null;

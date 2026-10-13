@@ -21,7 +21,8 @@ export const authApi = {
   resendOtp: (body: ResendOtpRequest) =>
     apiPost<void, ResendOtpRequest>('/auth/resend-otp', body),
 
-  login: (body: LoginRequest) => apiPost<AuthResponse, LoginRequest>('/auth/login', body),
+  login: (body: LoginRequest) =>
+    apiPost<AuthResponse, LoginRequest>('/auth/login', body),
 
   forgotPin: (body: ForgotPinRequest) =>
     apiPost<void, ForgotPinRequest>('/auth/forgot-pin', body),

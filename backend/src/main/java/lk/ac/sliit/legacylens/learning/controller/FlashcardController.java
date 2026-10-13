@@ -1,0 +1,117 @@
+package lk.ac.sliit.legacylens.learning.controller;
+
+import lk.ac.sliit.legacylens.common.dto.ApiResponse;
+import lk.ac.sliit.legacylens.common.storage.FileStorageService;
+import lk.ac.sliit.legacylens.learning.dto.PronunciationResult;
+import lk.ac.sliit.legacylens.learning.entity.Flashcard;
+import lk.ac.sliit.legacylens.learning.service.FlashcardService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/learning")
+public class FlashcardController {
+
+	private final FlashcardService flashcardService;
+	private final FileStorageService fileStorageService;
+
+	public FlashcardController(
+			FlashcardService flashcardService,
+			FileStorageService fileStorageService) {
+		this.flashcardService = flashcardService;
+		this.fileStorageService = fileStorageService;
+	}
+
+	@GetMapping("/lessons/{lessonId}/flashcards")
+	public ResponseEntity<List<Flashcard>> getFlashcardsByLesson(@PathVariable Long lessonId) {
+		List<Flashcard> flashcards = flashcardService.getFlashcardsByLessonId(lessonId);
+
+		return ResponseEntity.ok(flashcards);
+	}
+
+	@GetMapping("/flashcards/{id}")
+	public ResponseEntity<Flashcard> getFlashcardById(@PathVariable Long id) {
+		Flashcard flashcard = flashcardService.getFlashcardById(id).orElse(null);
+
+		if (flashcard == null) {
+			return ResponseEntity.notFound().build();
+		}
+
+		return ResponseEntity.ok(flashcard);
+	}
+
+	@PostMapping("/lessons/{lessonId}/flashcards")
+	@PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<Flashcard> createFlashcard(
+			@PathVariable Long lessonId,
+			@RequestBody Flashcard flashcard) {
+		Flashcard created = flashcardService.createFlashcard(lessonId, flashcard);
+
+		return ResponseEntity.ok(created);
+	}
+
+	@PutMapping("/flashcards/{id}")
+	@PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<Flashcard> updateFlashcard(
+			@PathVariable Long id,
+			@RequestBody Flashcard flashcard) {
+		Flashcard updated = flashcardService.updateFlashcard(id, flashcard);
+
+		return ResponseEntity.ok(updated);
+	}
+
+	@DeleteMapping("/flashcards/{id}")
+	@PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<Void> deleteFlashcard(@PathVariable Long id) {
+		flashcardService.deleteFlashcard(id);
+
+		return ResponseEntity.noContent().build();
+	}
+
+	@PostMapping("/flashcards/upload-audio")
+	@PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<?> uploadAudio(@RequestParam("file") MultipartFile file) {
+		try {
+			String path = fileStorageService.store(
+					file,
+					"audios",
+					Arrays.asList(
+							"audio/mpeg",
+							"audio/mp4",
+							"video/mp4",
+							"audio/ogg",
+							"audio/wav",
+							"audio/x-wav",
+							"audio/x-m4a",
+							"audio/aac"
+					),
+					10 * 1024 * 1024
+			);
+			Map<String, String> response = new HashMap<>();
+			response.put("audioUrl", path);
+
+			return ResponseEntity.ok(response);
+		} catch (Exception e) {
+			Map<String, String> error = new HashMap<>();
+			error.put("message", e.getMessage());
+
+			return ResponseEntity.badRequest().body(error);
+		}
+	}
+
+	@PostMapping("/flashcards/{id}/evaluate-pronunciation")
+	public ResponseEntity<ApiResponse<PronunciationResult>> evaluatePronunciation(
+			@PathVariable Long id,
+			@RequestParam("audio") MultipartFile audio) {
+		PronunciationResult result = flashcardService.evaluatePronunciation(id, audio);
+
+		return ResponseEntity.ok(ApiResponse.ok(result));
+	}
+}

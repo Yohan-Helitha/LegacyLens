@@ -24,9 +24,9 @@ public interface ModerationQueueRepository extends JpaRepository<ModerationQueue
               AND (:type IS NULL OR s.type = :type)
               AND (
                   :query IS NULL
-                  OR LOWER(s.title) LIKE LOWER(CONCAT('%', :query, '%'))
-                  OR LOWER(s.description) LIKE LOWER(CONCAT('%', :query, '%'))
-                  OR (a IS NOT NULL AND LOWER(a.fullName) LIKE LOWER(CONCAT('%', :query, '%')))
+                  OR LOWER(s.title) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                  OR LOWER(s.description) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%'))
+                  OR (a IS NOT NULL AND LOWER(a.fullName) LIKE LOWER(CONCAT('%', CAST(:query AS string), '%')))
               )
             """)
     List<ModerationQueueItem> search(

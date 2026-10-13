@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Modal } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import { HomeScreen } from '../screens/home';
 import { CulturalMapScreen } from '../screens/cultural-map';
 import { TreasureHuntScreen } from '../screens/cultural-map/treasure-hunt';
@@ -17,12 +18,22 @@ export type UserScreen = UserTabKey | 'hunt' | 'badges' | 'video' | 'blog';
 interface UserNavigatorProps {
   /** Root stack navigation — used to leave this flow entirely (Learning, Creator, PrivacyData, Admin, …). */
   navigation: NativeStackNavigationProp<RootStackParamList>;
+  route?: RouteProp<RootStackParamList, 'User'>;
 }
 
-export const UserNavigator: React.FC<UserNavigatorProps> = ({ navigation }) => {
-  const [screen, setScreen] = useState<UserScreen>('home');
+export const UserNavigator: React.FC<UserNavigatorProps> = ({ navigation, route }) => {
+  const initial = (route?.params?.initialTab as UserScreen) || 'home';
+  const [screen, setScreen] = useState<UserScreen>(initial);
   const [selectedPost, setSelectedPost] = useState<any>(null);
-  const [hasVisitedMap, setHasVisitedMap] = useState(false);
+  const [hasVisitedMap, setHasVisitedMap] = useState(initial === 'map');
+
+  useEffect(() => {
+    if (route?.params?.initialTab) {
+      const target = route.params.initialTab as UserScreen;
+      if (target === 'map') setHasVisitedMap(true);
+      setScreen(target);
+    }
+  }, [route?.params?.initialTab]);
 
   const handleNavigate = (tab: string, item?: any) => {
     if (item) {

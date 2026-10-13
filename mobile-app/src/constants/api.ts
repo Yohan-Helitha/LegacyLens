@@ -31,18 +31,43 @@ export function getApiOrigin(): string {
   return base.replace(/\/+$/, '');
 }
 
-/** Resolves a root-relative media path (e.g. "/uploads/stories/xxx.m4a") into a full playable URL. */
-export function getMediaUrl(relativePath: string): string {
-  return `${getApiOrigin()}${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
+/** True for a path the backend already returned as a full URL (e.g. Supabase Storage), never one to prefix with our own host. */
+function isAbsoluteUrl(path: string): boolean {
+  return (/^https?:\/\//i.test(path));
+}
+
+/**
+ * Resolves a media path into a full playable URL. Most paths are still
+ * root-relative ("/uploads/stories/xxx.m4a", see FileStorageService), but
+ * some content (see STORAGE_PROVIDER) is stored externally and the backend
+ * already returns a complete URL for it — passed through unchanged rather
+ * than mangled by prefixing our own API host onto it.
+ */
+export function getMediaUrl(relativePath: string): string;
+export function getMediaUrl(relativePath: string | undefined | null): string | undefined;
+export function getMediaUrl(relativePath: string | undefined | null): string | undefined {
+  if (!relativePath) return undefined;
+  if (isAbsoluteUrl(relativePath)) return relativePath;
+
+  const origin = getApiOrigin();
+
+  // Fix for invalid local file URIs generated with relative paths like 'file:///stories/...'
+  if (relativePath.startsWith('file:///')) {
+    return `${origin}/${relativePath.replace('file:///', '')}`;
+  }
+
+  return `${origin}${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
 }
 
 /**
  * Turns a backend-relative "/uploads/..." path (see FileStorageService,
  * which serves them outside the /api prefix via WebConfig's resource
- * handler) into an absolute URL an <Image> can load.
+ * handler) into an absolute URL an <Image> can load. Same external-URL
+ * pass-through as getMediaUrl — see its doc comment.
  */
 export function resolveUploadUrl(relativePath: string | null | undefined): string | null {
   if (!relativePath) return null;
+  if (isAbsoluteUrl(relativePath)) return relativePath;
   const base = getApiBaseUrl().replace(/\/api\/?$/, '');
   return `${base}${relativePath}`;
 }

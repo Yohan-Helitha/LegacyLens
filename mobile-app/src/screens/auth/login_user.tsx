@@ -154,13 +154,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setAuthError(null);
     setSubmitting(true);
     try {
-      const response = await authApi.login({ phoneNumber: trimmedPhone, pin: enteredPin });
+      const response = await authApi.login({
+        phoneNumber: trimmedPhone,
+        pin: enteredPin,
+      });
+
       useAuthStore.getState().setSession(response.token, {
         userId: response.userId,
         fullName: response.fullName,
         phoneNumber: response.phoneNumber,
         roles: response.roles,
       });
+      console.log(
+        'STORE TOKEN EXISTS:',
+        !!useAuthStore.getState().token
+      );
       setSubmitting(false);
       onLoginSuccess?.();
     } catch (err) {
