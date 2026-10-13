@@ -31,6 +31,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * The rules for how a creator's work moves from Prep to Record to Edit to Submit: what can be ticked,
@@ -101,6 +103,17 @@ class JobWorkProgressServiceImplTest {
     }
 
     // ── Ticking ─────────────────────────────────────────────────────────────
+
+    @Test
+    void openingRejectedSubmissionsClearsTheNewCount() {
+        progress.setRejected(true);
+        when(workProgressRepository.findByJobCreatorIdAndRejectedTrueAndRejectionSeenAtIsNull(creatorId)).thenReturn(List.of(progress));
+
+        service.markRejectedSeen(creatorId);
+
+        assertThat(progress.getRejectionSeenAt()).isNotNull();
+        verify(workProgressRepository).saveAll(List.of(progress));
+    }
 
     @Test
     void aPrepTask_isTickedByHand() {

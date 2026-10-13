@@ -71,6 +71,21 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public long countUnseenRejected(UUID creatorId) {
+        return workProgressRepository.countByJobCreatorIdAndRejectedTrueAndRejectionSeenAtIsNull(creatorId);
+    }
+
+    @Override
+    @Transactional
+    public void markRejectedSeen(UUID creatorId) {
+        LocalDateTime now = LocalDateTime.now();
+        List<JobWorkProgress> unseen = workProgressRepository.findByJobCreatorIdAndRejectedTrueAndRejectionSeenAtIsNull(creatorId);
+        unseen.forEach(progress -> progress.setRejectionSeenAt(now));
+        workProgressRepository.saveAll(unseen);
+    }
+
+    @Override
     @Transactional
     public WorkProgressResponse getProgress(UUID creatorId, UUID jobId) {
         Job job = getOwnedJob(creatorId, jobId);

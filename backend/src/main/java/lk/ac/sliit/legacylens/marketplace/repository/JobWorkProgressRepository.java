@@ -13,6 +13,11 @@ public interface JobWorkProgressRepository extends JpaRepository<JobWorkProgress
 
     Optional<JobWorkProgress> findByJobId(UUID jobId);
 
+    /** Rejected submissions the creator has not looked at yet - the number on the menu. */
+    long countByJobCreatorIdAndRejectedTrueAndRejectionSeenAtIsNull(UUID creatorId);
+
+    List<JobWorkProgress> findByJobCreatorIdAndRejectedTrueAndRejectionSeenAtIsNull(UUID creatorId);
+
     /** Every piece of work a knowledge holder was sent for review, newest first - drafts are still the creator's own. */
     List<JobWorkProgress> findByJobElderIdAndSubmittedAtIsNotNullAndDraftFalseOrderBySubmittedAtDesc(UUID elderId);
 

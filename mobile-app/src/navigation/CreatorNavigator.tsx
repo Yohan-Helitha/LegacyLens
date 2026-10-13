@@ -23,6 +23,7 @@ import { CreatorMenuContext } from './CreatorMenuContext';
 import { useMyApplications } from '../hooks/useMyApplications';
 import { groupApplications } from '../utils/applicationGroups';
 import { creatorScreenForNotification } from './creatorNotificationRouting';
+import { workProgressApi } from '../services/api/workProgressApi';
 import { usePushNotificationEvents } from '../hooks/usePushNotifications';
 import type { NavTab } from '../components/BottomNavBar';
 import type { WorkTab } from '../screens/marketplace/creator/MyWorkList';
@@ -93,7 +94,19 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
     const target = creatorScreenForNotification(data);
     if (target) setScreen(target);
   }, []);
-  usePushNotificationEvents({ onTapped: openFromNotification, onReceived: reloadApplications });
+  // The red number beside Rejected Submissions: rejected work the creator has not opened the page to see.
+  const [rejectedWorkCount, setRejectedWorkCount] = useState(0);
+  const reloadRejectedWork = useCallback(() => {
+    workProgressApi.unseenRejectedCount().then(setRejectedWorkCount).catch(() => {});
+  }, []);
+  useEffect(() => {
+    reloadRejectedWork();
+  }, [screen, reloadRejectedWork]);
+  const reloadOnArrival = useCallback(() => {
+    reloadApplications();
+    reloadRejectedWork();
+  }, [reloadApplications, reloadRejectedWork]);
+  usePushNotificationEvents({ onTapped: openFromNotification, onReceived: reloadOnArrival });
 
   /**
    * Shared navigation handler passed to all screens.
@@ -233,8 +246,8 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   );
 
   const menuValue = useMemo(
-    () => ({ rejectedApplicationsCount, onOpenRejectedApplications: handleOpenRejectedApplications }),
-    [rejectedApplicationsCount],
+    () => ({ rejectedApplicationsCount, rejectedWorkCount, onOpenRejectedApplications: handleOpenRejectedApplications }),
+    [rejectedApplicationsCount, rejectedWorkCount],
   );
 
   return (
@@ -376,6 +389,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onNavigate={handleNavigate}
           onBack={handleBackToDashboard}
           onEditWork={handleEditRejectedWork}
+          onSeen={reloadRejectedWork}
         />
       )}
       {screen === 'publication-preview' && previewJob && (

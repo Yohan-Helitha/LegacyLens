@@ -155,7 +155,9 @@ export const RejectedWorkPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
   onEditWork: (jobId: string, title: string, elderName: string, location: string | null) => void;
-}> = ({ onNavigate, onBack, onEditWork }) => {
+  /** Called once the creator has seen what is rejected, so the menu's red number can clear. */
+  onSeen: () => void;
+}> = ({ onNavigate, onBack, onEditWork, onSeen }) => {
   const [jobs, setJobs] = useState<JobResponse[]>([]);
   const [progressByJobId, setProgressByJobId] = useState<Record<string, WorkProgressResponse>>({});
   const [loading, setLoading] = useState(true);
@@ -192,6 +194,12 @@ export const RejectedWorkPage: React.FC<{
       cancelled = true;
     };
   }, []);
+
+  // Looking at the page is what clears the menu's red number - but only once the list has really loaded.
+  useEffect(() => {
+    if (loading || loadError) return;
+    workProgressApi.markRejectedSeen().then(onSeen).catch(() => {});
+  }, [loading, loadError, onSeen]);
 
   const rejectedJobs = useMemo(
     () => jobs.filter((job) => progressByJobId[job.id]?.rejected),

@@ -43,6 +43,12 @@ export const workProgressApi = {
   testReview: (jobId: string, by: 'elder' | 'admin', action: 'approve' | 'reject') =>
     apiPost<unknown, undefined>(`/jobs/${jobId}/work-progress/test/${by}/${action}`, undefined),
 
+  /** How many rejected submissions the creator has not opened Rejected Submissions to see yet. */
+  unseenRejectedCount: async () => (await apiGet<{ count: number }>('/creator/rejected-work/unseen-count')).count,
+
+  /** The creator opened Rejected Submissions - what is rejected now no longer counts as new. */
+  markRejectedSeen: () => apiPost<void, undefined>('/creator/rejected-work/seen', undefined),
+
   /** The creator opened the job - its "New" tag goes away. */
   markOpened: (jobId: string) =>
     apiPost<void, undefined>(`/jobs/${jobId}/work-progress/opened`, undefined),
