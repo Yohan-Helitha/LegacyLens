@@ -108,6 +108,30 @@ public class GroqAiService {
         return callGroq(systemPrompt, userPrompt, 600);
     }
 
+    /**
+     * Extracts an impactful quote, honorific keeper title, and cultural tag
+     * from a published story/blog using Groq AI.
+     * Expected JSON shape:
+     * {
+     *   "quote": "...",
+     *   "title": "...",
+     *   "tag": "..."
+     * }
+     */
+    public String generateKnowledgeKeeper(String title, String description, String bodyContent, String authorName) {
+        if (!isConfigured()) {
+            log.warn("[GroqAiService] GROQ_API_KEY not set — skipping Knowledge Keeper generation");
+            return null;
+        }
+
+        String userPrompt = buildKnowledgeKeeperPrompt(title, description, bodyContent, authorName);
+        String systemPrompt = "You are an expert cultural curator and digital archivist for LegacyLens, a Sri Lankan cultural preservation platform. "
+                + "Analyze the provided published cultural story/blog and extract the essence of the storyteller as a 'Knowledge Keeper'. "
+                + "Always respond ONLY with a valid JSON object matching the requested schema — no markdown, no explanation outside the JSON.";
+
+        return callGroq(systemPrompt, userPrompt, 500);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // PROMPT BUILDERS
     // ─────────────────────────────────────────────────────────────────────────
@@ -209,6 +233,28 @@ public class GroqAiService {
         sb.append("    }\n");
         sb.append("  ]\n");
         sb.append("}");
+        return sb.toString();
+    }
+
+    private String buildKnowledgeKeeperPrompt(String title, String description, String bodyContent, String authorName) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Analyze this published Sri Lankan heritage story and extract knowledge keeper attributes for the author:\n\n");
+        sb.append("Author Name: ").append(nullSafe(authorName, "Traditional Knowledge Holder")).append("\n");
+        sb.append("Story Title: ").append(nullSafe(title, "Heritage Story")).append("\n");
+        if (isNotBlank(description)) {
+            sb.append("Description: ").append(description.trim()).append("\n");
+        }
+        if (isNotBlank(bodyContent)) {
+            String body = bodyContent.trim();
+            if (body.length() > 2000) body = body.substring(0, 2000) + "...";
+            sb.append("Story Content:\n").append(body).append("\n\n");
+        }
+        sb.append("Respond ONLY with this exact JSON structure:\n");
+        sb.append("{\n");
+        sb.append("  \"quote\": \"1 to 2 deeply insightful, culturally meaningful sentences representing the keeper's wisdom (max 280 characters)\",\n");
+        sb.append("  \"title\": \"A dignified cultural keeper honorific title for the author (e.g. Master Brass Artisan of Kandy, Ceylon Tea Heritage Custodian, Ancient Hydraulic Agronomist) (max 60 characters)\",\n");
+        sb.append("  \"tag\": \"A 2-3 word UPPERCASE heritage category (e.g. POTTERY HERITAGE, TRADITIONAL MEDICINE, MASK CRAFTS) (max 35 characters)\"\n");
+        sb.append("}\n");
         return sb.toString();
     }
 
