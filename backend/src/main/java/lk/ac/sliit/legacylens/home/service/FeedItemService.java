@@ -23,30 +23,49 @@ public class FeedItemService {
     private final FeedItemRepository repository;
     private final lk.ac.sliit.legacylens.home.repository.FeedItemCommentRepository commentRepository;
     private final ModerationQueueRepository moderationQueueRepository;
+    private final lk.ac.sliit.legacylens.home.repository.PostLikeRepository postLikeRepository;
 
     public FeedItemService(
             FeedItemRepository repository,
             lk.ac.sliit.legacylens.home.repository.FeedItemCommentRepository commentRepository,
-            ModerationQueueRepository moderationQueueRepository) {
+            ModerationQueueRepository moderationQueueRepository,
+            lk.ac.sliit.legacylens.home.repository.PostLikeRepository postLikeRepository) {
         this.repository = repository;
         this.commentRepository = commentRepository;
         this.moderationQueueRepository = moderationQueueRepository;
+        this.postLikeRepository = postLikeRepository;
     }
 
     public List<FeedItemResponse> getAllFeedItems() {
+        return getAllFeedItems(null);
+    }
+
+    public List<FeedItemResponse> getAllFeedItems(String userIdentifier) {
         List<FeedItemResponse> items = new ArrayList<>();
+
+        java.util.Set<String> likedIds = (userIdentifier != null && !userIdentifier.isBlank())
+                ? postLikeRepository.findByUserIdentifier(userIdentifier).stream()
+                        .map(lk.ac.sliit.legacylens.home.entity.PostLike::getPostId)
+                        .collect(Collectors.toSet())
+                : java.util.Collections.emptySet();
 
         try {
             List<ModerationQueueItem> publishedStories = moderationQueueRepository
                     .findByStatus(StoryStatus.PUBLISHED);
             for (ModerationQueueItem story : publishedStories) {
-                items.add(mapStoryToFeedResponse(story));
+                FeedItemResponse resp = mapStoryToFeedResponse(story);
+                resp.setLiked(likedIds.contains(resp.getId()));
+                items.add(resp);
             }
         } catch (Exception ignored) {
         }
 
         items.addAll(repository.findAll().stream()
-                .map(this::mapToResponse)
+                .map(item -> {
+                    FeedItemResponse resp = mapToResponse(item);
+                    resp.setLiked(likedIds.contains(resp.getId()));
+                    return resp;
+                })
                 .collect(Collectors.toList()));
 
         return items;
@@ -76,9 +95,7 @@ public class FeedItemService {
             res.setThumbnail(story.getImageUrl() != null && !story.getImageUrl().isBlank()
                     ? story.getImageUrl()
                     : "https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=600");
-            res.setVideoUrl(mediaPath != null && !mediaPath.isBlank()
-                    ? mediaPath
-                    : "https://www.w3schools.com/html/mov_bbb.mp4");
+            res.setVideoUrl(mediaPath != null && !mediaPath.isBlank() ? mediaPath : null);
             res.setDuration(story.getMediaDurationMillis() != null && story.getMediaDurationMillis() > 0
                     ? (story.getMediaDurationMillis() / 60000 + " mins")
                     : "10:00");
@@ -259,16 +276,32 @@ public class FeedItemService {
 
     @org.springframework.transaction.annotation.Transactional
     public int likePost(String id) {
+        return likePost(id, null);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public int likePost(String id, String userIdentifier) {
+        boolean alreadyLiked = false;
+        if (userIdentifier != null && !userIdentifier.isBlank()) {
+            alreadyLiked = postLikeRepository.existsByUserIdentifierAndPostId(userIdentifier, id);
+            if (!alreadyLiked) {
+                postLikeRepository.save(new lk.ac.sliit.legacylens.home.entity.PostLike(userIdentifier, id));
+            }
+        }
+
         // 1. Try finding in ModerationQueueItem by UUID
         try {
             UUID storyUuid = UUID.fromString(id);
             var optStory = moderationQueueRepository.findById(storyUuid);
             if (optStory.isPresent()) {
                 ModerationQueueItem story = optStory.get();
-                int newCount = (story.getLikesCount() != null ? story.getLikesCount() : 0) + 1;
-                story.setLikesCount(newCount);
-                moderationQueueRepository.save(story);
-                return newCount;
+                int current = story.getLikesCount() != null ? story.getLikesCount() : 0;
+                if (!alreadyLiked) {
+                    current += 1;
+                    story.setLikesCount(current);
+                    moderationQueueRepository.save(story);
+                }
+                return current;
             }
         } catch (IllegalArgumentException ignored) {
         }
@@ -276,10 +309,13 @@ public class FeedItemService {
         // 2. Try finding in FeedItem by numeric ID or by synthetic UUID
         FeedItem feedItem = findFeedItem(id);
         if (feedItem != null) {
-            int newCount = (feedItem.getLikesCount() != null ? feedItem.getLikesCount() : 0) + 1;
-            feedItem.setLikesCount(newCount);
-            repository.save(feedItem);
-            return newCount;
+            int current = feedItem.getLikesCount() != null ? feedItem.getLikesCount() : 0;
+            if (!alreadyLiked) {
+                current += 1;
+                feedItem.setLikesCount(current);
+                repository.save(feedItem);
+            }
+            return current;
         }
 
         throw new lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException("Content not found with id: " + id);
@@ -287,6 +323,15 @@ public class FeedItemService {
 
     @org.springframework.transaction.annotation.Transactional
     public int unlikePost(String id) {
+        return unlikePost(id, null);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public int unlikePost(String id, String userIdentifier) {
+        if (userIdentifier != null && !userIdentifier.isBlank()) {
+            postLikeRepository.deleteByUserIdentifierAndPostId(userIdentifier, id);
+        }
+
         try {
             UUID storyUuid = UUID.fromString(id);
             var optStory = moderationQueueRepository.findById(storyUuid);
