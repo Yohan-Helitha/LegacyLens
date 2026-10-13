@@ -37,6 +37,16 @@ export interface JobResponse {
   /** Display text for the confirmed time range, e.g. "10:00 AM - 2:00 PM" — set only for Jobs created via booking. */
   timeWindowText: string | null;
   completedAt: string | null;
+  /** The linked opportunity's category, e.g. "Oral History"; null for jobs with no opportunity behind them. */
+  category?: string | null;
+  /** The linked opportunity's language, e.g. "Sinhala". */
+  language?: string | null;
+  /** The job's own photo, else its opportunity's - "local:<key>" for bundled placeholder pictures. */
+  heroImageUrl?: string | null;
+  /** The knowledge holder's star rating for this job; null until they have rated it. */
+  reviewRating?: number | null;
+  /** The knowledge holder's written feedback for this job. */
+  reviewComment?: string | null;
 }
 
 export interface ReviewResponse {
@@ -44,6 +54,9 @@ export interface ReviewResponse {
   rating: number;
   comment: string;
   elderName: string;
+  /** The job (opportunity) this feedback is about - each one is rated separately. */
+  jobId: string;
+  opportunityTitle: string;
   createdAt: string;
 }
 

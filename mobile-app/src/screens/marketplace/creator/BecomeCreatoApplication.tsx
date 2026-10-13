@@ -15,7 +15,11 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
+import { CheckboxRow, RadioRow } from '../../../components/module-specific/marketplace/OptionRows';
+import { LanguagePicker } from '../../../components/module-specific/marketplace/LanguagePicker';
 import { profileApi } from '../../../services/api/profileApi';
+import { languageMissingLevel, toLanguageRequests } from '../../../utils/creatorLanguages';
+import type { LanguageSelection } from '../../../utils/creatorLanguages';
 import { creatorApplicationApi } from '../../../services/api/creatorApplicationApi';
 import { ApiError } from '../../../services/api/client';
 import { useAuthStore } from '../../../store/authStore';
@@ -94,6 +98,7 @@ const FIELD_LABELS: Record<string, string> = {
   aboutYou: 'About You',
   skills: 'My Skill',
   interests: 'Interests',
+  languages: 'Languages',
   experienceLevel: 'Experience',
   experienceDescription: 'Experience description',
   proofDocument: 'Verification proof file',
@@ -166,50 +171,6 @@ const ReadOnlyField: React.FC<{
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CheckboxRow — 44pt touch target selectable row
-// ─────────────────────────────────────────────────────────────────────────────
-const CheckboxRow: React.FC<{
-  label: string;
-  checked: boolean;
-  onToggle: () => void;
-}> = ({ label, checked, onToggle }) => (
-  <Pressable
-    onPress={onToggle}
-    style={({ pressed }) => [s.optionRow, pressed && s.pressed]}
-    accessibilityRole="checkbox"
-    accessibilityState={{ checked }}
-    accessibilityLabel={label}
-  >
-    <View style={[s.checkbox, checked && s.checkboxChecked]}>
-      {checked && <Text style={s.checkMark}>{'✓'}</Text>}
-    </View>
-    <Text style={s.optionText}>{label}</Text>
-  </Pressable>
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RadioRow — 44pt touch target selectable row
-// ─────────────────────────────────────────────────────────────────────────────
-const RadioRow: React.FC<{
-  label: string;
-  selected: boolean;
-  onSelect: () => void;
-}> = ({ label, selected, onSelect }) => (
-  <Pressable
-    onPress={onSelect}
-    style={({ pressed }) => [s.optionRow, pressed && s.pressed]}
-    accessibilityRole="radio"
-    accessibilityState={{ checked: selected }}
-    accessibilityLabel={label}
-  >
-    <View style={[s.radio, selected && s.radioSelected]}>
-      {selected && <View style={s.radioDot} />}
-    </View>
-    <Text style={s.optionText}>{label}</Text>
-  </Pressable>
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
 export const BecomeCreatorApplication: React.FC<{
@@ -248,6 +209,7 @@ export const BecomeCreatorApplication: React.FC<{
   const [aboutYou, setAboutYou] = useState('');
   const [skills, setSkills] = useState<Record<string, boolean>>({});
   const [interests, setInterests] = useState<Record<string, boolean>>({});
+  const [languages, setLanguages] = useState<LanguageSelection>({});
   const [experienceLevel, setExperienceLevel] = useState<ExperienceOptionKey | null>(null);
   const [experienceDetails, setExperienceDetails] = useState('');
   const [proofFile, setProofFile] = useState<CreatorApplicationProofFile | null>(null);
@@ -304,6 +266,15 @@ export const BecomeCreatorApplication: React.FC<{
       Alert.alert('Missing information', 'Please select at least one interest.');
       return;
     }
+    if (Object.keys(languages).length === 0) {
+      Alert.alert('Missing information', 'Please select at least one language.');
+      return;
+    }
+    const languageWithoutLevel = languageMissingLevel(languages);
+    if (languageWithoutLevel) {
+      Alert.alert('Missing information', `Please choose how well you speak ${languageWithoutLevel}.`);
+      return;
+    }
     if (!experienceLevel) {
       Alert.alert('Missing information', 'Please select your experience level.');
       return;
@@ -324,6 +295,7 @@ export const BecomeCreatorApplication: React.FC<{
         aboutYou: aboutYou.trim(),
         skills: selectedSkills,
         interests: selectedInterests,
+        languages: toLanguageRequests(languages),
         experienceLevel: EXPERIENCE_LEVEL_API[experienceLevel],
         experienceDescription: experienceDetails.trim(),
         proofDocument: proofFile,
@@ -417,7 +389,12 @@ export const BecomeCreatorApplication: React.FC<{
           ))}
         </FormSection>
 
-        {/* ── Section 5 — Experience ────────────────────────────────────── */}
+        {/* ── Section 5 — Languages ─────────────────────────────────────── */}
+        <FormSection title="Languages">
+          <LanguagePicker value={languages} onChange={setLanguages} />
+        </FormSection>
+
+        {/* ── Section 6 — Experience ────────────────────────────────────── */}
         <FormSection title="Experience">
           {EXPERIENCE_OPTIONS.map(opt => (
             <RadioRow
@@ -438,7 +415,7 @@ export const BecomeCreatorApplication: React.FC<{
           />
         </FormSection>
 
-        {/* ── Section 6 — Verification ─────────────────────────────────── */}
+        {/* ── Section 7 — Verification ─────────────────────────────────── */}
         <FormSection title="Verification">
           <Pressable
             onPress={handlePickProof}
@@ -634,38 +611,6 @@ const s = StyleSheet.create({
     color: D.onSurface,
   },
   experienceTextArea: { minHeight: 100 },
-
-  // ── Checkbox / Radio option rows ──────────────────────────────────────────
-  optionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    minHeight: 44,                    // 44pt touch target
-    paddingHorizontal: Spacing.xs,
-    borderRadius: Radii.md,
-  },
-  optionText: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeSM,      // 14sp
-    color: D.onSurface,
-    flexShrink: 1,
-  },
-  checkbox: {
-    width: 22, height: 22, borderRadius: 6,
-    borderWidth: 1.5, borderColor: D.outline,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  checkboxChecked: { backgroundColor: D.primary, borderColor: D.primary },
-  checkMark: { fontSize: 14, color: '#ffffff', fontWeight: '700', lineHeight: 16 },
-  radio: {
-    width: 22, height: 22, borderRadius: 11,
-    borderWidth: 1.5, borderColor: D.outline,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  radioSelected: { borderColor: D.primary },
-  radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: D.primary },
 
   // ── Verification upload box ───────────────────────────────────────────────
   uploadBox: {

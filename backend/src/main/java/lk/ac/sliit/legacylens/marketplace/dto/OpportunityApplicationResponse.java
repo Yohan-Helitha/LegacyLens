@@ -24,6 +24,11 @@ public class OpportunityApplicationResponse {
     private UUID id;
     private UUID opportunityId;
 
+    /** Who applied - what an elder reviewing the application needs to see. */
+    private UUID creatorId;
+    private String creatorName;
+    private String creatorPhotoUrl;
+
     private String title;
     private String elderName;
     private String location;
@@ -31,14 +36,19 @@ public class OpportunityApplicationResponse {
     private LocalDate scheduledDate;
     private String timeWindowText;
     private BigDecimal offeredAmount;
+    /** The language the knowledge holder will speak, as shown on the opportunity's detail page. */
+    private String language;
 
     private List<String> skills;
     private String experienceText;
     private String approachText;
     private boolean availabilityConfirmed;
     private List<String> equipment;
+    private List<LanguageSkillResponse> languages;
 
     private String status;
     private LocalDateTime savedAt;
     private LocalDateTime submittedAt;
+    /** Null while a rejection has not been looked at yet. */
+    private LocalDateTime rejectionSeenAt;
 }

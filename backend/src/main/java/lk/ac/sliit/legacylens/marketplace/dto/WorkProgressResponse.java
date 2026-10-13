@@ -26,14 +26,35 @@ public class WorkProgressResponse {
     /** The linked Opportunity's hero image, if this job was created via a real booking. Null otherwise. */
     private String heroImageUrl;
 
+    /** What the opportunity pays - the same figure the opportunity page showed. */
+    private java.math.BigDecimal offeredAmount;
+
     /** completedChecklistItems / totalChecklistItems * 100, rounded. 0 when there are no checklist items yet. */
     private int progressPercentage;
 
     /** PREP / RECORD / EDIT / SUBMIT / COMPLETED — derived from progressPercentage, purely a display summary. */
     private String currentStage;
 
+    /**
+     * Which of the four steps are done: Prep (every task ticked), Record (a material uploaded), Edit (introduction,
+     * story and search summary written) and Submit (sent for review). Each is worth a quarter of progressPercentage.
+     */
+    private boolean prepDone;
+    private boolean recordDone;
+    private boolean editDone;
+    private boolean submitted;
+
     private String introduction;
     private String story;
+
+    /** "Search Context (SEO)" — short search-result description and keywords. Empty list when none are set. */
+    private String seoSummary;
+    private List<String> seoKeywords;
+    /**
+     * Where this work stands, worked out from the facts below (never stored): IN_PROGRESS, SAVED, SUBMITTED
+     * (waiting for review), REJECTED (a reviewer asked for changes), COMPLETED (both approved) or PUBLISHED.
+     */
+    private String workStatus;
     private boolean draft;
     private LocalDateTime submittedAt;
 
@@ -41,6 +62,18 @@ public class WorkProgressResponse {
     private boolean rejected;
     private String rejectionReason;
     private LocalDateTime rejectedAt;
+
+    /** The two reviewers' notes on this submission - shown to the creator only, never in the published content. */
+    /** Where the review stands: who has approved so far, and when the work was published. */
+    private boolean elderApproved;
+    /** Null until the creator first opens the job - the "New" tag on My Work shows until then. */
+    private LocalDateTime openedAt;
+    private boolean adminApproved;
+    private LocalDateTime publishedAt;
+    private String elderFeedback;
+    private LocalDateTime elderFeedbackAt;
+    private String adminFeedback;
+    private LocalDateTime adminFeedbackAt;
     private List<WorkMaterialResponse> materials;
     private List<ChecklistItemResponse> checklistItems;
 }

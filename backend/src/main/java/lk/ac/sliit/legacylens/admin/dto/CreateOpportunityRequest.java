@@ -52,6 +52,10 @@ public class CreateOpportunityRequest {
 
     private String tasks;
 
+    /** Comma separated "Required Skills" the admin picked (e.g. "Photography,Videography") — drives creator matching. */
+    @Size(max = 500)
+    private String requiredSkills;
+
     @Size(max = 20)
     private String status;
 

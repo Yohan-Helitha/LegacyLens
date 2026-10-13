@@ -11,6 +11,7 @@ import { PostHireRequestScreen } from '../screens/content-capture/PostHireReques
 import { MyHireRequestsScreen } from '../screens/content-capture/MyHireRequestsScreen';
 import { ApplicantReviewScreen } from '../screens/content-capture/ApplicantReviewScreen';
 import { HireConversationScreen } from '../screens/content-capture/HireConversationScreen';
+import { CreatorRecommendationsScreen } from '../screens/content-capture/CreatorRecommendationsScreen';
 import { YourStories } from '../screens/content-capture/your_stories';
 import { TrustScoreDetail } from '../screens/content-capture/trust_score_detail';
 import { ReviewsRatingsScreen } from '../screens/content-capture/ReviewsRatingsScreen';
@@ -36,6 +37,7 @@ type Step =
   | 'hirePostRecording'
   | 'hireRequests'
   | 'hireApplicants'
+  | 'hireRecommendations'
   | 'hireConversation';
 
 /** Which step "back"/"deleted" from the story form, or a cancelled create, should return to. */
@@ -100,6 +102,7 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
       hirePostRecording: 'hirePost',
       hireRequests: 'dashboard',
       hireApplicants: 'hireRequests',
+      hireRecommendations: 'dashboard',
       hireConversation: 'hireRequests',
     };
     const previous = target[step];
@@ -141,7 +144,9 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
     if (item === 'stories') setStep('stories');
     if (item === 'trust') setStep('trustScore');
     if (item === 'reviews') setStep('reviews');
-    if (item === 'hire') startFreshHireRequest();
+    // "Hire a Creator" shows the creators recommended for each of the elder's
+    // open opportunities; posting a new request lives under My Requests.
+    if (item === 'hire') setStep('hireRecommendations');
     if (item === 'myRequests') {
       setHireJustPosted(false);
       setStep('hireRequests');
@@ -317,6 +322,14 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
             setHireJustPosted(false);
             setStep('hireRequests');
           }}
+        />
+      )}
+
+      {step === 'hireRecommendations' && (
+        <CreatorRecommendationsScreen
+          onDrawerNavigate={handleDrawerNavigate}
+          onTabPress={handleTabPress}
+          onLogout={handleLogout}
         />
       )}
 

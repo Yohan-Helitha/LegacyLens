@@ -146,6 +146,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
       offeredAmount: 3500,
       preservationGoal: preservationDescription,
       tasks: tasks.filter(t => t.trim()).join('\n'),
+      requiredSkills: selectedSkills.join(','),
       status: 'DRAFT',
       elderName,
     } as CreateOpportunityRequest;
@@ -195,6 +196,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
         offeredAmount: 3500,
         preservationGoal: preservationDescription,
         tasks: tasks.filter(t => t.trim()).join('\n'),
+        requiredSkills: selectedSkills.join(','),
         status: 'PUBLISHED',
         elderName,
       } as CreateOpportunityRequest;

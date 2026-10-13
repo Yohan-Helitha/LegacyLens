@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
@@ -44,6 +44,14 @@ function dateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function formatJobDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatJobTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Icons
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,10 +64,33 @@ const PersonIcon: React.FC<IconProps> = ({ size = 13, color = D.secondary }) => 
   </Svg>
 );
 
+const ClockIcon: React.FC<IconProps> = ({ size = 13, color = D.secondary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="12" cy="12" r="9" />
+    <Path d="M12 7v5l3.5 2" />
+  </Svg>
+);
+
 const PinIcon: React.FC<IconProps> = ({ size = 13, color = D.secondary }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z" />
     <Circle cx="12" cy="10" r="3" />
+  </Svg>
+);
+
+const CardIcon: React.FC<IconProps> = ({ size = 13, color = D.secondary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="2" y="5" width="20" height="14" rx="2" />
+    <Line x1="2" y1="10" x2="22" y2="10" />
+  </Svg>
+);
+
+const CalendarIcon: React.FC<IconProps> = ({ size = 13, color = D.secondary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="3" y="5" width="18" height="16" rx="2" />
+    <Line x1="16" y1="3" x2="16" y2="7" />
+    <Line x1="8" y1="3" x2="8" y2="7" />
+    <Line x1="3" y1="10" x2="21" y2="10" />
   </Svg>
 );
 
@@ -93,7 +124,9 @@ export const LogPaymentPage: React.FC<{
   onSaved: () => void;
 }> = ({ onNavigate, onBack, onSaved }) => {
   const [jobs, setJobs] = useState<JobResponse[]>([]);
+  const [showOthers, setShowOthers] = useState(false);
   const [jobsLoading, setJobsLoading] = useState(true);
+  const [jobsError, setJobsError] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
   const [amountInput, setAmountInput] = useState('');
@@ -102,18 +135,19 @@ export const LogPaymentPage: React.FC<{
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    // The opportunities to log a payment against are the jobs that are booked and in My Work. A booked job is
+    // UPCOMING until it is completed, so both lists are the creator's work; everything is sorted by its day.
     Promise.all([creatorDashboardApi.getJobs('ACTIVE'), creatorDashboardApi.getJobs('UPCOMING')])
       .then(([active, upcoming]) => {
+        const booked = [...active, ...upcoming].sort(
+          (x, y) => new Date(x.scheduledAt ?? 0).getTime() - new Date(y.scheduledAt ?? 0).getTime(),
+        );
+        setJobs(booked);
         const todayKey = dateKey(new Date());
-        const all = [...active, ...upcoming];
-        // "Today's opportunity" — jobs actually scheduled today; if none are,
-        // fall back to every active engagement so the list is never empty.
-        const todays = all.filter((j) => j.scheduledAt && dateKey(new Date(j.scheduledAt)) === todayKey);
-        const list = todays.length > 0 ? todays : active;
-        setJobs(list);
-        if (list.length > 0) setSelectedJobId(list[0].id);
+        const first = booked.find((j) => !!j.scheduledAt && dateKey(new Date(j.scheduledAt)) === todayKey);
+        if (first) setSelectedJobId(first.id);
       })
-      .catch(() => {})
+      .catch(() => setJobsError(true))
       .finally(() => setJobsLoading(false));
   }, []);
 
@@ -204,6 +238,58 @@ export const LogPaymentPage: React.FC<{
     }
   };
 
+  const todayKey = dateKey(new Date());
+  const todaysJobs = jobs.filter((j) => !!j.scheduledAt && dateKey(new Date(j.scheduledAt)) === todayKey);
+  const otherJobs = jobs.filter((j) => !todaysJobs.includes(j));
+
+  const renderJob = (job: JobResponse) => {
+    const selected = job.id === selectedJobId;
+    return (
+      <Pressable
+        key={job.id}
+        onPress={() => setSelectedJobId(job.id)}
+        style={({ pressed }) => [s.jobOption, selected && s.jobOptionSelected, pressed && s.pressed]}
+        accessibilityRole="radio"
+        accessibilityState={{ selected }}
+      >
+        <View style={[s.radioCircle, selected && s.radioCircleSelected]}>
+          {selected && <CheckIcon />}
+        </View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={s.jobOptionTitle} numberOfLines={2}>{job.title}</Text>
+          <View style={s.jobOptionMetaRow}>
+            <View style={s.metaInline}>
+              <PersonIcon />
+              <Text style={s.jobOptionMetaText}>{job.elderName}</Text>
+            </View>
+            {!!job.location && (
+              <View style={s.metaInline}>
+                <PinIcon />
+                <Text style={s.jobOptionMetaText}>{job.location}</Text>
+              </View>
+            )}
+            <View style={s.metaInline}>
+              <CardIcon />
+              <Text style={s.jobOptionMetaText}>{`LKR ${Math.round(job.offeredAmount).toLocaleString('en-US')}`}</Text>
+            </View>
+          </View>
+          {!!job.scheduledAt && (
+            <View style={s.jobOptionMetaRow}>
+              <View style={s.metaInline}>
+                <CalendarIcon />
+                <Text style={s.jobOptionMetaText}>{formatJobDate(job.scheduledAt)}</Text>
+              </View>
+              <View style={s.metaInline}>
+                <ClockIcon />
+                <Text style={s.jobOptionMetaText}>{job.timeWindowText ?? formatJobTime(job.scheduledAt)}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+      </Pressable>
+    );
+  };
+
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
@@ -216,50 +302,43 @@ export const LogPaymentPage: React.FC<{
         showsVerticalScrollIndicator={false}
       >
         <Text style={s.pageHeading}>Log a Payment</Text>
-        <Text style={s.pageSubtitle}>Record cash you've just collected from a knowledge holder.</Text>
 
         {/* Select Opportunity */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>Select Opportunity</Text>
           {jobsLoading ? (
-            <Text style={s.emptyStateText}>Loading today's opportunities…</Text>
+            <Text style={s.emptyStateText}>Loading your opportunities…</Text>
           ) : jobs.length === 0 ? (
             <View style={s.emptyState}>
-              <Text style={s.emptyStateText}>No opportunities available right now.</Text>
+              <Text style={s.emptyStateText}>
+                {jobsError
+                  ? "Couldn't load your opportunities. Please go back and try again."
+                  : 'No booked opportunities yet. Book one and it will appear here.'}
+              </Text>
             </View>
           ) : (
             <View style={{ gap: Spacing.sm }}>
-              {jobs.map((job) => {
-                const selected = job.id === selectedJobId;
-                return (
+              {todaysJobs.length === 0 ? (
+                <Text style={s.emptyStateText}>Nothing is scheduled for today.</Text>
+              ) : (
+                todaysJobs.map(renderJob)
+              )}
+
+              {otherJobs.length > 0 && (
+                <>
                   <Pressable
-                    key={job.id}
-                    onPress={() => setSelectedJobId(job.id)}
-                    style={({ pressed }) => [s.jobOption, selected && s.jobOptionSelected, pressed && s.pressed]}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected }}
+                    onPress={() => setShowOthers((v) => !v)}
+                    style={({ pressed }) => [s.othersToggle, pressed && s.pressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={showOthers ? 'Hide other booked jobs' : 'Show other booked jobs'}
                   >
-                    <View style={[s.radioCircle, selected && s.radioCircleSelected]}>
-                      {selected && <CheckIcon />}
-                    </View>
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <Text style={s.jobOptionTitle} numberOfLines={2}>{job.title}</Text>
-                      <View style={s.jobOptionMetaRow}>
-                        <View style={s.metaInline}>
-                          <PersonIcon />
-                          <Text style={s.jobOptionMetaText}>{job.elderName}</Text>
-                        </View>
-                        {job.location && (
-                          <View style={s.metaInline}>
-                            <PinIcon />
-                            <Text style={s.jobOptionMetaText}>{job.location}</Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
+                    <Text style={s.othersToggleText}>
+                      {showOthers ? 'Hide other booked jobs ▴' : `Other booked jobs (${otherJobs.length}) ▾`}
+                    </Text>
                   </Pressable>
-                );
-              })}
+                  {showOthers && otherJobs.map(renderJob)}
+                </>
+              )}
             </View>
           )}
         </View>
@@ -393,8 +472,7 @@ const s = StyleSheet.create({
     paddingBottom: Spacing.lg,
     gap: Spacing.md,
   },
-  pageHeading: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: D.onSurface },
-  pageSubtitle: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, marginTop: -Spacing.sm },
+  pageHeading: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, lineHeight: Typography.sizeLG * 1.3, color: D.onSurface },
 
   // ── Sections ─────────────────────────────────────────────────────────────
   section: { gap: Spacing.sm },
@@ -417,6 +495,8 @@ const s = StyleSheet.create({
   },
   radioCircleSelected: { backgroundColor: D.primary, borderColor: D.primary },
   jobOptionTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, lineHeight: 20, color: D.onSurface },
+  othersToggle: { minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+  othersToggleText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
   jobOptionMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   metaInline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   jobOptionMetaText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -9,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Circle, Line, Path } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
@@ -81,6 +82,10 @@ interface ScheduleItem {
   urgent: boolean;
   /** Mirrors the same status pill shown on the Opportunity/Submitted Application cards. */
   statusLabel: string;
+  /** The amount agreed for the work - the same figure the opportunity's detail page shows. */
+  offeredAmount: number;
+  /** The language the knowledge holder speaks, as the opportunity detail page shows it. */
+  language: string | null;
   opportunityId?: string;
 }
 
@@ -102,41 +107,10 @@ function jobToScheduleItem(job: JobResponse): ScheduleItem | null {
     urgent: job.urgent,
     // Any Job that reached the schedule page came from a confirmed booking.
     statusLabel: 'Booked',
+    offeredAmount: job.offeredAmount,
+    language: job.language ?? null,
   };
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Fallback data — shown only if /api/creator-dashboard/jobs fails, so the
-// screen never renders blank.
-// ─────────────────────────────────────────────────────────────────────────────
-const FALLBACK_JOBS: JobResponse[] = [
-  {
-    id: 'fallback-1',
-    title: 'Traditional Recipe Documentation',
-    description: '',
-    elderName: 'Mrs. Kamala Wijesinghe',
-    location: 'Matara',
-    offeredAmount: 3000,
-    status: 'UPCOMING',
-    urgent: false,
-    scheduledAt: '2026-08-30T12:30:00',
-    timeWindowText: null,
-    completedAt: null,
-  },
-  {
-    id: 'fallback-2',
-    title: 'Photographing the Family Loom',
-    description: '',
-    elderName: 'Mrs. Kamala Wijesinghe',
-    location: 'Matara',
-    offeredAmount: 1800,
-    status: 'UPCOMING',
-    urgent: true,
-    scheduledAt: '2026-08-30T15:30:00',
-    timeWindowText: null,
-    completedAt: null,
-  },
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Date helpers — a plain y-m-d key (never ISO/UTC) so a job scheduled at
@@ -211,6 +185,19 @@ const ClockIcon: React.FC<IconProps> = ({ size = 14, color = D.secondary }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <Circle cx="12" cy="12" r="9" />
     <Path d="M12 7v5l3.5 2" />
+  </Svg>
+);
+
+const CardIcon: React.FC<IconProps> = ({ size = 14, color = D.secondary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="2" y="5" width="20" height="14" rx="2" />
+    <Line x1="2" y1="10" x2="22" y2="10" />
+  </Svg>
+);
+
+const LanguageIcon: React.FC<IconProps> = ({ size = 14, color = D.secondary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.8-.9L4 21l1.9-4.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 13.5 4 8.5 8.5 0 0 1 21 11.5z" />
   </Svg>
 );
 
@@ -310,7 +297,7 @@ const ScheduledJobCard: React.FC<{
   onView: () => void;
   onRemove: () => void;
 }> = ({ item, onView, onRemove }) => (
-  <View style={[s.jobCard, { borderLeftColor: item.urgent ? D.urgentDot : D.primary }]}>
+  <View style={[s.jobCard, { borderLeftColor: item.urgent ? D.urgentDot : D.secondary }]}>
     <View style={s.jobCardHeaderRow}>
       <View style={s.jobIconBox}>
         <Text style={{ fontSize: 18 }}>🎥</Text>
@@ -322,7 +309,13 @@ const ScheduledJobCard: React.FC<{
           </View>
         )}
         <Text style={s.jobTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={s.jobClient}>{item.elderName}</Text>
+        <View style={s.jobClientRow}>
+          <Text style={s.jobClient}>{item.elderName}</Text>
+          <View style={s.jobPriceRow}>
+            <CardIcon size={13} />
+            <Text style={s.jobPrice}>LKR {Math.round(item.offeredAmount).toLocaleString('en-US')}</Text>
+          </View>
+        </View>
       </View>
       <View style={{ alignItems: 'flex-end', gap: 8 }}>
         <View style={s.scheduleStatusBadge}>
@@ -350,6 +343,12 @@ const ScheduledJobCard: React.FC<{
           <Text style={s.jobMetaText}>{item.location}</Text>
         </View>
       )}
+      {!!item.language && (
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}><LanguageIcon size={12} color={D.secondary} /></View>
+          <Text style={s.jobMetaText}>{item.language}</Text>
+        </View>
+      )}
     </View>
 
     <Pressable
@@ -372,10 +371,13 @@ export const OpportunitySchedulePage: React.FC<{
   /** Opens the real opportunity for an application-sourced item — Job-sourced items have no detail page yet, so they fall back to onBack. */
   onViewOpportunity?: (opportunityId: string) => void;
 }> = ({ onNavigate, onBack, onViewOpportunity }) => {
-  const [jobs, setJobs] = useState<JobResponse[]>(FALLBACK_JOBS);
+  const [jobs, setJobs] = useState<JobResponse[]>([]);
+  // Nothing is drawn until the bookings arrive, so the calendar opens straight on the first booking's month
+  // instead of flashing today's date first.
+  const [loaded, setLoaded] = useState(false);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
-  const [visibleMonth, setVisibleMonth] = useState<Date>(startOfMonth(new Date(FALLBACK_JOBS[0].scheduledAt!)));
-  const [selectedKey, setSelectedKey] = useState<string>(dateKey(new Date(FALLBACK_JOBS[0].scheduledAt!)));
+  const [visibleMonth, setVisibleMonth] = useState<Date>(startOfMonth(new Date()));
+  const [selectedKey, setSelectedKey] = useState<string>(dateKey(new Date()));
 
   useEffect(() => {
     creatorDashboardApi
@@ -384,12 +386,13 @@ export const OpportunitySchedulePage: React.FC<{
         setJobs(data);
         const scheduled = data.filter((j) => j.scheduledAt).sort((a, b) => a.scheduledAt!.localeCompare(b.scheduledAt!));
         if (scheduled.length > 0) {
-          const first = new Date(scheduled[0].scheduledAt!);
+          const first = parseDateOnly(scheduled[0].scheduledAt!);
           setVisibleMonth(startOfMonth(first));
           setSelectedKey(dateKey(first));
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoaded(true));
   }, []);
 
   const scheduleItems = useMemo(() => {
@@ -456,6 +459,10 @@ export const OpportunitySchedulePage: React.FC<{
           <Text style={s.pageSubtitle}>Confirmed bookings and upcoming sessions</Text>
         </View>
 
+        {!loaded ? (
+          <ActivityIndicator color={D.primary} style={{ marginTop: Spacing.lg }} />
+        ) : (
+        <>
         <Calendar
           visibleMonth={visibleMonth}
           selectedKey={selectedKey}
@@ -506,6 +513,9 @@ export const OpportunitySchedulePage: React.FC<{
               <ScheduledJobCard key={item.id} item={item} onView={() => handleView(item)} onRemove={() => handleRemove(item.id)} />
             ))}
           </View>
+        )}
+
+        </>
         )}
 
         <View style={{ height: 8 }} />
@@ -694,7 +704,12 @@ const s = StyleSheet.create({
     fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSecondaryContainer, letterSpacing: 0.8,
   },
   trashBtn: { padding: 2 },
+  jobClientRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: Spacing.lg },
+  jobPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  jobPrice: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.secondary },
+  // Indented by the icon box + gap so the details line up under the title and client name.
   jobMetaRow: {
+    paddingLeft: 40 + Spacing.sm,
     flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md,
     paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant,
   },

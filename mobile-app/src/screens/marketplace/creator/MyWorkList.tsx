@@ -1,18 +1,24 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { WorkStatusChip } from '../../../components/module-specific/marketplace/WorkStatusChip';
+import { StarRating } from '../../../components/module-specific/marketplace/StarRating';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
+import { SavedWorkCard } from '../../../components/module-specific/marketplace/SavedWorkCard';
+import { WorkContent } from '../../../components/module-specific/marketplace/WorkContent';
+import { appAlert } from '../../../components/common/AppDialog';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
 import { workProgressApi } from '../../../services/api/workProgressApi';
 import type { JobResponse } from '../../../types/creatorDashboard';
 import { ApiError } from '../../../services/api/client';
-import { WorkProgressResponse, stepsForStage } from '../../../types/workProgress';
+import { WorkProgressResponse, stepFlags } from '../../../types/workProgress';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
+import { groupCompletedByMonth } from '../../../utils/completedWork';
 
 // Only for jobs with no photo of their own and no linked opportunity either
 // (directly-seeded rows) — see resolveOpportunityImage/Job.heroImageUrl.
@@ -50,7 +56,21 @@ function formatDueText(iso: string | null): string | null {
   return 'Overdue';
 }
 
-type WorkTab = 'active' | 'submitted' | 'completed';
+function formatDoneDate(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatScheduleDate(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatLkr(amount: number): string {
+  return `LKR ${Math.round(amount).toLocaleString('en-US')}`;
+}
+
+export type WorkTab = 'active' | 'saved' | 'submitted' | 'completed';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Icons
@@ -61,6 +81,36 @@ const PersonIcon: React.FC<IconProps> = ({ size = 14, color = D.secondary }) => 
   <Svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none">
     <Circle cx="12" cy="8" r="4" />
     <Path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+  </Svg>
+);
+
+const PinIcon: React.FC<IconProps> = ({ size = 14, color = D.onSurfaceVariant }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z" />
+    <Circle cx="12" cy="10" r="3" />
+  </Svg>
+);
+
+const CalendarIcon: React.FC<IconProps> = ({ size = 14, color = D.secondary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="3" y="5" width="18" height="16" rx="2" />
+    <Line x1="16" y1="3" x2="16" y2="7" />
+    <Line x1="8" y1="3" x2="8" y2="7" />
+    <Line x1="3" y1="10" x2="21" y2="10" />
+  </Svg>
+);
+
+const ClockIcon: React.FC<IconProps> = ({ size = 14, color = D.secondary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="12" cy="12" r="9" />
+    <Path d="M12 7v5l3.5 2" />
+  </Svg>
+);
+
+const CardIcon: React.FC<IconProps> = ({ size = 14, color = D.secondary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="2" y="5" width="20" height="14" rx="2" />
+    <Line x1="2" y1="10" x2="22" y2="10" />
   </Svg>
 );
 
@@ -100,12 +150,12 @@ const ProgressBar: React.FC<{ percentage: number }> = ({ percentage }) => (
 // `completedSteps` (the next one up) gets a bold ring to mark it as current,
 // distinct from the plain grey outline on steps that haven't started yet.
 // ─────────────────────────────────────────────────────────────────────────────
-const Stepper: React.FC<{ completedSteps: number }> = ({ completedSteps }) => (
+const Stepper: React.FC<{ done: boolean[] }> = ({ done: doneSteps }) => (
   <View style={s.stepperRow}>
     {STEP_LABELS.map((label, i) => {
-      const done = i < completedSteps;
-      const isCurrent = i === completedSteps;
-      const connectorDone = i < completedSteps - 1;
+      const done = doneSteps[i];
+      const isCurrent = !done && doneSteps.slice(0, i).every(Boolean);
+      const connectorDone = done && doneSteps[i + 1];
       return (
         <React.Fragment key={label}>
           <View style={s.stepItem}>
@@ -136,20 +186,37 @@ const WorkCard: React.FC<{
   heroImageUrl: string | null;
   materialsCount: number;
   progressPercentage: number;
-  completedSteps: number;
-  variant: 'continue' | 'submitted' | 'completed';
+  doneSteps: boolean[];
+  variant: 'continue' | 'submitted';
+  /** The full progress record - the submitted card shows what was written from it. */
+  progress?: WorkProgressResponse;
+  /** TEMPORARY test buttons: stand in for the knowledge holder / admin until their screens exist. */
+  onTestReview?: (by: 'elder' | 'admin', action: 'approve' | 'reject') => void;
   onContinue: () => void;
-  onView: () => void;
-}> = ({ job, heroImageUrl, materialsCount, progressPercentage, completedSteps, variant, onContinue, onView }) => {
-  const dueText = formatDueText(job.scheduledAt);
+}> = ({ job, heroImageUrl, materialsCount, progressPercentage, doneSteps, variant, progress, onTestReview, onContinue }) => {
+  // A job already sent for review is no longer "due" - the chip would only mislead.
+  const dueText = variant === 'submitted' ? null : formatDueText(job.scheduledAt);
+  const overdue = dueText === 'Overdue';
+  const scheduledOn = formatScheduleDate(job.scheduledAt);
 
   return (
     <View style={s.card}>
-      {dueText && (
+      {(dueText || variant === 'continue' || variant === 'submitted') && (
         <View style={s.chipsRow}>
-          <View style={s.dueChip}>
-            <Text style={s.dueChipText}>{dueText}</Text>
+          <View style={s.chipsLeft}>
+            {variant === 'continue' && <WorkStatusChip status={progress?.workStatus ?? 'IN_PROGRESS'} />}
+            {variant === 'submitted' && <WorkStatusChip status={progress?.workStatus ?? 'SUBMITTED'} />}
+            {!!dueText && (
+              <View style={[s.dueChip, overdue && s.dueChipOverdue]}>
+                <Text style={[s.dueChipText, overdue && s.dueChipTextOverdue]}>{dueText}</Text>
+              </View>
+            )}
           </View>
+          {variant === 'continue' && !!progress && !progress.openedAt && (
+            <View style={s.newTag}>
+              <Text style={s.newTagText}>New</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -159,13 +226,41 @@ const WorkCard: React.FC<{
         <Text style={s.contributorText}>{job.elderName}</Text>
       </View>
 
+      {/* Where, when and how much - the same details the opportunity page showed. */}
+      <View style={s.factsStrip}>
+        <View style={s.factsRow}>
+          {!!scheduledOn && (
+            <View style={s.factItem}>
+              <CalendarIcon />
+              <Text style={s.factText}>{scheduledOn}</Text>
+            </View>
+          )}
+          <View style={s.factItem}>
+            <CardIcon />
+            <Text style={s.factText}>{formatLkr(job.offeredAmount)}</Text>
+          </View>
+        </View>
+        {!!job.timeWindowText && (
+          <View style={s.factItem}>
+            <ClockIcon />
+            <Text style={s.factText}>{job.timeWindowText}</Text>
+          </View>
+        )}
+        {!!job.location && (
+          <View style={s.factItem}>
+            <PinIcon color={D.secondary} />
+            <Text style={s.factText} numberOfLines={1}>{job.location}</Text>
+          </View>
+        )}
+      </View>
+
       <View style={s.progressCard}>
         <View style={s.progressHeaderRow}>
           <Text style={s.progressLabel}>Overall Progress</Text>
           <Text style={s.progressValue}>{progressPercentage}%</Text>
         </View>
         <ProgressBar percentage={progressPercentage} />
-        <Stepper completedSteps={completedSteps} />
+        <Stepper done={doneSteps} />
       </View>
 
       <View style={s.cardPhotoWrapper}>
@@ -188,15 +283,134 @@ const WorkCard: React.FC<{
         </Pressable>
       )}
       {variant === 'submitted' && (
+        <View style={{ marginTop: Spacing.md }}>
+          <WorkContent progress={progress} />
+        </View>
+      )}
+      {variant === 'submitted' && (
         <View style={s.awaitingPill}>
           <Text style={s.awaitingPillText}>Awaiting Review</Text>
         </View>
       )}
-      {variant === 'completed' && (
-        <Pressable onPress={onView} style={({ pressed }) => [s.viewBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel={`View ${job.title}`}>
-          <Text style={s.viewBtnText}>View</Text>
-        </Pressable>
+      {variant === 'submitted' && !!onTestReview && (
+        <View style={s.testGrid}>
+          <Text style={s.testLabel}>TEMPORARY - stands in for the reviewers</Text>
+          <View style={s.testRow}>
+            <Pressable onPress={() => onTestReview('elder', 'reject')} style={({ pressed }) => [s.testBtnDanger, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Knowledge holder rejects (test)">
+              <Text style={s.testBtnDangerText}>Elder Reject (Test)</Text>
+            </Pressable>
+            <Pressable onPress={() => onTestReview('elder', 'approve')} style={({ pressed }) => [s.testBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Knowledge holder approves (test)">
+              <Text style={s.testBtnText}>Elder Approve (Test)</Text>
+            </Pressable>
+          </View>
+          <View style={s.testRow}>
+            <Pressable onPress={() => onTestReview('admin', 'reject')} style={({ pressed }) => [s.testBtnDanger, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Admin rejects (test)">
+              <Text style={s.testBtnDangerText}>Admin Reject (Test)</Text>
+            </Pressable>
+            <Pressable onPress={() => onTestReview('admin', 'approve')} style={({ pressed }) => [s.testBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Admin approves (test)">
+              <Text style={s.testBtnText}>Admin Approve (Test)</Text>
+            </Pressable>
+          </View>
+        </View>
       )}
+      {variant === 'submitted' && !!progress && (
+        <View style={s.reviewRow}>
+          <ReviewerStatus who="Knowledge holder" approved={progress.elderApproved} />
+          <ReviewerStatus who="Admin" approved={progress.adminApproved} />
+        </View>
+      )}
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CompletedCard - a finished job: what it was, for whom, when, and what it earned.
+// (No progress bar or stepper - those only mean something while work is under way.)
+// ─────────────────────────────────────────────────────────────────────────────
+/** One reviewer's answer on a submitted job: approved, or still being waited on. */
+const ReviewerStatus: React.FC<{ who: string; approved: boolean }> = ({ who, approved }) => (
+  <View style={[s.reviewChip, approved && s.reviewChipDone]}>
+    <Text style={[s.reviewChipText, approved && s.reviewChipTextDone]}>{`${who}: ${approved ? 'Approved ✓' : 'Waiting'}`}</Text>
+  </View>
+);
+
+const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; published: boolean; onView: () => void; onTestRate: (stars: number) => void }> = ({ job, heroImageUrl, published, onView, onTestRate }) => {
+  const doneOn = formatDoneDate(job.completedAt);
+
+  return (
+    <View style={[s.doneCard, job.urgent && s.doneCardUrgent]}>
+      <View style={s.doneTopRow}>
+        <View style={s.donePill}>
+          <View style={s.doneCheck}>
+            <CheckIcon size={9} />
+          </View>
+          <Text style={s.donePillText}>{published ? 'Published' : 'Completed'}</Text>
+        </View>
+      </View>
+
+      <View style={s.doneBody}>
+        <Image
+          source={resolveOpportunityImage(heroImageUrl) ?? GENERIC_HERO_IMAGE}
+          style={s.doneThumb}
+          resizeMode="cover"
+          accessibilityLabel={job.title}
+        />
+        <View style={s.doneInfo}>
+          <Text style={s.cardTitle} numberOfLines={3}>{job.title}</Text>
+          <Text style={s.doneElder} numberOfLines={1}>{job.elderName}</Text>
+          {!!job.location && (
+            <View style={s.doneInline}>
+              <PinIcon color={D.secondary} />
+              <Text style={s.doneElderPlace} numberOfLines={1}>{job.location}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      <View style={s.factsStrip}>
+        <View style={s.factsRow}>
+          {!!doneOn && (
+            <View style={s.factItem}>
+              <CalendarIcon />
+              <Text style={s.factText}>{doneOn}</Text>
+            </View>
+          )}
+          <View style={s.factItem}>
+            <CardIcon />
+            <Text style={s.factText}>{formatLkr(job.offeredAmount)}</Text>
+          </View>
+        </View>
+      </View>
+
+      {job.reviewRating != null && (
+        <View style={s.feedbackBox}>
+          <View style={s.feedbackHead}>
+            <Text style={s.feedbackFrom} numberOfLines={1}>{`Feedback from ${job.elderName}`}</Text>
+            <StarRating rating={job.reviewRating} size={16} />
+          </View>
+          {!!job.reviewComment && <Text style={s.feedbackText}>{`“${job.reviewComment}”`}</Text>}
+        </View>
+      )}
+
+      <View style={s.testGrid}>
+        <Text style={s.testLabel}>TEMPORARY - the knowledge holder rates you</Text>
+        <View style={s.testRow}>
+          {[1, 3, 5].map((stars) => (
+            <Pressable key={stars} onPress={() => onTestRate(stars)} style={({ pressed }) => [s.testBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel={`Knowledge holder gives ${stars} stars (test)`}>
+              <Text style={s.testBtnText}>{`${stars} ★ (Test)`}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      <Pressable
+        onPress={onView}
+        style={({ pressed }) => [s.doneLink, pressed && s.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`View publication of ${job.title}`}
+      >
+        <Text style={s.doneLinkText}>{'View Publication  →'}</Text>
+      </Pressable>
     </View>
   );
 };
@@ -208,21 +422,30 @@ export const MyWorkList: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
   onContinueWork: (jobId: string, title: string, elderName: string, location: string | null) => void;
-  onViewSubmittedWork: () => void;
-}> = ({ onNavigate, onBack, onContinueWork, onViewSubmittedWork }) => {
+  onViewPublication: (job: JobResponse) => void;
+  /** Which tab to open on - Saved right after "Save As a Draft", Active from the menu. */
+  initialTab?: WorkTab;
+  /** Told when the creator switches tab, so coming back from Continue Work lands on the same one. */
+  onTabChange?: (tab: WorkTab) => void;
+}> = ({ onNavigate, onBack, onContinueWork, onViewPublication, initialTab = 'active', onTabChange }) => {
   const [workJobs, setWorkJobs] = useState<JobResponse[]>([]);
   const [completedJobs, setCompletedJobs] = useState<JobResponse[]>([]);
   const [progressByJobId, setProgressByJobId] = useState<Record<string, WorkProgressResponse>>({});
-  const [activeTab, setActiveTab] = useState<WorkTab>('active');
+  const [completedPictures, setCompletedPictures] = useState<Record<string, string | null>>({});
+  const [completedPublished, setCompletedPublished] = useState<Record<string, boolean>>({});
+  const [activeTab, setActiveTab] = useState<WorkTab>(initialTab);
+  const selectTab = (tab: WorkTab) => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadWork = useCallback((isCancelled: () => boolean = () => false) => {
     setLoading(true);
     setLoadError(null);
 
-    Promise.all([
+    return Promise.all([
       creatorDashboardApi.getJobs('UPCOMING'),
       creatorDashboardApi.getJobs('ACTIVE'),
       creatorDashboardApi.getJobs('COMPLETED'),
@@ -232,7 +455,11 @@ export const MyWorkList: React.FC<{
         const progressList = await Promise.all(
           jobsInProgress.map((job) => workProgressApi.getProgress(job.id)),
         );
-        if (cancelled) return;
+        // Completed cards show the opportunity's picture too; a missing one just falls back to the default photo.
+        const completedProgress = await Promise.all(
+          completed.map((job) => workProgressApi.getProgress(job.id).catch(() => null)),
+        );
+        if (isCancelled()) return;
 
         const progressMap: Record<string, WorkProgressResponse> = {};
         progressList.forEach((p) => {
@@ -242,19 +469,34 @@ export const MyWorkList: React.FC<{
         setWorkJobs(jobsInProgress);
         setProgressByJobId(progressMap);
         setCompletedJobs(completed);
+        const pictures: Record<string, string | null> = {};
+        completedProgress.forEach((p, i) => {
+          pictures[completed[i].id] = p?.heroImageUrl ?? null;
+        });
+        setCompletedPictures(pictures);
+        const published: Record<string, boolean> = {};
+        completedProgress.forEach((p, i) => {
+          published[completed[i].id] = Boolean(p?.publishedAt);
+        });
+        setCompletedPublished(published);
       })
       .catch((err) => {
-        if (cancelled) return;
+        if (isCancelled()) return;
         setLoadError(err instanceof ApiError ? err.message : 'Could not load your work.');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!isCancelled()) setLoading(false);
       });
 
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadWork(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadWork]);
 
   const activeWithProgress = useMemo(
     () =>
@@ -265,23 +507,113 @@ export const MyWorkList: React.FC<{
           heroImageUrl: progress?.heroImageUrl ?? null,
           materialsCount: progress?.materials.length ?? 0,
           percentage: progress?.progressPercentage ?? 0,
-          steps: stepsForStage(progress?.currentStage ?? 'PREP'),
+          steps: progress ? stepFlags(progress) : [false, false, false, false],
           // A job only counts as "Submitted" once it's actually been sent for
           // review — not just because its checklist happens to read 100%,
           // since a creator can submit early or keep polishing after 100%.
           submitted: Boolean(progress?.submittedAt) && !progress?.draft,
+          // Saved with "Save As a Draft" - lives on the Saved tab until it is submitted.
+          draft: Boolean(progress?.draft),
+          rejected: Boolean(progress?.rejected),
         };
       }),
     [workJobs, progressByJobId],
   );
 
-  const stillInProgress = activeWithProgress.filter((x) => !x.submitted);
-  const submitted = activeWithProgress.filter((x) => x.submitted);
+  const completedByMonth = useMemo(() => groupCompletedByMonth(completedJobs), [completedJobs]);
 
-  const handleView = (title: string) => {
-    // No per-job detail screen exists yet — same stopgap as the Dashboard's
-    // own "View Details" affordance and the Schedule page's "View".
-    Alert.alert(title, 'Full work details aren’t available yet.');
+  // Active is everything not yet submitted - saving a draft does not take a job off it, so the creator
+  // can always see how far along it is. Saved is the same jobs filtered to the ones saved as a draft.
+  const stillInProgress = activeWithProgress.filter((x) => !x.submitted && !x.rejected);
+  const savedDrafts = activeWithProgress.filter((x) => x.draft);
+  // Waiting on the reviewers. Work they sent back lives on Rejected Submissions until it is submitted again.
+  const submitted = activeWithProgress.filter((x) => x.submitted && !x.rejected);
+
+  // Opening a job is what takes its "New" tag away - told to the server (fire and forget), then on to the work.
+  const openJob = (job: JobResponse) => {
+    if (!progressByJobId[job.id]?.openedAt) {
+      workProgressApi.markOpened(job.id).catch(() => {});
+    }
+    onContinueWork(job.id, job.title, job.elderName, job.location);
+  };
+
+  // A step the creator has not finished yet is worth a warning before submitting, not a block.
+  const unfinishedSteps = (progress: WorkProgressResponse | undefined): string[] => {
+    if (!progress) return [];
+    const missing: string[] = [];
+    if (!progress.prepDone) missing.push('Prep');
+    if (!progress.recordDone) missing.push('Record');
+    if (!progress.editDone) missing.push('Edit content');
+    return missing;
+  };
+
+  const submitDraft = (job: JobResponse) => {
+    appAlert('Submit for review?', `"${job.title}" will be sent to ${job.elderName} and the admin to review.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Submit',
+        onPress: async () => {
+          try {
+            await workProgressApi.submitDraft(job.id);
+            await loadWork();
+            selectTab('submitted');
+          } catch (err) {
+            appAlert('Submit failed', err instanceof ApiError ? err.message : 'Could not submit this draft.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleSubmitForReview = (job: JobResponse) => {
+    const missing = unfinishedSteps(progressByJobId[job.id]);
+    if (missing.length === 0) {
+      submitDraft(job);
+      return;
+    }
+    appAlert('Not everything is finished', `${missing.join(' and ')} ${missing.length === 1 ? 'is' : 'are'} not done yet. Submit anyway?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Continue', onPress: () => submitDraft(job) },
+    ]);
+  };
+
+  // TEMPORARY: stands in for the knowledge holder and the admin until their screens exist.
+  const handleTestReview = async (job: JobResponse, by: 'elder' | 'admin', action: 'approve' | 'reject') => {
+    try {
+      await workProgressApi.testReview(job.id, by, action);
+      await loadWork();
+    } catch (err) {
+      appAlert('Test review failed', err instanceof ApiError ? err.message : 'Could not record this review.');
+    }
+  };
+
+  // TEMPORARY: stands in for the knowledge holder's "rate the creator" screen until it exists.
+  const handleTestRate = async (job: JobResponse, stars: number) => {
+    try {
+      const result = await workProgressApi.testRate(job.id, stars);
+      const overall = result.creatorRating != null ? Number(result.creatorRating).toFixed(2) : '-';
+      appAlert('Rating recorded', `You were given ${stars} star${stars === 1 ? '' : 's'} for this job.\n\nYour overall rating is now ${overall} from ${result.creatorRatingCount} review${result.creatorRatingCount === 1 ? '' : 's'}.`);
+    } catch (err) {
+      appAlert('Test rating failed', err instanceof ApiError ? err.message : 'Could not record this rating.');
+    }
+  };
+
+  const handleDeleteDraft = (job: JobResponse) => {
+    appAlert('Delete this draft?', `All progress on "${job.title}" will be discarded.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await workProgressApi.resetProgress(job.id);
+            await loadWork();
+          } catch (err) {
+            appAlert('Delete failed', err instanceof ApiError ? err.message : 'Could not delete this draft.');
+          }
+        },
+      },
+    ]);
   };
 
   // Held back until every fetch above settles — real data only, no
@@ -321,9 +653,10 @@ export const MyWorkList: React.FC<{
       <View style={s.headerSection}>
         <Text style={s.pageHeading}>My work</Text>
         <View style={s.tabsRow}>
-          <TabPill label="Active" active={activeTab === 'active'} onPress={() => setActiveTab('active')} />
-          <TabPill label="Submitted" active={activeTab === 'submitted'} onPress={() => setActiveTab('submitted')} />
-          <TabPill label="Completed" active={activeTab === 'completed'} onPress={() => setActiveTab('completed')} />
+          <TabPill label="Active" active={activeTab === 'active'} onPress={() => selectTab('active')} />
+          <TabPill label={savedDrafts.length > 0 ? `Saved (${savedDrafts.length})` : 'Saved'} active={activeTab === 'saved'} onPress={() => selectTab('saved')} />
+          <TabPill label="Submitted" active={activeTab === 'submitted'} onPress={() => selectTab('submitted')} />
+          <TabPill label="Completed" active={activeTab === 'completed'} onPress={() => selectTab('completed')} />
         </View>
       </View>
 
@@ -343,10 +676,27 @@ export const MyWorkList: React.FC<{
                 heroImageUrl={heroImageUrl}
                 materialsCount={materialsCount}
                 progressPercentage={percentage}
-                completedSteps={steps}
+                doneSteps={steps}
                 variant="continue"
-                onContinue={() => onContinueWork(job.id, job.title, job.elderName, job.location)}
-                onView={() => handleView(job.title)}
+                progress={progressByJobId[job.id]}
+                onContinue={() => openJob(job)}
+              />
+            ))
+          )
+        )}
+
+        {activeTab === 'saved' && (
+          savedDrafts.length === 0 ? (
+            <View style={s.emptyState}><Text style={s.emptyStateText}>No saved drafts yet.</Text></View>
+          ) : (
+            savedDrafts.map(({ job }) => (
+              <SavedWorkCard
+                key={job.id}
+                job={job}
+                progress={progressByJobId[job.id]}
+                onEdit={() => openJob(job)}
+                onSubmit={() => handleSubmitForReview(job)}
+                onDelete={() => handleDeleteDraft(job)}
               />
             ))
           )
@@ -363,10 +713,11 @@ export const MyWorkList: React.FC<{
                 heroImageUrl={heroImageUrl}
                 materialsCount={materialsCount}
                 progressPercentage={percentage}
-                completedSteps={steps}
+                doneSteps={steps}
                 variant="submitted"
+                progress={progressByJobId[job.id]}
+                onTestReview={(by, action) => handleTestReview(job, by, action)}
                 onContinue={() => {}}
-                onView={onViewSubmittedWork}
               />
             ))
           )
@@ -376,19 +727,29 @@ export const MyWorkList: React.FC<{
           completedJobs.length === 0 ? (
             <View style={s.emptyState}><Text style={s.emptyStateText}>No completed work yet.</Text></View>
           ) : (
-            completedJobs.map((job) => (
-              <WorkCard
-                key={job.id}
-                job={job}
-                heroImageUrl={null}
-                materialsCount={0}
-                progressPercentage={100}
-                completedSteps={4}
-                variant="completed"
-                onContinue={() => {}}
-                onView={onViewSubmittedWork}
-              />
-            ))
+            <>
+              <View style={s.doneSummary}>
+                <Text style={s.doneSummaryText}>
+                  {`${completedJobs.length} completed ${completedJobs.length === 1 ? 'job' : 'jobs'}`}
+                </Text>
+                <Text style={s.doneSummaryTotal}>
+                  {`${formatLkr(completedJobs.reduce((sum, job) => sum + job.offeredAmount, 0))} earned`}
+                </Text>
+              </View>
+              {completedByMonth.map((month) => (
+                <View key={month.key} style={s.monthSection}>
+                  <View style={s.monthHeader}>
+                    <Text style={s.monthLabel}>{month.label}</Text>
+                    <Text style={s.monthStats}>
+                      {`${month.jobs.length} ${month.jobs.length === 1 ? 'job' : 'jobs'} · ${formatLkr(month.total)} earned for this month`}
+                    </Text>
+                  </View>
+                  {month.jobs.map((job) => (
+                    <CompletedCard key={job.id} job={job} heroImageUrl={completedPictures[job.id] ?? null} published={completedPublished[job.id] ?? false} onView={() => onViewPublication(job)} onTestRate={(stars) => handleTestRate(job, stars)} />
+                  ))}
+                </View>
+              ))}
+            </>
           )
         )}
 
@@ -492,18 +853,38 @@ const s = StyleSheet.create({
   contributorText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
 
   // ── Chips ────────────────────────────────────────────────────────────────
-  chipsRow: { flexDirection: 'row', gap: Spacing.xs },
+  chipsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.xs },
+  chipsLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, flexShrink: 1 },
+  statusChip: { backgroundColor: '#FFF0E0', borderRadius: Radii.full, paddingHorizontal: 10, paddingVertical: 3 },
+  statusChipSaved: { backgroundColor: '#E3F1F0' },
+  statusChipText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#9E4A0D', letterSpacing: 0.3 },
+  statusChipTextSaved: { color: D.primary },
+  newTag: { backgroundColor: '#2E8B57', borderRadius: Radii.full, paddingHorizontal: 10, paddingVertical: 3 },
+  newTagText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.3 },
   dueChip: {
     backgroundColor: D.secondaryContainer, borderRadius: Radii.full,
     paddingHorizontal: 10, paddingVertical: 3,
   },
+  dueChipOverdue: { backgroundColor: '#FDECEA' },
+  dueChipTextOverdue: { color: '#B3261E' },
   dueChipText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: D.onSecondaryContainer, letterSpacing: 0.3 },
+
+  // ── Where / when / how much ──────────────────────────────────────────────
+  factsStrip: {
+    marginTop: Spacing.sm, backgroundColor: '#f0f5f5', borderRadius: Radii.lg,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+    paddingVertical: 8, paddingHorizontal: 12, gap: 6,
+  },
+  factsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  factItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  factText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurface },
 
   // ── Progress card ────────────────────────────────────────────────────────
   progressCard: {
     alignSelf: 'stretch', width: '100%',
-    backgroundColor: D.surface, borderRadius: Radii.lg, padding: Spacing.sm,
-    marginTop: Spacing.md, gap: Spacing.sm,
+    backgroundColor: '#ffffff', borderRadius: Radii.lg, padding: Spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+    marginTop: Spacing.sm, gap: Spacing.sm,
   },
   progressHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   progressLabel: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
@@ -531,8 +912,8 @@ const s = StyleSheet.create({
   // ── Card photo ───────────────────────────────────────────────────────────
   cardPhotoWrapper: {
     alignSelf: 'stretch', width: '100%',
-    marginTop: Spacing.md, borderRadius: Radii.lg, overflow: 'hidden',
-    aspectRatio: 16 / 9,
+    marginTop: Spacing.sm, borderRadius: Radii.lg, overflow: 'hidden',
+    aspectRatio: 2.3,
   },
   cardPhoto: { width: '100%', height: '100%', resizeMode: 'cover' },
   materialsBadge: {
@@ -548,16 +929,75 @@ const s = StyleSheet.create({
     paddingVertical: 11, alignItems: 'center', justifyContent: 'center', minHeight: 44,
   },
   continueBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff', letterSpacing: 0.3 },
-  viewBtn: {
-    backgroundColor: D.surfaceContainerLowest, borderRadius: Radii.full, borderWidth: 1.5, borderColor: D.secondary,
-    marginTop: Spacing.md, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', minHeight: 44,
-  },
-  viewBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
   awaitingPill: {
     backgroundColor: '#f0f5f5', borderRadius: Radii.full, borderWidth: 1, borderColor: D.surfaceVariant,
     marginTop: Spacing.md, paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
   },
+  feedbackBox: { marginTop: Spacing.md, gap: 6, backgroundColor: D.surfaceContainer, borderRadius: Radii.lg, padding: Spacing.md },
+  feedbackHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
+  feedbackFrom: { flex: 1, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.primary },
+  feedbackText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: D.onSurface, fontStyle: 'italic' },
+  testGrid: { marginTop: Spacing.md, gap: 6 },
+  testLabel: { fontFamily: Typography.fontBody, fontSize: 10, color: D.onSurfaceVariant, letterSpacing: 0.3 },
+  testRow: { flexDirection: 'row', gap: Spacing.sm },
+  testBtn: { flex: 1, minHeight: 44, borderRadius: Radii.full, backgroundColor: D.primary, alignItems: 'center', justifyContent: 'center' },
+  testBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#ffffff' },
+  testBtnDanger: { flex: 1, minHeight: 44, borderRadius: Radii.full, borderWidth: 1.5, borderColor: '#C0392B', alignItems: 'center', justifyContent: 'center' },
+  testBtnDangerText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#C0392B' },
+  reviewRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: Spacing.sm },
+  reviewChip: { borderRadius: Radii.full, backgroundColor: '#f0f5f5', borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant, paddingHorizontal: 12, paddingVertical: 6 },
+  reviewChipDone: { backgroundColor: '#E3F1E6', borderColor: '#2F6B3F' },
+  reviewChipText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
+  reviewChipTextDone: { fontFamily: Typography.fontBodySemi, color: '#2F6B3F' },
   awaitingPillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, letterSpacing: 0.3 },
+
+  // ── Completed tab ────────────────────────────────────────────────────────
+  doneSummary: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline',
+    paddingHorizontal: 4,
+  },
+  doneSummaryText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+  doneSummaryTotal: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.primary },
+  monthSection: { gap: Spacing.sm },
+  monthHeader: { paddingHorizontal: 4, marginTop: Spacing.sm, marginBottom: Spacing.sm, gap: 2 },
+  monthLabel: { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, color: D.onSurface },
+  monthStats: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.primary },
+  doneCardUrgent: { borderLeftColor: '#C0392B' },
+  doneCard: {
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.xl,
+    padding: Spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    // Orange edge for ordinary work, red for urgent work - same as the dashboard and Schedule cards.
+    borderLeftWidth: 3,
+    borderLeftColor: D.secondary,
+    shadowColor: D.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+    gap: Spacing.md,
+  },
+  doneTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  donePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#E3F1E6', borderRadius: Radii.full,
+    paddingVertical: 4, paddingLeft: 6, paddingRight: 10,
+  },
+  doneCheck: {
+    width: 16, height: 16, borderRadius: 8, backgroundColor: '#2F6B3F',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  donePillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#2F6B3F' },
+  doneBody: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
+  doneThumb: { width: 84, height: 84, borderRadius: Radii.lg, backgroundColor: D.surfaceContainer },
+  doneInfo: { flex: 1, gap: 4 },
+  doneElder: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurface },
+  doneInline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  doneElderPlace: { flex: 1, fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurface },
+  doneLink: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
+  doneLinkText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
 
   // ── Press feedback ───────────────────────────────────────────────────────
   pressed: { opacity: 0.75 },

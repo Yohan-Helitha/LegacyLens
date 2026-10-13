@@ -21,10 +21,11 @@ export const opportunityApi = {
   getById: (id: string) => apiGet<OpportunityDetailResponse>(`/opportunities/${id}`),
 
   /** Backs the filter chips — a real DB search, not a client-side slice of an already-fetched list. */
-  search: (params: { category?: string; nearby?: boolean; limit?: number }) => {
+  search: (params: { category?: string; nearby?: boolean; q?: string; limit?: number }) => {
     const query = new URLSearchParams();
     if (params.category) query.set('category', params.category);
     if (params.nearby) query.set('nearby', 'true');
+    if (params.q) query.set('q', params.q);
     query.set('limit', String(params.limit ?? 20));
     return apiGet<OpportunityCardResponse[]>(`/opportunities/search?${query.toString()}`);
   },

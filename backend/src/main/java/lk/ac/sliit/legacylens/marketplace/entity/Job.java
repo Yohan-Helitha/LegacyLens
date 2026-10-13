@@ -92,6 +92,10 @@ public class Job {
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
 
+    /** When the "you have work today" reminder was sent for this job; null until then. Stops it going out twice. */
+    @Column(name = "reminder_sent_at")
+    private LocalDateTime reminderSentAt;
+
     /** Display text for the confirmed time range, e.g. "10:00 AM - 2:00 PM" — set when booked from an application. */
     @Column(name = "time_window_text", length = 60)
     private String timeWindowText;

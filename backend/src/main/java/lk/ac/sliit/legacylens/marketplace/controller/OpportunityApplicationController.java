@@ -136,6 +136,13 @@ public class OpportunityApplicationController {
         return ResponseEntity.ok(ApiResponse.ok("Application booked", response));
     }
 
+    /** The creator has opened the Rejected Applications page - their rejections no longer count as new. */
+    @PostMapping("/rejected/seen")
+    public ResponseEntity<ApiResponse<Void>> markRejectedSeen(@AuthenticationPrincipal CustomUserDetails principal) {
+        opportunityApplicationService.markRejectedSeen(principal.getUser().getId());
+        return ResponseEntity.ok(ApiResponse.ok("Rejected applications marked as seen", null));
+    }
+
     /** Deletes a draft or a submitted application — the Delete/Cancel action. */
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(

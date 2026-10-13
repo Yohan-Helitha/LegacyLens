@@ -49,10 +49,13 @@ class UserProfileServiceImplTest {
 
     private UserProfileServiceImpl userProfileService;
 
+    @Mock
+    private lk.ac.sliit.legacylens.common.storage.FileStorageService fileStorageService;
+
     @BeforeEach
     void setUp() {
         userProfileService = new UserProfileServiceImpl(
-                userRepository, cityRepository, knowledgeHolderProfileRepository, creatorProfileRepository);
+                userRepository, cityRepository, knowledgeHolderProfileRepository, creatorProfileRepository, fileStorageService);
     }
 
     @Test
@@ -167,6 +170,49 @@ class UserProfileServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> userProfileService.markTutorialComplete(userId));
+    }
+
+    @Test
+    void updateProfilePhoto_storesTheImageSavesItsUrlAndDeletesTheOldUpload() {
+        UUID userId = UUID.randomUUID();
+        User user = buildUser(userId, RoleType.GENERAL_USER);
+        user.setProfilePhotoUrl("/uploads/profile-photos/old.jpg");
+        org.springframework.mock.web.MockMultipartFile photo =
+                new org.springframework.mock.web.MockMultipartFile("photo", "me.jpg", "image/jpeg", new byte[] {1, 2, 3});
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+        when(fileStorageService.store(org.mockito.ArgumentMatchers.eq(photo), org.mockito.ArgumentMatchers.eq("profile-photos"),
+                org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyLong()))
+                .thenReturn("/uploads/profile-photos/new.jpg");
+        when(knowledgeHolderProfileRepository.findByUserId(userId)).thenReturn(Optional.empty());
+        when(creatorProfileRepository.findByUserId(userId)).thenReturn(Optional.empty());
+
+        UserProfileResponse response = userProfileService.updateProfilePhoto(userId, photo);
+
+        assertThat(response.getProfilePhotoUrl()).isEqualTo("/uploads/profile-photos/new.jpg");
+        verify(fileStorageService).delete("profile-photos/old.jpg");
+    }
+
+    @Test
+    void updateProfilePhoto_keepsABundledLocalPictureFileAlone() {
+        UUID userId = UUID.randomUUID();
+        User user = buildUser(userId, RoleType.GENERAL_USER);
+        user.setProfilePhotoUrl("local:elder-woman");
+        org.springframework.mock.web.MockMultipartFile photo =
+                new org.springframework.mock.web.MockMultipartFile("photo", "me.jpg", "image/jpeg", new byte[] {1});
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+        when(fileStorageService.store(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyLong()))
+                .thenReturn("/uploads/profile-photos/new.jpg");
+        when(knowledgeHolderProfileRepository.findByUserId(userId)).thenReturn(Optional.empty());
+        when(creatorProfileRepository.findByUserId(userId)).thenReturn(Optional.empty());
+
+        userProfileService.updateProfilePhoto(userId, photo);
+
+        verify(fileStorageService, org.mockito.Mockito.never()).delete(org.mockito.ArgumentMatchers.anyString());
     }
 
     private User buildUser(UUID userId, RoleType roleType) {

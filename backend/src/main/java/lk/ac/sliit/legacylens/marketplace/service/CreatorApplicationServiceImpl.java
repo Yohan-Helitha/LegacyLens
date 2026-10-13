@@ -5,10 +5,14 @@ import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.common.storage.FileStorageService;
 import lk.ac.sliit.legacylens.marketplace.dto.CreatorApplicationRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.CreatorApplicationResponse;
+import lk.ac.sliit.legacylens.marketplace.dto.UpdateCreatorDetailsRequest;
 import lk.ac.sliit.legacylens.marketplace.entity.CreatorApplication;
+import lk.ac.sliit.legacylens.marketplace.matching.LanguageSkill;
+import lk.ac.sliit.legacylens.marketplace.matching.LanguageSkills;
 import lk.ac.sliit.legacylens.marketplace.repository.CreatorApplicationRepository;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.entity.VerificationStatus;
+import lk.ac.sliit.legacylens.users.repository.CreatorProfileRepository;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,15 +41,18 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
     private final CreatorApplicationRepository creatorApplicationRepository;
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
+    private final CreatorProfileRepository creatorProfileRepository;
 
     public CreatorApplicationServiceImpl(
             CreatorApplicationRepository creatorApplicationRepository,
             UserRepository userRepository,
-            FileStorageService fileStorageService) {
+            FileStorageService fileStorageService,
+            CreatorProfileRepository creatorProfileRepository) {
 
         this.creatorApplicationRepository = creatorApplicationRepository;
         this.userRepository = userRepository;
         this.fileStorageService = fileStorageService;
+        this.creatorProfileRepository = creatorProfileRepository;
     }
 
     @Override
@@ -65,6 +72,9 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
                     "You already have a creator application on file.");
         }
 
+        // Checked before the file is stored, so a bad request never leaves an orphan upload behind.
+        List<LanguageSkill> languages = LanguageSkills.parseSubmitted(request.getLanguages());
+
         String proofDocumentUrl = fileStorageService.store(
                 request.getProofDocument(), PROOF_UPLOAD_SUBDIR, ALLOWED_PROOF_CONTENT_TYPES, MAX_PROOF_FILE_SIZE_BYTES);
 
@@ -80,6 +90,7 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
         application.setAboutYou(request.getAboutYou());
         application.setSkills(String.join(", ", request.getSkills()));
         application.setInterests(String.join(", ", request.getInterests()));
+        application.setLanguages(LanguageSkills.serialize(languages));
         application.setExperienceLevel(request.getExperienceLevel());
         application.setExperienceDescription(request.getExperienceDescription());
         application.setProofDocumentUrl(proofDocumentUrl);
@@ -100,6 +111,60 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
         return mapToResponse(application);
     }
 
+    @Override
+    @Transactional
+    public CreatorApplicationResponse updateMyLanguages(UUID userId, List<String> languages) {
+        CreatorApplication application = creatorApplicationRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("No creator application found"));
+
+        application.setLanguages(LanguageSkills.serialize(LanguageSkills.parseSubmitted(languages)));
+
+        return mapToResponse(creatorApplicationRepository.save(application));
+    }
+
+    @Override
+    @Transactional
+    public CreatorApplicationResponse updateMyDetails(UUID userId, UpdateCreatorDetailsRequest request) {
+        CreatorApplication application = creatorApplicationRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("No creator application found"));
+
+        String skills = joinTags(request.getSkills());
+        String interests = joinTags(request.getInterests());
+
+        application.setEmail(request.getEmail().trim());
+        application.setAboutYou(request.getAboutYou() == null || request.getAboutYou().isBlank() ? null : request.getAboutYou().trim());
+        application.setSkills(skills);
+        application.setInterests(interests);
+        application.setExperienceLevel(request.getExperienceLevel());
+        application.setExperienceDescription(request.getExperienceDescription().trim());
+        application.setAdditionalPhoneNumbers(request.getAdditionalPhoneNumbers() == null || request.getAdditionalPhoneNumbers().isEmpty()
+                ? null
+                : String.join(",", request.getAdditionalPhoneNumbers().stream().map(String::trim).distinct().toList()));
+
+        // A creator's skills and interests are read from the application and the profile together, so keep the
+        // two in step - otherwise something the creator just removed would still be shown from the profile.
+        creatorProfileRepository.findByUserId(userId).ifPresent(profile -> {
+            profile.setSkills(skills);
+            profile.setInterests(interests);
+            creatorProfileRepository.save(profile);
+        });
+
+        return mapToResponse(creatorApplicationRepository.save(application));
+    }
+
+    /** Trimmed, de-duplicated (ignoring capitals) and comma separated, the way skills are stored. */
+    private static String joinTags(List<String> tags) {
+        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        java.util.List<String> kept = new java.util.ArrayList<>();
+        for (String tag : tags) {
+            String clean = tag.trim().replace(",", " ");
+            if (!clean.isBlank() && seen.add(clean.toLowerCase(java.util.Locale.ROOT))) {
+                kept.add(clean);
+            }
+        }
+        return String.join(", ", kept);
+    }
+
     private CreatorApplicationResponse mapToResponse(CreatorApplication application) {
         return CreatorApplicationResponse.builder()
                 .id(application.getId())
@@ -112,9 +177,10 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
                 .aboutYou(application.getAboutYou())
                 .skills(application.getSkills())
                 .interests(application.getInterests())
+                .languages(LanguageSkills.toResponses(LanguageSkills.deserialize(application.getLanguages())))
                 .experienceLevel(application.getExperienceLevel().name())
                 .experienceDescription(application.getExperienceDescription())
-                .proofDocumentUrl(application.getProofDocumentUrl())
+                .proofUploaded(application.getProofDocumentUrl() != null && !application.getProofDocumentUrl().isBlank())
                 .status(application.getStatus().name())
                 .submittedAt(application.getSubmittedAt())
                 .build();

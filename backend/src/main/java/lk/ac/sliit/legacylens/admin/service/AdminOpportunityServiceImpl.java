@@ -14,8 +14,10 @@ import lk.ac.sliit.legacylens.admin.repository.OpportunityAudioRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
+import lk.ac.sliit.legacylens.marketplace.event.OpportunityPublishedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,16 +37,27 @@ public class AdminOpportunityServiceImpl implements AdminOpportunityService {
     private final OpportunityRepository opportunityRepository;
     private final UserRepository userRepository;
     private final AdminAuditService auditService;
+    private final ApplicationEventPublisher events;
 
     public AdminOpportunityServiceImpl(
             OpportunityAudioRepository opportunityAudioRepository,
             OpportunityRepository opportunityRepository,
             UserRepository userRepository,
-            AdminAuditService auditService) {
+            AdminAuditService auditService,
+            ApplicationEventPublisher events) {
         this.opportunityAudioRepository = opportunityAudioRepository;
         this.opportunityRepository = opportunityRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.events = events;
+    }
+
+    /** Tells the knowledge holder their opportunity is live; one with no knowledge holder has nobody to tell. */
+    private void announcePublished(Opportunity opportunity) {
+        if (opportunity.getElder() != null && opportunity.getId() != null) {
+            events.publishEvent(new OpportunityPublishedEvent(
+                    opportunity.getElder().getId(), opportunity.getId(), opportunity.getTitle()));
+        }
     }
 
     @Override
@@ -89,6 +102,9 @@ public class AdminOpportunityServiceImpl implements AdminOpportunityService {
         }
         Opportunity saved = opportunityRepository.save(opportunity);
         auditService.logAction(AuditActionType.CREATED, "Opportunity", saved.getId() != null ? saved.getId().toString() : null, request.getTitle(), performedById, performedByName, "New opportunity created");
+        if (saved.getStatus() == OpportunityStatus.PUBLISHED) {
+            announcePublished(saved);
+        }
         return mapToAdminResponse(saved);
     }
 
@@ -102,6 +118,7 @@ public class AdminOpportunityServiceImpl implements AdminOpportunityService {
         opportunity.setStatus(OpportunityStatus.PUBLISHED);
         Opportunity saved = opportunityRepository.save(opportunity);
         auditService.logAction(AuditActionType.PUBLISHED, "Opportunity", saved.getId() != null ? saved.getId().toString() : null, request.getTitle(), performedById, performedByName, "Opportunity published from audio submission: " + audioId);
+        announcePublished(saved);
 
         audio.setStatus(AudioReviewStatus.FULLY_LISTENED);
         opportunityAudioRepository.save(audio);
@@ -140,8 +157,12 @@ public class AdminOpportunityServiceImpl implements AdminOpportunityService {
     public AdminOpportunityResponse updateOpportunityStatus(String id, UpdateOpportunityStatusRequest request, String performedById, String performedByName) {
         Opportunity opportunity = opportunityRepository.findById(UUID.fromString(id))
                 .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
+        OpportunityStatus before = opportunity.getStatus();
         opportunity.setStatus(OpportunityStatus.valueOf(request.getStatus().toUpperCase()));
         Opportunity saved = opportunityRepository.save(opportunity);
+        if (before != OpportunityStatus.PUBLISHED && saved.getStatus() == OpportunityStatus.PUBLISHED) {
+            announcePublished(saved);
+        }
         auditService.logAction(AuditActionType.UPDATED, "Opportunity", id, saved.getTitle(), performedById, performedByName, "Status changed to: " + request.getStatus());
         return mapToAdminResponse(saved);
     }
@@ -164,6 +185,7 @@ public class AdminOpportunityServiceImpl implements AdminOpportunityService {
         opportunity.setOfferedAmount(request.getOfferedAmount());
         opportunity.setPreservationGoal(request.getPreservationGoal());
         opportunity.setTasks(request.getTasks());
+        opportunity.setRequiredSkills(request.getRequiredSkills());
 
         User elder = null;
         if (request.getElderId() != null) {

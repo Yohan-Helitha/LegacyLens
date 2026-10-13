@@ -215,7 +215,8 @@ export const PostHireRequestScreen: React.FC<PostHireRequestScreenProps> = ({
       <ElderNavDrawer
         visible={drawerVisible}
         onClose={() => setDrawerVisible(false)}
-        activeItem="hire"
+        // Posting a request is part of My Requests; "Hire a Creator" is the recommendations screen.
+        activeItem="myRequests"
         onNavigate={onDrawerNavigate}
         onLogout={onLogout}
       />
