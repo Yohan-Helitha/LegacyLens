@@ -213,18 +213,10 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleBackToDashboard = () => setScreen('dashboard');
 
   /**
-   * Called when the creator application is submitted.
-   *
-   * TEMPORARY: admin review isn't built yet, so there's no real way for a
-   * PENDING application to ever become VERIFIED/REJECTED — landing on the
-   * pending screen would strand testing here indefinitely. Skipping straight
-   * to the dashboard for now so the rest of the app remains reachable.
-   * Restore the commented line below once admin verification exists.
+   * Called when the creator application is submitted: the admin decides next, so the creator waits on
+   * the status page (which has temporary test buttons for the admin's decision until their screen exists).
    */
-  const handleApplicationSubmit = () => {
-    // setScreen('pending');
-    setScreen('dashboard');
-  };
+  const handleApplicationSubmit = () => setScreen('pending');
 
   /** Called when "Back to Home" is pressed on the verification pending screen */
   const handleBackToHome = () => setScreen('dashboard');

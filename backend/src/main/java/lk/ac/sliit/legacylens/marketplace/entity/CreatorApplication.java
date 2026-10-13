@@ -102,4 +102,11 @@ public class CreatorApplication {
 
     @Column(name = "submitted_at", nullable = false)
     private LocalDateTime submittedAt;
+
+    /** What the admin wrote when deciding - for a rejection, the reason the applicant sees. */
+    @Column(name = "review_note", columnDefinition = "TEXT")
+    private String reviewNote;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
 }

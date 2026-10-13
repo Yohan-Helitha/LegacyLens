@@ -46,6 +46,7 @@ class JobWorkProgressServiceImplTest {
     @Mock private WorkChecklistProgressRepository checklistProgressRepository;
     @Mock private OpportunityRepository opportunityRepository;
     @Mock private FileStorageService fileStorageService;
+    @Mock private org.springframework.context.ApplicationEventPublisher events;
 
     private JobWorkProgressServiceImpl service;
     private final UUID creatorId = UUID.randomUUID();
@@ -57,7 +58,7 @@ class JobWorkProgressServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new JobWorkProgressServiceImpl(jobRepository, workProgressRepository, workMaterialRepository,
-                checklistItemRepository, checklistProgressRepository, opportunityRepository, fileStorageService);
+                checklistItemRepository, checklistProgressRepository, opportunityRepository, fileStorageService, events);
 
         job = new Job();
         job.setId(UUID.randomUUID());

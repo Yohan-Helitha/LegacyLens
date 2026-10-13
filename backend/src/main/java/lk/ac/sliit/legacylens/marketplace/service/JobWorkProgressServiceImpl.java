@@ -20,6 +20,8 @@ import lk.ac.sliit.legacylens.marketplace.repository.JobWorkProgressRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityChecklistItemRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.WorkChecklistProgressRepository;
+import lk.ac.sliit.legacylens.marketplace.event.WorkSubmittedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,6 +48,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
     private final WorkChecklistProgressRepository checklistProgressRepository;
     private final OpportunityRepository opportunityRepository;
     private final FileStorageService fileStorageService;
+    private final ApplicationEventPublisher events;
 
     public JobWorkProgressServiceImpl(
             JobRepository jobRepository,
@@ -54,7 +57,8 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
             OpportunityChecklistItemRepository checklistItemRepository,
             WorkChecklistProgressRepository checklistProgressRepository,
             OpportunityRepository opportunityRepository,
-            FileStorageService fileStorageService) {
+            FileStorageService fileStorageService,
+            ApplicationEventPublisher events) {
 
         this.jobRepository = jobRepository;
         this.workProgressRepository = workProgressRepository;
@@ -63,6 +67,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         this.checklistProgressRepository = checklistProgressRepository;
         this.opportunityRepository = opportunityRepository;
         this.fileStorageService = fileStorageService;
+        this.events = events;
     }
 
     @Override
@@ -175,6 +180,8 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         // Submitting no longer force-completes the checklist or the percentage —
         // whatever fraction of tasks is actually checked off is what gets sent
         // for review. The frontend warns the creator first if items remain.
+        // Work that was sent back and is now sent again reads differently to the reviewer than a first submission.
+        boolean resubmission = progress.isRejected();
         progress.setDraft(false);
         if (progress.getSubmittedAt() == null) {
             progress.setSubmittedAt(LocalDateTime.now());
@@ -195,7 +202,14 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         progress.setElderApproved(false);
         progress.setAdminApproved(false);
 
-        return mapToResponse(workProgressRepository.save(progress));
+        JobWorkProgress saved = workProgressRepository.save(progress);
+
+        // The knowledge holder is told once this is committed; a job with no owner has nobody to tell.
+        if (job.getElder() != null) {
+            events.publishEvent(new WorkSubmittedEvent(
+                    job.getElder().getId(), job.getId(), job.getTitle(), job.getCreator().getFullName(), resubmission));
+        }
+        return mapToResponse(saved);
     }
 
     @Override
