@@ -455,16 +455,20 @@ export const HomeScreen: React.FC<{
     );
   }, []);
 
-  const handleLikeCountChange = useCallback((postId: string, newCount: number) => {
+  const handleLikeCountChange = useCallback((postId: string, newCount: number, liked?: boolean) => {
     setAllFeedItems((prev) =>
       prev.map((item) =>
-        String(item.id) === String(postId) ? ({ ...item, likesCount: newCount } as any) : item
+        String(item.id) === String(postId)
+          ? ({ ...item, likesCount: newCount, ...(liked !== undefined ? { liked } : {}) } as any)
+          : item
       )
     );
     setDiscoverySearchResults((prev) =>
       prev
         ? prev.map((item) =>
-            String(item.id) === String(postId) ? ({ ...item, likesCount: newCount } as any) : item
+            String(item.id) === String(postId)
+              ? ({ ...item, likesCount: newCount, ...(liked !== undefined ? { liked } : {}) } as any)
+              : item
           )
         : null
     );
@@ -629,7 +633,7 @@ export const HomeScreen: React.FC<{
           }
           ListHeaderComponent={
             <>
-              {activeTab === 'Explore all' && !searchQuery && !selectedCategoryId && (
+              {!loadingFeed && activeTab === 'Explore all' && !searchQuery && !selectedCategoryId && (
                 <>
                   <WordOfTheDay />
                   {featuredKeeper && (
@@ -676,6 +680,7 @@ export const HomeScreen: React.FC<{
                   setCommentModalVisible={setCommentModalVisible}
                   onNavigate={onNavigate}
                   onLikeChange={handleLikeCountChange}
+                  initialLiked={item.liked}
                 />
               );
             }
@@ -691,6 +696,7 @@ export const HomeScreen: React.FC<{
                   setCommentModalVisible={setCommentModalVisible}
                   onNavigate={onNavigate}
                   onLikeChange={handleLikeCountChange}
+                  initialLiked={item.liked}
                 />
               );
             }
@@ -704,6 +710,7 @@ export const HomeScreen: React.FC<{
                 setActivePostId={setActivePostId}
                 setCommentModalVisible={setCommentModalVisible}
                 onLikeChange={handleLikeCountChange}
+                initialLiked={item.liked}
               />
             );
           }}
