@@ -16,6 +16,7 @@ import {
   BookOpen,
   Handshake,
   BadgeCheck,
+  UserSearch,
   ClipboardList,
   Star,
   Mic,
@@ -65,10 +66,9 @@ const NAV_ITEMS: { key: ElderDrawerItem; label: string; icon: LucideIcon }[] = [
   { key: 'requests', label: 'Requests', icon: Handshake },
   { key: 'trust', label: 'Trust Score', icon: BadgeCheck },
   { key: 'reviews', label: 'Reviews & Ratings', icon: Star },
-  // 'hire' (straight to the post-a-request form) deliberately isn't listed
-  // here anymore — My Requests is the one Hire a Creator entry point in the
-  // drawer; starting a new request happens from there (or the floating
-  // "Ask for help" button), not a second direct drawer shortcut.
+  // Opens the creators recommended for each of the elder's open opportunities; posting a new request
+  // lives under My Requests (or the floating "Ask for help" button).
+  { key: 'hire', label: 'Hire a Creator', icon: UserSearch },
   { key: 'myRequests', label: 'My Requests', icon: ClipboardList },
 ];
 
