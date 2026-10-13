@@ -32,18 +32,25 @@ export const apiClient: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+import { userLikesStorage } from '../../utils/userLikesStorage';
+
 // Attach the current session token, if any — only relevant once
 // authenticated-only endpoints exist; auth/** itself is all public.
-apiClient.interceptors.request.use((config) => {
+apiClient.interceptors.request.use(async (config) => {
   const { token, user } = useAuthStore.getState();
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);
   }
   if (user) {
+    config.headers.set('X-User-Id', user.userId);
     config.headers.set('X-Admin-Id', user.userId);
     if (user.fullName) {
       config.headers.set('X-Admin-Name', user.fullName);
     }
+  }
+  const clientId = userLikesStorage.getClientIdSync() || await userLikesStorage.getClientId();
+  if (clientId) {
+    config.headers.set('X-Client-Id', clientId);
   }
   return config;
 });
