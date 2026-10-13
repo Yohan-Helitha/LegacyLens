@@ -1,16 +1,27 @@
-import { apiGet, apiPost } from './client';
+import { apiGet, apiPatch, apiPost, apiPostForm } from './client';
 import {
   ConfirmNicChangeRequest,
   ConfirmPhoneChangeRequest,
   ConfirmPinChangeRequest,
   RequestNicChangeRequest,
   RequestPhoneChangeRequest,
+  UpdateProfileRequest,
   UserProfile,
 } from '../../types/profile';
 
-/** Typed wrappers around GET/POST /api/users/me/**. */
+/** Typed wrappers around GET/PATCH/POST /api/users/me/**. */
 export const profileApi = {
   getMe: () => apiGet<UserProfile>('/users/me'),
+
+  /** Full name / city only — phone/NIC/PIN go through the OTP-verified request/confirm flows below. */
+  updateMe: (body: UpdateProfileRequest) => apiPatch<UserProfile, UpdateProfileRequest>('/users/me', body),
+
+  /** Replaces the profile picture with a photo from the camera or gallery. */
+  uploadPhoto: (photo: { uri: string; name: string; type: string }) => {
+    const form = new FormData();
+    form.append('photo', photo as unknown as Blob);
+    return apiPostForm<UserProfile>('/users/me/photo', form);
+  },
 
   requestPhoneChange: (body: RequestPhoneChangeRequest) =>
     apiPost<void, RequestPhoneChangeRequest>('/users/me/phone/request-change', body),

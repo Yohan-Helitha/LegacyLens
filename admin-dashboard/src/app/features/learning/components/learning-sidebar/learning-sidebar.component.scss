@@ -1,0 +1,156 @@
+// ─── Sidebar Component Styles ──────────────────────────────────────────────
+// Theme tokens are defined globally in styles.scss via [data-le-theme].
+// This file only contains sidebar-specific structural styles.
+
+:host {
+  display: block;
+  height: 100vh;
+  flex-shrink: 0;
+}
+
+.le-sidebar {
+  background: var(--le-sb-bg);
+  border-right: 1px solid var(--le-sb-border);
+  box-shadow: 4px 0 40px rgba(0, 0, 0, 0.3);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.le-sidebar__header {
+  border-bottom: 1px solid var(--le-sb-border);
+}
+
+.le-sidebar__logo {
+  background: linear-gradient(135deg, #0f5c5c, #004343);
+  box-shadow: 0 0 16px rgba(0, 67, 67, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.le-sidebar__brand-name {
+  color: var(--le-sb-brand);
+  transition: color 0.3s;
+}
+
+.le-sidebar__brand-sub {
+  color: var(--le-sb-sub);
+  transition: color 0.3s;
+}
+
+.le-sidebar__section-label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0 14px;
+  color: var(--le-sb-label);
+  transition: color 0.3s;
+}
+
+.le-sidebar__nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--le-sb-text);
+  cursor: pointer;
+  text-decoration: none;
+  position: relative;
+  border: 1px solid transparent;
+
+  .le-sidebar__nav-icon {
+    font-size: 20px;
+    color: var(--le-sb-text);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s;
+  }
+
+  .le-sidebar__nav-label {
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  &:hover:not(.active-link) {
+    background: var(--le-sb-hover);
+    color: rgba(255, 255, 255, 0.85);
+
+    .le-sidebar__nav-icon {
+      transform: scale(1.1);
+      color: rgba(255, 255, 255, 0.75);
+    }
+  }
+
+  &.active-link {
+    background: var(--le-sb-active-bg);
+    border-color: var(--le-sb-active-border);
+    color: var(--le-sb-active-text);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.08);
+
+    .le-sidebar__nav-icon {
+      color: var(--le-sb-active-text);
+      font-variation-settings: 'FILL' 1;
+    }
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 55%;
+      background: var(--le-sb-active-text);
+      border-radius: 0 2px 2px 0;
+      box-shadow: 0 0 8px var(--le-sb-active-text);
+    }
+  }
+}
+
+// ── Theme Toggle Button ─────────────────────────────────────────────────────
+.le-sidebar__theme-toggle {
+  background: var(--le-toggle-bg);
+  border: 1px solid var(--le-sb-border);
+  color: var(--le-toggle-text);
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #fff;
+  }
+}
+
+.le-sidebar__toggle-pill {
+  background: var(--le-toggle-track);
+  transition: background 0.3s;
+
+  &.active {
+    background: var(--le-toggle-track-on);
+  }
+}
+
+.le-sidebar__toggle-thumb {
+  background: var(--le-toggle-thumb);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s;
+
+  &.translate-x-5 {
+    transform: translateX(20px);
+    background: var(--le-toggle-thumb-on);
+  }
+}
+
+// ── Tip Card ────────────────────────────────────────────────────────────────
+.le-sidebar__tip {
+  background: var(--le-sb-tip-bg);
+  border: 1px solid var(--le-sb-tip-border);
+}
+
+.le-sidebar__tip-title {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.le-sidebar__tip-text {
+  color: var(--le-sb-tip-text);
+}

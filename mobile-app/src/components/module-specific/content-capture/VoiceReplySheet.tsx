@@ -21,6 +21,10 @@ interface VoiceReplySheetProps {
   applicantName: string;
   onClose: () => void;
   onSave: (clip: VoiceReplyClip) => void;
+  /** Optional wording for other uses of the sheet (e.g. a chat); the applicant-reply wording is the default. */
+  title?: string;
+  hint?: string;
+  saveLabel?: string;
 }
 
 function formatDuration(ms: number): string {
@@ -35,7 +39,7 @@ function formatDuration(ms: number): string {
  * decides anything. One big mic to start/stop, then "Record again" or "Save
  * reply" — it never commits an approve or reject.
  */
-export const VoiceReplySheet: React.FC<VoiceReplySheetProps> = ({ visible, applicantName, onClose, onSave }) => {
+export const VoiceReplySheet: React.FC<VoiceReplySheetProps> = ({ visible, applicantName, onClose, onSave, title, hint, saveLabel }) => {
   const { t } = useHireStrings();
   const insets = useSafeAreaInsets();
   const { state, elapsedMs, start, stop } = useAudioRecorder();
@@ -81,7 +85,7 @@ export const VoiceReplySheet: React.FC<VoiceReplySheetProps> = ({ visible, appli
           <View style={s.titleRow}>
             <View style={s.titleText}>
               <Text style={s.title} accessibilityRole="header">
-                {t('voice.title')}
+                {title ?? t('voice.title')}
               </Text>
               <Text style={s.applicant} numberOfLines={1}>
                 {applicantName}
@@ -96,7 +100,7 @@ export const VoiceReplySheet: React.FC<VoiceReplySheetProps> = ({ visible, appli
             />
           </View>
 
-          <Text style={s.hint}>{t('voice.hint')}</Text>
+          <Text style={s.hint}>{hint ?? t('voice.hint')}</Text>
 
           {clip ? (
             <View style={s.stage}>
@@ -113,7 +117,7 @@ export const VoiceReplySheet: React.FC<VoiceReplySheetProps> = ({ visible, appli
                   }}
                   style={s.actionBtn}
                 />
-                <HireActionButton label={t('voice.save')} onPress={() => onSave(clip)} style={s.actionBtn} />
+                <HireActionButton label={saveLabel ?? t('voice.save')} onPress={() => onSave(clip)} style={s.actionBtn} />
               </View>
             </View>
           ) : (

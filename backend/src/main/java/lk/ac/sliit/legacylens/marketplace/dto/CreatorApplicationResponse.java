@@ -23,9 +23,11 @@ public class CreatorApplicationResponse {
     private String aboutYou;
     private String skills;
     private String interests;
+    private java.util.List<LanguageSkillResponse> languages;
     private String experienceLevel;
     private String experienceDescription;
-    private String proofDocumentUrl;
+    /** Whether a verification document is on file. The document itself is private - see CreatorProofService. */
+    private boolean proofUploaded;
     private String status;
     private LocalDateTime submittedAt;
 }

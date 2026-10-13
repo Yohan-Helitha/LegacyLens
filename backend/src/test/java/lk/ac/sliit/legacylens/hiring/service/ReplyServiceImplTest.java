@@ -34,7 +34,7 @@ class ReplyServiceImplTest {
         replyService.replyWithVoice(CONVERSATION_ID, USER_ID, "/uploads/voice-replies/clip.m4a");
 
         ArgumentCaptor<MessageContent> captor = ArgumentCaptor.forClass(MessageContent.class);
-        verify(messagingChannelPort).sendMessage(eq(CONVERSATION_ID), captor.capture());
+        verify(messagingChannelPort).sendMessage(eq(CONVERSATION_ID), eq(USER_ID), captor.capture());
         assertThat(captor.getValue().getValue()).isEqualTo("/uploads/voice-replies/clip.m4a");
     }
 
@@ -43,7 +43,7 @@ class ReplyServiceImplTest {
         replyService.replyWithVoice(CONVERSATION_ID, USER_ID, "/uploads/voice-replies/clip.m4a");
 
         ArgumentCaptor<MessageContent> captor = ArgumentCaptor.forClass(MessageContent.class);
-        verify(messagingChannelPort).sendMessage(eq(CONVERSATION_ID), captor.capture());
+        verify(messagingChannelPort).sendMessage(eq(CONVERSATION_ID), eq(USER_ID), captor.capture());
         assertThat(captor.getValue().getType()).isEqualTo(MessageContentType.VOICE_NOTE);
     }
 }

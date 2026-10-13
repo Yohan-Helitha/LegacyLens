@@ -15,7 +15,8 @@
     "skipLibCheck": true,
     "types": [
       "react-native",
-      "node"
+      "node",
+      "jest"
     ],
     "baseUrl": ".",
     "paths": {

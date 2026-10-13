@@ -22,6 +22,63 @@
   --font-body: 'Work Sans', sans-serif;
 }
 
+/* ─── Learning Engine Design Tokens (matches LegacyLens admin palette) ──── */
+:root {
+  /* Page background — same as main admin dashboard */
+  --le-bg:              #F8FAF9;
+  --le-surface:         #FFFFFF;
+  --le-surface-hover:   #F2F4F3;
+
+  /* Text hierarchy */
+  --le-text-primary:    #191C1C;
+  --le-text-secondary:  #3F4948;
+  --le-text-muted:      #6F7978;
+
+  /* Card borders */
+  --le-border:          #E1E3E2;
+  --le-border-hover:    #BFC8C8;
+
+  /* Primary brand — dark teal */
+  --le-accent:          #004343;
+  --le-accent-dark:     #003131;
+  --le-accent-soft:     rgba(0, 67, 67, 0.08);
+  --le-accent-border:   rgba(0, 67, 67, 0.15);
+
+  /* Secondary — orange (action buttons, badges) */
+  --le-orange:          #FE893E;
+  --le-orange-dark:     #9B4600;
+  --le-orange-soft:     rgba(254, 137, 62, 0.12);
+  --le-orange-border:   rgba(254, 137, 62, 0.25);
+
+  /* Status colours */
+  --le-success:         #004343;
+  --le-warning:         #FE893E;
+  --le-danger:          #BA1A1A;
+}
+
+/* ─── Learning Engine Sidebar Tokens (matches #004343 admin sidebar) ────── */
+:root {
+  --le-sb-bg:            #004343;
+  --le-sb-border:        rgba(255, 255, 255, 0.08);
+
+  --le-sb-brand:         #ffffff;
+  --le-sb-sub:           rgba(255, 255, 255, 0.55);
+  --le-sb-label:         rgba(255, 255, 255, 0.40);
+  --le-sb-text:          rgba(255, 255, 255, 0.80);
+
+  --le-sb-hover:         rgba(255, 255, 255, 0.08);
+
+  /* Active nav item — orange pill (same as admin sidebar active) */
+  --le-sb-active-bg:     #FE893E;
+  --le-sb-active-border: rgba(254, 137, 62, 0.4);
+  --le-sb-active-text:   #2D1200;
+
+  /* Tip card */
+  --le-sb-tip-bg:        rgba(255, 255, 255, 0.06);
+  --le-sb-tip-border:    rgba(255, 255, 255, 0.10);
+  --le-sb-tip-text:      rgba(255, 255, 255, 0.55);
+}
+
 /* ─── Base Resets ────────────────────────────────────────────────────────── */
 *,
 *::before,

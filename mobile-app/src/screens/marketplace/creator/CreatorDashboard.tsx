@@ -1,32 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Image,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
+import { Handshake, Video } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
+import { FeedbackCarousel } from '../../../components/module-specific/marketplace/FeedbackCarousel';
+import { resolveOpportunityImage } from '../../../utils/opportunityImages';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
+import { profileApi } from '../../../services/api/profileApi';
+import { useAuthStore } from '../../../store/authStore';
+import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
+import { ApiError } from '../../../services/api/client';
 import type {
   CreatorDashboardSummaryResponse,
   DashboardJobStatus,
   JobResponse,
 } from '../../../types/creatorDashboard';
+import type { OpportunityApplicationResponse } from '../../../types/opportunityApplication';
 
-// Recent Work gallery — bundled locally so the viva demo never depends on network access.
-const POTTERY_IMAGE = require('../../../../assets/images/recent-work/pottery-making.jpg');
-const BLUE_RICE_IMAGE = require('../../../../assets/images/recent-work/blue-rice.jpg');
-const KANDYAN_DANCE_IMAGE = require('../../../../assets/images/recent-work/kandyan-dance.jpg');
-const SCRIPT_EVOLUTION_IMAGE = require('../../../../assets/images/recent-work/script-evolution.png');
+// Fallback picture for a completed job that has no photo of its own (same one My Work uses).
+const GENERIC_WORK_IMAGE = require('../../../../assets/images/work/traditional-rice-menu.jpg');
+
+/** How many of the newest completed jobs the dashboard shows; the rest live in My Work > Completed. */
+const RECENT_WORK_SHOWN = 4;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -66,20 +76,30 @@ type JobTab = 'active' | 'upcoming' | 'completed';
 
 type ActiveJobItem = {
   id: string;
-  icon: string;
   title: string;
   client: string;
   description: string;
   location: string;
-  dueText: string;
+  /** The day it is scheduled for (or when it was completed). */
+  dateText: string;
+  /** The time range of the visit, e.g. "10:00 AM - 2:00 PM"; empty when not set. */
+  timeText: string;
   statusLabel: string;
+  /** Urgent work gets a red edge on its card instead of the usual orange. */
+  urgent: boolean;
 };
 
 type ReviewItem = {
   id: string;
-  quote: string;
+  rating: number;
+  /** Null when the knowledge holder gave stars only. */
+  quote: string | null;
   author: string;
+  opportunityTitle: string;
 };
+
+/** How many of the newest reviews the dashboard carries; older ones live under each completed job. */
+const FEEDBACK_SHOWN = 4;
 
 const TAB_TO_STATUS: Record<JobTab, DashboardJobStatus> = {
   active: 'ACTIVE',
@@ -87,86 +107,65 @@ const TAB_TO_STATUS: Record<JobTab, DashboardJobStatus> = {
   completed: 'COMPLETED',
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Fallback data — shown only if the /api/creator-dashboard/** call fails
-// (e.g. no connectivity), so the screen never renders blank or broken.
-// ─────────────────────────────────────────────────────────────────────────────
-const FALLBACK_SUMMARY: CreatorDashboardSummaryResponse = {
-  rating: 4.8,
-  completedJobsCount: 24,
-  contributionsCount: 38,
-  collectedToday: 2300,
-};
-
-const FALLBACK_ACTIVE_JOBS: ActiveJobItem[] = [
-  {
-    id: 'fallback-1',
-    icon: '🎥',
-    title: 'Recording Local History',
-    client: 'Mrs. Kamala Wijesinghe',
-    description:
-      'Recording oral history regarding the 1970s textile industry in Colombo, focusing on traditional methods and personal anecdotes.',
-    location: 'Colombo South',
-    dueText: 'Due in 3 days',
-    statusLabel: 'IN PROGRESS',
-  },
-  {
-    id: 'fallback-2',
-    icon: '🎥',
-    title: 'Traditional Food Recipe Documentation',
-    client: 'Mrs. Kamala Wijesinghe',
-    description:
-      'Recording the step-by-step preparation of a traditional Negombo family recipe, including ingredient measurements and cooking techniques.',
-    location: 'Negombo',
-    dueText: 'Due in 3 days',
-    statusLabel: 'IN PROGRESS',
-  },
-];
-
-const FALLBACK_REVIEWS: ReviewItem[] = [
-  {
-    id: 'fallback-1',
-    quote:
-      'Incredibly patient and captured my grandmother’s stories perfectly. The audio quality is fantastic.',
-    author: 'Surangi D.',
-  },
-];
-
-function formatDueDate(iso: string): string {
-  const diffDays = Math.round((new Date(iso).getTime() - Date.now()) / 86400000);
-  if (diffDays > 1) return `Due in ${diffDays} days`;
-  if (diffDays === 1) return 'Due tomorrow';
-  if (diffDays === 0) return 'Due today';
-  return 'Overdue';
-}
-
 function formatCompletedDate(iso: string): string {
   return `Completed ${new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+}
+
+function formatAppDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// Local (not UTC) y-m-d / HH:mm — avoids the date/time shifting a day or hour
+// off that toISOString() would cause for users west of UTC.
+function toDateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function toTimeKey(d: Date): string {
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${min}`;
+}
+
+function formatLongDate(d: Date): string {
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function formatClockTime(d: Date): string {
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
 function mapJobToItem(job: JobResponse): ActiveJobItem {
   const statusLabel =
     job.status === 'ACTIVE' ? 'IN PROGRESS' : job.status === 'UPCOMING' ? 'UPCOMING' : 'COMPLETED';
-  const dueText =
-    job.status === 'COMPLETED'
-      ? job.completedAt
-        ? formatCompletedDate(job.completedAt)
-        : ''
-      : job.scheduledAt
-        ? formatDueDate(job.scheduledAt)
-        : '';
+  const completed = job.status === 'COMPLETED';
+  const dateText = completed
+    ? (job.completedAt ? formatCompletedDate(job.completedAt) : '')
+    : (job.scheduledAt ? formatAppDate(job.scheduledAt) : '');
+  const timeText = completed ? '' : (job.timeWindowText ?? (job.scheduledAt ? formatClockTime(new Date(job.scheduledAt)) : ''));
 
   return {
     id: job.id,
-    icon: '🎥',
     title: job.title,
     client: job.elderName,
     description: job.description,
     location: job.location ?? '',
-    dueText,
+    dateText,
+    timeText,
     statusLabel,
+    urgent: job.urgent,
   };
 }
+
+// The movie-camera look of the old emoji, as a crisp line icon (lucide - the same set as the side menu).
+const JobIcon: React.FC = () => (
+  <View style={s.jobIconBox}>
+    <Video size={22} color={D.primary} strokeWidth={1.8} />
+  </View>
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Minimal inline icons (emoji-based, zero extra dependencies)
@@ -192,53 +191,31 @@ const ClockIcon: React.FC<IconProps> = ({ size = 13, color = '#E8792E' }) => (
   </Svg>
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC = () => (
-  <View style={s.appBar}>
-    <Pressable
-      style={({ pressed }) => [s.appBarIconBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Open menu"
-    >
-      <View style={s.hamburger}>
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-        <View style={s.hamburgerLine} />
-      </View>
-    </Pressable>
-
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-
-    <Pressable
-      style={({ pressed }) => [s.appBarIconBtn, pressed && s.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel="Notifications"
-    >
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
-      </View>
-    </Pressable>
-  </View>
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GreetingSection
 // ─────────────────────────────────────────────────────────────────────────────
-const GreetingSection: React.FC = () => (
+// Greeting follows the phone's clock: morning until noon, afternoon until 5 pm, evening after that.
+function greetingForHour(hour: number): string {
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
+
+const GreetingSection: React.FC<{ name: string }> = ({ name }) => (
   <View style={s.greetingRow}>
     <Image
       source={{
         uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBdmWxeiutm8VuCuwb8B-bcbY4uwLEOEIZpHad16sSCOnOCn176-8moOj3W6uDPAciix85yHVNmpAd1RTzDZNIib4AVMq68gwoQfyYec-CiNygpv3Rti52MfEWixskGSi9K2HzQJc1XhIg649C9xWHdmBqgXNA5LsR-CP4PfF7fUKsBLElU0twICuF7-ZcI9Vlnj9GgnzoL4Bqj9ilpxA4BZs3oFt_0h7PcPdk4HDm4JKWKr6S3bofO2g',
       }}
       style={s.avatar}
-      accessibilityLabel="Inothma's profile photo"
+      accessibilityLabel="Your profile photo"
     />
     <View style={s.greetingText}>
-      <Text style={s.greetingHeadline}>Good Morning, Inothma 👋</Text>
+      <View style={s.greetingHeadlineRow}>
+        <Text style={s.greetingHeadline}>{`${greetingForHour(new Date().getHours())}${name ? `, ${name}` : ''}`}</Text>
+        <Handshake size={22} color={D.secondary} strokeWidth={2} />
+      </View>
       <Text style={s.greetingSubtitle}>Ready to preserve a story today?</Text>
     </View>
   </View>
@@ -248,7 +225,7 @@ const GreetingSection: React.FC = () => (
 // MetricsSection  (stats card + balance card)
 // ─────────────────────────────────────────────────────────────────────────────
 const MetricsSection: React.FC<{
-  summary: CreatorDashboardSummaryResponse;
+  summary: CreatorDashboardSummaryResponse | null;
   onOpenHistory: () => void;
   onAddPayment: () => void;
 }> = ({ summary, onOpenHistory, onAddPayment }) => (
@@ -256,12 +233,12 @@ const MetricsSection: React.FC<{
     {/* ── Stats row ─────────────────────────────────────────────────────── */}
     <View style={s.statsCard}>
       <View style={s.ratingRow}>
-        <Text style={s.ratingValue}>{summary.rating != null ? summary.rating.toFixed(1) : '—'}</Text>
+        <Text style={s.ratingValue}>{summary?.rating != null ? summary.rating.toFixed(1) : '—'}</Text>
         <StarIcon size={20} color={D.tertiaryContainer} />
       </View>
       <View style={s.statsRight}>
-        <Text style={s.statsJobCount}>{summary.completedJobsCount} completed jobs</Text>
-        <Text style={s.statsContrib}>{summary.contributionsCount} contributions</Text>
+        <Text style={s.statsJobCount}>{summary ? `${summary.completedJobsCount} completed jobs` : 'Loading…'}</Text>
+        <Text style={s.statsContrib}>{summary ? `${summary.contributionsCount} contributions` : ''}</Text>
       </View>
     </View>
 
@@ -272,7 +249,7 @@ const MetricsSection: React.FC<{
 
       <Text style={s.balanceLabel}>COLLECTED TODAY</Text>
       <Text style={s.balanceAmount}>
-        LKR {Math.round(summary.collectedToday ?? 0).toLocaleString('en-US')}
+        {summary ? `LKR ${Math.round(summary.collectedToday ?? 0).toLocaleString('en-US')}` : 'LKR —'}
       </Text>
 
       <View style={s.balanceBtnRow}>
@@ -323,16 +300,14 @@ const TabPill: React.FC<{
 const ActiveJobCard: React.FC<{ item: ActiveJobItem; onPress: () => void }> = ({ item, onPress }) => (
   <Pressable
     onPress={onPress}
-    style={({ pressed }) => [s.jobCard, pressed && s.jobCardPressed]}
+    style={({ pressed }) => [s.jobCard, item.urgent && s.jobCardUrgent, pressed && s.jobCardPressed]}
     accessibilityRole="button"
-    accessibilityLabel={`${item.title} — ${item.statusLabel}`}
+    accessibilityLabel={`${item.urgent ? 'Urgent. ' : ''}${item.title} — ${item.statusLabel}`}
   >
     {/* Header */}
     <View style={s.jobCardHeader}>
       <View style={s.jobCardLeft}>
-        <View style={s.jobIconBox}>
-          <Text style={{ fontSize: 18 }}>{item.icon}</Text>
-        </View>
+        <JobIcon />
         <View style={{ flex: 1 }}>
           <Text style={s.jobTitle}>{item.title}</Text>
           <Text style={s.jobClient}>{item.client}</Text>
@@ -350,127 +325,257 @@ const ActiveJobCard: React.FC<{ item: ActiveJobItem; onPress: () => void }> = ({
 
     {/* Meta footer */}
     <View style={s.jobMeta}>
-      <View style={s.jobMetaItem}>
-        <View style={s.jobMetaIconBox}>
-          <PinIcon />
+      {!!item.location && (
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}>
+            <PinIcon />
+          </View>
+          <Text style={s.jobMetaText}>{item.location}</Text>
         </View>
-        <Text style={s.jobMetaText}>{item.location}</Text>
-      </View>
-      <View style={s.jobMetaItem}>
-        <View style={s.jobMetaIconBox}>
-          <ClockIcon />
+      )}
+      {(!!item.dateText || !!item.timeText) && (
+        <View style={s.jobMetaWhen}>
+          {!!item.dateText && (
+            <View style={s.jobMetaItem}>
+              <View style={s.jobMetaIconBox}>
+                <CalendarIcon />
+              </View>
+              <Text style={[s.jobMetaText, { color: D.secondary }]}>{item.dateText}</Text>
+            </View>
+          )}
+          {!!item.timeText && (
+            <View style={s.jobMetaItem}>
+              <View style={s.jobMetaIconBox}>
+                <ClockIcon />
+              </View>
+              <Text style={s.jobMetaText}>{item.timeText}</Text>
+            </View>
+          )}
         </View>
-        <Text style={[s.jobMetaText, { color: D.secondary }]}>{item.dueText}</Text>
-      </View>
+      )}
     </View>
 
-    {/* View details */}
+    {/* Link to the full list */}
     <View style={s.jobViewDetailsRow}>
-      <Text style={s.jobViewDetailsText}>{'View Details →'}</Text>
+      <Text style={s.jobViewDetailsText}>{'View on My Work →'}</Text>
     </View>
   </Pressable>
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FeedbackSection
+// ApprovedApplicationCard — an approved OpportunityApplication shown
+// in the Upcoming Booking tab (booked ones move to the Schedule page). TEMPORARY: once approving
+// creates a real Job (see OpportunityApplicationStatus's javadoc), this can
+// likely be retired in favour of ActiveJobCard alone.
 // ─────────────────────────────────────────────────────────────────────────────
-const FeedbackSection: React.FC<{ rating: number | null; reviews: ReviewItem[] }> = ({ rating, reviews }) => (
-  <View style={s.section}>
-    <View style={s.sectionHeader}>
-      <Text style={s.sectionTitle}>Client Feedback</Text>
-      <View style={s.ratingRow}>
-        <Text style={s.feedbackRating}>{rating != null ? rating.toFixed(1) : '—'}</Text>
-        <StarIcon size={16} color={D.tertiaryContainer} />
+const CalendarIcon: React.FC<IconProps> = ({ size = 13, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="3" y="5" width="18" height="16" rx="2" />
+    <Line x1="16" y1="3" x2="16" y2="7" />
+    <Line x1="8" y1="3" x2="8" y2="7" />
+    <Line x1="3" y1="10" x2="21" y2="10" />
+  </Svg>
+);
+
+const CardIcon: React.FC<IconProps> = ({ size = 13, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="2" y="5" width="20" height="14" rx="2" />
+    <Line x1="2" y1="10" x2="22" y2="10" />
+  </Svg>
+);
+
+const LanguageIcon: React.FC<IconProps> = ({ size = 13, color = '#E8792E' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.8-.9L4 21l1.9-4.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 13.5 4 8.5 8.5 0 0 1 21 11.5z" />
+  </Svg>
+);
+
+const ApprovedApplicationCard: React.FC<{
+  item: OpportunityApplicationResponse;
+  onBook: () => void;
+}> = ({ item, onBook }) => (
+  <View style={s.jobCard}>
+    <View style={s.jobCardHeader}>
+      <View style={s.jobCardLeft}>
+        <JobIcon />
+        <View style={{ flex: 1 }}>
+          <Text style={s.jobTitle}>{item.title}</Text>
+          <Text style={s.jobClient}>{item.elderName}</Text>
+        </View>
+      </View>
+      <View style={s.jobStatusBadge}>
+        <Text style={s.jobStatusText}>APPROVED</Text>
       </View>
     </View>
 
-    <View style={{ gap: Spacing.sm }}>
-      {reviews.map((review) => (
-        <View key={review.id} style={s.feedbackCard}>
-          {/* Decorative large quote mark */}
-          <Text style={s.quoteDecor}>{'“'}</Text>
-          {/* Left accent bar */}
-          <View style={s.quoteBar} />
-          <Text style={s.quoteText}>{`“${review.quote}”`}</Text>
-          <Text style={s.quoteAuthor}>{`— ${review.author}`}</Text>
+    <View style={s.jobMeta}>
+      {item.location && (
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}>
+            <PinIcon />
+          </View>
+          <Text style={s.jobMetaText}>{item.location}</Text>
         </View>
-      ))}
+      )}
+      {item.scheduledDate && (
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}>
+            <CalendarIcon />
+          </View>
+          <Text style={[s.jobMetaText, { color: D.secondary }]}>{formatAppDate(item.scheduledDate)}</Text>
+        </View>
+      )}
+      {!!item.timeWindowText && (
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}>
+            <ClockIcon />
+          </View>
+          <Text style={s.jobMetaText}>{item.timeWindowText}</Text>
+        </View>
+      )}
+      <View style={s.jobMetaItem}>
+        <View style={s.jobMetaIconBox}>
+          <CardIcon />
+        </View>
+        <Text style={s.jobMetaText}>{`LKR ${Math.round(item.offeredAmount).toLocaleString('en-US')}`}</Text>
+      </View>
+      {!!item.language && (
+        <View style={s.jobMetaItem}>
+          <View style={s.jobMetaIconBox}>
+            <LanguageIcon />
+          </View>
+          <Text style={s.jobMetaText}>{item.language}</Text>
+        </View>
+      )}
     </View>
+
+    <View style={s.bookBtnRow}>
+      <Pressable
+        onPress={onBook}
+        style={({ pressed }) => [s.bookBtn, pressed && s.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`Book ${item.title}`}
+      >
+        <Text style={s.bookBtnText}>Book</Text>
+      </Pressable>
+    </View>
+  </View>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FeedbackSection
+// ─────────────────────────────────────────────────────────────────────────────
+const FeedbackSection: React.FC<{
+  rating: number | null;
+  reviews: ReviewItem[] | null;
+  onViewAll: () => void;
+}> = ({ rating, reviews, onViewAll }) => (
+  <View style={s.section}>
+    <View style={s.sectionHeader}>
+      <View style={s.feedbackTitleRow}>
+        <Text style={s.sectionTitle}>Client Feedback</Text>
+        <View style={s.ratingRow}>
+          <Text style={s.feedbackRating}>{rating != null ? rating.toFixed(1) : '—'}</Text>
+          <StarIcon size={16} color={D.tertiaryContainer} />
+        </View>
+      </View>
+      <Pressable
+        onPress={onViewAll}
+        style={({ pressed }) => [s.viewAllBtn, pressed && s.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel="View all feedback on your completed work"
+      >
+        <Text style={s.viewAllText}>View All ›</Text>
+      </Pressable>
+    </View>
+
+    {reviews === null ? (
+      <View style={s.emptyState}>
+        <Text style={s.emptyStateText}>Loading…</Text>
+      </View>
+    ) : reviews.length === 0 ? (
+      <View style={s.emptyState}>
+        <Text style={s.emptyStateText}>No feedback yet.</Text>
+      </View>
+    ) : (
+      <FeedbackCarousel
+        items={reviews.map((review) => ({
+          id: review.id,
+          rating: review.rating,
+          comment: review.quote,
+          elderName: review.author,
+          opportunityTitle: review.opportunityTitle,
+        }))}
+      />
+    )}
   </View>
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RecentWorkSection
 // ─────────────────────────────────────────────────────────────────────────────
-const RecentWorkSection: React.FC = () => (
+const RecentWorkSection: React.FC<{ jobs: JobResponse[] | null; onViewAll: () => void }> = ({ jobs, onViewAll }) => (
   <View style={s.section}>
     <View style={s.sectionHeader}>
       <Text style={s.sectionTitle}>Recent Work</Text>
       <Pressable
-        style={({ pressed }) => pressed ? [s.pressed] : []}
+        onPress={onViewAll}
+        style={({ pressed }) => [s.viewAllBtn, pressed && s.pressed]}
         accessibilityRole="button"
+        accessibilityLabel="View all your completed work"
       >
         <Text style={s.viewAllText}>View All ›</Text>
       </Pressable>
     </View>
 
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={s.galleryRow}
-    >
-      {/* Item 1 — photo: traditional pottery making */}
-      <View style={s.galleryItem}>
-        <Image
-          source={POTTERY_IMAGE}
-          style={s.galleryImage}
-          accessibilityLabel="Traditional pottery being shaped on a potter's wheel"
-        />
-        <View style={s.galleryOverlayGradient} />
-        <Text style={s.galleryTypeIcon}>🖼</Text>
+    {jobs === null ? (
+      <View style={s.emptyState}>
+        <Text style={s.emptyStateText}>Loading…</Text>
       </View>
-
-      {/* Item 2 — video: blue butterfly-pea-flower rice recipe documentary */}
-      <View style={s.galleryItem}>
-        <Image
-          source={BLUE_RICE_IMAGE}
-          style={s.galleryImage}
-          accessibilityLabel="Traditional blue butterfly-pea-flower rice recipe documentary thumbnail"
-        />
-        <View style={s.galleryOverlayDark} />
-        <View style={s.playBtnWrapper}>
-          <View style={s.playBtn}>
-            <Text style={{ fontSize: 16, color: D.secondary, marginLeft: 2 }}>▶</Text>
-          </View>
-        </View>
+    ) : jobs.length === 0 ? (
+      <View style={s.emptyState}>
+        <Text style={s.emptyStateText}>No completed work yet.</Text>
       </View>
-
-      {/* Item 3 — photo: Kandyan dancer in costume */}
-      <View style={s.galleryItem}>
-        <Image
-          source={KANDYAN_DANCE_IMAGE}
-          style={s.galleryImage}
-          accessibilityLabel="Traditional Kandyan dancer in costume"
-        />
-        <View style={s.galleryOverlayGradient} />
-        <Text style={s.galleryTypeIcon}>🖼</Text>
-      </View>
-
-      {/* Item 4 — photo: Sinhala script evolution chart */}
-      <View style={s.galleryItem}>
-        <Image
-          source={SCRIPT_EVOLUTION_IMAGE}
-          style={s.galleryImage}
-          accessibilityLabel="Evolution of the Sinhala script from Brahmi chart"
-        />
-        <View style={s.galleryOverlayGradient} />
-        <Text style={s.galleryTypeIcon}>📄</Text>
-      </View>
-    </ScrollView>
+    ) : (
+      // Newest completed job first; a newly completed one joins the front and the oldest drops off.
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.workRow}
+        decelerationRate="fast"
+        snapToInterval={WORK_CARD_WIDTH + Spacing.sm}
+      >
+        {jobs.map((job) => (
+          <Pressable
+            key={job.id}
+            onPress={onViewAll}
+            style={({ pressed }) => [s.workCard, pressed && s.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={`${job.title}, completed. Open completed work`}
+          >
+            <Image
+              source={resolveOpportunityImage(job.heroImageUrl ?? null) ?? GENERIC_WORK_IMAGE}
+              style={s.workImage}
+              resizeMode="cover"
+            />
+            <View style={s.workShade} />
+            {job.urgent && (
+              <View style={s.workUrgent}>
+                <Text style={s.workUrgentText}>URGENT</Text>
+              </View>
+            )}
+            <View style={s.workInfo}>
+              <Text style={s.workTitle} numberOfLines={2}>{job.title}</Text>
+              <Text style={s.workMeta} numberOfLines={1}>
+                {`${job.elderName}${job.completedAt ? `  ·  ${formatAppDate(job.completedAt)}` : ''}`}
+              </Text>
+            </View>
+          </Pressable>
+        ))}
+      </ScrollView>
+    )}
   </View>
 );
-
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
@@ -480,66 +585,132 @@ export const CreatorDashboard: React.FC<{
   onOpenHistory: () => void;
   onOpenSchedule: () => void;
   onOpenMyWork: () => void;
-}> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork }) => {
+  onOpenCompletedWork: () => void;
+  onAddPayment: () => void;
+  onOpenSavedApplications: () => void;
+  onOpenRejectedWork: () => void;
+}> = ({ onNavigate, onOpenHistory, onOpenSchedule, onOpenMyWork, onOpenCompletedWork, onAddPayment, onOpenSavedApplications, onOpenRejectedWork }) => {
   const [activeTab, setActiveTab] = useState<JobTab>('active');
-  const [summary, setSummary] = useState<CreatorDashboardSummaryResponse>(FALLBACK_SUMMARY);
-  const [reviews, setReviews] = useState<ReviewItem[]>(FALLBACK_REVIEWS);
+  const [summary, setSummary] = useState<CreatorDashboardSummaryResponse | null>(null);
+  const [reviews, setReviews] = useState<ReviewItem[] | null>(null);
+  const [recentWork, setRecentWork] = useState<JobResponse[] | null>(null);
   const [jobsByTab, setJobsByTab] = useState<Partial<Record<JobTab, ActiveJobItem[]>>>({});
   const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobsError, setJobsError] = useState(false);
 
-  const [addModalVisible, setAddModalVisible] = useState(false);
-  const [amountInput, setAmountInput] = useState('');
-  const [noteInput, setNoteInput] = useState('');
-  const [addSubmitting, setAddSubmitting] = useState(false);
+  // Approved-but-not-yet-booked applications — shown alongside real Jobs in
+  // the Upcoming Booking tab. See ApprovedApplicationCard's comment above.
+  const [approvedApplications, setApprovedApplications] = useState<OpportunityApplicationResponse[]>([]);
 
-  const refreshSummary = () => {
-    creatorDashboardApi.getSummary().then(setSummary).catch(() => {});
-  };
+  // "Confirm Booking" modal state — bookingTarget non-null means it's open.
+  const [bookingTarget, setBookingTarget] = useState<OpportunityApplicationResponse | null>(null);
+  const [confirmedDate, setConfirmedDate] = useState(new Date());
+  const [confirmedStartTime, setConfirmedStartTime] = useState(new Date());
+  const [confirmedEndTime, setConfirmedEndTime] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [booking, setBooking] = useState(false);
+
+  // The greeting uses the first name from the creator's own profile (the login's name shows until it loads).
+  const cachedName = useAuthStore((st) => st.user?.fullName ?? '');
+  const [profileName, setProfileName] = useState('');
+  const firstName = (profileName || cachedName).trim().split(/\s+/)[0] ?? '';
 
   useEffect(() => {
-    refreshSummary();
+    profileApi.getMe().then((p) => setProfileName(p.fullName)).catch(() => {});
     creatorDashboardApi
-      .getReviews(5)
-      .then((data) => {
-        if (data.length > 0) {
-          setReviews(data.map((r) => ({ id: r.id, quote: r.comment, author: r.elderName })));
-        }
-      })
+      .getSummary()
+      .then(setSummary)
+      .catch(() => setSummary({ rating: null, completedJobsCount: 0, contributionsCount: 0, collectedToday: 0 }));
+    creatorDashboardApi
+      .getReviews(FEEDBACK_SHOWN)
+      .then((data) => setReviews(data.map((r) => ({
+        id: r.id, rating: r.rating, quote: r.comment?.trim() || null, author: r.elderName, opportunityTitle: r.opportunityTitle,
+      }))))
+      .catch(() => setReviews([]));
+
+    creatorDashboardApi
+      .getRecentWork(RECENT_WORK_SHOWN)
+      .then(setRecentWork)
+      .catch(() => setRecentWork([]));
+
+    opportunityApplicationApi
+      .getMyApplications()
+      .then((apps) => setApprovedApplications(apps.filter((a) => a.status === 'APPROVED')))
       .catch(() => {});
   }, []);
 
-  const handleAddPayment = () => {
-    const amount = parseFloat(amountInput);
-    if (!amount || amount <= 0) return;
+  const openBookingModal = (app: OpportunityApplicationResponse) => {
+    const initialDate = app.scheduledDate ? new Date(app.scheduledDate) : new Date();
+    const defaultStart = new Date(initialDate);
+    defaultStart.setHours(9, 0, 0, 0);
+    const defaultEnd = new Date(initialDate);
+    defaultEnd.setHours(11, 0, 0, 0);
 
-    setAddSubmitting(true);
-    creatorDashboardApi
-      .addPayment(amount, noteInput.trim() || 'Cash payment')
-      .then(() => {
-        setAddModalVisible(false);
-        setAmountInput('');
-        setNoteInput('');
-        refreshSummary();
-      })
-      .catch(() => {})
-      .finally(() => setAddSubmitting(false));
+    setBookingTarget(app);
+    setConfirmedDate(initialDate);
+    setConfirmedStartTime(defaultStart);
+    setConfirmedEndTime(defaultEnd);
+  };
+
+  const handleConfirmBooking = async () => {
+    if (!bookingTarget) return;
+
+    setBooking(true);
+    try {
+      await opportunityApplicationApi.book(bookingTarget.id, {
+        confirmedDate: toDateKey(confirmedDate),
+        startTime: toTimeKey(confirmedStartTime),
+        endTime: toTimeKey(confirmedEndTime),
+      });
+      setApprovedApplications((prev) => prev.filter((a) => a.id !== bookingTarget.id));
+      setBookingTarget(null);
+
+      // Booking confirmed — jump straight to the Schedule page so the
+      // creator sees it marked on the calendar right away.
+      onOpenSchedule();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not confirm this booking.';
+      Alert.alert('Booking failed', message);
+    } finally {
+      setBooking(false);
+    }
   };
 
   useEffect(() => {
+    // Upcoming Booking lists only approved opportunities still waiting to be booked; once booked they
+    // live on the Schedule page, so there is no job list to load for this tab.
+    if (activeTab === 'upcoming') {
+      setJobsLoading(false);
+      setJobsError(false);
+      return;
+    }
     let cancelled = false;
     setJobsLoading(true);
+    setJobsError(false);
 
-    creatorDashboardApi
-      .getJobs(TAB_TO_STATUS[activeTab])
+    // A booked job is UPCOMING until it is completed, so "today's jobs" look at both kinds.
+    const request = activeTab === 'active'
+      ? Promise.all([creatorDashboardApi.getJobs('ACTIVE'), creatorDashboardApi.getJobs('UPCOMING')]).then(([a, u]) => [...a, ...u])
+      : creatorDashboardApi.getJobs(TAB_TO_STATUS[activeTab]);
+    request
       .then((data) => {
         if (!cancelled) {
-          setJobsByTab((prev) => ({ ...prev, [activeTab]: data.map(mapJobToItem) }));
+          // The Active tab is "what I have to do today": only the jobs scheduled for today. The full list lives on My Work.
+          const todayKey = toDateKey(new Date());
+          const shown = activeTab === 'active'
+            ? data.filter((j) => !!j.scheduledAt && toDateKey(new Date(j.scheduledAt)) === todayKey)
+            : data;
+          setJobsByTab((prev) => ({
+            ...prev,
+            // Work scheduled for today counts as in progress, whether or not it has been started yet.
+            [activeTab]: shown.map((j) => (activeTab === 'active' ? { ...mapJobToItem(j), statusLabel: 'IN PROGRESS' } : mapJobToItem(j))),
+          }));
         }
       })
       .catch(() => {
-        if (!cancelled && activeTab === 'active') {
-          setJobsByTab((prev) => (prev.active ? prev : { ...prev, active: FALLBACK_ACTIVE_JOBS }));
-        }
+        if (!cancelled) setJobsError(true);
       })
       .finally(() => {
         if (!cancelled) setJobsLoading(false);
@@ -550,24 +721,24 @@ export const CreatorDashboard: React.FC<{
     };
   }, [activeTab]);
 
-  const currentJobs = jobsByTab[activeTab];
+  const currentJobs = activeTab === 'upcoming' ? undefined : jobsByTab[activeTab];
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar />
+      <CreatorTopAppBar variant="menu" onOpenMyWork={onOpenMyWork} onOpenSavedApplications={onOpenSavedApplications} onOpenRejectedWork={onOpenRejectedWork} />
 
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <GreetingSection />
+        <GreetingSection name={firstName} />
         <MetricsSection
           summary={summary}
           onOpenHistory={onOpenHistory}
-          onAddPayment={() => setAddModalVisible(true)}
+          onAddPayment={onAddPayment}
         />
 
         {/* ── Job Management ───────────────────────────────────────────── */}
@@ -579,7 +750,7 @@ export const CreatorDashboard: React.FC<{
             contentContainerStyle={s.tabsRow}
           >
             <TabPill
-              label="Active Jobs"
+              label="Today's Jobs"
               active={activeTab === 'active'}
               onPress={() => setActiveTab('active')}
             />
@@ -600,71 +771,146 @@ export const CreatorDashboard: React.FC<{
             />
           </ScrollView>
 
-          {currentJobs && currentJobs.length > 0 ? (
+          {(currentJobs && currentJobs.length > 0) ||
+          (activeTab === 'upcoming' && approvedApplications.length > 0) ? (
             <View style={{ gap: Spacing.sm }}>
-              {currentJobs.map((item) => (
+              {currentJobs?.map((item) => (
                 <ActiveJobCard key={item.id} item={item} onPress={onOpenMyWork} />
               ))}
+              {activeTab === 'upcoming' &&
+                approvedApplications.map((app) => (
+                  <ApprovedApplicationCard key={app.id} item={app} onBook={() => openBookingModal(app)} />
+                ))}
             </View>
           ) : (
             <View style={s.emptyState}>
               <Text style={s.emptyStateText}>
-                {jobsLoading && !currentJobs ? 'Loading…' : 'No jobs to show.'}
+                {jobsLoading && !currentJobs
+                  ? 'Loading…'
+                  : jobsError
+                    ? "Couldn't load jobs. Pull down to try again."
+                    : activeTab === 'upcoming'
+                      ? 'No approved opportunities waiting to be booked.'
+                      : activeTab === 'active'
+                        ? 'Nothing scheduled for today.'
+                        : 'No jobs to show.'}
               </Text>
             </View>
           )}
         </View>
 
-        <FeedbackSection rating={summary.rating} reviews={reviews} />
-        <RecentWorkSection />
+        <FeedbackSection rating={summary?.rating ?? null} reviews={reviews} onViewAll={onOpenCompletedWork} />
+        <RecentWorkSection jobs={recentWork} onViewAll={onOpenCompletedWork} />
         <View style={{ height: 8 }} />
       </ScrollView>
 
       <BottomNavBar activeTab="home" onNavigate={onNavigate} />
 
-      {/* Add Payment modal */}
-      <Modal visible={addModalVisible} transparent animationType="fade" onRequestClose={() => setAddModalVisible(false)}>
+      <Modal
+        visible={bookingTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBookingTarget(null)}
+      >
         <View style={s.modalOverlay}>
           <View style={s.modalCard}>
-            <Text style={s.modalTitle}>Log a Payment</Text>
-            <Text style={s.modalSubtitle}>Record cash you've just collected from an elder.</Text>
+            <Text style={s.modalTitle}>Confirm Booking</Text>
 
-            <Text style={s.modalLabel}>Amount (LKR)</Text>
-            <TextInput
-              style={s.modalInput}
-              value={amountInput}
-              onChangeText={setAmountInput}
-              placeholder="e.g. 1500"
-              placeholderTextColor={D.onSurfaceVariant}
-              keyboardType="numeric"
-              accessibilityLabel="Payment amount"
-            />
+            <Text style={s.modalLabel}>Opportunity</Text>
+            <Text style={s.modalValue}>{bookingTarget?.title}</Text>
 
-            <Text style={s.modalLabel}>Note (optional)</Text>
-            <TextInput
-              style={s.modalInput}
-              value={noteInput}
-              onChangeText={setNoteInput}
-              placeholder="e.g. Cash tip"
-              placeholderTextColor={D.onSurfaceVariant}
-              accessibilityLabel="Payment note"
-            />
+            <Text style={s.modalLabel}>Elder</Text>
+            <Text style={s.modalValue}>{bookingTarget?.elderName}</Text>
+
+            {bookingTarget?.location && (
+              <>
+                <Text style={s.modalLabel}>Location</Text>
+                <Text style={s.modalValue}>{bookingTarget.location}</Text>
+              </>
+            )}
+
+            <Text style={s.modalLabel}>Select Date</Text>
+            <Pressable
+              onPress={() => setShowDatePicker(true)}
+              style={({ pressed }) => [s.pickerField, pressed && s.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Select date"
+            >
+              <Text style={s.pickerFieldText}>{formatLongDate(confirmedDate)}</Text>
+            </Pressable>
+            {showDatePicker && (
+              <DateTimePicker
+                value={confirmedDate}
+                mode="date"
+                display="default"
+                minimumDate={new Date()}
+                onChange={(event: any, date?: Date) => {
+                  setShowDatePicker(false);
+                  if (event.type === 'set' && date) setConfirmedDate(date);
+                }}
+              />
+            )}
+
+            <Text style={s.modalLabel}>Select Time</Text>
+            <View style={s.timeRow}>
+              <Pressable
+                onPress={() => setShowStartTimePicker(true)}
+                style={({ pressed }) => [s.pickerField, { flex: 1 }, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Select start time"
+              >
+                <Text style={s.pickerFieldText}>{formatClockTime(confirmedStartTime)}</Text>
+              </Pressable>
+              <Text style={s.timeRowDash}>—</Text>
+              <Pressable
+                onPress={() => setShowEndTimePicker(true)}
+                style={({ pressed }) => [s.pickerField, { flex: 1 }, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Select end time"
+              >
+                <Text style={s.pickerFieldText}>{formatClockTime(confirmedEndTime)}</Text>
+              </Pressable>
+            </View>
+            {showStartTimePicker && (
+              <DateTimePicker
+                value={confirmedStartTime}
+                mode="time"
+                display="default"
+                onChange={(event: any, date?: Date) => {
+                  setShowStartTimePicker(false);
+                  if (event.type === 'set' && date) setConfirmedStartTime(date);
+                }}
+              />
+            )}
+            {showEndTimePicker && (
+              <DateTimePicker
+                value={confirmedEndTime}
+                mode="time"
+                display="default"
+                onChange={(event: any, date?: Date) => {
+                  setShowEndTimePicker(false);
+                  if (event.type === 'set' && date) setConfirmedEndTime(date);
+                }}
+              />
+            )}
 
             <View style={s.modalBtnRow}>
               <Pressable
-                onPress={() => setAddModalVisible(false)}
+                onPress={() => setBookingTarget(null)}
                 style={({ pressed }) => [s.modalBtnCancel, pressed && s.pressed]}
                 accessibilityRole="button"
+                accessibilityLabel="Cancel booking"
               >
                 <Text style={s.modalBtnCancelText}>Cancel</Text>
               </Pressable>
               <Pressable
-                onPress={handleAddPayment}
-                disabled={addSubmitting}
-                style={({ pressed }) => [s.modalBtnAdd, pressed && s.pressed, addSubmitting && { opacity: 0.6 }]}
+                onPress={handleConfirmBooking}
+                disabled={booking}
+                style={({ pressed }) => [s.modalBtnConfirm, pressed && s.pressed, booking && { opacity: 0.7 }]}
                 accessibilityRole="button"
+                accessibilityLabel="Confirm booking"
               >
-                <Text style={s.modalBtnAddText}>{addSubmitting ? 'Adding…' : 'Add'}</Text>
+                <Text style={s.modalBtnConfirmText}>{booking ? 'Booking…' : 'Confirm Booking'}</Text>
               </Pressable>
             </View>
           </View>
@@ -677,44 +923,10 @@ export const CreatorDashboard: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
-const GALLERY_SIZE = 128;
+const WORK_CARD_WIDTH = 220;
 
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
-
-  // ── App Bar ────────────────────────────────────────────────────────────────
-  appBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    height: 56,
-    backgroundColor: D.surfaceContainerLowest,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: D.surfaceVariant,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  appBarIconBtn: {
-    width: 44, height: 44, borderRadius: Radii.full,  // 44pt touch target
-    alignItems: 'center', justifyContent: 'center',
-  },
-  appBarTitle: {
-    fontFamily: Typography.fontDisplay,
-    fontSize: Typography.sizeLG,      // 18sp
-    lineHeight: Typography.sizeLG * 1.4,
-    color: '#0F5C5C',                 // teal (30% rule)
-    letterSpacing: -0.3,
-  },
-  hamburger:     { gap: 4 },
-  hamburgerLine: { width: 18, height: 2, borderRadius: 1, backgroundColor: '#0F5C5C' },
-  bellWrapper: { alignItems: 'center' },
-  bellTop:     { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#0F5C5C', marginBottom: 1 },
-  bellBody:    { width: 14, height: 13, borderWidth: 1.5, borderColor: '#0F5C5C', borderRadius: 7, borderBottomWidth: 0 },
-  bellClapper: { width: 5, height: 2, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: '#0F5C5C' },
 
   // ── Scroll ─────────────────────────────────────────────────────────────────
   scroll: { flex: 1 },
@@ -734,6 +946,7 @@ const s = StyleSheet.create({
     shadowOpacity: 0.1, shadowRadius: 3, elevation: 2,
   },
   greetingText:     { flex: 1, justifyContent: 'center' },
+  greetingHeadlineRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   greetingHeadline: {
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeMD, lineHeight: 24, color: D.onSurface,
@@ -824,6 +1037,7 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 4, elevation: 1, gap: Spacing.sm,
   },
+  jobCardUrgent:  { borderLeftColor: '#C0392B' },
   jobCardPressed: { shadowOpacity: 0.12, elevation: 3 },
   jobCardHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.sm },
   jobCardLeft:    { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, flex: 1 },
@@ -833,7 +1047,8 @@ const s = StyleSheet.create({
   jobStatusBadge: { backgroundColor: D.secondaryContainer, borderRadius: Radii.full, paddingHorizontal: 9, paddingVertical: 4, marginTop: 2 },
   jobStatusText:  { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSecondaryContainer, letterSpacing: 0.8 },
   jobDesc:        { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: D.onSurfaceVariant },
-  jobMeta:        { flexDirection: 'row', gap: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant, marginTop: 2 },
+  jobMeta:        { flexDirection: 'row', flexWrap: 'wrap', columnGap: Spacing.md, rowGap: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: D.surfaceVariant, marginTop: 2 },
+  jobMetaWhen:    { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: Spacing.sm, rowGap: Spacing.xs },
   jobMetaItem:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
   jobMetaIconBox: {
     width: 20, height: 20, borderRadius: 10,
@@ -842,6 +1057,7 @@ const s = StyleSheet.create({
   },
   jobMetaText:    { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant, letterSpacing: 0.2 },
   jobViewDetailsRow: { alignItems: 'flex-end' },
+  bookBtnRow: { alignItems: 'stretch' },
   jobViewDetailsText: {
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeSM,
@@ -849,102 +1065,104 @@ const s = StyleSheet.create({
     minHeight: 44,
     textAlignVertical: 'center',
   },
+  bookBtn: {
+    alignSelf: 'stretch',
+    backgroundColor: D.primary,
+    borderRadius: Radii.full,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#ffffff' },
 
   // ── Empty state ────────────────────────────────────────────────────────────
   emptyState:     { paddingVertical: Spacing.xl, alignItems: 'center' },
   emptyStateText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
 
   // ── Feedback ───────────────────────────────────────────────────────────────
+  feedbackTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexShrink: 1 },
   feedbackRating: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.tertiaryContainer, lineHeight: 20 },
-  feedbackCard: {
-    backgroundColor: D.surfaceContainerLow, borderRadius: Radii.xl, padding: Spacing.md,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant, overflow: 'hidden',
-  },
-  quoteDecor:  { position: 'absolute', top: -8, left: -4, fontSize: 80, color: D.surfaceVariant, opacity: 0.3, lineHeight: 80, fontFamily: Typography.fontDisplay },
-  quoteBar:    { position: 'absolute', left: Spacing.md, top: Spacing.md, bottom: Spacing.md, width: 2, backgroundColor: D.secondaryFixedDim, borderRadius: 1 },
-  quoteText:   { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: D.onSurfaceVariant, fontStyle: 'italic', paddingLeft: Spacing.md },
-  quoteAuthor: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.secondary, textAlign: 'right', marginTop: Spacing.sm, letterSpacing: 0.3 },
+  viewAllBtn: { minHeight: 44, justifyContent: 'center' },
 
-  // ── Gallery ────────────────────────────────────────────────────────────────
-  viewAllText:            { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.secondary, letterSpacing: 0.2 },
-  galleryRow:             { flexDirection: 'row', gap: Spacing.md, paddingBottom: 4 },
-  galleryItem: {
-    width: GALLERY_SIZE, height: GALLERY_SIZE, borderRadius: Radii.xl, overflow: 'hidden',
+  // ── Recent work ────────────────────────────────────────────────────────────
+  viewAllText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.secondary, letterSpacing: 0.2 },
+  workRow: { flexDirection: 'row', gap: Spacing.sm, paddingBottom: 4 },
+  workCard: {
+    width: WORK_CARD_WIDTH, height: 150, borderRadius: Radii.xl, overflow: 'hidden', backgroundColor: D.surfaceContainer,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2,
   },
-  galleryImage:           { width: '100%', height: '100%' },
-  galleryOverlayGradient: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)' },
-  galleryOverlayDark:     { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.18)' },
-  galleryTypeIcon:        { position: 'absolute', bottom: 8, left: 8, fontSize: 18, color: '#fff' },
-  playBtnWrapper:         { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  playBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.82)', alignItems: 'center', justifyContent: 'center' },
+  workImage: { width: '100%', height: '100%' },
+  workShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '70%', backgroundColor: 'rgba(0,0,0,0.5)' },
+  workUrgent: { position: 'absolute', top: 10, left: 10, backgroundColor: '#C0392B', borderRadius: Radii.full, paddingHorizontal: 8, paddingVertical: 3 },
+  workUrgentText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.6 },
+  workInfo: { position: 'absolute', left: 12, right: 12, bottom: 10, gap: 2 },
+  workTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, lineHeight: 20, color: '#ffffff' },
+  workMeta: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: 'rgba(255,255,255,0.88)' },
 
   // ── Press feedback ─────────────────────────────────────────────────────────
   pressed:      { opacity: 0.75 },
   pressedDark:  { backgroundColor: 'rgba(255,255,255,0.14)' },
   pressedLight: { opacity: 0.88 },
 
-  // ── Add Payment modal ──────────────────────────────────────────────────────
+  // ── Confirm Booking modal ────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: Spacing.lg,
+    padding: Spacing.md,
   },
   modalCard: {
     width: '100%',
+    maxWidth: 420,
     backgroundColor: D.surfaceContainerLowest,
     borderRadius: Radii.xl,
-    padding: Spacing.lg,
-    gap: Spacing.xs,
+    padding: Spacing.md,
+    gap: 4,
   },
-  modalTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: D.onSurface },
-  modalSubtitle: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeSM,
-    color: D.onSurfaceVariant,
-    marginBottom: Spacing.sm,
-  },
-  modalLabel: {
-    fontFamily: Typography.fontBodyMed,
-    fontSize: Typography.sizeXS,
-    color: D.onSurfaceVariant,
-    marginTop: Spacing.sm,
-  },
-  modalInput: {
-    fontFamily: Typography.fontBody,
+  modalTitle: {
+    fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeMD,
     color: D.onSurface,
+    marginBottom: 6,
+  },
+  modalLabel: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeXS,
+    color: D.onSurfaceVariant,
+    marginTop: 8,
+  },
+  modalValue: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeSM,
+    color: D.onSurface,
+  },
+  pickerField: {
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
     borderRadius: Radii.lg,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     marginTop: 4,
   },
-  modalBtnRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg },
+  pickerFieldText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurface },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  timeRowDash: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+  modalBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.md },
   modalBtnCancel: {
-    flex: 1,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: D.surfaceVariant,
-    borderRadius: Radii.lg,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
+    paddingVertical: 10, paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full, borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+    alignItems: 'center', justifyContent: 'center', minHeight: 44,
   },
-  modalBtnCancelText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
-  modalBtnAdd: {
-    flex: 1,
-    backgroundColor: '#E8792E',
-    borderRadius: Radii.lg,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
+  modalBtnCancelText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
+  modalBtnConfirm: {
+    paddingVertical: 10, paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full, backgroundColor: D.primary,
+    alignItems: 'center', justifyContent: 'center', minHeight: 44,
   },
-  modalBtnAddText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
+  modalBtnConfirmText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
 });
 
 export default CreatorDashboard;

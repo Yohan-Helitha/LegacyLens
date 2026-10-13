@@ -11,8 +11,8 @@ import { create } from 'zustand';
  * (Submit) doesn't mark the job COMPLETED on the backend; it just moves it
  * into MyWorkList's "Submitted" tab, awaiting the knowledge holder's real
  * review — a genuine completion still has to come from the backend's own
- * COMPLETED status. Resets when the app restarts, same as
- * opportunityApplicationStore.
+ * COMPLETED status. Resets when the app restarts — there's no backend
+ * endpoint for any of this yet.
  */
 export const TOTAL_WORK_STEPS = 4;
 
@@ -45,8 +45,10 @@ interface MyWorkProgressState {
   completedStepsByJobId: Record<string, number>;
   materialsByJobId: Record<string, WorkMaterial[]>;
   noteByJobId: Record<string, string>;
-  /** Job ids explicitly saved as a draft from ContinueMyWorkPage's "Save As a Draft" — shown on SavedCompletedWorkPage. */
+  /** Job ids explicitly saved as a draft from ContinueMyWorkPage's "Save As a Draft" — shown on the Saved tab of My Work. */
   savedDraftJobIds: string[];
+  /** ISO timestamp of the first moment a job's steps reached TOTAL_WORK_STEPS — the time a job counts as submitted. */
+  submittedAtByJobId: Record<string, string>;
 
   getCompletedSteps: (jobId: string, fallback: number) => number;
   advance: (jobId: string, fallback: number) => void;
@@ -57,6 +59,8 @@ interface MyWorkProgressState {
 
   getNote: (jobId: string) => string;
   setNote: (jobId: string, text: string) => void;
+
+  getSubmittedAt: (jobId: string) => string | null;
 
   /** Adds a job to the saved-drafts list if it isn't already there. */
   markSavedAsDraft: (jobId: string) => void;
@@ -70,9 +74,10 @@ export const useMyWorkProgressStore = create<MyWorkProgressState>()((set, get) =
   completedStepsByJobId: {},
   materialsByJobId: INITIAL_MATERIALS,
   noteByJobId: INITIAL_NOTES,
-  // Seeded so SavedCompletedWorkPage isn't empty on first launch, matching
+  // Seeded so the Saved tab of My Work isn't empty on first launch, matching
   // the demo materials/note already seeded for this same fallback job.
   savedDraftJobIds: [DEMO_JOB_ID],
+  submittedAtByJobId: { [DEMO_JOB_ID]: '2026-09-01T10:30:00' },
 
   getCompletedSteps: (jobId, fallback) => get().completedStepsByJobId[jobId] ?? fallback,
 
@@ -80,7 +85,14 @@ export const useMyWorkProgressStore = create<MyWorkProgressState>()((set, get) =
     set((state) => {
       const current = state.completedStepsByJobId[jobId] ?? fallback;
       const next = Math.min(current + 1, TOTAL_WORK_STEPS);
-      return { completedStepsByJobId: { ...state.completedStepsByJobId, [jobId]: next } };
+      const alreadyStamped = jobId in state.submittedAtByJobId;
+      return {
+        completedStepsByJobId: { ...state.completedStepsByJobId, [jobId]: next },
+        submittedAtByJobId:
+          next >= TOTAL_WORK_STEPS && !alreadyStamped
+            ? { ...state.submittedAtByJobId, [jobId]: new Date().toISOString() }
+            : state.submittedAtByJobId,
+      };
     });
   },
 
@@ -110,6 +122,8 @@ export const useMyWorkProgressStore = create<MyWorkProgressState>()((set, get) =
     set((state) => ({ noteByJobId: { ...state.noteByJobId, [jobId]: text } }));
   },
 
+  getSubmittedAt: (jobId) => get().submittedAtByJobId[jobId] ?? null,
+
   markSavedAsDraft: (jobId) => {
     set((state) =>
       state.savedDraftJobIds.includes(jobId)
@@ -122,6 +136,10 @@ export const useMyWorkProgressStore = create<MyWorkProgressState>()((set, get) =
     set((state) => ({
       completedStepsByJobId: { ...state.completedStepsByJobId, [jobId]: TOTAL_WORK_STEPS },
       savedDraftJobIds: state.savedDraftJobIds.filter((id) => id !== jobId),
+      submittedAtByJobId:
+        jobId in state.submittedAtByJobId
+          ? state.submittedAtByJobId
+          : { ...state.submittedAtByJobId, [jobId]: new Date().toISOString() },
     }));
   },
 
@@ -130,10 +148,12 @@ export const useMyWorkProgressStore = create<MyWorkProgressState>()((set, get) =
       const { [jobId]: _removedSteps, ...restSteps } = state.completedStepsByJobId;
       const { [jobId]: _removedMaterials, ...restMaterials } = state.materialsByJobId;
       const { [jobId]: _removedNote, ...restNotes } = state.noteByJobId;
+      const { [jobId]: _removedSubmittedAt, ...restSubmittedAt } = state.submittedAtByJobId;
       return {
         completedStepsByJobId: restSteps,
         materialsByJobId: restMaterials,
         noteByJobId: restNotes,
+        submittedAtByJobId: restSubmittedAt,
         savedDraftJobIds: state.savedDraftJobIds.filter((id) => id !== jobId),
       };
     });

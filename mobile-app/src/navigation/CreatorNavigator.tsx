@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CreatorDashboard } from '../screens/marketplace/creator/CreatorDashboard';
 import { OpportunityPage } from '../screens/marketplace/creator/OpportunityPage';
 import { OpportunityDetailPage } from '../screens/marketplace/creator/OpportunityDetailPage';
 import { BecomeCreatorApplication } from '../screens/marketplace/creator/BecomeCreatoApplication';
 import { CreatorVerificationUpdatePage } from '../screens/marketplace/creator/CreatorVerificationUpdatePage';
-import { InApp } from '../screens/marketplace/creator/InApp';
-import { InboxMessage } from '../screens/marketplace/creator/InboxMessage';
+import { InApp, InboxMessage } from '../screens/messaging';
+import { CreatorTopAppBar } from '../components/CreatorTopAppBar';
+import { BottomNavBar } from '../components/BottomNavBar';
 import { PaymentHistoryPage } from '../screens/marketplace/creator/PaymentHistoryPage';
 import { CreatorProfile } from '../screens/marketplace/creator/CreatorProfile';
 import { OpportunityApplicationForm } from '../screens/marketplace/creator/OpportunityApplicationForm';
@@ -13,8 +14,18 @@ import { OpportunitySchedulePage } from '../screens/marketplace/creator/Opportun
 import { SavedOpportunityApplication } from '../screens/marketplace/creator/SavedOpportunityApplication';
 import { MyWorkList } from '../screens/marketplace/creator/MyWorkList';
 import { ContinueMyWorkPage } from '../screens/marketplace/creator/ContinueMyWorkPage';
-import { SavedCompletedWorkPage } from '../screens/marketplace/creator/SavedCompletedWorkPage';
+import { PublicationPreviewPage } from '../screens/marketplace/creator/PublicationPreviewPage';
+import type { JobResponse } from '../types/creatorDashboard';
+import { LogPaymentPage } from '../screens/marketplace/creator/LogPaymentPage';
+import { RejectedWorkPage } from '../screens/marketplace/creator/RejectedWorkPage';
+import { RejectedApplicationsPage } from '../screens/marketplace/creator/RejectedApplicationsPage';
+import { CreatorMenuContext } from './CreatorMenuContext';
+import { useMyApplications } from '../hooks/useMyApplications';
+import { groupApplications } from '../utils/applicationGroups';
+import { creatorScreenForNotification } from './creatorNotificationRouting';
+import { usePushNotificationEvents } from '../hooks/usePushNotifications';
 import type { NavTab } from '../components/BottomNavBar';
+import type { WorkTab } from '../screens/marketplace/creator/MyWorkList';
 
 export type CreatorScreen =
   | 'dashboard'
@@ -31,7 +42,10 @@ export type CreatorScreen =
   | 'saved-applications'
   | 'my-work'
   | 'continue-work'
-  | 'saved-completed-work';
+  | 'publication-preview'
+  | 'log-payment'
+  | 'rejected-work'
+  | 'rejected-applications';
 
 interface CreatorNavigatorProps {
   /** Which internal screen to land on first — 'dashboard' unless entered directly into the application form. */
@@ -55,9 +69,31 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const [screen, setScreen] = useState<CreatorScreen>(initialScreen);
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
-  const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [selectedJobSteps, setSelectedJobSteps] = useState(0);
+  const [previewJob, setPreviewJob] = useState<JobResponse | null>(null);
+  // Which tab My Work opens on: Saved right after "Save As a Draft", and the last one used when coming back.
+  const [myWorkTab, setMyWorkTab] = useState<WorkTab>('active');
+  const [selectedJobTitle, setSelectedJobTitle] = useState<string | null>(null);
+  const [selectedJobElderName, setSelectedJobElderName] = useState<string | null>(null);
+  const [selectedJobLocation, setSelectedJobLocation] = useState<string | null>(null);
+
+  // The red number on the side menu: how many applications have been rejected. Asked of the server
+  // again whenever the creator moves to another screen, so a fresh rejection shows up promptly.
+  const { applications: myApplications, reload: reloadApplications } = useMyApplications();
+  // Only rejections the creator has not looked at yet - opening Rejected Applications clears them.
+  const rejectedApplicationsCount = groupApplications(myApplications).unseenRejected.length;
+  useEffect(() => {
+    reloadApplications();
+  }, [screen, reloadApplications]);
+
+  // Phone notifications. The phone itself is registered once for everyone at the top of the app;
+  // here the creator side decides what a tap opens, and refreshes the red number when one arrives
+  // while the app is open. On a build without notification support this does nothing.
+  const openFromNotification = useCallback((data: Record<string, unknown>) => {
+    const target = creatorScreenForNotification(data);
+    if (target) setScreen(target);
+  }, []);
+  usePushNotificationEvents({ onTapped: openFromNotification, onReceived: reloadApplications });
 
   /**
    * Shared navigation handler passed to all screens.
@@ -80,10 +116,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleBack = () => setScreen('market');
 
   /** Called when the "Apply" button is pressed on OpportunityDetailPage */
-  const handleApplyToOpportunity = () => {
-    setSelectedDraftId(null);
-    setScreen('apply-opportunity');
-  };
+  const handleApplyToOpportunity = () => setScreen('apply-opportunity');
 
   /** Called when "Discard"/"View Opportunity" is pressed on the application form */
   const handleBackToOpportunityDetail = () => setScreen('detail');
@@ -92,8 +125,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleOpenSavedApplications = () => setScreen('saved-applications');
 
   /** Called when "Edit" is pressed on a saved draft in SavedOpportunityApplication */
-  const handleEditDraft = (draftId: string, opportunityId: string | null) => {
-    setSelectedDraftId(draftId);
+  const handleEditDraft = (opportunityId: string) => {
     setSelectedOpportunityId(opportunityId);
     setScreen('apply-opportunity');
   };
@@ -116,16 +148,48 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   /** Called when "History" is pressed on CreatorDashboard's Collected Today card */
   const handleOpenHistory = () => setScreen('payment-history');
 
+  /** Called when "Add" is pressed on CreatorDashboard's Collected Today card */
+  const handleOpenLogPayment = () => setScreen('log-payment');
+
+  /** Called when a payment is successfully logged on LogPaymentPage */
+  const handlePaymentSaved = () => setScreen('dashboard');
+
   /** Called when the "Schedule" tab is pressed on CreatorDashboard */
   const handleOpenSchedule = () => setScreen('schedule');
 
   /** Called when a job card is pressed on CreatorDashboard */
-  const handleOpenMyWork = () => setScreen('my-work');
+  const handleOpenMyWork = () => {
+    setMyWorkTab('active');
+    setScreen('my-work');
+  };
+
+  /** Called when "View All" is pressed on CreatorDashboard's Client Feedback - feedback lives under each completed job */
+  const handleOpenCompletedWork = () => {
+    setMyWorkTab('completed');
+    setScreen('my-work');
+  };
+
+  /** Called when "Rejected Submissions" is pressed in the side menu */
+  const handleOpenRejectedWork = () => setScreen('rejected-work');
+
+  /** Called when "Rejected Applications" is pressed in the side menu, or the rejected link on My Applications */
+  const handleOpenRejectedApplications = () => setScreen('rejected-applications');
+
+  /** Called when "View & Edit" is pressed on a card in RejectedWorkPage */
+  const handleEditRejectedWork = (jobId: string, title: string, elderName: string, location: string | null) => {
+    setSelectedJobId(jobId);
+    setSelectedJobTitle(title);
+    setSelectedJobElderName(elderName);
+    setSelectedJobLocation(location);
+    setScreen('continue-work');
+  };
 
   /** Called when "Continue Work" is pressed on a card in MyWorkList */
-  const handleContinueWork = (jobId: string, currentSteps: number) => {
+  const handleContinueWork = (jobId: string, title: string, elderName: string, location: string | null) => {
     setSelectedJobId(jobId);
-    setSelectedJobSteps(currentSteps);
+    setSelectedJobTitle(title);
+    setSelectedJobElderName(elderName);
+    setSelectedJobLocation(location);
     setScreen('continue-work');
   };
 
@@ -133,13 +197,16 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleBackToMyWork = () => setScreen('my-work');
 
   /** Called when "Save As a Draft" is pressed on ContinueMyWorkPage */
-  const handleOpenSavedDrafts = () => setScreen('saved-completed-work');
+  /** After "Save As a Draft": straight to the Saved tab of My Work. */
+  const handleOpenSavedDrafts = () => {
+    setMyWorkTab('saved');
+    setScreen('my-work');
+  };
 
-  /** Called when "View & Edit" is pressed on a draft in SavedCompletedWorkPage */
-  const handleEditWorkDraft = (jobId: string, currentSteps: number) => {
-    setSelectedJobId(jobId);
-    setSelectedJobSteps(currentSteps);
-    setScreen('continue-work');
+  /** Called when "View Publication" is pressed on a completed job in MyWorkList */
+  const handleOpenPublicationPreview = (job: JobResponse) => {
+    setPreviewJob(job);
+    setScreen('publication-preview');
   };
 
   /** Called when back arrow is pressed on PaymentHistoryPage */
@@ -162,21 +229,43 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   /** Called when "Back to Home" is pressed on the verification pending screen */
   const handleBackToHome = () => setScreen('dashboard');
 
+
+  /** The creator app bar (with its side menu) shown above the shared messaging screens. */
+  const creatorMenuBar = (
+    <CreatorTopAppBar
+      variant="menu"
+      onOpenMyWork={handleOpenMyWork}
+      onOpenSavedApplications={handleOpenSavedApplications}
+      onOpenRejectedWork={handleOpenRejectedWork}
+    />
+  );
+
+  const menuValue = useMemo(
+    () => ({ rejectedApplicationsCount, onOpenRejectedApplications: handleOpenRejectedApplications }),
+    [rejectedApplicationsCount],
+  );
+
   return (
-    <>
+    <CreatorMenuContext.Provider value={menuValue}>
       {screen === 'dashboard' && (
         <CreatorDashboard
           onNavigate={handleNavigate}
           onOpenHistory={handleOpenHistory}
           onOpenSchedule={handleOpenSchedule}
           onOpenMyWork={handleOpenMyWork}
+          onOpenCompletedWork={handleOpenCompletedWork}
+          onAddPayment={handleOpenLogPayment}
+          onOpenSavedApplications={handleOpenSavedApplications}
+          onOpenRejectedWork={handleOpenRejectedWork}
         />
       )}
       {screen === 'market' && (
         <OpportunityPage
           onNavigate={handleNavigate}
           onViewDetail={handleViewDetail}
+          onOpenMyWork={handleOpenMyWork}
           onOpenSavedApplications={handleOpenSavedApplications}
+          onOpenRejectedWork={handleOpenRejectedWork}
         />
       )}
       {screen === 'detail' && (
@@ -193,7 +282,6 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onBack={handleBackToOpportunityDetail}
           onSave={handleOpenSavedApplications}
           opportunityId={selectedOpportunityId}
-          draftId={selectedDraftId}
         />
       )}
       {screen === 'saved-applications' && (
@@ -202,39 +290,82 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onBack={handleBack}
           onEditDraft={handleEditDraft}
           onViewOpportunity={handleViewOpportunityFromApplication}
+          onOpenRejectedApplications={handleOpenRejectedApplications}
+        />
+      )}
+      {screen === 'rejected-applications' && (
+        <RejectedApplicationsPage
+          onNavigate={handleNavigate}
+          onBack={handleOpenSavedApplications}
+          onViewOpportunity={handleViewOpportunityFromApplication}
+          onSeen={reloadApplications}
         />
       )}
       {screen === 'apply' && (
-        <BecomeCreatorApplication onNavigate={handleNavigate} onSubmit={handleApplicationSubmit} />
+        <BecomeCreatorApplication
+          onNavigate={handleNavigate}
+          onSubmit={handleApplicationSubmit}
+          onOpenMyWork={handleOpenMyWork}
+          onOpenSavedApplications={handleOpenSavedApplications}
+          onOpenRejectedWork={handleOpenRejectedWork}
+        />
       )}
       {screen === 'pending' && (
         <CreatorVerificationUpdatePage
           onBackToHome={handleBackToHome}
           onReapply={() => setScreen('apply')}
+          onOpenMyWork={handleOpenMyWork}
+          onOpenSavedApplications={handleOpenSavedApplications}
+          onOpenRejectedWork={handleOpenRejectedWork}
         />
       )}
+      {/* Shared messaging screens (also used by the elder side) — the creator side supplies its own app bar + tabs. */}
       {screen === 'inbox' && (
-        <InApp onNavigate={handleNavigate} onOpenConversation={handleOpenConversation} />
+        <InApp
+          insetTop
+          header={creatorMenuBar}
+          footer={<BottomNavBar activeTab="inbox" onNavigate={handleNavigate} />}
+          onOpenConversation={handleOpenConversation}
+        />
       )}
-      {screen === 'conversation' && (
+      {screen === 'conversation' && selectedConversationId && (
         <InboxMessage
-          onNavigate={handleNavigate}
-          onBack={handleBackToInbox}
+          insetTop
           conversationId={selectedConversationId}
+          onBack={handleBackToInbox}
+          header={creatorMenuBar}
+          footer={<BottomNavBar activeTab="inbox" onNavigate={handleNavigate} />}
         />
       )}
       {screen === 'payment-history' && (
         <PaymentHistoryPage onNavigate={handleNavigate} onBack={handleBackToDashboard} />
       )}
-      {screen === 'profile' && <CreatorProfile onNavigate={handleNavigate} />}
+      {screen === 'log-payment' && (
+        <LogPaymentPage onNavigate={handleNavigate} onBack={handleBackToDashboard} onSaved={handlePaymentSaved} />
+      )}
+      {screen === 'profile' && (
+        <CreatorProfile
+          onNavigate={handleNavigate}
+          onOpenMyWork={handleOpenMyWork}
+          onOpenSavedApplications={handleOpenSavedApplications}
+          onOpenRejectedWork={handleOpenRejectedWork}
+        />
+      )}
       {screen === 'schedule' && (
-        <OpportunitySchedulePage onNavigate={handleNavigate} onBack={handleBackToDashboard} />
+        <OpportunitySchedulePage
+          onNavigate={handleNavigate}
+          onBack={handleBackToDashboard}
+          onViewOpportunity={handleViewOpportunityFromApplication}
+        />
       )}
       {screen === 'my-work' && (
         <MyWorkList
           onNavigate={handleNavigate}
           onBack={handleBackToDashboard}
           onContinueWork={handleContinueWork}
+          onViewPublication={handleOpenPublicationPreview}
+          initialTab={myWorkTab}
+          onTabChange={setMyWorkTab}
         />
       )}
       {screen === 'continue-work' && (
@@ -243,17 +374,22 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onBack={handleBackToMyWork}
           onSaveDraft={handleOpenSavedDrafts}
           jobId={selectedJobId}
-          initialSteps={selectedJobSteps}
+          jobTitle={selectedJobTitle}
+          elderName={selectedJobElderName}
+          location={selectedJobLocation}
         />
       )}
-      {screen === 'saved-completed-work' && (
-        <SavedCompletedWorkPage
+      {screen === 'rejected-work' && (
+        <RejectedWorkPage
           onNavigate={handleNavigate}
-          onBack={handleBackToMyWork}
-          onEditDraft={handleEditWorkDraft}
+          onBack={handleBackToDashboard}
+          onEditWork={handleEditRejectedWork}
         />
       )}
-    </>
+      {screen === 'publication-preview' && previewJob && (
+        <PublicationPreviewPage job={previewJob} onNavigate={handleNavigate} onBack={handleBackToMyWork} />
+      )}
+    </CreatorMenuContext.Provider>
   );
 };
 

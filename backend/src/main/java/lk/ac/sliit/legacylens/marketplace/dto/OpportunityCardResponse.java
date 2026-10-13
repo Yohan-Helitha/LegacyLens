@@ -20,7 +20,12 @@ public class OpportunityCardResponse {
     private String location;
     private String category;
     private String locationType;
+    /** How well this fits the signed-in creator, 0-100; null when the user is not a creator. */
     private Integer matchPercentage;
+    /** NOT_RECOMMENDED, WEAK, GOOD_POTENTIAL, STRONG or EXCELLENT - null when there is no match score. */
+    private String matchLevel;
+    /** "Why this matches you", strongest first. */
+    private java.util.List<String> matchReasons;
     private boolean urgent;
     private LocalDateTime dueAt;
     private String elderName;

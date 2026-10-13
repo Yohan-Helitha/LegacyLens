@@ -1,20 +1,23 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ShieldCheck } from 'lucide-react-native';
-import { Header, UserFooter } from '../../components/common';
+import { Mic, ShieldCheck } from 'lucide-react-native';
+import { Header, RoundIconButton, UserFooter } from '../../components/common';
 import type { UserTabKey } from '../../components/common';
 import {
+  Checkbox,
   ElderNavDrawer,
   HireActionButton,
+  MediaPreviewCard,
   MicInputField,
   ContentCaptureColors as D,
 } from '../../components/module-specific/content-capture';
 import type { ElderDrawerItem } from '../../components/module-specific/content-capture';
 import { usePostHireRequest } from '../../hooks/usePostHireRequest';
+import type { HireRequestVoiceNote } from '../../hooks/usePostHireRequest';
 import { useHireStrings } from '../../hooks/useHireStrings';
 import { useKeyboardVisible } from '../../hooks/useKeyboardVisible';
-import { Typography, Spacing } from '../../theme';
+import { Typography, Spacing, Radii } from '../../theme';
 
 /** Guidance for what to write into the two fields below — not form inputs themselves. */
 const GUIDANCE_KEYS = [
@@ -27,6 +30,16 @@ const GUIDANCE_KEYS = [
 ] as const;
 
 interface PostHireRequestScreenProps {
+  /** Owned by the navigator (not local state here) so it survives the trip to AudioRecordingScreen and back. */
+  title: string;
+  onTitleChange: (title: string) => void;
+  /** The recorded Details clip, if any — owned by the navigator so it survives the trip to AudioRecordingScreen and back. */
+  voiceNote: HireRequestVoiceNote | null;
+  /** Opens AudioRecordingScreen to record (or re-record) the Details clip. */
+  onRecordVoiceNote: () => void;
+  /** The "I understand the 1-hour deletion window" checkbox — owned by the navigator for the same reason as title/voiceNote. */
+  acknowledged: boolean;
+  onAcknowledgedChange: (acknowledged: boolean) => void;
   /** Fired once the request has been posted — the navigator moves on to My Requests. */
   onSubmitted?: () => void;
   onTabPress?: (tab: UserTabKey) => void;
@@ -36,12 +49,18 @@ interface PostHireRequestScreenProps {
 
 /**
  * Screen 8 — Request Creator Assistance. A short intro and guidance list
- * (what's worth mentioning), then just two fields — a title and free-text
- * details, each with a mic for dictation. Where and how the elder wants it
- * recorded is something they say in the details, not a separate input. The
- * single primary action sits at the bottom with a reassurance line beneath.
+ * (what's worth mentioning), a dictated title, and a recorded voice note for
+ * the details — not transcribed, so the admin reviewing a request hears it
+ * directly rather than through speech-to-text. The single primary action
+ * sits at the bottom with a reassurance line beneath.
  */
 export const PostHireRequestScreen: React.FC<PostHireRequestScreenProps> = ({
+  title,
+  onTitleChange,
+  voiceNote,
+  onRecordVoiceNote,
+  acknowledged,
+  onAcknowledgedChange,
   onSubmitted,
   onTabPress,
   onDrawerNavigate,
@@ -50,7 +69,17 @@ export const PostHireRequestScreen: React.FC<PostHireRequestScreenProps> = ({
   const [drawerVisible, setDrawerVisible] = useState(false);
   const keyboardVisible = useKeyboardVisible();
   const { t, speechLang, voiceLabels } = useHireStrings();
-  const { title, setTitle, description, setDescription, submitting, errorKey, submit } = usePostHireRequest();
+  const { submitting, errorKey, clearError, submit } = usePostHireRequest(title, voiceNote, acknowledged);
+
+  const handleTitleChange = (value: string) => {
+    onTitleChange(value);
+    clearError('post.error.titleRequired');
+  };
+
+  const handleAcknowledgedToggle = () => {
+    onAcknowledgedChange(!acknowledged);
+    clearError('post.error.acknowledgeRequired');
+  };
 
   const handleSubmit = async () => {
     if (await submit()) onSubmitted?.();
@@ -58,6 +87,7 @@ export const PostHireRequestScreen: React.FC<PostHireRequestScreenProps> = ({
 
   const titleError = errorKey === 'post.error.titleRequired' ? t(errorKey) : undefined;
   const descriptionError = errorKey === 'post.error.descriptionRequired' ? t(errorKey) : undefined;
+  const acknowledgeError = errorKey === 'post.error.acknowledgeRequired' ? t(errorKey) : undefined;
   const submitError = errorKey === 'post.error.submitFailed' ? t(errorKey) : undefined;
 
   return (
@@ -99,25 +129,64 @@ export const PostHireRequestScreen: React.FC<PostHireRequestScreenProps> = ({
           <MicInputField
             label={t('post.titleLabel')}
             value={title}
-            onChangeText={setTitle}
+            onChangeText={handleTitleChange}
             placeholder={t('post.titlePlaceholder')}
             maxLength={200}
+            // Long dictated titles were clipped to one line with no way to
+            // see the start again (the cursor pins the view to the end) —
+            // wrapping across a few lines keeps the whole thing visible.
+            multiline
+            minInputHeight={56}
             errorText={titleError}
             voiceLang={speechLang}
             voiceLabels={voiceLabels(t('post.field.title'))}
           />
 
-          <MicInputField
-            label={t('post.descriptionLabel')}
-            value={description}
-            onChangeText={setDescription}
-            placeholder={t('post.descriptionPlaceholder')}
-            multiline
-            minInputHeight={160}
-            errorText={descriptionError}
-            voiceLang={speechLang}
-            voiceLabels={voiceLabels(t('post.field.description'))}
-          />
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>{t('post.descriptionLabel')}</Text>
+
+            {voiceNote ? (
+              <>
+                <MediaPreviewCard
+                  mediaType="AUDIO"
+                  uri={voiceNote.uri}
+                  durationMillis={voiceNote.durationMillis}
+                  onRerecord={onRecordVoiceNote}
+                />
+                <Text style={s.recordHint}>{t('post.recordDetailsAgain')}</Text>
+              </>
+            ) : (
+              <Pressable
+                onPress={onRecordVoiceNote}
+                style={({ pressed }) => [
+                  s.recordCard,
+                  !!descriptionError && s.recordCardError,
+                  pressed && s.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={t('post.recordDetailsPrompt')}
+              >
+                <RoundIconButton
+                  icon={Mic}
+                  size={48}
+                  color={D.onSecondaryContainer}
+                  backgroundColor={D.secondaryContainer}
+                  onPress={onRecordVoiceNote}
+                  accessibilityLabel={t('post.recordDetailsPrompt')}
+                />
+                <Text style={s.recordCardText}>{t('post.recordDetailsPrompt')}</Text>
+              </Pressable>
+            )}
+
+            {!!descriptionError && <Text style={s.fieldErrorText}>{descriptionError}</Text>}
+          </View>
+
+          <View style={s.deletePolicy}>
+            <Text style={s.deletePolicyText}>{t('post.deletePolicy')}</Text>
+            <Checkbox checked={acknowledged} onToggle={handleAcknowledgedToggle} errorText={acknowledgeError}>
+              {t('post.deleteAcknowledge')}
+            </Checkbox>
+          </View>
 
           <View style={s.submitBlock}>
             {!!submitError && (
@@ -146,7 +215,8 @@ export const PostHireRequestScreen: React.FC<PostHireRequestScreenProps> = ({
       <ElderNavDrawer
         visible={drawerVisible}
         onClose={() => setDrawerVisible(false)}
-        activeItem="hire"
+        // Posting a request is part of My Requests; "Hire a Creator" is the recommendations screen.
+        activeItem="myRequests"
         onNavigate={onDrawerNavigate}
         onLogout={onLogout}
       />
@@ -191,6 +261,56 @@ const s = StyleSheet.create({
     fontFamily: Typography.fontBody,
     fontSize: Typography.sizeSM,
     lineHeight: 21,
+    color: D.onSurfaceVariant,
+  },
+
+  section: { gap: Spacing.sm },
+  sectionLabel: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeSM,
+    color: D.onSurfaceVariant,
+    letterSpacing: 0.3,
+  },
+  recordCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: 'rgba(15,92,92,0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(15,92,92,0.18)',
+    borderRadius: Radii.xl,
+    padding: Spacing.md,
+    minHeight: 72,
+  },
+  recordCardError: { borderColor: '#ba1a1a', borderWidth: 1.5 },
+  recordCardText: {
+    flex: 1,
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeMD,
+    color: D.onSurface,
+  },
+  recordHint: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeXS,
+    color: D.onSurfaceVariant,
+  },
+  fieldErrorText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeXS,
+    color: '#ba1a1a',
+  },
+  pressed: { opacity: 0.85 },
+
+  deletePolicy: {
+    gap: Spacing.sm,
+    backgroundColor: D.surfaceContainerLow,
+    borderRadius: Radii.lg,
+    padding: Spacing.md,
+  },
+  deletePolicyText: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    lineHeight: 20,
     color: D.onSurfaceVariant,
   },
 

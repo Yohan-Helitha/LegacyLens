@@ -21,6 +21,12 @@ export interface UserProfile {
   updatedAt: string;
 }
 
+/** Only covers fields that don't need OTP verification — see the RequestPhoneChange/RequestNicChange flows for those. */
+export interface UpdateProfileRequest {
+  fullName: string;
+  cityId: number | null;
+}
+
 export interface RequestPhoneChangeRequest {
   newPhoneNumber: string;
 }

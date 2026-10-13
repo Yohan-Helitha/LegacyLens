@@ -265,7 +265,7 @@ export const AdminHomeScreen: React.FC<AdminHomeScreenProps> = ({
     let usersCount = stats.totalUsers;
     let verifiedUsersCount = stats.verifiedUsers;
     let pendingVerificationsCount = stats.pendingVerifications;
-    let submissionsCount =
+    const submissionsCount =
       timeRange === 'all'
         ? Math.max(stats.totalStories, moderationItems.length)
         : rangeTotalMod;

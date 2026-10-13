@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,18 +12,41 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle, Line, Path, Polyline, Rect } from 'react-native-svg';
+import { appAlert } from '../../../components/common/AppDialog';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
+import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import { profileApi } from '../../../services/api/profileApi';
+import { cityApi } from '../../../services/api/cityApi';
+import { creatorProfileApi } from '../../../services/api/creatorProfileApi';
+import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
+import { ApiError } from '../../../services/api/client';
 import type { OpportunityDetailResponse } from '../../../types/opportunity';
+import type { City } from '../../../types/city';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
-import { useOpportunityApplicationStore } from '../../../store/opportunityApplicationStore';
+import { resolveImageUrl } from '../../../constants/api';
+import { LanguagePicker } from '../../../components/module-specific/marketplace/LanguagePicker';
+import {
+  languageMissingLevel,
+  selectionFromLanguages,
+  toLanguageRequests,
+  toWireFormat,
+} from '../../../utils/creatorLanguages';
+import type { LanguageSelection } from '../../../utils/creatorLanguages';
+
+// Shown when an opportunity has no picture of its own, or its picture cannot be loaded.
+const GENERIC_HERO_IMAGE = require('../../../../assets/images/work/traditional-rice-menu.jpg');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
 // ─────────────────────────────────────────────────────────────────────────────
+interface OptionGroup {
+  title: string;
+  items: string[];
+}
+
 const D = {
   surface:                '#EDEFEE',
   surfaceContainerLowest: '#ffffff',
@@ -41,46 +64,25 @@ const D = {
   onSurfaceVariant: '#4a5568',
 } as const;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Fallback data — shown while opportunityId is unset or the fetch fails, so
-// the screen never renders blank.
-// ─────────────────────────────────────────────────────────────────────────────
-const FALLBACK_DETAIL: OpportunityDetailResponse = {
-  id: '',
-  title: 'Traditional Recipe Documentation',
-  description: '',
-  heroImageUrl: 'local:fisheries',
-  elderName: 'Mrs. Kamala Wijesingha',
-  elderAvatarUrl: null,
-  elderVerified: true,
-  location: 'Matara',
-  scheduledDate: '2026-08-28T00:00:00',
-  durationText: null,
-  offeredAmount: 2500,
-  timeWindowText: '10.00 A.M - 2.00 P.M',
-  language: null,
-  preservationGoal: null,
-  tasks: [],
-};
-
-const FALLBACK_NAME = 'Arani Inothma';
-const FALLBACK_PHONE = '07X XXX XXXX';
-const FALLBACK_CITY = 'Matara';
-
 /**
  * The opportunity doesn't carry a "required skills" or "equipment" field on
  * the backend yet, so these checklists are static/illustrative for now —
  * matching the mockup — rather than derived from real per-opportunity data.
  */
-const RELEVANT_SKILLS = ['Videography', 'Basic Video Editing', 'Documentation'];
-const EQUIPMENT_ITEMS = ['Camera', 'Microphone'];
+const SKILL_GROUPS: OptionGroup[] = [
+  { title: 'Capture', items: ['Photography', 'Videography', 'Audio Recording'] },
+  { title: 'Edit', items: ['Basic Video Editing', 'Photo Editing'] },
+  {
+    title: 'Research & writing',
+    items: ['Oral History Interviewing', 'Documentation & Report Writing', 'Translation & Transcription'],
+  },
+];
 
-/** Keeps only the first 2 digits visible — a phone number is sensitive even to show as a form default. */
-function maskPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length < 10) return phone;
-  return `${digits.slice(0, 2)}X XXX XXXX`;
-}
+const EQUIPMENT_GROUPS: OptionGroup[] = [
+  { title: 'Cameras', items: ['DSLR / Mirrorless Camera', 'Smartphone Camera'] },
+  { title: 'Sound', items: ['Microphone (Lavalier / Shotgun)', 'Portable Audio Recorder'] },
+  { title: 'Support', items: ['Tripod', 'Portable Lighting Kit', 'Laptop for Editing'] },
+];
 
 function formatScheduledDate(iso: string | null): string {
   if (!iso) return '—';
@@ -115,6 +117,12 @@ const CardIcon: React.FC<IconProps> = ({ size = 13, color = D.secondary }) => (
   </Svg>
 );
 
+const PhoneIcon: React.FC<IconProps> = ({ size = 14, color = D.primary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z" />
+  </Svg>
+);
+
 const ArrowRightIcon: React.FC<IconProps> = ({ size = 11, color = D.secondary }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <Path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
@@ -135,50 +143,103 @@ const CheckMark: React.FC<{ color?: string }> = ({ color = '#ffffff' }) => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Checkbox — custom square, matches the mockup's teal-filled checked state
+// Avatar - the creator's photo, or their initials when they have none
 // ─────────────────────────────────────────────────────────────────────────────
-const Checkbox: React.FC<{ label: string; checked: boolean; onToggle: () => void }> = ({
+const Avatar: React.FC<{ name: string; photoUrl: string | null }> = ({ name, photoUrl }) => {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase())
+    .join('');
+  return photoUrl ? (
+    <Image source={{ uri: photoUrl }} style={s.avatar} accessibilityLabel={`${name} photo`} />
+  ) : (
+    <View style={[s.avatar, s.avatarFallback]} accessibilityLabel={`${name} initials`}>
+      <Text style={s.avatarInitials}>{initials || '?'}</Text>
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TextField - a roomy writing box: accent edge, teal ring while typing, and a live character count
+// ─────────────────────────────────────────────────────────────────────────────
+const TEXT_FIELD_MAX = 600;
+
+const TextField: React.FC<{
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+  label: string;
+}> = ({ value, onChangeText, placeholder, label }) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={[s.fieldCard, focused && s.fieldCardFocused]}>
+      <View style={[s.fieldAccent, focused && s.fieldAccentFocused]} />
+      <View style={s.fieldBody}>
+        <TextInput
+          style={s.fieldInput}
+          value={value}
+          onChangeText={onChangeText}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder={placeholder}
+          placeholderTextColor={D.onSurfaceVariant}
+          multiline
+          maxLength={TEXT_FIELD_MAX}
+          textAlignVertical="top"
+          accessibilityLabel={label}
+        />
+        <Text style={s.fieldCount}>{`${value.length}/${TEXT_FIELD_MAX}`}</Text>
+      </View>
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OptionTile - one pick-any choice: a rounded box with a checkbox, 56pt tall so it is easy to hit
+// ─────────────────────────────────────────────────────────────────────────────
+const OptionTile: React.FC<{ label: string; selected: boolean; onToggle: () => void }> = ({
   label,
-  checked,
+  selected,
   onToggle,
 }) => (
   <Pressable
     onPress={onToggle}
-    style={({ pressed }) => [s.checkboxRow, pressed && s.pressed]}
+    style={({ pressed }) => [s.tile, selected && s.tileSelected, pressed && s.pressed]}
     accessibilityRole="checkbox"
-    accessibilityState={{ checked }}
+    accessibilityState={{ checked: selected }}
     accessibilityLabel={label}
   >
-    <View style={[s.checkboxBox, checked && s.checkboxBoxChecked]}>
-      {checked && <CheckMark />}
-    </View>
-    <Text style={s.checkboxLabel}>{label}</Text>
+    <View style={[s.tileBox, selected && s.tileBoxSelected]}>{selected && <CheckMark />}</View>
+    <Text style={[s.tileText, selected && s.tileTextSelected]} numberOfLines={3}>{label}</Text>
   </Pressable>
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TopAppBar — back arrow (this screen is reached via "Apply", not a nav tab)
-// ─────────────────────────────────────────────────────────────────────────────
-const TopAppBar: React.FC<{ onBack: () => void }> = ({ onBack }) => (
-  <View style={s.appBar}>
-    <Pressable
-      style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
-      onPress={onBack}
-      accessibilityRole="button"
-      accessibilityLabel="Go back"
-    >
-      <Text style={s.backArrow}>{'←'}</Text>
-    </Pressable>
-
-    <Text style={s.appBarTitle}>Legacy Lens</Text>
-
-    <Pressable style={({ pressed }) => [s.iconBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Notifications">
-      <View style={s.bellWrapper}>
-        <View style={s.bellTop} />
-        <View style={s.bellBody} />
-        <View style={s.bellClapper} />
+/** Options under small group headings, two tiles to a row - one card per section. */
+const OptionGroups: React.FC<{
+  groups: OptionGroup[];
+  selected: Record<string, boolean>;
+  onToggle: (item: string) => void;
+}> = ({ groups, selected, onToggle }) => (
+  <View style={s.groupsCard}>
+    {groups.map((group) => (
+      <View key={group.title} style={s.groupBlock}>
+        <Text style={s.groupTitle}>{group.title}</Text>
+        <View style={s.tileGrid}>
+          {group.items.map((item) => (
+            <OptionTile key={item} label={item} selected={!!selected[item]} onToggle={() => onToggle(item)} />
+          ))}
+        </View>
       </View>
-    </Pressable>
+    ))}
+  </View>
+);
+
+const SectionHeader: React.FC<{ title: string; hint?: string }> = ({ title, hint }) => (
+  <View style={s.sectionHeaderRow}>
+    <Text style={s.sectionTitle}>{title}</Text>
+    {!!hint && <Text style={s.sectionHint}>{hint}</Text>}
   </View>
 );
 
@@ -190,63 +251,84 @@ export const OpportunityApplicationForm: React.FC<{
   onBack: () => void;
   onSave: () => void;
   opportunityId: string | null;
-  /** Editing an existing saved draft, opened from SavedOpportunityApplication's "Edit" button. */
-  draftId?: string | null;
-}> = ({ onNavigate, onBack, onSave, opportunityId, draftId }) => {
-  const [detail, setDetail] = useState<OpportunityDetailResponse>(FALLBACK_DETAIL);
-  const [name, setName] = useState(FALLBACK_NAME);
-  const [phone, setPhone] = useState(FALLBACK_PHONE);
-  const [city, setCity] = useState(FALLBACK_CITY);
+}> = ({ onNavigate, onBack, onSave, opportunityId }) => {
+  // Null until each real fetch resolves — no fallback/mock data; a genuine
+  // failure surfaces as an error state instead of invented content.
+  const [detail, setDetail] = useState<OpportunityDetailResponse | null>(null);
+  const [name, setName] = useState<string | null>(null);
+  const [phone, setPhone] = useState<string | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [cityObj, setCityObj] = useState<City | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [selectedSkills, setSelectedSkills] = useState<Record<string, boolean>>({});
   const [experienceText, setExperienceText] = useState('');
   const [approachText, setApproachText] = useState('');
   const [availabilityConfirmed, setAvailabilityConfirmed] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Record<string, boolean>>({});
+  const [languages, setLanguages] = useState<LanguageSelection>({});
+  const [heroFailed, setHeroFailed] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const saveDraft = useOpportunityApplicationStore((s) => s.saveDraft);
-  const getById = useOpportunityApplicationStore((s) => s.getById);
+  // "Edit Your Details" — full name + city only. Phone/NIC stay on their own
+  // OTP-verified change flow (see AccountSecurityController), so this form
+  // never touches them directly.
+  const [editVisible, setEditVisible] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editCityId, setEditCityId] = useState<number | null>(null);
+  const [cities, setCities] = useState<City[]>([]);
+  const [cityListOpen, setCityListOpen] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
-    // Editing an existing draft restores its own snapshot instead of
-    // re-fetching the opportunity — the draft may be a demo entry with no
-    // real opportunityId, and editing shouldn't silently overwrite what the
-    // creator already typed with fresh server data.
-    if (draftId) {
-      const existing = getById(draftId);
-      if (existing) {
-        setDetail((prev) => ({
-          ...prev,
-          title: existing.title,
-          elderName: existing.elderName,
-          location: existing.location,
-          heroImageUrl: existing.heroImageUrl,
-          timeWindowText: existing.timeWindowText,
-        }));
-        setSelectedSkills(Object.fromEntries(existing.formState.selectedSkills.map((k) => [k, true])));
-        setExperienceText(existing.formState.experienceText);
-        setApproachText(existing.formState.approachText);
-        setAvailabilityConfirmed(existing.formState.availabilityConfirmed);
-        setSelectedEquipment(Object.fromEntries(existing.formState.selectedEquipment.map((k) => [k, true])));
-      }
+    setHeroFailed(false);
+    if (!opportunityId) {
+      setLoadError('No opportunity was selected.');
       return;
     }
+    opportunityApi
+      .getById(opportunityId)
+      .then(setDetail)
+      .catch((err) => setLoadError(err instanceof ApiError ? err.message : 'Could not load this opportunity.'));
 
-    if (opportunityId) {
-      opportunityApi.getById(opportunityId).then(setDetail).catch(() => {});
-    }
-  }, [opportunityId, draftId, getById]);
+    // A creator applies to a given opportunity at most once — if they
+    // already have a draft (or even a submitted application) for it, restore
+    // what they'd already filled in instead of starting blank. Not found
+    // (null data, no throw) simply means they're starting fresh.
+    opportunityApplicationApi
+      .getByOpportunity(opportunityId)
+      .then(async (existing) => {
+        if (existing) {
+          setSelectedSkills(Object.fromEntries(existing.skills.map((k) => [k, true])));
+          setExperienceText(existing.experienceText ?? '');
+          setApproachText(existing.approachText ?? '');
+          setAvailabilityConfirmed(existing.availabilityConfirmed);
+          setSelectedEquipment(Object.fromEntries(existing.equipment.map((k) => [k, true])));
+          if (existing.languages?.length) {
+            setLanguages(selectionFromLanguages(existing.languages));
+            return;
+          }
+        }
+        // Nothing saved for this opportunity yet: start from the languages already on the
+        // creator's own profile, so they only have to adjust them.
+        const profile = await creatorProfileApi.getMine().catch(() => null);
+        if (profile?.languages?.length) {
+          setLanguages(selectionFromLanguages(profile.languages));
+        }
+      })
+      .catch(() => {});
+  }, [opportunityId]);
 
   useEffect(() => {
     profileApi
       .getMe()
       .then((me) => {
-        if (me.fullName) setName(me.fullName);
-        if (me.phoneNumber) setPhone(maskPhone(me.phoneNumber));
-        if (me.city?.name) setCity(me.city.name);
+        setName(me.fullName);
+        setPhone(me.phoneNumber || '—');
+        setPhotoUrl(resolveImageUrl(me.profilePhotoUrl));
+        setCityObj(me.city);
       })
-      .catch(() => {});
+      .catch((err) => setLoadError(err instanceof ApiError ? err.message : 'Could not load your profile.'));
   }, []);
 
   const toggleSkill = (skill: string) =>
@@ -255,36 +337,98 @@ export const OpportunityApplicationForm: React.FC<{
   const toggleEquipment = (item: string) =>
     setSelectedEquipment((prev) => ({ ...prev, [item]: !prev[item] }));
 
-  // There's no "submit application" endpoint on the backend yet — Save
-  // persists a local SAVED draft (see opportunityApplicationStore) and takes
-  // the creator to their Saved Applications list, same as the real flow will
-  // once that backend slice exists.
-  const handleSave = () => {
-    setSaving(true);
-    saveDraft(
-      {
-        opportunityId,
-        title: detail.title,
-        elderName: detail.elderName,
-        location: detail.location,
-        heroImageUrl: detail.heroImageUrl,
-        scheduledDateText: detail.scheduledDate ? formatScheduledDate(detail.scheduledDate) : null,
-        timeWindowText: detail.timeWindowText,
-        formState: {
-          selectedSkills: Object.keys(selectedSkills).filter((k) => selectedSkills[k]),
-          experienceText,
-          approachText,
-          availabilityConfirmed,
-          selectedEquipment: Object.keys(selectedEquipment).filter((k) => selectedEquipment[k]),
-        },
-      },
-      draftId ?? undefined,
-    );
-    setSaving(false);
-    Alert.alert('Application saved', 'Your application draft has been saved.', [
-      { text: 'OK', onPress: onSave },
-    ]);
+  const openEditDetails = () => {
+    setEditName(name ?? '');
+    setEditCityId(cityObj?.id ?? null);
+    setCityListOpen(false);
+    setEditVisible(true);
+    if (cities.length === 0) {
+      cityApi.getAll().then(setCities).catch(() => {});
+    }
   };
+
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) {
+      appAlert('Name required', 'Please enter your full name.');
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      const updated = await profileApi.updateMe({ fullName: editName.trim(), cityId: editCityId });
+      setName(updated.fullName);
+      setCityObj(updated.city);
+      setEditVisible(false);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not update your details.';
+      appAlert('Update failed', message);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!opportunityId) {
+      appAlert('Cannot save', 'No opportunity is selected.');
+      return;
+    }
+
+    const missingLevel = languageMissingLevel(languages);
+    if (missingLevel) {
+      appAlert('Language level needed', `Choose how well you speak ${missingLevel}, or untick it.`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await opportunityApplicationApi.saveDraft({
+        opportunityId,
+        skills: Object.keys(selectedSkills).filter((k) => selectedSkills[k]),
+        experienceText,
+        approachText,
+        availabilityConfirmed,
+        equipment: Object.keys(selectedEquipment).filter((k) => selectedEquipment[k]),
+        languages: toWireFormat(toLanguageRequests(languages)),
+      });
+      appAlert('Application saved', 'Your application draft has been saved.', [
+        { text: 'OK', onPress: onSave },
+      ]);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not save your application.';
+      appAlert('Save failed', message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Held back until every fetch above settles — real data only, no
+  // fallback/mock content, and a genuine failure shows as an error state.
+  if (loadError) {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+        <StatusBar style="dark" />
+        <CreatorTopAppBar variant="back" onBack={onBack} />
+        <View style={s.loadingWrap}>
+          <Text style={s.loadingText}>{loadError}</Text>
+        </View>
+        <BottomNavBar activeTab="market" onNavigate={onNavigate} />
+      </SafeAreaView>
+    );
+  }
+
+  // cityObj is intentionally excluded here — a creator with no city set is a valid loaded state, not a pending fetch.
+  if (!detail || name === null || phone === null) {
+    return (
+      <SafeAreaView style={s.safeArea} edges={['top'] as const}>
+        <StatusBar style="dark" />
+        <CreatorTopAppBar variant="back" onBack={onBack} />
+        <View style={s.loadingWrap}>
+          <Text style={s.loadingText}>Loading…</Text>
+        </View>
+        <BottomNavBar activeTab="market" onNavigate={onNavigate} />
+      </SafeAreaView>
+    );
+  }
 
   const availabilityText = detail.scheduledDate
     ? `${formatScheduledDate(detail.scheduledDate)}${detail.timeWindowText ? `, ${detail.timeWindowText}` : ''}`
@@ -294,37 +438,38 @@ export const OpportunityApplicationForm: React.FC<{
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
 
-      <TopAppBar onBack={onBack} />
+      <CreatorTopAppBar variant="back" onBack={onBack} />
 
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.pageHeading}>Apply to Opportunity</Text>
+        <View style={s.headingBlock}>
+          <Text style={s.pageHeading}>Apply to Opportunity</Text>
+          <Text style={s.pageSubtitle}>Tell the knowledge holder why you are the right person for this work.</Text>
+        </View>
 
         {/* Opportunity summary card */}
         <View style={s.card}>
           <View style={s.summaryRow}>
             <Image
-              source={resolveOpportunityImage(detail.heroImageUrl)}
+              source={(heroFailed ? undefined : resolveOpportunityImage(detail.heroImageUrl)) ?? GENERIC_HERO_IMAGE}
               style={s.thumbnail}
               accessibilityLabel={detail.title}
               resizeMode="cover"
+              onError={() => setHeroFailed(true)}
             />
-            <View style={{ flex: 1 }}>
-              <Text style={s.summaryTitle} numberOfLines={2}>{detail.title}</Text>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={s.summaryTitle} numberOfLines={3}>{detail.title}</Text>
+              <Text style={s.elderName}>{detail.elderName}</Text>
+              {detail.location && (
+                <View style={s.metaInline}>
+                  <PinIcon />
+                  <Text style={s.metaInlineText}>{detail.location}</Text>
+                </View>
+              )}
             </View>
-          </View>
-
-          <View style={s.summaryMetaRow}>
-            <Text style={s.elderName}>{detail.elderName}</Text>
-            {detail.location && (
-              <View style={s.metaInline}>
-                <PinIcon />
-                <Text style={s.metaInlineText}>{detail.location}</Text>
-              </View>
-            )}
           </View>
 
           <View style={s.dateStipendStrip}>
@@ -350,68 +495,80 @@ export const OpportunityApplicationForm: React.FC<{
         </View>
 
         {/* Your Details */}
-        <View style={s.card}>
-          <View style={s.cardHeaderRow}>
-            <Text style={s.cardTitle}>Your Details</Text>
-            <Text style={s.editProfileText}>Edit Profile</Text>
+        <View style={s.section}>
+          <SectionHeader title="Your Details" hint="Sent with your application" />
+          <View style={s.profileCard}>
+            <View style={s.profileTop}>
+              <Avatar name={name} photoUrl={photoUrl} />
+              <View style={s.profileNameBlock}>
+                <Text style={s.detailsName} numberOfLines={2}>{name}</Text>
+                <Text style={s.profileRole}>Content Creator</Text>
+              </View>
+              <Pressable
+                onPress={openEditDetails}
+                style={({ pressed }) => [s.editProfilePill, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Edit your details"
+              >
+                <Text style={s.editProfileText}>Edit Profile</Text>
+              </Pressable>
+            </View>
+
+            <View style={s.profileDivider} />
+
+            <View style={s.detailRow}>
+              <View style={s.detailIcon}><PhoneIcon /></View>
+              <Text style={s.detailText}>{phone}</Text>
+            </View>
+            <View style={s.detailRow}>
+              <View style={s.detailIcon}><PinIcon size={14} color={D.primary} /></View>
+              <Text style={s.detailText}>{cityObj?.name ?? 'No city set'}</Text>
+            </View>
           </View>
-          <Text style={s.detailsName}>{name}</Text>
-          <Text style={s.detailsMuted}>{phone}</Text>
-          <Text style={s.detailsMuted}>{city}</Text>
         </View>
 
         {/* Relevant Skill */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Relevant Skill</Text>
+          <SectionHeader
+            title="Relevant Skill"
+            hint={`${Object.values(selectedSkills).filter(Boolean).length} selected`}
+          />
+          <OptionGroups groups={SKILL_GROUPS} selected={selectedSkills} onToggle={toggleSkill} />
+        </View>
+
+        {/* Languages - the same picker the "Become a Content Creator" form uses */}
+        <View style={s.section}>
+          <SectionHeader title="Languages" hint="Which can you work in?" />
           <View style={s.card}>
-            {RELEVANT_SKILLS.map((skill) => (
-              <Checkbox
-                key={skill}
-                label={skill}
-                checked={!!selectedSkills[skill]}
-                onToggle={() => toggleSkill(skill)}
-              />
-            ))}
+            <LanguagePicker value={languages} onChange={setLanguages} />
           </View>
         </View>
 
         {/* Relevant Experience */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Relevant Experience</Text>
-          <View style={s.textAreaCard}>
-            <TextInput
-              style={s.textArea}
-              value={experienceText}
-              onChangeText={setExperienceText}
-              placeholder="Tell the knowledge holder about similar work you have done."
-              placeholderTextColor={D.onSurfaceVariant}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-          </View>
+          <SectionHeader title="Relevant Experience" hint="Past work, in your own words" />
+          <TextField
+            label="Relevant experience"
+            value={experienceText}
+            onChangeText={setExperienceText}
+            placeholder="Tell the knowledge holder about similar work you have done."
+          />
         </View>
 
         {/* Approach */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Approach</Text>
-          <View style={s.textAreaCard}>
-            <TextInput
-              style={s.textArea}
-              value={approachText}
-              onChangeText={setApproachText}
-              placeholder="How will you approach this documentation work."
-              placeholderTextColor={D.onSurfaceVariant}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-          </View>
+          <SectionHeader title="Approach" hint="Your plan, step by step" />
+          <TextField
+            label="Approach"
+            value={approachText}
+            onChangeText={setApproachText}
+            placeholder="How will you approach this documentation work."
+          />
         </View>
 
         {/* Availability */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Availability</Text>
+          <SectionHeader title="Availability" />
           <View style={s.card}>
             <View style={s.availabilityRow}>
               <View style={s.availabilityBadge}>
@@ -419,27 +576,30 @@ export const OpportunityApplicationForm: React.FC<{
               </View>
               <Text style={s.availabilityText}>{availabilityText}</Text>
             </View>
-            <Checkbox
-              label="I'm available at this time."
-              checked={availabilityConfirmed}
-              onToggle={() => setAvailabilityConfirmed((v) => !v)}
-            />
+            <Pressable
+              onPress={() => setAvailabilityConfirmed((v) => !v)}
+              style={({ pressed }) => [s.confirmRow, availabilityConfirmed && s.confirmRowOn, pressed && s.pressed]}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: availabilityConfirmed }}
+              accessibilityLabel="I'm available at this time."
+            >
+              <View style={[s.confirmBox, availabilityConfirmed && s.confirmBoxOn]}>
+                {availabilityConfirmed && <CheckMark />}
+              </View>
+              <Text style={[s.confirmText, availabilityConfirmed && s.confirmTextOn]}>
+                {"I'm available at this time."}
+              </Text>
+            </Pressable>
           </View>
         </View>
 
         {/* Equipment */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Equipment</Text>
-          <View style={s.card}>
-            {EQUIPMENT_ITEMS.map((item) => (
-              <Checkbox
-                key={item}
-                label={item}
-                checked={!!selectedEquipment[item]}
-                onToggle={() => toggleEquipment(item)}
-              />
-            ))}
-          </View>
+          <SectionHeader
+            title="Equipment"
+            hint={`${Object.values(selectedEquipment).filter(Boolean).length} selected`}
+          />
+          <OptionGroups groups={EQUIPMENT_GROUPS} selected={selectedEquipment} onToggle={toggleEquipment} />
         </View>
 
         {/* Actions */}
@@ -465,6 +625,86 @@ export const OpportunityApplicationForm: React.FC<{
       </ScrollView>
 
       <BottomNavBar activeTab="market" onNavigate={onNavigate} />
+
+      <Modal
+        visible={editVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditVisible(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <Text style={s.modalTitle}>Edit Your Details</Text>
+
+            <Text style={s.modalLabel}>Full Name</Text>
+            <TextInput
+              style={s.modalInput}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Your full name"
+              placeholderTextColor={D.onSurfaceVariant}
+            />
+
+            <Text style={s.modalLabel}>City</Text>
+            <Pressable
+              style={({ pressed }) => [s.citySelector, pressed && s.pressed]}
+              onPress={() => setCityListOpen((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel="Select your city"
+            >
+              <Text style={s.citySelectorText}>
+                {cities.find((c) => c.id === editCityId)?.name ?? 'Select your city'}
+              </Text>
+            </Pressable>
+            {cityListOpen && (
+              <ScrollView style={s.cityListBox} nestedScrollEnabled>
+                {cities.map((c) => (
+                  <Pressable
+                    key={c.id}
+                    style={({ pressed }) => [s.cityListRow, pressed && s.pressed]}
+                    onPress={() => {
+                      setEditCityId(c.id);
+                      setCityListOpen(false);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={c.name}
+                  >
+                    <Text style={[s.cityListRowText, c.id === editCityId && s.cityListRowTextActive]}>
+                      {c.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
+            <Text style={s.modalLabel}>Phone Number</Text>
+            <Text style={s.modalPhoneReadOnly}>{phone}</Text>
+            <Text style={s.modalPhoneNote}>
+              Phone numbers are changed separately with SMS verification, from Profile → Privacy & Security.
+            </Text>
+
+            <View style={s.modalBtnRow}>
+              <Pressable
+                onPress={() => setEditVisible(false)}
+                style={({ pressed }) => [s.modalBtnCancel, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel editing"
+              >
+                <Text style={s.modalBtnCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleSaveProfile}
+                disabled={savingProfile}
+                style={({ pressed }) => [s.modalBtnSave, pressed && s.saveBtnPressed, savingProfile && { opacity: 0.7 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Save your details"
+              >
+                <Text style={s.modalBtnSaveText}>{savingProfile ? 'Saving…' : 'Save'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -516,11 +756,23 @@ const s = StyleSheet.create({
     gap: Spacing.md,
   },
 
+  headingBlock: { gap: 4 },
   pageHeading: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeMD,
-    color: D.onSurface,
+    fontFamily: Typography.fontDisplay,
+    fontSize: 22,
+    lineHeight: 28,
+    color: D.primary,
+    letterSpacing: -0.3,
   },
+  pageSubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: 13,
+    lineHeight: 19,
+    color: D.onSurfaceVariant,
+  },
+
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loadingText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
 
   // ── Section cards ────────────────────────────────────────────────────────
   card: {
@@ -530,23 +782,65 @@ const s = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
     gap: Spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowColor: D.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 2,
   },
   section: { gap: Spacing.sm },
-  sectionTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 2 },
+  sectionTitle: { fontFamily: Typography.fontDisplay, fontSize: 15, color: D.onSurface },
+  sectionHint: { fontFamily: Typography.fontBodyMed, fontSize: 11, color: D.onSurfaceVariant },
+
+  // ── Option tiles (skills, equipment) ─────────────────────────────────────
+  groupsCard: {
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.xl,
+    padding: Spacing.sm + 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    gap: Spacing.sm + 4,
+  },
+  groupBlock: { gap: Spacing.sm },
+  groupTitle: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: D.onSurfaceVariant,
+  },
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: Spacing.sm },
+  tile: {
+    width: '48.5%',
+    minHeight: 48,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 6, paddingHorizontal: 10,
+    borderRadius: Radii.lg, borderWidth: 1, borderColor: D.surfaceVariant,
+    backgroundColor: D.surfaceContainerLowest,
+  },
+  tileSelected: { backgroundColor: '#E3F1F0', borderColor: D.primary },
+  tileBox: {
+    width: 20, height: 20, borderRadius: 6,
+    borderWidth: 1.5, borderColor: D.secondary,
+    backgroundColor: D.surfaceContainerLowest,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  tileBoxSelected: { backgroundColor: D.primary, borderColor: D.primary },
+  tileText: {
+    flex: 1, fontFamily: Typography.fontBodyMed, fontSize: 12.5, lineHeight: 16, color: D.onSurface,
+    includeFontPadding: false, textAlignVertical: 'center',
+  },
+  tileTextSelected: { fontFamily: Typography.fontBodySemi, color: D.primary },
 
   // ── Opportunity summary ──────────────────────────────────────────────────
   summaryRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
   thumbnail: {
-    width: 84, height: 68, borderRadius: Radii.lg,
+    width: 92, height: 92, borderRadius: Radii.lg,
     backgroundColor: D.surfaceContainerLow,
     borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
   },
-  summaryTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, lineHeight: 20, color: D.onSurface },
+  summaryTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 22, color: D.onSurface },
   summaryMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   elderName: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurface },
   metaInline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -562,47 +856,52 @@ const s = StyleSheet.create({
   viewOpportunityText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.secondary },
 
   // ── Your Details ─────────────────────────────────────────────────────────
-  cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
-  editProfileText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
-  detailsName: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
-  detailsMuted: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
-
-  // ── Text areas ───────────────────────────────────────────────────────────
-  textAreaCard: {
+  profileCard: {
     backgroundColor: D.surfaceContainerLowest,
     borderRadius: Radii.xl,
+    padding: Spacing.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
-    padding: Spacing.sm,
+    borderTopWidth: 4,
+    borderTopColor: D.primary,
+    gap: Spacing.sm,
+    shadowColor: D.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 3,
   },
-  textArea: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeSM,
-    lineHeight: 20,
-    color: D.onSurface,
-    minHeight: 64,
+  profileTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  profileNameBlock: { flex: 1, gap: 2 },
+  profileRole: { fontFamily: Typography.fontBodyMed, fontSize: 11, color: D.onSurfaceVariant },
+  profileDivider: { height: StyleSheet.hairlineWidth, backgroundColor: D.surfaceVariant, marginVertical: 2 },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: D.surfaceContainerLow },
+  avatarFallback: { backgroundColor: D.primary, alignItems: 'center', justifyContent: 'center' },
+  avatarInitials: { fontFamily: Typography.fontBodySemi, fontSize: 15, color: '#ffffff' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, minHeight: 32 },
+  detailIcon: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: '#E3F1F0', alignItems: 'center', justifyContent: 'center',
   },
-
-  // ── Checkbox ─────────────────────────────────────────────────────────────
-  checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  checkboxBox: {
-    width: 20, height: 20, borderRadius: 4,
-    borderWidth: 1.5, borderColor: D.secondary,
-    backgroundColor: D.surfaceContainerLowest,
-    alignItems: 'center', justifyContent: 'center',
+  detailText: { fontFamily: Typography.fontBodyMed, fontSize: 13, color: D.onSurface },
+  editProfilePill: {
+    borderRadius: Radii.full, borderWidth: 1, borderColor: D.secondary,
+    paddingVertical: 4, paddingHorizontal: 12,
   },
-  checkboxBoxChecked: { backgroundColor: D.primary, borderColor: D.primary },
-  checkboxLabel: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurface },
+  editProfileText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.secondary },
+  detailsName: { fontFamily: Typography.fontBodySemi, fontSize: 14, color: D.onSurface },
 
   // ── Availability ─────────────────────────────────────────────────────────
-  availabilityRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  availabilityRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: D.surfaceContainerLow, borderRadius: Radii.lg, padding: Spacing.sm,
+  },
   availabilityBadge: {
     width: 24, height: 24, borderRadius: 12,
     backgroundColor: D.secondary,
     alignItems: 'center', justifyContent: 'center',
   },
-  availabilityText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface, flex: 1 },
+  availabilityText: { fontFamily: Typography.fontBodySemi, fontSize: 13, color: D.onSurface, flex: 1 },
 
   // ── Actions ──────────────────────────────────────────────────────────────
   actionsRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.md, paddingTop: Spacing.xs },
@@ -622,6 +921,144 @@ const s = StyleSheet.create({
   saveBtnPressed: { opacity: 0.9 },
   saveBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
 
+  // ── Writing boxes (experience, approach) ────────────────────────────────
+  fieldCard: {
+    flexDirection: 'row',
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.xl,
+    borderWidth: 1.5,
+    borderColor: D.surfaceVariant,
+    overflow: 'hidden',
+    shadowColor: D.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  fieldCardFocused: { borderColor: D.primary, shadowOpacity: 0.18, elevation: 4 },
+  fieldAccent: { width: 5, backgroundColor: D.secondary },
+  fieldAccentFocused: { backgroundColor: D.primary },
+  fieldBody: { flex: 1, paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: 6 },
+  fieldInput: {
+    fontFamily: Typography.fontBody,
+    fontSize: 13,
+    lineHeight: 20,
+    color: D.onSurface,
+    minHeight: 84,
+    paddingTop: 4,
+  },
+  fieldCount: {
+    alignSelf: 'flex-end',
+    fontFamily: Typography.fontBodyMed,
+    fontSize: 11,
+    color: D.onSurfaceVariant,
+  },
+
+  // ── "I'm available" strip - same inset as the time strip above it, so the two line up ──
+  confirmRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    minHeight: 48, padding: Spacing.sm,
+    borderRadius: Radii.lg, borderWidth: 1, borderColor: D.surfaceVariant,
+    backgroundColor: D.surfaceContainerLowest,
+  },
+  confirmRowOn: { backgroundColor: '#E3F1F0', borderColor: D.primary },
+  confirmBox: {
+    width: 24, height: 24, borderRadius: 7,
+    borderWidth: 1.5, borderColor: D.secondary,
+    backgroundColor: D.surfaceContainerLowest,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  confirmBoxOn: { backgroundColor: D.primary, borderColor: D.primary },
+  confirmText: { flex: 1, fontFamily: Typography.fontBodyMed, fontSize: 13, color: D.onSurface },
+  confirmTextOn: { fontFamily: Typography.fontBodySemi, color: D.primary },
+
   // ── Press feedback ───────────────────────────────────────────────────────
   pressed: { opacity: 0.75 },
+
+  // ── Edit Your Details modal ─────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.md,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.xl,
+    padding: Spacing.md,
+    gap: 6,
+  },
+  modalTitle: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeMD,
+    color: D.onSurface,
+    marginBottom: 4,
+  },
+  modalLabel: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeXS,
+    color: D.onSurfaceVariant,
+    marginTop: 8,
+  },
+  modalInput: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    borderRadius: Radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    color: D.onSurface,
+  },
+  citySelector: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    borderRadius: Radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  citySelectorText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurface },
+  cityListBox: {
+    maxHeight: 160,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    borderRadius: Radii.lg,
+    marginTop: 6,
+  },
+  cityListRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: D.surfaceVariant,
+  },
+  cityListRowText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurface },
+  cityListRowTextActive: { fontFamily: Typography.fontBodySemi, color: D.primary },
+  modalPhoneReadOnly: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeSM,
+    color: D.onSurface,
+    paddingVertical: 4,
+  },
+  modalPhoneNote: {
+    fontFamily: Typography.fontBody,
+    fontSize: 11,
+    lineHeight: 16,
+    color: D.onSurfaceVariant,
+  },
+  modalBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.md },
+  modalBtnCancel: {
+    paddingVertical: 10, paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full, borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
+    alignItems: 'center', justifyContent: 'center', minHeight: 44,
+  },
+  modalBtnCancelText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.secondary },
+  modalBtnSave: {
+    paddingVertical: 10, paddingHorizontal: Spacing.md,
+    borderRadius: Radii.full, backgroundColor: D.primary,
+    alignItems: 'center', justifyContent: 'center', minHeight: 44,
+  },
+  modalBtnSaveText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
 });

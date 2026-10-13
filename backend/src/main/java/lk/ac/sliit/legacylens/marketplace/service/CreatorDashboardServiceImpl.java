@@ -1,5 +1,8 @@
 package lk.ac.sliit.legacylens.marketplace.service;
 
+import lk.ac.sliit.legacylens.common.exception.InvalidApplicationStateException;
+import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
+import lk.ac.sliit.legacylens.common.storage.FileStorageService;
 import lk.ac.sliit.legacylens.marketplace.dto.CreatorDashboardSummaryResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.JobResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.PaymentHistoryItemResponse;
@@ -8,7 +11,9 @@ import lk.ac.sliit.legacylens.marketplace.entity.Job;
 import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.PaymentRecord;
 import lk.ac.sliit.legacylens.marketplace.entity.Review;
+import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
+import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.PaymentRecordRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.ReviewRepository;
 import lk.ac.sliit.legacylens.users.entity.CreatorProfile;
@@ -20,14 +25,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -43,23 +50,32 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
     private static final int TAB_LIST_MAX = 100;
 
     private final JobRepository jobRepository;
+    private final OpportunityRepository opportunityRepository;
     private final ReviewRepository reviewRepository;
     private final CreatorProfileRepository creatorProfileRepository;
     private final PaymentRecordRepository paymentRecordRepository;
     private final UserRepository userRepository;
+    private final FileStorageService fileStorageService;
+
+    /** Subdirectory (under app.upload.dir) that payment proof photos are stored in. */
+    private static final String PAYMENT_PROOF_UPLOAD_SUBDIR = "payment-proofs";
 
     public CreatorDashboardServiceImpl(
             JobRepository jobRepository,
+            OpportunityRepository opportunityRepository,
             ReviewRepository reviewRepository,
             CreatorProfileRepository creatorProfileRepository,
             PaymentRecordRepository paymentRecordRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            FileStorageService fileStorageService) {
 
         this.jobRepository = jobRepository;
+        this.opportunityRepository = opportunityRepository;
         this.reviewRepository = reviewRepository;
         this.creatorProfileRepository = creatorProfileRepository;
         this.paymentRecordRepository = paymentRecordRepository;
         this.userRepository = userRepository;
+        this.fileStorageService = fileStorageService;
     }
 
     @Override
@@ -81,15 +97,15 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
                 .build();
     }
 
+    /**
+     * Money counts as collected only when the creator logs it: cash is handed over in person, so a job being
+     * finished says nothing about whether it has actually been paid.
+     */
     private BigDecimal sumCollectedToday(UUID creatorId) {
         LocalDateTime start = LocalDate.now().atStartOfDay();
         LocalDateTime end = LocalDate.now().atTime(LocalTime.MAX);
 
-        BigDecimal fromJobs = jobRepository.sumOfferedAmountByCreatorIdAndStatusAndCompletedAtBetween(
-                creatorId, JobStatus.COMPLETED, start, end);
-        BigDecimal fromPayments = paymentRecordRepository.sumByCreatorIdAndCollectedAtBetween(creatorId, start, end);
-
-        return fromJobs.add(fromPayments);
+        return paymentRecordRepository.sumByCreatorIdAndCollectedAtBetween(creatorId, start, end);
     }
 
     @Override
@@ -103,9 +119,7 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
 
         Pageable pageable = PageRequest.of(0, TAB_LIST_MAX, sort);
 
-        return jobRepository.findByCreatorIdAndStatus(creatorId, status, pageable).stream()
-                .map(this::mapJob)
-                .collect(Collectors.toList());
+        return mapJobs(jobRepository.findByCreatorIdAndStatus(creatorId, status, pageable));
     }
 
     @Override
@@ -113,9 +127,7 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
     public List<JobResponse> getRecentWork(UUID creatorId, int limit) {
         Pageable pageable = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "completedAt"));
 
-        return jobRepository.findByCreatorIdAndStatus(creatorId, JobStatus.COMPLETED, pageable).stream()
-                .map(this::mapJob)
-                .collect(Collectors.toList());
+        return mapJobs(jobRepository.findByCreatorIdAndStatus(creatorId, JobStatus.COMPLETED, pageable));
     }
 
     @Override
@@ -131,50 +143,96 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
     @Override
     @Transactional(readOnly = true)
     public List<PaymentHistoryItemResponse> getPaymentHistory(UUID creatorId, int limit) {
-        List<PaymentHistoryItemResponse> items = new ArrayList<>();
-
-        jobRepository.findByCreatorIdAndStatus(creatorId, JobStatus.COMPLETED, PageRequest.of(0, limit))
-                .forEach(job -> items.add(PaymentHistoryItemResponse.builder()
-                        .id(job.getId())
-                        .amount(job.getOfferedAmount())
-                        .collectedAt(job.getCompletedAt())
-                        .note(job.getTitle() + " — " + job.getElder().getFullName())
-                        .build()));
-
-        paymentRecordRepository.findByCreatorIdOrderByCollectedAtDesc(creatorId, PageRequest.of(0, limit))
-                .forEach(payment -> items.add(PaymentHistoryItemResponse.builder()
-                        .id(payment.getId())
-                        .amount(payment.getAmount())
-                        .collectedAt(payment.getCollectedAt())
-                        .note(payment.getNote())
-                        .build()));
-
-        items.sort(Comparator.comparing(PaymentHistoryItemResponse::getCollectedAt).reversed());
-
-        return items.size() > limit ? items.subList(0, limit) : items;
+        // Only payments the creator actually logged - a completed job's agreed price is not income until then.
+        return paymentRecordRepository.findByCreatorIdOrderByCollectedAtDesc(creatorId, PageRequest.of(0, limit)).stream()
+                .map(this::mapPaymentRecord)
+                .collect(Collectors.toList());
     }
 
     @Override
     @Transactional
-    public PaymentHistoryItemResponse addPayment(UUID creatorId, BigDecimal amount, String note) {
-        User creator = userRepository.findById(creatorId).orElseThrow();
+    public PaymentHistoryItemResponse addPayment(
+            UUID creatorId, UUID jobId, BigDecimal amount, BigDecimal tipAmount, MultipartFile proofDocument) {
+
+        User creator = userRepository.findById(creatorId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        Job job = null;
+        if (jobId != null) {
+            job = jobRepository.findByIdAndCreatorId(jobId, creatorId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
+            // A booked job (UPCOMING) is the creator's work to do, so cash can be logged for it; a cancelled one cannot.
+            if (job.getStatus() == JobStatus.CANCELLED) {
+                throw new InvalidApplicationStateException("A payment cannot be logged for a cancelled job.");
+            }
+        }
+
+        String proofDocumentUrl = fileStorageService.store(proofDocument, PAYMENT_PROOF_UPLOAD_SUBDIR,
+                FileStorageService.MEDIA_CONTENT_TYPES, FileStorageService.MAX_MEDIA_FILE_SIZE_BYTES);
 
         PaymentRecord record = new PaymentRecord();
         record.setCreator(creator);
+        record.setJob(job);
         record.setAmount(amount);
-        record.setNote(note);
+        record.setTipAmount(tipAmount != null ? tipAmount : BigDecimal.ZERO);
+        record.setProofDocumentUrl(proofDocumentUrl);
         record = paymentRecordRepository.save(record);
+
+        return mapPaymentRecord(record);
+    }
+
+    private PaymentHistoryItemResponse mapPaymentRecord(PaymentRecord record) {
+        Job job = record.getJob();
+        BigDecimal tip = record.getTipAmount() != null ? record.getTipAmount() : BigDecimal.ZERO;
 
         return PaymentHistoryItemResponse.builder()
                 .id(record.getId())
+                .jobId(job != null ? job.getId() : null)
+                .opportunityTitle(job != null ? job.getTitle() : null)
+                .elderName(job != null ? job.getElder().getFullName() : null)
                 .amount(record.getAmount())
+                .tipAmount(tip)
+                .totalAmount(record.getAmount().add(tip))
+                .proofDocumentUrl(record.getProofDocumentUrl())
                 .collectedAt(record.getCollectedAt())
                 .note(record.getNote())
                 .build();
     }
 
-    private JobResponse mapJob(Job job) {
+    /** Maps a list of jobs, looking up the categories of their opportunities in one query. */
+    private List<JobResponse> mapJobs(List<Job> jobs) {
+        List<UUID> opportunityIds = jobs.stream()
+                .map(Job::getOpportunityId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<UUID, Opportunity> opportunityById = new HashMap<>();
+        if (!opportunityIds.isEmpty()) {
+            for (Opportunity opportunity : opportunityRepository.findAllById(opportunityIds)) {
+                opportunityById.put(opportunity.getId(), opportunity);
+            }
+        }
+
+        // The knowledge holder's review of each job (one per job), fetched in one query.
+        Map<UUID, Review> reviewByJobId = new HashMap<>();
+        if (!jobs.isEmpty()) {
+            for (Review review : reviewRepository.findByJobIdIn(jobs.stream().map(Job::getId).toList())) {
+                reviewByJobId.put(review.getJob().getId(), review);
+            }
+        }
+
+        return jobs.stream()
+                .map(job -> mapJob(job, opportunityById.get(job.getOpportunityId()), reviewByJobId.get(job.getId())))
+                .collect(Collectors.toList());
+    }
+
+    private JobResponse mapJob(Job job, Opportunity opportunity, Review review) {
         return JobResponse.builder()
+                .heroImageUrl(job.getHeroImageUrl() != null ? job.getHeroImageUrl()
+                        : opportunity == null ? null : opportunity.getHeroImageUrl())
+                .reviewRating(review == null ? null : review.getRating())
+                .reviewComment(review == null ? null : review.getComment())
                 .id(job.getId())
                 .title(job.getTitle())
                 .description(job.getDescription())
@@ -182,8 +240,12 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
                 .location(job.getLocation())
                 .offeredAmount(job.getOfferedAmount())
                 .status(job.getStatus().name())
+                .urgent(job.isUrgent())
                 .scheduledAt(job.getScheduledAt())
+                .timeWindowText(job.getTimeWindowText())
                 .completedAt(job.getCompletedAt())
+                .category(opportunity == null ? null : opportunity.getCategory())
+                .language(opportunity == null ? null : opportunity.getLanguage())
                 .build();
     }
 
@@ -193,6 +255,8 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
                 .rating(review.getRating())
                 .comment(review.getComment())
                 .elderName(review.getElder().getFullName())
+                .jobId(review.getJob().getId())
+                .opportunityTitle(review.getJob().getTitle())
                 .createdAt(review.getCreatedAt())
                 .build();
     }

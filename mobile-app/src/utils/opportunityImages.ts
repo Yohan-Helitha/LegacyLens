@@ -13,6 +13,8 @@ const LOCAL_OPPORTUNITY_IMAGES: Record<string, ImageSourcePropType> = {
   'galle-coast': require('../../assets/images/opportunities/galle-coast.jpg'),
   'recipe-plating': require('../../assets/images/opportunities/recipe-plating.jpg'),
   'pottery-craft': require('../../assets/images/opportunities/pottery-craft.jpg'),
+  'war-veteran': require('../../assets/images/opportunities/war-veteran.jpg'),
+  'mask-collection': require('../../assets/images/opportunities/mask-collection.jpg'),
 };
 
 export function resolveOpportunityImage(heroImageUrl: string | null): ImageSourcePropType | undefined {
