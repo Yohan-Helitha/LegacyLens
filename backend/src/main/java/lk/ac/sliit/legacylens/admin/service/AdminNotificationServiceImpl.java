@@ -21,6 +21,7 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
 
     private final OpportunityRepository opportunityRepository;
     private final ModerationQueueRepository moderationQueueRepository;
+    private final java.util.Set<String> readNotificationIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     @Override
     public List<AdminNotificationResponse> getAdminNotifications() {
@@ -29,28 +30,32 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
         // Fetch Opportunities
         List<Opportunity> opportunities = opportunityRepository.findAll();
         for (Opportunity opp : opportunities) {
+            String oppId = opp.getId().toString();
+            boolean read = readNotificationIds.contains(oppId) || opp.isRead();
             notifications.add(AdminNotificationResponse.builder()
-                    .id(opp.getId().toString())
+                    .id(oppId)
                     .title(opp.getTitle() != null ? opp.getTitle() : "Opportunity")
                     .subtitle("Opportunity Intake")
                     .body("New opportunity for review.")
                     .createdAt(opp.getCreatedAt())
                     .type("opportunity")
-                    .isRead(opp.isRead())
+                    .isRead(read)
                     .build());
         }
 
         // Fetch Moderation Items
         List<ModerationQueueItem> modItems = moderationQueueRepository.findByStatus(StoryStatus.PENDING);
         for (ModerationQueueItem mod : modItems) {
+            String modId = mod.getId().toString();
+            boolean read = readNotificationIds.contains(modId) || mod.isRead();
             notifications.add(AdminNotificationResponse.builder()
-                    .id(mod.getId().toString())
+                    .id(modId)
                     .title(mod.getTitle() != null ? mod.getTitle() : "Reported Content")
                     .subtitle("Moderation Queue")
                     .body("Received a report requiring moderation review.")
                     .createdAt(mod.getCreatedAt())
                     .type("moderation")
-                    .isRead(mod.isRead())
+                    .isRead(read)
                     .build());
         }
 
@@ -63,6 +68,9 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
     @Override
     @Transactional
     public void markNotificationAsRead(String type, String id) {
+        if (id != null) {
+            readNotificationIds.add(id);
+        }
         if ("opportunity".equals(type)) {
             opportunityRepository.findById(UUID.fromString(id)).ifPresent(opp -> {
                 opp.setRead(true);
@@ -81,6 +89,7 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
     public void markAllAsRead() {
         List<Opportunity> opps = opportunityRepository.findAll();
         for (Opportunity opp : opps) {
+            readNotificationIds.add(opp.getId().toString());
             if (!opp.isRead()) {
                 opp.setRead(true);
                 opportunityRepository.save(opp);
@@ -89,6 +98,7 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
 
         List<ModerationQueueItem> mods = moderationQueueRepository.findByStatus(StoryStatus.PENDING);
         for (ModerationQueueItem mod : mods) {
+            readNotificationIds.add(mod.getId().toString());
             if (!mod.isRead()) {
                 mod.setRead(true);
                 moderationQueueRepository.save(mod);
