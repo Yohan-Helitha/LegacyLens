@@ -15,6 +15,7 @@ import { AuditComponent } from '../pages/audit/audit.component';
 import { WordOfTheDayComponent } from '../pages/word-of-the-day/word-of-the-day.component';
 import { NotificationsComponent } from '../pages/notifications/notifications.component';
 import { GuidelinesComponent } from '../pages/guidelines/guidelines.component';
+import { TaxonomyComponent } from '../pages/taxonomy/taxonomy.component';
 import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -44,6 +45,23 @@ export const routes: Routes = [
     path: 'moderation',
     component: ModerationComponent,
     canActivate: [authGuard]
+  },
+  {
+    path: 'taxonomy',
+    component: TaxonomyComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'tag-intelligence',
+    redirectTo: 'taxonomy'
+  },
+  {
+    path: 'cultural-taxonomy',
+    redirectTo: 'taxonomy'
+  },
+  {
+    path: 'tags',
+    redirectTo: 'taxonomy'
   },
   {
     path: 'opportunity-intake',
