@@ -388,6 +388,7 @@ export const SearchScreen: React.FC<{
                   setCommentModalVisible={setCommentModalVisible}
                   onNavigate={onNavigate}
                   loadedVideoIds={loadedVideoIds}
+                  initialLiked={item.liked}
                 />
               );
             }
@@ -402,6 +403,7 @@ export const SearchScreen: React.FC<{
                   setActivePostId={setActivePostId}
                   setCommentModalVisible={setCommentModalVisible}
                   onNavigate={onNavigate}
+                  initialLiked={item.liked}
                 />
               );
             }
@@ -414,6 +416,7 @@ export const SearchScreen: React.FC<{
                 item={item}
                 setActivePostId={setActivePostId}
                 setCommentModalVisible={setCommentModalVisible}
+                initialLiked={item.liked}
               />
             );
           }}
