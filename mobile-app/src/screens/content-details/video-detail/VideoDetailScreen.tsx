@@ -16,6 +16,7 @@ import { CommentModal } from '../../../components/common/CommentModal';
 import { homeApi, FeedItemResponse } from '../../../services/api/homeApi';
 import { discoveryApi } from '../../../services/api/discoveryApi';
 import { styles } from './VideoDetailScreen.styles';
+import { AvatarPlaceholder } from '../../../components/common/AvatarPlaceholder';
 
 export interface VideoDetailScreenProps {
   post?: any;
@@ -307,7 +308,12 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
 
               {/* Author Info */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
-                <Image source={{ uri: avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                <AvatarPlaceholder
+                  name={author}
+                  avatarUrl={currentPost?.avatar}
+                  size={40}
+                  theme="light"
+                />
                 <View>
                   <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 14, fontWeight: '700', color: Colors.text }}>
                     {author}
@@ -419,9 +425,12 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
                   <Text style={styles.profileHeadText}>KNOWLEDGE KEEPER</Text>
                 </View>
                 <View style={styles.profileInfoRow}>
-                  <View style={styles.profileAvatarBox}>
-                    <Image source={{ uri: avatar }} style={styles.fullImg} />
-                  </View>
+                  <AvatarPlaceholder
+                    name={author}
+                    avatarUrl={currentPost?.avatar}
+                    size={52}
+                    theme="teal"
+                  />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.profileName}>{author}</Text>
                     <Text style={styles.profileRole}>{keeperRole}</Text>
