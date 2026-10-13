@@ -387,11 +387,17 @@ export interface OpportunityItem {
 
                       <!-- Knowledge Holder Info Header -->
                       <div class="flex items-center gap-3 mb-2.5">
-                        <img 
-                          [src]="item.elderAvatarUrl" 
-                          [alt]="item.elderName"
-                          class="w-11 h-11 rounded-full object-cover border border-[#dde3eb] shrink-0"
-                        />
+                        @if (isRealAvatar(item.elderAvatarUrl)) {
+                          <img 
+                            [src]="item.elderAvatarUrl" 
+                            [alt]="item.elderName"
+                            class="w-11 h-11 rounded-full object-cover border border-[#dde3eb] shrink-0"
+                          />
+                        } @else {
+                          <div class="w-11 h-11 rounded-full bg-[#004343] text-white flex items-center justify-center font-bold text-xs shadow-xs border border-[#dde3eb] shrink-0">
+                            {{ getInitials(item.elderName) }}
+                          </div>
+                        }
                         <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-1.5">
                             <h3 class="font-serif font-bold text-sm text-[#004343] truncate group-hover:text-[#9b4600] transition-colors">
@@ -708,11 +714,17 @@ export interface OpportunityItem {
                       Knowledge Custodian
                     </h3>
                     <div class="bg-[#f8faf9] border border-[#dde3eb] rounded-2xl p-4 flex gap-3.5 items-center shadow-xs">
-                      <img 
-                        [src]="current.elderAvatarUrl" 
-                        [alt]="current.elderName"
-                        class="w-14 h-14 rounded-full object-cover border-2 border-white shadow-xs shrink-0" 
-                      />
+                      @if (isRealAvatar(current.elderAvatarUrl)) {
+                        <img 
+                          [src]="current.elderAvatarUrl" 
+                          [alt]="current.elderName"
+                          class="w-14 h-14 rounded-full object-cover border-2 border-white shadow-xs shrink-0" 
+                        />
+                      } @else {
+                        <div class="w-14 h-14 rounded-full bg-[#004343] text-white flex items-center justify-center font-bold text-base shadow-xs border-2 border-white shrink-0">
+                          {{ getInitials(current.elderName) }}
+                        </div>
+                      }
                       <div class="min-w-0 flex-1">
                         <h4 class="font-serif text-base font-bold text-[#004343] truncate">
                           {{ current.elderName }}
@@ -1169,7 +1181,13 @@ export interface OpportunityItem {
 
                             <!-- Host + Location -->
                             <div class="flex items-center gap-2.5 pt-2 border-t border-[#f2f4f3] text-xs text-[#3f4948]">
-                              <img [src]="opp.elderAvatarUrl" alt="" class="w-7 h-7 rounded-full object-cover border border-[#dde3eb]" />
+                              @if (isRealAvatar(opp.elderAvatarUrl)) {
+                                <img [src]="opp.elderAvatarUrl" alt="" class="w-7 h-7 rounded-full object-cover border border-[#dde3eb]" />
+                              } @else {
+                                <div class="w-7 h-7 rounded-full bg-[#004343] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                                  {{ getInitials(opp.elderName) }}
+                                </div>
+                              }
                               <div class="min-w-0 flex-1 truncate">
                                 <span class="font-bold text-[#191c1c]">{{ opp.elderName }}</span>
                                 <span class="text-[#6f7978] block text-[11px] truncate">{{ opp.location }}</span>
@@ -1423,7 +1441,13 @@ export interface OpportunityItem {
                           class="p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 shadow-xs">
                           
                           <div class="flex items-center gap-3 min-w-0">
-                            <img [src]="kh.avatarUrl" [alt]="kh.name" class="w-11 h-11 rounded-full object-cover border border-[#dde3eb] shrink-0" />
+                            @if (isRealAvatar(kh.avatarUrl)) {
+                              <img [src]="kh.avatarUrl" [alt]="kh.name" class="w-11 h-11 rounded-full object-cover border border-[#dde3eb] shrink-0" />
+                            } @else {
+                              <div class="w-11 h-11 rounded-full bg-[#004343] text-white flex items-center justify-center font-bold text-xs shadow-xs border border-[#dde3eb] shrink-0">
+                                {{ getInitials(kh.name) }}
+                              </div>
+                            }
                             <div class="min-w-0">
                               <div class="flex items-center gap-1.5">
                                 <h5 class="font-serif font-bold text-sm text-[#004343] truncate">{{ kh.name }}</h5>
@@ -1802,7 +1826,13 @@ export interface OpportunityItem {
 
                         <div class="p-3.5 space-y-2.5">
                           <div class="flex items-center gap-2">
-                            <img [src]="selectedKnowledgeHolderObj()?.avatarUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80'" alt="" class="w-7 h-7 rounded-full object-cover border border-[#dde3eb]" />
+                            @if (isRealAvatar(selectedKnowledgeHolderObj()?.avatarUrl)) {
+                              <img [src]="selectedKnowledgeHolderObj()?.avatarUrl" alt="" class="w-7 h-7 rounded-full object-cover border border-[#dde3eb]" />
+                            } @else {
+                              <div class="w-7 h-7 rounded-full bg-[#004343] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                                {{ getInitials(selectedKnowledgeHolderObj()?.name) }}
+                              </div>
+                            }
                             <div class="min-w-0">
                               <span class="text-xs font-bold text-[#191c1c] block truncate">Hosted by {{ selectedKnowledgeHolderObj()?.name || 'Selected Custodian' }}</span>
                               <span class="text-[10px] text-[#6f7978] block truncate">{{ oppLocationText() || 'Location TBD' }}</span>
@@ -2581,7 +2611,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
               name: opp.elderName,
               location: opp.location,
               district: opp.location?.split(',')[0]?.trim() || 'Western',
-              avatarUrl: opp.elderAvatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
+              avatarUrl: opp.elderAvatarUrl || '',
               isElder: true,
               isVerified: true,
               specialty: opp.category,
@@ -2662,7 +2692,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
       category: res.category || 'Craft',
       elderId: res.elderId,
       elderName: res.elderName || 'Culture Custodian',
-      elderAvatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
+      elderAvatarUrl: (res as any).elderAvatarUrl || '',
       elderVerified: true,
       scheduledDate: res.scheduledDate ? String(res.scheduledDate) : undefined,
       durationText: res.durationText || '2 - 3 hours',
@@ -2710,7 +2740,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     return {
       id: res.id,
       elderName: res.elderName || 'Elder Witness',
-      elderAvatarUrl: res.elderAvatarUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80',
+      elderAvatarUrl: res.elderAvatarUrl || '',
       verified: res.verified ?? true,
       location: res.location || 'Sri Lanka',
       district: res.location?.split(',')[0]?.trim() || 'Western',
@@ -3644,6 +3674,19 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     this.currentSection.set('opportunities');
     this.currentViewState.set('opp_hub');
     this.activeHubTab.set('published');
+  }
+
+  isRealAvatar(url?: string | null): boolean {
+    if (!url) return false;
+    return !url.includes('unsplash.com') && !url.includes('pravatar.cc') && (url.startsWith('http') || url.startsWith('/uploads'));
+  }
+
+  getInitials(name?: string | null): string {
+    if (!name) return 'KC';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'KC';
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
   private showToastNotification(msg: string, type: 'success' | 'warning' | 'info' | 'error' = 'info'): void {
