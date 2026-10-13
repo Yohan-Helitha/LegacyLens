@@ -1,12 +1,14 @@
 <!-- Mobile Backdrop -->
-<div *ngIf="isOpen" 
-     class="fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity"
-     (click)="close()"></div>
+@if (isOpen) {
+  <div
+    class="fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity"
+  (click)="close()"></div>
+}
 
 <!-- Sidebar -->
 <aside class="le-sidebar flex flex-col w-[260px] h-screen shrink-0 fixed lg:relative z-50 top-0 left-0 transition-transform duration-300 ease-in-out lg:translate-x-0"
-       [class.translate-x-0]="isOpen"
-       [class.-translate-x-full]="!isOpen">
+  [class.translate-x-0]="isOpen"
+  [class.-translate-x-full]="!isOpen">
 
   <!-- Logo / Brand -->
   <div class="le-sidebar__header flex items-center justify-between px-5 h-[72px] shrink-0">

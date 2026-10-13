@@ -66,7 +66,14 @@ public class AdminCulturalMapController {
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadBadgeImage(
             @RequestParam("file") MultipartFile file) {
         String url = culturalMapService.uploadBadgeImage(file);
-        return ResponseEntity.ok(ApiResponse.ok("Badge image uploaded successfully", Map.of("imageUrl", url)));
+        return ResponseEntity.ok(ApiResponse.ok("Badge image uploaded successfully", Map.of("imageUrl", "/uploads/" + url)));
+    }
+
+    @PostMapping("/models/upload")
+    public ResponseEntity<ApiResponse<Map<String, String>>> uploadModelFile(
+            @RequestParam("file") MultipartFile file) {
+        String url = culturalMapService.uploadModelFile(file);
+        return ResponseEntity.ok(ApiResponse.ok("Model uploaded successfully", Map.of("modelUrl", "/uploads/" + url)));
     }
 
     @PostMapping("/badges")

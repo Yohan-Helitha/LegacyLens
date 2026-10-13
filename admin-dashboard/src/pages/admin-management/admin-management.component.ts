@@ -6,6 +6,8 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { SidebarComponent } from '../../components/common/sidebar/sidebar.component';
 import { HeaderComponent } from '../../components/common/header/header.component';
 import { AuthService } from '../../app/core/services/auth.service';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export interface AdminRecord {
   id: string;
@@ -42,6 +44,49 @@ const VERIFICATIONS_API = 'http://localhost:8081/api/admin/verifications';
           <span class="material-symbols-outlined text-emerald-300 text-xl">{{ isErrorToast() ? 'error' : 'check_circle' }}</span>
           <div class="text-xs font-semibold max-w-xs">{{ toastMessage() }}</div>
           <button (click)="toastMessage.set(null)" class="text-white/70 hover:text-white ml-2 text-xs cursor-pointer">✕</button>
+        </div>
+      }
+
+      <!-- Export PDF Modal -->
+      @if (showExportPdfModal()) {
+        <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-[#dde3eb] overflow-hidden">
+            <div class="p-6 border-b border-[#dde3eb] flex items-center justify-between bg-[#f8faf9]">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <span class="material-symbols-outlined text-2xl">picture_as_pdf</span>
+                </div>
+                <div>
+                  <h3 class="text-base font-serif font-bold text-[#191c1c]">Export PDF</h3>
+                  <p class="text-xs text-[#6e7978]">Select date range for the report header</p>
+                </div>
+              </div>
+              <button (click)="showExportPdfModal.set(false)" class="text-[#6e7978] hover:text-[#191c1c] text-lg font-bold cursor-pointer">✕</button>
+            </div>
+            
+            <div class="p-6 space-y-4 text-xs">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block font-bold text-[#3e4948] uppercase tracking-wider text-[10px] mb-1">From</label>
+                  <input type="date" [(ngModel)]="exportDateFrom"
+                    class="w-full px-3.5 py-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl focus:bg-white focus:outline-none focus:border-[#004343]" />
+                </div>
+                <div>
+                  <label class="block font-bold text-[#3e4948] uppercase tracking-wider text-[10px] mb-1">To</label>
+                  <input type="date" [(ngModel)]="exportDateTo"
+                    class="w-full px-3.5 py-2.5 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl focus:bg-white focus:outline-none focus:border-[#004343]" />
+                </div>
+              </div>
+            </div>
+            
+            <div class="p-6 border-t border-[#dde3eb] bg-[#f8faf9] flex justify-end gap-3">
+              <button (click)="showExportPdfModal.set(false)" class="px-4 py-2 bg-white border border-[#c2c8c7] rounded-xl font-semibold text-[#3e4948] hover:bg-[#f2f4f7] cursor-pointer">Cancel</button>
+              <button (click)="downloadPdf()" class="px-5 py-2 bg-[#004343] hover:bg-[#003131] text-white rounded-xl font-semibold flex items-center gap-1.5 shadow-sm cursor-pointer">
+                <span class="material-symbols-outlined text-sm">download</span>
+                <span>Download PDF</span>
+              </button>
+            </div>
+          </div>
         </div>
       }
 
@@ -84,6 +129,11 @@ const VERIFICATIONS_API = 'http://localhost:8081/api/admin/verifications';
               </p>
             </div>
             <div class="flex items-center gap-3 flex-wrap self-start xl:self-auto">
+              <button (click)="showExportPdfModal.set(true)"
+                class="px-4 py-2.5 rounded-xl bg-white border border-[#dde3eb] hover:bg-[#f2f4f3] text-[#191c1c] text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer">
+                <span class="material-symbols-outlined text-base">picture_as_pdf</span>
+                <span>Export PDF</span>
+              </button>
               <button (click)="loadAdmins()" [disabled]="isLoading()"
                 class="px-4 py-2.5 rounded-xl bg-white border border-[#dde3eb] hover:bg-[#f2f4f3] text-[#191c1c] text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50">
                 <span class="material-symbols-outlined text-base">refresh</span>
@@ -354,6 +404,12 @@ export class AdminManagementComponent implements OnInit {
 
   toastMessage = signal<string | null>(null);
   isErrorToast = signal<boolean>(false);
+  
+  // Export PDF Modal
+  showExportPdfModal = signal<boolean>(false);
+  exportDateFrom = '';
+  exportDateTo = '';
+
   isLoading = signal<boolean>(false);
   hasError = signal<boolean>(false);
   admins = signal<AdminRecord[]>([]);
@@ -478,6 +534,40 @@ export class AdminManagementComponent implements OnInit {
         this.showToast(msg, true);
       }
     });
+  }
+
+  downloadPdf(): void {
+    const doc = new jsPDF();
+    const adminUser = this.authService.currentUser();
+    const adminName = adminUser ? adminUser.fullName : 'Generic Admin';
+    
+    doc.setFontSize(16);
+    doc.text('LegacyLens', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated by: ${adminName}`, 14, 22);
+    
+    if (this.exportDateFrom && this.exportDateTo) {
+      doc.text(`Period: ${this.exportDateFrom} to ${this.exportDateTo}`, 14, 28);
+    }
+    
+    const tableData = this.filteredAdmins().map(a => [
+      a.id,
+      a.fullName,
+      a.phoneNumber,
+      a.nicNumber,
+      a.cityName || 'N/A',
+      a.roleStatus || 'ACTIVE',
+      a.accountStatus || 'ACTIVE'
+    ]);
+    
+    autoTable(doc, {
+      startY: this.exportDateFrom && this.exportDateTo ? 35 : 30,
+      head: [['ID', 'Name', 'Phone', 'NIC', 'City', 'Role Status', 'Account Status']],
+      body: tableData,
+    });
+    
+    doc.save(`Admin_Registry_Report_${new Date().toISOString()}.pdf`);
+    this.showExportPdfModal.set(false);
   }
 
   getRoleStatusBadge(status: string): string {

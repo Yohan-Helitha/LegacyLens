@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { LearningService, LearningTrack } from '../../../core/services/learning.service';
@@ -9,7 +9,7 @@ import { LearningSidebarComponent } from '../components/learning-sidebar/learnin
 @Component({
   selector: 'app-track-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, LearningSidebarComponent],
+  imports: [ReactiveFormsModule, RouterLink, LearningSidebarComponent],
   templateUrl: './track-form.component.html',
   styleUrl: './track-form.component.scss'
 })

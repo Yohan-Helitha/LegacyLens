@@ -23,6 +23,9 @@ application-local.yml
 application-local.properties
 backend/seed-*.js
 
+# Angular environment files (contain secrets like API keys)
+admin-dashboard/src/environments/environment.ts
+
 # ─── IDE ──────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/

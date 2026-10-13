@@ -1,5 +1,5 @@
 import { Component, signal, computed, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../app/core/services/auth.service';
 import { SidebarComponent } from '../../components/common/sidebar/sidebar.component';
@@ -24,7 +24,7 @@ interface AuditLog {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, SidebarComponent, HeaderComponent],
+  imports: [RouterModule, SidebarComponent, HeaderComponent],
   template: `
     <div class="flex h-screen w-full bg-[#f8faf9] text-[#191c1c] font-['Work_Sans',sans-serif] overflow-hidden">
       

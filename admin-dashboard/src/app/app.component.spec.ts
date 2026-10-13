@@ -20,10 +20,10 @@ describe('AppComponent', () => {
     expect(app.title).toEqual('legacy-lens-admin');
   });
 
-  it('should render title', () => {
+  it('should render the router outlet', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, legacy-lens-admin');
+    expect(compiled.querySelector('router-outlet')).toBeTruthy();
   });
 });

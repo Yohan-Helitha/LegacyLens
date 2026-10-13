@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Animated, Share } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -6,19 +6,64 @@ import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Colors } from '../../theme';
 import { styles } from './VideoCard.styles';
 
+import { homeApi } from '../../services/api/homeApi';
+import { userLikesStorage } from '../../utils/userLikesStorage';
+
 interface FeedCardActionsProps {
+  postId?: string;
   initialLikes: number;
   initialComments: number;
   onLikePress?: () => void;
+  onLikeChange?: (postId: string, newLikesCount: number, liked: boolean) => void;
   onCommentPress: () => void;
   theme?: 'light' | 'dark';
 }
 
-export const FeedCardActions = ({ initialLikes, initialComments, onLikePress, onCommentPress, theme = 'light' }: FeedCardActionsProps) => {
-  const [liked, setLiked] = useState(false);
+export const FeedCardActions = ({
+  postId,
+  initialLikes,
+  initialComments,
+  onLikePress,
+  onLikeChange,
+  onCommentPress,
+  theme = 'light'
+}: FeedCardActionsProps) => {
+  const [liked, setLiked] = useState(() => (postId ? userLikesStorage.isLikedSync(postId) : false));
   const [saved, setSaved] = useState(false);
-  const [likesCount, setLikesCount] = useState(initialLikes);
-  const [commentsCount] = useState(initialComments);
+  const [likesCount, setLikesCount] = useState(initialLikes ?? 0);
+  const [commentsCount, setCommentsCount] = useState(initialComments ?? 0);
+
+  useEffect(() => {
+    if (!postId) return;
+    let isMounted = true;
+    userLikesStorage.isLiked(postId).then((isL) => {
+      if (isMounted) {
+        setLiked(isL);
+      }
+    });
+    const unsubscribe = userLikesStorage.subscribe((id, isL) => {
+      if (isMounted && id === String(postId)) {
+        setLiked(isL);
+      }
+    });
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [postId]);
+
+  useEffect(() => {
+    if (initialComments !== undefined && initialComments !== null) {
+      setCommentsCount(initialComments);
+    }
+  }, [initialComments]);
+
+  useEffect(() => {
+    if (initialLikes !== undefined && initialLikes !== null) {
+      setLikesCount(initialLikes);
+    }
+  }, [initialLikes]);
+
   const heartScale = useRef(new Animated.Value(1)).current;
   const saveTranslateY = useRef(new Animated.Value(0)).current;
   const shareScale = useRef(new Animated.Value(1)).current;
@@ -48,20 +93,52 @@ export const FeedCardActions = ({ initialLikes, initialComments, onLikePress, on
     }
   };
 
-  const handleLike = () => {
-    const newLiked = !liked;
-    setLiked(newLiked);
-    if (newLiked) {
+  const handleLike = async () => {
+    const nextLiked = !liked;
+    setLiked(nextLiked);
+    if (postId) {
+      userLikesStorage.setLiked(postId, nextLiked);
+    }
+
+    if (nextLiked) {
       playSound('like');
-      setLikesCount(likesCount + 1);
-      if (onLikePress) onLikePress();
+      const optimisticCount = likesCount + 1;
+      setLikesCount(optimisticCount);
+
       Animated.sequence([
         Animated.timing(heartScale, { toValue: 1.25, duration: 100, useNativeDriver: true }),
         Animated.timing(heartScale, { toValue: 0.95, duration: 80, useNativeDriver: true }),
         Animated.spring(heartScale, { toValue: 1, friction: 4, tension: 50, useNativeDriver: true })
       ]).start();
+
+      if (onLikePress) onLikePress();
+
+      if (postId) {
+        try {
+          const dbLikes = await homeApi.likePost(postId);
+          if (typeof dbLikes === 'number') {
+            setLikesCount(dbLikes);
+            onLikeChange?.(postId, dbLikes, true);
+          }
+        } catch (err) {
+          console.log('Error saving like to DB:', err);
+        }
+      }
     } else {
-      setLikesCount(likesCount - 1);
+      const optimisticCount = Math.max(0, likesCount - 1);
+      setLikesCount(optimisticCount);
+
+      if (postId) {
+        try {
+          const dbLikes = await homeApi.unlikePost(postId);
+          if (typeof dbLikes === 'number') {
+            setLikesCount(dbLikes);
+            onLikeChange?.(postId, dbLikes, false);
+          }
+        } catch (err) {
+          console.log('Error saving unlike to DB:', err);
+        }
+      }
     }
   };
 

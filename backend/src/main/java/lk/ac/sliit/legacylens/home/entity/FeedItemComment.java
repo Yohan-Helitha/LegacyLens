@@ -21,6 +21,9 @@ public class FeedItemComment {
     @Column(name = "story_id")
     private java.util.UUID storyId;
 
+    @Column(name = "user_id")
+    private String userId;
+
     @Column(nullable = false)
     private String author;
 
@@ -33,4 +36,12 @@ public class FeedItemComment {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PreUpdate
+    public void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 }

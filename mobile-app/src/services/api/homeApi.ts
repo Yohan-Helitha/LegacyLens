@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './client';
+import { apiGet, apiPost, apiPut, apiDelete } from './client';
 
 export interface WordOfTheDayResponse {
   id: number;
@@ -49,6 +49,17 @@ export interface FeaturedKeeperResponse {
   likesCount: number;
 }
 
+export interface CommentResponse {
+  id: string;
+  author: string;
+  avatar: string;
+  text: string;
+  timeAgo: string;
+  userId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export const homeApi = {
   getWordOfToday: () => apiGet<WordOfTheDayResponse>('/home/word-of-the-day/today'),
   getCategories: () => apiGet<CategoryResponse[]>('/home/categories'),
@@ -56,9 +67,16 @@ export const homeApi = {
     apiPost<CategoryResponse>('/home/categories', { name, description, exampleContent }),
   getFeedItems: () => apiGet<FeedItemResponse[]>('/home/feed'),
   getFeaturedKeeper: () => apiGet<FeaturedKeeperResponse>('/home/featured-keeper'),
-  getComments: (feedItemId: string) => apiGet<any[]>(`/home/feed/${feedItemId}/comments`),
-  addComment: (feedItemId: string, text: string) => apiPost<any>(`/home/feed/${feedItemId}/comments`, { text }),
-  likePost: (feedItemId: string) => apiPost<void>(`/home/feed/${feedItemId}/like`, {}),
+  getComments: (feedItemId: string) => apiGet<CommentResponse[]>(`/home/feed/${feedItemId}/comments`),
+  addComment: (feedItemId: string, text: string, author?: string, avatar?: string, userId?: string) =>
+    apiPost<CommentResponse>(`/home/feed/${feedItemId}/comments`, { text, author, avatar, userId }),
+  updateComment: (commentId: string, text: string, feedItemId?: string) =>
+    apiPut<CommentResponse>(feedItemId ? `/home/feed/${feedItemId}/comments/${commentId}` : `/home/feed/comments/${commentId}`, { text }),
+  deleteComment: (commentId: string, feedItemId?: string) =>
+    apiDelete<void>(feedItemId ? `/home/feed/${feedItemId}/comments/${commentId}` : `/home/feed/comments/${commentId}`),
+  likePost: (feedItemId: string) => apiPost<number>(`/home/feed/${feedItemId}/like`, {}),
+  unlikePost: (feedItemId: string) => apiPost<number>(`/home/feed/${feedItemId}/unlike`, {}),
+  getLikesCount: (feedItemId: string) => apiGet<number>(`/home/feed/${feedItemId}/likes`),
   getStoryQuiz: (storyId: string) => apiGet<any>(`/home/feed/${storyId}/quiz`),
 };
 

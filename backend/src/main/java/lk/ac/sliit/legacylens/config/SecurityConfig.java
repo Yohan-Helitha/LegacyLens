@@ -71,6 +71,7 @@ public class SecurityConfig {
                                 "/uploads/**",
                                 "/stories/**",
                                 "/api/home/**",
+                                "/api/v1/discovery/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/swagger-resources/**",
@@ -83,6 +84,8 @@ public class SecurityConfig {
                                 "/api/learning/tracks",
                                 "/api/learning/tracks/**",
                                 "/api/learning/builder/content")
+                        .permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/tags/**")
                         .permitAll()
                         // Everything else requires authentication
                         .anyRequest().authenticated())

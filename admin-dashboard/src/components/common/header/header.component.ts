@@ -1,5 +1,5 @@
 import { Component, Input, Output, EventEmitter, computed, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../../../app/core/services/auth.service';
@@ -9,7 +9,7 @@ import { LayoutService } from '../../../app/core/services/layout.service';
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [FormsModule, RouterModule],
   template: `
     <header class="h-16 bg-[#ffffff]/95 backdrop-blur-xl border-b border-[#dde3eb] flex items-center justify-between px-4 sm:px-6 shrink-0 z-40 selection:bg-[#004343]/20 selection:text-[#004343]">
       
@@ -99,16 +99,16 @@ export class HeaderComponent implements OnInit {
   public notificationService = inject(NotificationService);
   layoutService = inject(LayoutService);
 
-  @Input() pageTitle: string = 'Dashboard Overview';
-  @Input() section: string = 'Console';
-  @Input() searchPlaceholder: string = 'Search records, disputes, hashes...';
-  @Input() searchQuery: string = '';
-  @Input() showSearch: boolean = true;
-  @Input() showNotifications: boolean = true;
-  @Input() showUserProfile: boolean = true;
+  @Input() pageTitle = 'Dashboard Overview';
+  @Input() section = 'Console';
+  @Input() searchPlaceholder = 'Search records, disputes, hashes...';
+  @Input() searchQuery = '';
+  @Input() showSearch = true;
+  @Input() showNotifications = true;
+  @Input() showUserProfile = true;
 
   @Output() searchQueryChange = new EventEmitter<string>();
-  @Output() search = new EventEmitter<string>();
+  @Output() searchSubmit = new EventEmitter<string>();
 
   toggleMobileSidebar() {
     this.layoutService.toggleMobileSidebar();
@@ -175,7 +175,7 @@ export class HeaderComponent implements OnInit {
   }
 
   onSearchEnter(event: Event) {
-    this.search.emit(this.searchQuery);
+    this.searchSubmit.emit(this.searchQuery);
   }
 }
 

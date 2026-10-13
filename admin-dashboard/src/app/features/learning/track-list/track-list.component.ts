@@ -18,8 +18,8 @@ export class TrackListComponent implements OnInit {
   loading = true;
   currentDate: Date = new Date();
   
-  searchQuery: string = '';
-  selectedDifficulty: string = '';
+  searchQuery = '';
+  selectedDifficulty = '';
   isSidebarOpen = false;
 
   constructor(private learningService: LearningService) {}

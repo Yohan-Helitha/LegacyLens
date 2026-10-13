@@ -179,6 +179,7 @@ public class MapService {
                 .lng(l.getLongitude())
                 .lat(l.getLatitude())
                 .type(l.getType())
+                .modelUrl(l.getModelUrl())
                 .region(l.getRegion())
                 .district(l.getDistrict())
                 .badge(badge)
@@ -199,6 +200,7 @@ public class MapService {
         l.setLongitude(request.getLongitude() != null ? request.getLongitude() : 80.7718);
         l.setLatitude(request.getLatitude() != null ? request.getLatitude() : 7.8731);
         l.setType(request.getType() != null && !request.getType().isBlank() ? request.getType() : "Historical & Archaeological Sites");
+        l.setModelUrl(request.getModelUrl());
         l.setRegion(request.getRegion());
         l.setDistrict(request.getDistrict());
 
@@ -230,6 +232,9 @@ public class MapService {
         if (request.getType() != null) {
             l.setType(request.getType());
         }
+        if (request.getModelUrl() != null) {
+            l.setModelUrl(request.getModelUrl());
+        }
         if (request.getRegion() != null) {
             l.setRegion(request.getRegion());
         }
@@ -254,6 +259,11 @@ public class MapService {
     @Transactional
     public String uploadBadgeImage(org.springframework.web.multipart.MultipartFile file) {
         return fileStorageService.store(file, "badges");
+    }
+
+    @Transactional
+    public String uploadModelFile(org.springframework.web.multipart.MultipartFile file) {
+        return fileStorageService.store(file, "models");
     }
 
     @Transactional

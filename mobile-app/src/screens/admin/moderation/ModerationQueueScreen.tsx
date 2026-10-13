@@ -23,9 +23,11 @@ type Tab = 'review' | 'published' | 'rejected' | 'archived';
 type ViewState = 'list' | 'review_detail';
 type ContentTypeFilter = 'all' | 'video' | 'blog' | 'audio';
 
-export const ModerationQueueScreen: React.FC = () => {
+export const ModerationQueueScreen: React.FC<{ initialItemId?: string }> = ({ initialItemId }) => {
   const [activeTab, setActiveTab] = useState<Tab>('review');
   const [viewState, setViewState] = useState<ViewState>('list');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const handledInitialItemIdRef = React.useRef<string | null>(null);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,6 +66,7 @@ export const ModerationQueueScreen: React.FC = () => {
   const [quizSaved, setQuizSaved] = useState(false);
 
   const fetchModerationData = useCallback(async () => {
+    setIsLoading(true);
     try {
       const [pending, published, rejected, archived] = await Promise.all([
         moderationApi.getQueueItems('PENDING'),
@@ -98,6 +101,8 @@ export const ModerationQueueScreen: React.FC = () => {
       setArchivedItems(archived.map(mapToUIItem));
     } catch (error) {
       console.error('Error fetching moderation data:', error);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -603,6 +608,30 @@ export const ModerationQueueScreen: React.FC = () => {
     setVideoProgress(33);
   };
 
+  useEffect(() => {
+    if (!initialItemId || isLoading) return;
+    if (handledInitialItemIdRef.current === initialItemId) return;
+
+    const allItems = [...queueItems, ...publishedItems, ...rejectedItems, ...archivedItems];
+    const target = allItems.find(i => String(i.id) === String(initialItemId));
+    if (target) {
+      handledInitialItemIdRef.current = initialItemId;
+      if (rejectedItems.some(i => String(i.id) === String(initialItemId))) {
+        setActiveTab('rejected');
+        handleSelectRejectedDetail(target);
+      } else if (archivedItems.some(i => String(i.id) === String(initialItemId))) {
+        setActiveTab('archived');
+        handleSelectArchivedDetail(target);
+      } else if (publishedItems.some(i => String(i.id) === String(initialItemId))) {
+        setActiveTab('published');
+        handleSelectReview(target);
+      } else {
+        setActiveTab('review');
+        handleSelectReview(target);
+      }
+    }
+  }, [initialItemId, isLoading, queueItems, publishedItems, rejectedItems, archivedItems]);
+
   const handleConfirmRestore = async () => {
     if (!selectedItem) return;
     try {
@@ -684,7 +713,7 @@ export const ModerationQueueScreen: React.FC = () => {
     }
   };
 
-  // ─── SEGMENTED CONTROL ──────────────────────────────────────────────────────
+  // â”€â”€â”€ SEGMENTED CONTROL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const renderSegmentedControl = () => {
     const tabs = [
       { id: 'review',    label: 'Review',    count: queueItems.length,     activeBg: '#0f5c5c' },
@@ -737,7 +766,7 @@ export const ModerationQueueScreen: React.FC = () => {
     );
   };
 
-  // ─── LIST VIEW (Review Queue & Archived) ──────────────────────────────────────
+  // â”€â”€â”€ LIST VIEW (Review Queue & Archived) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const renderChecklistItems = () => {
     const isTickedNoHate = isReviewingArchived ? true : checkedGuidelines.noHateSpeech;
     const isTickedCultural = isReviewingArchived ? true : checkedGuidelines.culturallyAccurate;
@@ -841,7 +870,7 @@ export const ModerationQueueScreen: React.FC = () => {
             {item.title}
           </Text>
           <Text style={{ fontFamily: Typography.fontBody, fontSize: 11, color: Colors.textMuted }} numberOfLines={1}>
-            By {item.author} • {item.type === 'video' ? 'Video' : 'Article'}
+            By {item.author} â€¢ {item.type === 'video' ? 'Video' : 'Article'}
           </Text>
         </View>
         <TouchableOpacity 
@@ -861,7 +890,7 @@ export const ModerationQueueScreen: React.FC = () => {
     ));
   };
 
-  // ─── LIST VIEW (Review Queue & Archived) ──────────────────────────────────────
+  // LIST VIEW (Review Queue & Archived) 
   const renderListView = () => (
     <View style={styles.flex1}>
       <ScrollView 
@@ -885,10 +914,21 @@ export const ModerationQueueScreen: React.FC = () => {
         {/* Segmented Control */}
         {renderSegmentedControl()}
 
-        {activeTab === 'review' && renderReviewQueue()}
-        {activeTab === 'published' && renderPublishedQueue()}
-        {activeTab === 'rejected' && renderRejectedQueue()}
-        {activeTab === 'archived' && renderArchivedQueue()}
+        {(isLoading || (initialItemId && !selectedItem && !handledInitialItemIdRef.current)) ? (
+          <View style={{ paddingVertical: 48, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color="#0f5c5c" />
+            <Text style={{ marginTop: 12, fontFamily: Typography.fontBodyMed, fontSize: 14, color: Colors.textMuted }}>
+              {initialItemId ? 'Loading submission details...' : 'Loading moderation queue...'}
+            </Text>
+          </View>
+        ) : (
+          <>
+            {activeTab === 'review' && renderReviewQueue()}
+            {activeTab === 'published' && renderPublishedQueue()}
+            {activeTab === 'rejected' && renderRejectedQueue()}
+            {activeTab === 'archived' && renderArchivedQueue()}
+          </>
+        )}
       </ScrollView>
       {/* FAB for Archived Tab */}
       {activeTab === 'archived' && (
@@ -1127,7 +1167,7 @@ export const ModerationQueueScreen: React.FC = () => {
                     <MaterialIcons name="person" size={14} color={Colors.textMuted} />
                     <Text style={styles.metaText}> {item.author}</Text>
                   </View>
-                  <Text style={styles.metaTextMuted}>• {item.time}</Text>
+                  <Text style={styles.metaTextMuted}>{item.time}</Text>
                 </View>
                 <View style={styles.cardActionsRow}>
                   <TouchableOpacity
@@ -1153,7 +1193,7 @@ export const ModerationQueueScreen: React.FC = () => {
             </View>
           </TouchableOpacity>
         ))}
-        {filtered.length === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <View style={{ padding: 24, alignItems: 'center' }}>
             <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 16, color: Colors.textMuted }}>
               No items matching criteria!
@@ -1367,7 +1407,7 @@ export const ModerationQueueScreen: React.FC = () => {
           ))}
         </View>
 
-        {filtered.length === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <View style={{ padding: 24, alignItems: 'center' }}>
             <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 16, color: Colors.textMuted }}>
               No items matching criteria!
@@ -1563,7 +1603,7 @@ export const ModerationQueueScreen: React.FC = () => {
                 <Image source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAZT3g9M48Y5NE0FO31lVmi9ZKISvllAzGKkvZqF93c3f-NAqIKygOqUrwBGV0-Lujb6El604suIwc5_XLphsHorwluez0KuZ4jr5gd2u0YQeA7aw5aTKKnR9xrV-l9MLTqnytqZ6nxiBHpxJuGR1e8W3huWUKpNsvCaRC39qWHGYQQTAc2jem046aNIcJqMByI_AaVwqT8JrCv2XkxduT8FP3YjvZ-FMUt4scCugrswn1gU4BD6cwr' }} style={{ width: 32, height: 32, borderRadius: 16 }} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 14, color: Colors.text, fontWeight: '600' }} numberOfLines={1}>{item.author}</Text>
-                  <Text style={{ fontFamily: Typography.fontBody, fontSize: 11, color: Colors.textMuted }}>{item.time} • {item.type === 'video' ? 'Video' : item.type === 'audio' ? 'Audio' : 'Blog'}</Text>
+                  <Text style={{ fontFamily: Typography.fontBody, fontSize: 11, color: Colors.textMuted }}>{item.time} â€¢ {item.type === 'video' ? 'Video' : item.type === 'audio' ? 'Audio' : 'Blog'}</Text>
                 </View>
               </View>
               <View style={{ backgroundColor: '#e0f2fe', borderColor: 'rgba(2, 132, 199, 0.2)', borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -1602,7 +1642,7 @@ export const ModerationQueueScreen: React.FC = () => {
           </View>
         ))}
 
-        {filtered.length === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <View style={{ padding: 24, alignItems: 'center' }}>
             <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 16, color: Colors.textMuted }}>
               No items matching criteria!
@@ -1800,7 +1840,7 @@ export const ModerationQueueScreen: React.FC = () => {
                 <Image source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAZT3g9M48Y5NE0FO31lVmi9ZKISvllAzGKkvZqF93c3f-NAqIKygOqUrwBGV0-Lujb6El604suIwc5_XLphsHorwluez0KuZ4jr5gd2u0YQeA7aw5aTKKnR9xrV-l9MLTqnytqZ6nxiBHpxJuGR1e8W3huWUKpNsvCaRC39qWHGYQQTAc2jem046aNIcJqMByI_AaVwqT8JrCv2XkxduT8FP3YjvZ-FMUt4scCugrswn1gU4BD6cwr' }} style={{ width: 32, height: 32, borderRadius: 16 }} />
                 <View>
                   <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 14, color: Colors.text, fontWeight: '600' }}>{item.author}</Text>
-                  <Text style={{ fontFamily: Typography.fontBody, fontSize: 11, color: Colors.textMuted }}>{item.time} • {item.type === 'video' ? 'Video' : item.type === 'audio' ? 'Audio' : 'Blog'} Submission</Text>
+                  <Text style={{ fontFamily: Typography.fontBody, fontSize: 11, color: Colors.textMuted }}>{item.time} â€¢ {item.type === 'video' ? 'Video' : item.type === 'audio' ? 'Audio' : 'Blog'} Submission</Text>
                 </View>
               </View>
               <View style={{ backgroundColor: '#ffdad6', borderColor: 'rgba(186, 26, 26, 0.2)', borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -1827,7 +1867,7 @@ export const ModerationQueueScreen: React.FC = () => {
           </TouchableOpacity>
         ))}
 
-        {filtered.length === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <View style={{ padding: 24, alignItems: 'center' }}>
             <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 16, color: Colors.textMuted }}>
               No items matching criteria!
@@ -1838,7 +1878,7 @@ export const ModerationQueueScreen: React.FC = () => {
     );
   };
 
-  // ─── DETAIL VIEW (Content Review) ───────────────────────────────────────────────
+  // â”€â”€â”€ DETAIL VIEW (Content Review) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const renderDetailView = () => {
     if (!selectedItem) return null;
     return (
@@ -1951,7 +1991,7 @@ export const ModerationQueueScreen: React.FC = () => {
           <View style={styles.infoBanner}>
             <MaterialIcons name="info" size={20} color="#fe893e" />
             <Text style={styles.infoBannerText}>
-              {selectedItem.isElder ? 'Elder submission — will be auto-tagged on approval.' : 'Standard submission — verify before approval.'}
+              {selectedItem.isElder ? 'Elder submission â€” will be auto-tagged on approval.' : 'Standard submission â€” verify before approval.'}
             </Text>
           </View>
 
@@ -2584,3 +2624,4 @@ export const ModerationQueueScreen: React.FC = () => {
     </View>
   );
 };
+

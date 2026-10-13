@@ -26,12 +26,13 @@
     }
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     "App.tsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "__tests__"
   ],
   "extends": "expo/tsconfig.base"
 }

@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { LearningService, Lesson, LearningTrack } from '../../../core/services/learning.service';
 import { LearningSidebarComponent } from '../components/learning-sidebar/learning-sidebar.component';
@@ -8,7 +8,7 @@ import { LearningSidebarComponent } from '../components/learning-sidebar/learnin
 @Component({
   selector: 'app-lesson-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, LearningSidebarComponent],
+  imports: [RouterLink, LearningSidebarComponent],
   templateUrl: './lesson-list.component.html',
   styleUrl: './lesson-list.component.scss'
 })

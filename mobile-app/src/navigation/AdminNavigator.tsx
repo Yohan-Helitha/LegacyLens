@@ -7,6 +7,7 @@ import { CreateOpportunityScreen } from '../screens/admin/opportunity-create';
 import { OpportunityIntakeScreen, OpportunityReviewScreen } from '../screens/admin/opportunity-intake';
 import { OpportunityDraftsScreen } from '../screens/admin/opportunity-drafts';
 import { AdminNotificationsScreen } from '../screens/admin/notifications';
+import { AdminProfileScreen } from '../screens/admin/profile';
 import { VideoDetailScreen, BlogDetailScreen } from '../screens/content-details';
 import { AdminHeader, AdminFooter } from '../components/common';
 import type { AdminTabKey } from '../components/common';
@@ -17,11 +18,12 @@ import { useOpportunity } from '../context/OpportunityContext';
 export type AdminScreen = AdminTabKey | 'add_opp' | 'opp_review' | 'drafts' | 'video' | 'blog' | 'notifications';
 
 interface AdminNavigatorProps {
-  /** Root stack navigation — used only to leave this flow ("Return to User View"). */
+  /** Root stack navigation â€” used only to leave this flow ("Return to User View"). */
   navigation: NativeStackNavigationProp<RootStackParamList>;
 }
 
 export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) => {
+  const [initialItemId, setInitialItemId] = useState<string | undefined>();
   const [screen, setScreen] = useState<AdminScreen>('admin_home');
   const [selectedPost, setSelectedPost] = useState<any>(null);
   const { audioSubmissions } = useOpportunity();
@@ -49,8 +51,12 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
   }, [screen]);
 
   const handleNavigate = (tab: string, item?: any) => {
-    if (item) {
+    if (item && typeof item === 'string') {
+      setInitialItemId(item);
+    } else if (item) {
       setSelectedPost(item);
+    } else {
+      setInitialItemId(undefined);
     }
     if (tab === 'home') {
       navigation.replace('User');
@@ -68,14 +74,14 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
           ? 'admin_profile'
           : 'admin_home';
 
-  const showHeader = screen !== 'video' && screen !== 'blog' && screen !== 'notifications';
+  const showHeader = screen !== 'video' && screen !== 'blog' && screen !== 'notifications' && screen !== 'admin_profile';
   const showFooter = screen !== 'video' && screen !== 'blog' && screen !== 'notifications';
 
   return (
     <View style={{ flex: 1 }}>
       {showHeader && <AdminHeader onNavigate={handleNavigate} />}
       
-      {screen === 'notifications' && <AdminNotificationsScreen onBack={() => setScreen('admin_home')} />}
+      {screen === 'notifications' && <AdminNotificationsScreen onBack={() => setScreen('admin_home')} onNavigate={handleNavigate} />}
 
       {screen === 'admin_home' && (
         <AdminHomeScreen
@@ -85,7 +91,7 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
         />
       )}
       {screen === 'intake' && (
-        <OpportunityIntakeScreen onOpenReview={() => {
+        <OpportunityIntakeScreen initialItemId={initialItemId} onOpenReview={() => {
           setIntakeBadge(null);
           setScreen('opp_review');
         }} />
@@ -101,7 +107,7 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
         />
       )}
       {screen === 'drafts' && <OpportunityDraftsScreen onNavigate={handleNavigate} />}
-      {screen === 'review' && <ModerationQueueScreen />}
+      {screen === 'review' && <ModerationQueueScreen initialItemId={initialItemId} />}
 
       <Modal
         visible={screen === 'video'}
@@ -126,9 +132,11 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
       </Modal>
 
       {screen === 'admin_profile' && (
-        <View style={s.placeholder}>
-          <Text style={s.placeholderText}>Admin Profile (Coming Soon)</Text>
-        </View>
+        <AdminProfileScreen
+          onBack={() => setScreen('admin_home')}
+          onNavigate={handleNavigate}
+          onLogout={() => navigation.replace('Login')}
+        />
       )}
 
       {showFooter && (
@@ -149,3 +157,6 @@ const s = StyleSheet.create({
 });
 
 export default AdminNavigator;
+
+
+

@@ -16,6 +16,7 @@ import {
   Animated,
   Alert,
   Share,
+  ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -37,6 +38,7 @@ import { VideoCard } from '../../components/home/VideoCard';
 import { BlogCard } from '../../components/home/BlogCard';
 import { AudioCard } from '../../components/home/AudioCard';
 import { homeApi, CategoryResponse } from '../../services/api/homeApi';
+import { discoveryApi, mapDiscoveryToFeedItem } from '../../services/api/discoveryApi';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH - Spacing.md * 2;
@@ -123,6 +125,8 @@ export interface VItem {
   duration: string;
   tags: string[];
   type: 'video';
+  likesCount?: number;
+  commentsCount?: number;
 }
 
 export interface BItem {
@@ -134,6 +138,8 @@ export interface BItem {
   readTime: string;
   tags: string[];
   type: 'blog';
+  likesCount?: number;
+  commentsCount?: number;
 }
 
 export interface AItem {
@@ -146,6 +152,8 @@ export interface AItem {
   avatar: string;
   bars: number[];
   type: 'audio';
+  likesCount?: number;
+  commentsCount?: number;
 }
 
 
@@ -162,8 +170,10 @@ export const HomeScreen: React.FC<{
   const [categories, setCategories] = useState<Array<{ id: string; label: string; tags: string[] }>>([]);
   const [activeTab, setActiveTab] = useState('Explore all');
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingFeed, setLoadingFeed] = useState(true);
   const [allFeedItems, setAllFeedItems] = useState<(VItem | BItem | AItem)[]>([]);
   const [featuredKeeper, setFeaturedKeeper] = useState<any>(null);
+  const [discoverySearchResults, setDiscoverySearchResults] = useState<(VItem | BItem | AItem)[] | null>(null);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -180,20 +190,33 @@ export const HomeScreen: React.FC<{
       }
     } catch (error) {
       console.log('Error fetching categories from DB, fallback to default:', error);
-      setCategories(DEFAULT_CATEGORIES.map(c => ({ id: c.id, label: c.label, tags: c.tags })));
+      setCategories(DEFAULT_CATEGORIES.map(c => ({ id: c.label, label: c.label, tags: c.tags } as any)));
     }
   }, []);
 
-  const fetchFeedItems = useCallback(async () => {
+  const fetchFeedItems = useCallback(async (tabToFetch?: string) => {
+    const currentTab = tabToFetch !== undefined ? tabToFetch : activeTab;
+    const tabType = currentTab !== 'Explore all' ? currentTab : undefined;
+    setLoadingFeed(true);
     try {
+      // 1. Try personalized cultural recommendations based on story_views history & active tab
+      const recommended = await discoveryApi.getHomeRecommendations(15, tabType);
+      if (recommended && recommended.length > 0) {
+        setAllFeedItems(recommended.map(mapDiscoveryToFeedItem));
+        return;
+      }
+
+      // 2. Fallback to default community feed
       const response = await homeApi.getFeedItems();
       if (response && response.length > 0) {
         setAllFeedItems(response as any);
       }
     } catch (error) {
-      console.log('Error fetching feed items from DB:', error);
+      console.log('Error fetching feed items:', error);
+    } finally {
+      setLoadingFeed(false);
     }
-  }, []);
+  }, [activeTab]);
 
   const fetchFeaturedKeeper = useCallback(async () => {
     try {
@@ -208,14 +231,51 @@ export const HomeScreen: React.FC<{
 
   useEffect(() => {
     fetchCategories();
-    fetchFeedItems();
     fetchFeaturedKeeper();
-  }, [fetchCategories, fetchFeedItems, fetchFeaturedKeeper]);
+  }, [fetchCategories, fetchFeaturedKeeper]);
+
+  useEffect(() => {
+    fetchFeedItems(activeTab);
+  }, [activeTab, fetchFeedItems]);
+
+  // AI Cultural Discovery Search Effect for HomeScreen
+  useEffect(() => {
+    if (!searchQuery || !searchQuery.trim()) {
+      setDiscoverySearchResults(null);
+      return;
+    }
+
+    let isCurrent = true;
+    const timer = setTimeout(async () => {
+      try {
+        const results = await discoveryApi.searchStories({
+          query: searchQuery,
+          type: activeTab !== 'Explore all' ? activeTab : undefined,
+          includeRelated: true,
+        });
+        if (isCurrent) {
+          if (results && results.length > 0) {
+            setDiscoverySearchResults(results.map(mapDiscoveryToFeedItem));
+          } else {
+            setDiscoverySearchResults([]);
+          }
+        }
+      } catch (err) {
+        console.log('Discovery search fallback to local in-memory:', err);
+        if (isCurrent) setDiscoverySearchResults(null);
+      }
+    }, 250);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [searchQuery, activeTab]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchFeedItems();
-    }, [fetchFeedItems])
+      fetchFeedItems(activeTab);
+    }, [fetchFeedItems, activeTab])
   );
 
   useEffect(() => {
@@ -314,6 +374,9 @@ export const HomeScreen: React.FC<{
 
   // Derive final feed based on tab, then search/category filters
   const feed = useMemo(() => {
+    if (discoverySearchResults !== null) {
+      return discoverySearchResults;
+    }
     let pool = allFeedItems;
     if (activeTab === 'Videos') {
       pool = allFeedItems.filter(i => i.type === 'video');
@@ -334,7 +397,7 @@ export const HomeScreen: React.FC<{
       ];
       return filterMatches(kw);
     });
-  }, [allFeedItems, activeTab, searchQuery, selectedCategoryId]);
+  }, [allFeedItems, discoverySearchResults, activeTab, searchQuery, selectedCategoryId]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -377,6 +440,36 @@ export const HomeScreen: React.FC<{
     extrapolate: 'clamp',
   });
 
+  const handleCommentCountChange = useCallback((postId: string, newCount: number) => {
+    setAllFeedItems((prev) =>
+      prev.map((item) =>
+        String(item.id) === String(postId) ? ({ ...item, commentsCount: newCount } as any) : item
+      )
+    );
+    setDiscoverySearchResults((prev) =>
+      prev
+        ? prev.map((item) =>
+            String(item.id) === String(postId) ? ({ ...item, commentsCount: newCount } as any) : item
+          )
+        : null
+    );
+  }, []);
+
+  const handleLikeCountChange = useCallback((postId: string, newCount: number) => {
+    setAllFeedItems((prev) =>
+      prev.map((item) =>
+        String(item.id) === String(postId) ? ({ ...item, likesCount: newCount } as any) : item
+      )
+    );
+    setDiscoverySearchResults((prev) =>
+      prev
+        ? prev.map((item) =>
+            String(item.id) === String(postId) ? ({ ...item, likesCount: newCount } as any) : item
+          )
+        : null
+    );
+  }, []);
+
   return (
     <View style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#0f5c5c" />
@@ -385,6 +478,7 @@ export const HomeScreen: React.FC<{
         visible={commentModalVisible}
         onClose={() => setCommentModalVisible(false)}
         postId={activePostId}
+        onCommentCountChange={handleCommentCountChange}
       />
 
       <View style={{ flex: 1, overflow: 'hidden' }}>
@@ -553,11 +647,20 @@ export const HomeScreen: React.FC<{
             </>
           }
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <MaterialIcons name="search-off" size={48} color={Colors.textMuted} />
-              <Text style={styles.emptyStateText}>No results found</Text>
-              <Text style={styles.emptyStateSubtext}>Try a different keyword or category</Text>
-            </View>
+            loadingFeed ? (
+              <View style={[styles.emptyState, { paddingVertical: 60, alignItems: 'center', justifyContent: 'center' }]}>
+                <ActivityIndicator size="large" color={Colors.secondary} />
+                <Text style={[styles.emptyStateSubtext, { marginTop: 14, color: Colors.textMuted }]}>
+                  Loading cultural stories...
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <MaterialIcons name="search-off" size={48} color={Colors.textMuted} />
+                <Text style={styles.emptyStateText}>No results found</Text>
+                <Text style={styles.emptyStateSubtext}>Try a different keyword or category</Text>
+              </View>
+            )
           }
           renderItem={({ item }: any) => {
             /* ── VIDEO CARD ──────────────────────────────────────── */
@@ -572,6 +675,7 @@ export const HomeScreen: React.FC<{
                   setActivePostId={setActivePostId}
                   setCommentModalVisible={setCommentModalVisible}
                   onNavigate={onNavigate}
+                  onLikeChange={handleLikeCountChange}
                 />
               );
             }
@@ -586,6 +690,7 @@ export const HomeScreen: React.FC<{
                   setActivePostId={setActivePostId}
                   setCommentModalVisible={setCommentModalVisible}
                   onNavigate={onNavigate}
+                  onLikeChange={handleLikeCountChange}
                 />
               );
             }
@@ -598,7 +703,7 @@ export const HomeScreen: React.FC<{
                 item={item}
                 setActivePostId={setActivePostId}
                 setCommentModalVisible={setCommentModalVisible}
-                onNavigate={onNavigate}
+                onLikeChange={handleLikeCountChange}
               />
             );
           }}

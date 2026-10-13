@@ -29,14 +29,20 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
     private final ModerationQueueRepository moderationQueueRepository;
     private final lk.ac.sliit.legacylens.moderation.repository.StoryRegionRepository storyRegionRepository;
     private final AdminAuditService auditService;
+    private final lk.ac.sliit.legacylens.tags.service.TagNormalizationService tagNormalizationService;
+    private final lk.ac.sliit.legacylens.tags.repository.StoryTagRepository storyTagRepository;
 
     public ModerationQueueServiceImpl(
             ModerationQueueRepository moderationQueueRepository,
             lk.ac.sliit.legacylens.moderation.repository.StoryRegionRepository storyRegionRepository,
-            AdminAuditService auditService) {
+            AdminAuditService auditService,
+            lk.ac.sliit.legacylens.tags.service.TagNormalizationService tagNormalizationService,
+            lk.ac.sliit.legacylens.tags.repository.StoryTagRepository storyTagRepository) {
         this.moderationQueueRepository = moderationQueueRepository;
         this.storyRegionRepository = storyRegionRepository;
         this.auditService = auditService;
+        this.tagNormalizationService = tagNormalizationService;
+        this.storyTagRepository = storyTagRepository;
     }
 
     @Override
@@ -95,6 +101,23 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
         }
         if (request.getDistrict() != null) {
             item.setDistrict(request.getDistrict());
+        }
+
+        if (request.getTags() != null) {
+            item.setTags(request.getTags());
+            for (String tName : request.getTags()) {
+                if (tName != null && !tName.isBlank()) {
+                    try {
+                        String clean = tName.trim().replaceAll("^[#]+", "");
+                        lk.ac.sliit.legacylens.tags.entity.Tag canonicalTag = tagNormalizationService.findOrCreateCanonicalTag(
+                                clean, "en", "heritage", null, true);
+                        tagNormalizationService.assignTagToStory(
+                                id, canonicalTag.getId(), 1.0, lk.ac.sliit.legacylens.tags.entity.TagAssignmentSource.ADMIN);
+                    } catch (Exception e) {
+                        log.warn("Failed to assign canonical tag '{}' during moderation: {}", tName, e.getMessage());
+                    }
+                }
+            }
         }
 
         if (newStatus == StoryStatus.PUBLISHED && item.getPublishedAt() == null) {
@@ -191,7 +214,9 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
                 .authorName(authorName)
                 .authorUserId(authorId)
                 .elder(item.isElder())
-                .tags(item.getTags() != null ? item.getTags() : new String[0])
+                .tags(item.getTags() != null && item.getTags().length > 0 
+                        ? item.getTags() 
+                        : (item.getId() != null ? storyTagRepository.findTagsByStoryId(item.getId()).stream().map(lk.ac.sliit.legacylens.tags.entity.Tag::getCanonicalName).toArray(String[]::new) : new String[0]))
                 .region(item.getRegion())
                 .district(item.getDistrict())
                 .status(item.getStatus() != null ? item.getStatus().name() : "PENDING")

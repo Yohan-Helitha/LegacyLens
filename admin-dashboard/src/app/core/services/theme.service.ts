@@ -20,7 +20,7 @@ export class ThemeService {
     document.documentElement.setAttribute('data-le-theme', t);
     try {
       localStorage.setItem('le-theme', t);
-    } catch (e) {}
+    } catch { /* storage may be unavailable (private mode); theme still applies for this session */ }
   }
 
   isDark(): boolean {

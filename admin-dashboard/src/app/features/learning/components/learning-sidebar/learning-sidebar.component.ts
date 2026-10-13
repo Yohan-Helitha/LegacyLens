@@ -1,12 +1,12 @@
 import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { ThemeService } from '../../../../core/services/theme.service';
 
 @Component({
   selector: 'app-learning-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive],
+  imports: [RouterLink, RouterLinkActive],
   templateUrl: './learning-sidebar.component.html',
   styleUrl: './learning-sidebar.component.scss'
 })

@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+﻿import { apiClient } from './client';
 
 export interface AdminNotificationResponse {
   id: string;
@@ -12,15 +12,21 @@ export interface AdminNotificationResponse {
 
 export const adminNotificationApi = {
   getNotifications: async (): Promise<AdminNotificationResponse[]> => {
-    const response = await apiClient.get('/api/admin/notifications');
-    return response.data;
+    const response = await apiClient.get('/admin/notifications');
+    const data = response.data;
+    const notifications = Array.isArray(data) ? data : (data?.data ?? []);
+    
+    return notifications.map((n: any) => ({
+      ...n,
+      read: n.read ?? n.isRead ?? false
+    }));
   },
 
   markAsRead: async (type: string, id: string): Promise<void> => {
-    await apiClient.put(`/api/admin/notifications/${type}/${id}/read`);
+    await apiClient.put(`/admin/notifications/${type}/${id}/read`);
   },
 
   markAllAsRead: async (): Promise<void> => {
-    await apiClient.put('/api/admin/notifications/read-all');
+    await apiClient.put('/admin/notifications/read-all');
   }
 };

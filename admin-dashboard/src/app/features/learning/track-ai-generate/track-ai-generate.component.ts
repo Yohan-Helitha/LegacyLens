@@ -1,5 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -16,7 +16,7 @@ import { LearningSidebarComponent } from '../components/learning-sidebar/learnin
 @Component({
   selector: 'app-track-ai-generate',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, LearningSidebarComponent],
+  imports: [FormsModule, RouterLink, LearningSidebarComponent],
   templateUrl: './track-ai-generate.component.html',
   styleUrl: './track-ai-generate.component.scss'
 })

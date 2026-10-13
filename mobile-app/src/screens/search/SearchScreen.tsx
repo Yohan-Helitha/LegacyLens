@@ -35,6 +35,7 @@ import { VideoCard } from '../../components/home/VideoCard';
 import { BlogCard } from '../../components/home/BlogCard';
 import { AudioCard } from '../../components/home/AudioCard';
 import { homeApi } from '../../services/api/homeApi';
+import { discoveryApi, mapDiscoveryToFeedItem } from '../../services/api/discoveryApi';
 import { loadedVideoIds, VItem, BItem, AItem } from '../home/HomeScreen';
 
 const CATEGORIES: Array<{
@@ -129,6 +130,46 @@ export const SearchScreen: React.FC<{
 
   // ── Shuffled Initial Feed ────────────────────────────────────────────────
   const [allFeedItems, setAllFeedItems] = useState<(VItem | BItem | AItem)[]>([]);
+  const [includeRelated, setIncludeRelated] = useState(true);
+  const [discoveryResults, setDiscoveryResults] = useState<(VItem | BItem | AItem)[] | null>(null);
+  const [isSearchingDiscovery, setIsSearchingDiscovery] = useState(false);
+
+  // ── AI Cultural Discovery Search Effect ──────────────────────────────────
+  useEffect(() => {
+    if (!searchQuery || !searchQuery.trim()) {
+      setDiscoveryResults(null);
+      return;
+    }
+
+    let isCurrent = true;
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearchingDiscovery(true);
+        const results = await discoveryApi.searchStories({
+          query: searchQuery,
+          includeRelated,
+          type: activeTab !== 'Explore all' ? activeTab : undefined
+        });
+        if (isCurrent) {
+          if (results && results.length > 0) {
+            setDiscoveryResults(results.map(mapDiscoveryToFeedItem));
+          } else {
+            setDiscoveryResults([]);
+          }
+        }
+      } catch (err) {
+        console.log('Discovery search fallback to local:', err);
+        if (isCurrent) setDiscoveryResults(null);
+      } finally {
+        if (isCurrent) setIsSearchingDiscovery(false);
+      }
+    }, 250);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [searchQuery, includeRelated, activeTab]);
 
   // 🎙️ Filtering logic 🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️
   const filterMatches = (keywords: string[]) => {
@@ -157,6 +198,10 @@ export const SearchScreen: React.FC<{
 
   // Derive final feed based on tab, then search/category filters
   const feed = useMemo(() => {
+    if (discoveryResults !== null && searchQuery && searchQuery.trim()) {
+      return discoveryResults;
+    }
+
     let pool = allFeedItems;
     if (activeTab === 'Videos') {
       pool = allFeedItems.filter(i => i.type === 'video');
@@ -177,7 +222,7 @@ export const SearchScreen: React.FC<{
       ];
       return filterMatches(kw);
     });
-  }, [allFeedItems, activeTab, searchQuery, selectedCategoryId]);
+  }, [allFeedItems, activeTab, searchQuery, selectedCategoryId, discoveryResults]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -206,30 +251,29 @@ export const SearchScreen: React.FC<{
           onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
           style={[styles.stickyHeader, { backgroundColor: Colors.secondary, transform: [{ translateY: headerTranslateY }] }]}
         >
-
-          {/* Custom Dark Green Search Header */}
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            paddingHorizontal: Spacing.md,
-            paddingTop: (StatusBar.currentHeight || 24) + Spacing.sm,
-            paddingBottom: Spacing.md,
-            backgroundColor: Colors.secondary,
-          }}>
+        
+        {/* Custom Dark Green Search Header */}
+        <View style={{
+          paddingHorizontal: Spacing.md,
+          paddingTop: (StatusBar.currentHeight || 24) + Spacing.sm,
+          paddingBottom: Spacing.md,
+          backgroundColor: Colors.secondary,
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {onBack && (
-              <TouchableOpacity onPress={onBack} style={{ marginRight: Spacing.sm, padding: 4, marginLeft: -4, marginTop: 4 }}>
+              <TouchableOpacity onPress={onBack} style={{ marginRight: Spacing.sm, padding: 4, marginLeft: -4 }}>
                 <MaterialIcons name="arrow-back" size={26} color={Colors.white} />
               </TouchableOpacity>
             )}
-
-            <View style={styles.tagInputContainer}>
+            
+            <View style={[styles.tagInputContainer, { flex: 1 }]}>
               <MaterialIcons
                 name="search"
                 size={24}
                 color={Colors.textMuted}
                 style={{ marginTop: 3 }}
               />
-
+              
               <View style={styles.tagInputInner}>
                 {(searchQuery.match(/#[^\s]+/g) || []).map(tag => (
                   <View key={tag} style={styles.tagPill}>
@@ -242,7 +286,7 @@ export const SearchScreen: React.FC<{
 
                 <TextInput
                   style={styles.tagTextInput}
-                  placeholder={searchQuery.match(/#[^\s]+/g) ? "Add tag..." : "Search by tags..."}
+                  placeholder={searchQuery.match(/#[^\s]+/g) ? "Add tag..." : "Search heritage by tags..."}
                   placeholderTextColor="#6F7978"
                   value={searchQuery.replace(/#[^\s]+/g, '').trimStart()}
                   onChangeText={(text) => {
@@ -252,9 +296,53 @@ export const SearchScreen: React.FC<{
                   autoCapitalize="none"
                 />
               </View>
-
             </View>
           </View>
+
+          {/* Media Type Filter Tabs & AI Semantic Expansion Toggle */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+              {['Explore all', 'Videos', 'Blogs', 'Audio'].map((tab) => (
+                <TouchableOpacity
+                  key={tab}
+                  onPress={() => setActiveTab(tab)}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 5,
+                    borderRadius: 16,
+                    backgroundColor: activeTab === tab ? '#fe893e' : 'rgba(255,255,255,0.15)',
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#ffffff' }}>{tab}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              onPress={() => setIncludeRelated(!includeRelated)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: includeRelated ? 'rgba(254, 137, 62, 0.25)' : 'rgba(255,255,255,0.12)',
+                borderColor: includeRelated ? '#fe893e' : 'rgba(255,255,255,0.25)',
+                borderWidth: 1,
+                borderRadius: 16,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                marginLeft: 8,
+              }}
+            >
+              <MaterialIcons
+                name={includeRelated ? "auto-awesome" : "filter-alt"}
+                size={14}
+                color={includeRelated ? '#fe893e' : '#ffffff'}
+                style={{ marginRight: 4 }}
+              />
+              <Text style={{ fontSize: 11, fontWeight: '700', color: includeRelated ? '#fe893e' : '#ffffff' }}>
+                {includeRelated ? "AI Related" : "Exact"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
         </Animated.View>
 
         <Animated.FlatList

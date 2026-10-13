@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { styles } from './AdminNotificationsScreen.styles';
 import { useOpportunity } from '../../../context/OpportunityContext';
-import { moderationApi, ModerationQueueItemResponse } from '../../../services/api/moderationApi';
 import { Colors, Typography, Spacing } from '../../../theme';
 import { adminNotificationApi, AdminNotificationResponse } from '../../../services/api/adminNotificationApi';
 
@@ -26,44 +25,24 @@ type AppNotification = {
   originalId: string;
 };
 
-export const AdminNotificationsScreen = ({ onBack }: { onBack?: () => void }) => {
+export const AdminNotificationsScreen = ({ onBack, onNavigate }: { onBack?: () => void, onNavigate?: (tab: string, item?: any) => void }) => {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [loading, setLoading] = useState<boolean>(true);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const { audioSubmissions, refreshAll } = useOpportunity();
+  const { refreshAll } = useOpportunity();
   
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         await refreshAll();
-        const moderationItems = await moderationApi.getQueueItems('PENDING');
         const adminNotifs = await adminNotificationApi.getNotifications();
         
         const generatedNotifications: AppNotification[] = [];
         
-        // Add Audio Submissions (Opportunities)
-        audioSubmissions.forEach(sub => {
-          if (sub.status !== 'FULLY_LISTENED') {
-            generatedNotifications.push({
-              id: `opp-${sub.id}`,
-              originalId: sub.id,
-              title: sub.elderName || 'Contributor',
-              subtitle: 'Opportunity Intake',
-              body: `Submitted a new recording for review.`,
-              time: 'Recently',
-              timeMs: new Date().getTime(),
-              icon: 'mic',
-              iconColor: '#004343',
-              iconBg: 'rgba(0,67,67,0.1)',
-              leftBorderColor: '#004343',
-              actionText: 'Listen & Review',
-              actionType: 'primary',
-              read: false,
-              type: 'opportunity'
-            });
-          }
-        });
-        
-        const adminNotificationItems: AppNotification[] = adminNotifs.map(n => {
+        const adminNotificationItems: AppNotification[] = adminNotifs
+          .filter((n: any) => n.type === 'opportunity' || n.type === 'moderation')
+          .map((n: any) => {
           const isOpp = n.type === 'opportunity';
           return {
             id: `${n.type}-${n.id}`,
@@ -85,54 +64,15 @@ export const AdminNotificationsScreen = ({ onBack }: { onBack?: () => void }) =>
         });
         generatedNotifications.push(...adminNotificationItems);
         
-        // Add Moderation Items
-        moderationItems.forEach((mod: ModerationQueueItemResponse) => {
-          generatedNotifications.push({
-            id: `mod-${mod.id}`,
-            originalId: mod.id,
-            title: mod.title || 'Reported Content',
-            subtitle: 'Moderation Queue',
-            body: `Received a report requiring moderation review.`,
-            time: new Date(mod.createdAt).toLocaleDateString(),
-            timeMs: new Date(mod.createdAt).getTime(),
-            icon: 'flag',
-            iconColor: '#9b4600',
-            iconBg: 'rgba(254,137,62,0.2)',
-            leftBorderColor: '#9b4600',
-            actionText: 'View Details',
-            actionType: 'secondary',
-            read: false,
-            type: 'moderation'
-          });
-        });
-        
-        // Dummy System Notifications
-        generatedNotifications.push({
-          id: `sys-1`,
-          originalId: 'sys-1',
-          title: 'Elder Verification',
-          subtitle: 'System',
-          body: 'Pending credential review for 2 new elder accounts.',
-          time: '1d ago',
-          timeMs: new Date().getTime() - 86400000,
-          icon: 'verified',
-          iconColor: '#004343',
-          iconBg: 'rgba(0,67,67,0.1)',
-          leftBorderColor: '#004343',
-          actionText: 'Verify Credentials',
-          actionType: 'primary',
-          read: true,
-          type: 'system'
-        });
-        
         setNotifications(generatedNotifications.sort((a, b) => b.timeMs - a.timeMs));
-        setNotifications(generatedNotifications);
       } catch (err) {
         console.error(err);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
-  }, [audioSubmissions.length]);
+  }, []);
 
   const unreadCount = notifications.filter(n => !n.read).length;
   
@@ -146,6 +86,26 @@ export const AdminNotificationsScreen = ({ onBack }: { onBack?: () => void }) =>
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleAction = async (n: AppNotification) => {
+    if (!n.read && n.type !== 'system') {
+      try {
+        await adminNotificationApi.markAsRead(n.type, n.originalId);
+        setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    
+    // Navigate to the respective screen
+    if (onNavigate) {
+      if (n.type === 'opportunity') {
+        onNavigate('intake', n.originalId);
+      } else if (n.type === 'moderation') {
+        onNavigate('review', n.originalId);
+      }
     }
   };
 
@@ -167,7 +127,11 @@ export const AdminNotificationsScreen = ({ onBack }: { onBack?: () => void }) =>
         </View>
         <Text style={styles.cardBody}>{n.body}</Text>
         <View style={styles.cardActions}>
-          <TouchableOpacity style={n.actionType === 'primary' ? styles.btnPrimary : styles.btnSecondary} activeOpacity={0.8}>
+          <TouchableOpacity 
+            style={n.actionType === 'primary' ? styles.btnPrimary : styles.btnSecondary} 
+            activeOpacity={0.8}
+            onPress={() => handleAction(n)}
+          >
             {n.icon === 'mic' && <MaterialIcons name="play-arrow" size={18} color={Colors.white} style={{ marginRight: 4 }} />}
             <Text style={n.actionType === 'primary' ? styles.btnPrimaryText : styles.btnSecondaryText}>{n.actionText}</Text>
             {n.actionType === 'secondary' && <MaterialIcons name="arrow-forward" size={16} color="#202426" style={{ marginLeft: 4 }} />}
@@ -243,4 +207,6 @@ export const AdminNotificationsScreen = ({ onBack }: { onBack?: () => void }) =>
 };
 
 export default AdminNotificationsScreen;
+
+
 

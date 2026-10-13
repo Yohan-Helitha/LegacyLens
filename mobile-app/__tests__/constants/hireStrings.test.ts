@@ -5,11 +5,11 @@ const tokens = (value: string) => (value.match(/\{\w+\}/g) ?? []).sort();
 describe('hire strings', () => {
   const enKeys = Object.keys(HIRE_STRINGS.en).sort();
 
-  it.each(['si', 'ta'] as const)('%s defines exactly the same keys as English', (locale) => {
+  it.each(['si', 'ta'] as const)('%s defines exactly the same keys as English', (locale: 'si' | 'ta') => {
     expect(Object.keys(HIRE_STRINGS[locale]).sort()).toEqual(enKeys);
   });
 
-  it.each(['si', 'ta'] as const)('%s keeps every {placeholder} the English string has', (locale) => {
+  it.each(['si', 'ta'] as const)('%s keeps every {placeholder} the English string has', (locale: 'si' | 'ta') => {
     for (const key of enKeys) {
       const k = key as keyof typeof HIRE_STRINGS.en;
       expect({ key, tokens: tokens(HIRE_STRINGS[locale][k]) }).toEqual({ key, tokens: tokens(HIRE_STRINGS.en[k]) });
