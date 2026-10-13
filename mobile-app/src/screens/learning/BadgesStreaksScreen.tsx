@@ -1,7 +1,7 @@
 // src/screens/learning/BadgesStreaksScreen.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
-import Svg, { Defs, LinearGradient, Stop, Rect, Circle, Path } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Stop, Circle, Path } from 'react-native-svg';
 import { Badge } from '../../types/learning';
 import { ArrowLeft, Lock, Flame, Check } from 'lucide-react-native';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
@@ -98,17 +98,10 @@ export default function BadgesStreaksScreen() {
       </View>
 
       <View style={styles.streakCard}>
-        <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 60" preserveAspectRatio="xMidYMid slice">
-          <Defs>
-            <LinearGradient id="streakGrad" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor={Colors.secondary} />
-              <Stop offset="1" stopColor={Colors.secondaryDark} />
-            </LinearGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100" height="60" fill="url(#streakGrad)" />
-          <Circle cx="92" cy="6" r="26" fill={Colors.accent} opacity={0.15} />
-          <Circle cx="6" cy="56" r="18" fill={Colors.white} opacity={0.06} />
-        </Svg>
+        {/* Decorative circles are plain views, not an SVG: an absolute-fill Svg sized itself smaller than the
+            card on Android, leaving part of it uncovered and its shadow showing as a grey box. */}
+        <View pointerEvents="none" style={styles.streakCircleTop} />
+        <View pointerEvents="none" style={styles.streakCircleBottom} />
 
         <View style={styles.streakHeadlineRow}>
           <Flame size={20} color={Colors.white} fill={Colors.white} />
@@ -163,6 +156,7 @@ const styles = StyleSheet.create({
 
   streakCard: {
     overflow: 'hidden',
+    backgroundColor: Colors.secondary,
     borderRadius: Radii.xl,
     padding: Spacing.md,
     marginBottom: Spacing.lg - 4,
@@ -171,6 +165,26 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 12,
     elevation: 5,
+  },
+  streakCircleTop: {
+    position: 'absolute',
+    top: -34,
+    right: -26,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: Colors.accent,
+    opacity: 0.15,
+  },
+  streakCircleBottom: {
+    position: 'absolute',
+    bottom: -30,
+    left: -22,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: Colors.white,
+    opacity: 0.06,
   },
   streakHeadlineRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.sm + 2 },
   streakHeadline: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, color: Colors.white },
