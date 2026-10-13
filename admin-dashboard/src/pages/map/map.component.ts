@@ -2744,6 +2744,10 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       const cleanPath = url.startsWith('/') ? url : '/' + url;
       return `${environment.apiUrl.replace('/api', '')}${cleanPath}`;
     }
+    // Handle bare models/ paths (e.g., "models/xxx.glb" stored in DB without /uploads/ prefix)
+    if (url.startsWith('models/')) {
+      return `${environment.apiUrl.replace('/api', '')}/uploads/${url}`;
+    }
     const cleanPath = url.startsWith('/') ? url.slice(1) : url;
     return `${window.location.origin}/${cleanPath}`;
   }
