@@ -93,6 +93,19 @@ import { LayoutService } from '../../../app/core/services/layout.service';
             </div>
           </a>
 
+          <!-- 2.05 Cultural Taxonomy & Tag Intelligence -->
+          <a routerLink="/taxonomy"
+             routerLinkActive="active-link"
+             [title]="showFull() ? '' : 'Tag Intelligence & Taxonomy'"
+             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-xl nav-icon shrink-0">sell</span>
+              @if (showFull()) {
+                <span class="truncate">Tag & Taxonomy</span>
+              }
+            </div>
+          </a>
+
           <!-- 2.1 Opportunity Intake -->
           <a routerLink="/opportunity-intake"
              routerLinkActive="active-link"
@@ -154,6 +167,19 @@ import { LayoutService } from '../../../app/core/services/layout.service';
               <span class="material-symbols-outlined text-xl nav-icon shrink-0">auto_stories</span>
               @if (showFull()) {
                 <span class="truncate">Word of the day</span>
+              }
+            </div>
+          </a>
+
+          <!-- 7. Knowledge Keepers -->
+          <a routerLink="/knowledge-keeper"
+             routerLinkActive="active-link"
+             [title]="showFull() ? '' : 'Knowledge Keepers'"
+             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-xl nav-icon shrink-0">psychology</span>
+              @if (showFull()) {
+                <span class="truncate">Knowledge Keepers</span>
               }
             </div>
           </a>
