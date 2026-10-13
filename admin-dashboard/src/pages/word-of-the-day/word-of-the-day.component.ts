@@ -409,14 +409,19 @@ const API_BASE = 'http://localhost:8081/api/admin/word-of-the-day';
                 <button (click)="showExportPdfModal.set(true)" class="text-xs text-[#004343] font-bold flex items-center gap-1 hover:underline cursor-pointer px-2 py-1 rounded-lg hover:bg-[#f2f4f3]">
                   <span class="material-symbols-outlined text-sm">picture_as_pdf</span> Export
                 </button>
-                <button (click)="loadWords()" class="text-xs text-[#004343] font-bold flex items-center gap-1 hover:underline cursor-pointer px-2 py-1 rounded-lg hover:bg-[#f2f4f3]">
-                  <span class="material-symbols-outlined text-sm">refresh</span> Refresh
+                <button (click)="loadWords()" [disabled]="isLoading()" class="text-xs text-[#004343] font-bold flex items-center gap-1 hover:underline cursor-pointer px-2 py-1 rounded-lg hover:bg-[#f2f4f3] disabled:opacity-50">
+                  <span class="material-symbols-outlined text-sm" [class.animate-spin]="isLoading()">refresh</span> Refresh
                 </button>
               </div>
             </div>
 
             <!-- Table -->
-            @if (filteredWords().length === 0) {
+            @if (isLoading()) {
+              <div class="py-16 flex flex-col items-center justify-center gap-3 text-[#6e7978]">
+                <div class="w-8 h-8 border-3 border-[#004343] border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-xs font-semibold text-[#004343]">Loading words...</p>
+              </div>
+            } @else if (filteredWords().length === 0) {
               <div class="p-10 text-center text-xs text-[#6e7978]">
                 <span class="material-symbols-outlined text-3xl text-gray-300 block mb-2">auto_stories</span>
                 <p>No <strong>{{ activeListTab() }}</strong> words found.</p>
@@ -505,6 +510,7 @@ export class WordOfTheDayComponent implements OnInit {
 
   toastMessage = signal<string | null>(null);
   isErrorToast = signal<boolean>(false);
+  isLoading = signal<boolean>(true);
   isSaving = signal<boolean>(false);
   isEditMode = signal<boolean>(false);
   editingId = signal<number | null>(null);
@@ -636,12 +642,17 @@ export class WordOfTheDayComponent implements OnInit {
   }
 
   loadWords(): void {
+    this.isLoading.set(true);
     this.http.get<any>(API_BASE, { headers: this.getHeaders() }).subscribe({
       next: (res) => {
         const data = res?.data ?? res;
         this.wordList.set(Array.isArray(data) ? data : []);
+        this.isLoading.set(false);
       },
-      error: () => this.showToast('Failed to load words from backend.', true)
+      error: () => {
+        this.showToast('Failed to load words from backend.', true);
+        this.isLoading.set(false);
+      }
     });
   }
 
