@@ -92,9 +92,21 @@ export function useHireStrings() {
     [t],
   );
 
+  // 'en' deliberately resolves to undefined, not 'en-US': voice input in
+  // this app is backed by Azure transcription now (not on-device dictation,
+  // which this mapping originally fed), and nothing an elder says into these
+  // fields is actually meant to be recognized as English — an elder whose
+  // UI happens to be in English still speaks Sinhala or Tamil into the mic.
+  // undefined here means MicInputField passes no language override at all,
+  // so the backend's own si-LK default applies, same as every mic button
+  // elsewhere in the app that never set voiceLang in the first place.
+  // Forcing en-US previously made Azure phonetically force-fit Sinhala
+  // speech into English-sounding words instead of transcribing it.
+  const speechLang = locale === 'en' ? undefined : LOCALE_SPEECH_TAG[locale];
+
   return useMemo(
-    () => ({ t, locale, formatDate, formatRating, voiceLabels, speechLang: LOCALE_SPEECH_TAG[locale] }),
-    [t, locale, formatDate, formatRating, voiceLabels],
+    () => ({ t, locale, formatDate, formatRating, voiceLabels, speechLang }),
+    [t, locale, formatDate, formatRating, voiceLabels, speechLang],
   );
 }
 
