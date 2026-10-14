@@ -207,6 +207,7 @@ const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: (
       <View style={s.recommendedBody}>
         <View style={{ gap: 4 }}>
           <Text style={s.cardTitle}>{item.title}</Text>
+          {!!item.elderName && <Text style={s.holderName} numberOfLines={1}>{`By ${item.elderName}`}</Text>}
           <Text style={s.cardMeta}>{joinMeta(item.location, item.category)}</Text>
           {!!item.description && <Text style={s.recentDesc} numberOfLines={3}>{item.description}</Text>}
         </View>
@@ -242,25 +243,31 @@ const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () 
       accessibilityRole="button"
       accessibilityLabel={`${item.title} opportunity`}
     >
-      <Image
-        source={resolveOpportunityImage(item.heroImageUrl)}
-        style={s.urgentThumb}
-        accessibilityLabel={item.title}
-      />
-      <View style={s.urgentBody}>
-        <Text style={s.urgentTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <View style={s.urgentMeta}>
-          <View style={s.urgentMetaItem}>
-            <Text style={s.metaIcon}>{'\uD83C\uDF99'}</Text>
-            <Text style={s.urgentMetaText}>{item.category}</Text>
-          </View>
-          <View style={s.urgentMetaItem}>
-            <LocationPinIcon size={14} />
-            <Text style={s.urgentMetaText}>{item.location}</Text>
+      <View style={s.urgentTop}>
+        <Image
+          source={resolveOpportunityImage(item.heroImageUrl)}
+          style={s.urgentThumb}
+          accessibilityLabel={item.title}
+        />
+        <View style={s.urgentHeading}>
+          <Text style={s.urgentTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          {!!item.elderName && <Text style={s.holderName} numberOfLines={1}>{`By ${item.elderName}`}</Text>}
+          <View style={s.urgentMeta}>
+            <View style={s.urgentMetaItem}>
+              <Text style={s.metaIcon}>{'\uD83C\uDF99'}</Text>
+              <Text style={s.urgentMetaText}>{item.category}</Text>
+            </View>
+            <View style={s.urgentMetaItem}>
+              <LocationPinIcon size={14} />
+              <Text style={s.urgentMetaText}>{item.location}</Text>
+            </View>
           </View>
         </View>
+      </View>
+      {/* Starts at the card's left edge, under the picture, with room above it. */}
+      <View style={s.urgentBody}>
         {!!item.description && <Text style={s.recentDesc} numberOfLines={3}>{item.description}</Text>}
         <View style={s.urgentBadgeSlot}>
           <MatchBadgeInline item={item} />
@@ -763,8 +770,6 @@ const s = StyleSheet.create({
     backgroundColor: D.surfaceContainerLowest,
     borderRadius: 20,
     padding: 12,
-    flexDirection: 'row',
-    alignItems: 'stretch',
     gap: Spacing.md,
     shadowColor: D.primary,
     shadowOffset: { width: 0, height: 4 },
@@ -774,8 +779,11 @@ const s = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.outlineVariant,
   },
+  urgentTop:      { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md },
+  urgentHeading:  { flex: 1, gap: 4 },
+  holderName:     { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.primary },
   urgentThumb:    { width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: Radii.xl, flexShrink: 0 },
-  urgentBody:     { flex: 1, justifyContent: 'space-between', paddingVertical: 4 },
+  urgentBody:     { gap: Spacing.sm },
   urgentTitle:    { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 24, color: D.onSurface },
   urgentBadgeSlot: { marginTop: 4 },
   urgentMeta:     { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs },
