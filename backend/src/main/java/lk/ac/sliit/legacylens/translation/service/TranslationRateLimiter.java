@@ -2,6 +2,7 @@ package lk.ac.sliit.legacylens.translation.service;
 
 import lk.ac.sliit.legacylens.common.exception.TooManyRequestsException;
 import lk.ac.sliit.legacylens.translation.config.TranslationProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
@@ -24,6 +25,8 @@ public class TranslationRateLimiter {
     private final Clock clock;
     private final Map<UUID, Deque<Long>> requestTimes = new ConcurrentHashMap<>();
 
+    /** The constructor Spring uses (the other one only lets tests supply a clock, so it must be told apart). */
+    @Autowired
     public TranslationRateLimiter(TranslationProperties properties) {
         this(properties, Clock.systemUTC());
     }
