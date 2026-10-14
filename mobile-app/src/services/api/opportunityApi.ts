@@ -9,6 +9,14 @@ import {
 
 /** Creator-facing read endpoints. */
 export const opportunityApi = {
+  /** Recommended, urgent and recent together - what the Opportunities page opens with, in one request. */
+  browse: () =>
+    apiGet<{
+      recommended: OpportunityCardResponse[];
+      urgent: OpportunityCardResponse[];
+      recent: OpportunityCardResponse[];
+    }>('/opportunities/browse'),
+
   getRecommended: (limit = 3) =>
     apiGet<OpportunityCardResponse[]>(`/opportunities/recommended?limit=${limit}`),
 

@@ -19,6 +19,7 @@ import { opportunityApi } from '../../../services/api/opportunityApi';
 import type { OpportunityCardResponse } from '../../../types/opportunity';
 import { resolveOpportunityImage, resolveAvatarImage } from '../../../utils/opportunityImages';
 import { showsMatchBadge } from '../../../utils/matchLevel';
+import { useAuthStore } from '../../../store/authStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -375,6 +376,19 @@ const RecentSection: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** What the page showed last time, kept for the signed-in account only so another login never sees it. */
+interface BrowseSnapshot {
+  userId: string | null;
+  recommended: OpportunityCardResponse | null;
+  urgent: OpportunityCardResponse | null;
+  recent: OpportunityCardResponse[];
+}
+let lastBrowse: BrowseSnapshot | null = null;
+const signedInUserId = () => useAuthStore.getState().user?.userId ?? null;
+const remembered = (): BrowseSnapshot | null =>
+  lastBrowse && lastBrowse.userId === signedInUserId() ? lastBrowse : null;
+
 export const OpportunityPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onViewDetail: (opportunityId: string) => void;
@@ -386,9 +400,11 @@ export const OpportunityPage: React.FC<{
   const [searchQuery, setSearchQuery] = useState('');
 
   // Null only until the initial fetch settles — real data only, no fallback/mock content.
-  const [recommended, setRecommended] = useState<OpportunityCardResponse | null>(null);
-  const [urgent, setUrgent] = useState<OpportunityCardResponse | null>(null);
-  const [recent, setRecent] = useState<OpportunityCardResponse[] | null>(null);
+  // Starts from what the page showed last time (for this account), so the tab opens at once and refreshes behind it.
+  const [seen] = useState(remembered);
+  const [recommended, setRecommended] = useState<OpportunityCardResponse | null>(seen?.recommended ?? null);
+  const [urgent, setUrgent] = useState<OpportunityCardResponse | null>(seen?.urgent ?? null);
+  const [recent, setRecent] = useState<OpportunityCardResponse[] | null>(seen?.recent ?? null);
 
   // Populated by a real /opportunities/search call whenever a filter chip
   // other than "All" is active — null means "show the default All view"
@@ -397,20 +413,32 @@ export const OpportunityPage: React.FC<{
   const [filterLoading, setFilterLoading] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    // One request for all three sections - the server works out the creator's matching once, not three times.
     opportunityApi
-      .getRecommended(1)
-      .then((data) => setRecommended(data.length > 0 ? data[0] : null))
-      .catch(() => setRecommended(null));
-
-    opportunityApi
-      .getUrgent(1)
-      .then((data) => setUrgent(data.length > 0 ? data[0] : null))
-      .catch(() => setUrgent(null));
-
-    opportunityApi
-      .getRecent(10)
-      .then(setRecent)
-      .catch(() => setRecent([]));
+      .browse()
+      .then((data) => {
+        if (cancelled) return;
+        const next = {
+          userId: signedInUserId(),
+          recommended: data.recommended[0] ?? null,
+          urgent: data.urgent[0] ?? null,
+          recent: data.recent,
+        };
+        lastBrowse = next;
+        setRecommended(next.recommended);
+        setUrgent(next.urgent);
+        setRecent(next.recent);
+      })
+      .catch(() => {
+        if (cancelled || remembered()) return;
+        setRecommended(null);
+        setUrgent(null);
+        setRecent([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // What was typed, once the creator pauses - so the backend is asked once, not on every key press.

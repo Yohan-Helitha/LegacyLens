@@ -333,6 +333,40 @@ class OpportunityServiceImplTest {
         assertThat(card.getMatchReasons()).isNull();
     }
 
+    // ── The page's opening view, in one go ──────────────────────────────────
+
+    @Test
+    void browse_givesRecommendedUrgentAndRecent_leavingOutWhatWasAppliedFor() {
+        Opportunity recipe = opportunity("Traditional recipe documentation", "Food", "Matara");
+        Opportunity dance = opportunity("Kandyan dance performance", "Dance", "Kandy");
+        OpportunityApplication sent = new OpportunityApplication();
+        sent.setOpportunity(recipe);
+        sent.setCreator(nimal);
+        sent.setStatus(OpportunityApplicationStatus.PENDING);
+        lenient().when(applicationRepository.findByCreatorIdOrderBySavedAtDesc(nimal.getId())).thenReturn(List.of(sent));
+        published(recipe, dance);
+        lenient().when(opportunityRepository.findByStatusAndUrgentTrueOrderByDueAtAsc(eq(OpportunityStatus.PUBLISHED), any()))
+                .thenReturn(List.of(recipe, dance));
+
+        var page = service.browse(nimal.getId());
+
+        assertThat(page.getRecommended()).extracting(OpportunityCardResponse::getTitle).containsExactly("Kandyan dance performance");
+        assertThat(page.getUrgent()).extracting(OpportunityCardResponse::getTitle).containsExactly("Kandyan dance performance");
+        assertThat(page.getRecent()).extracting(OpportunityCardResponse::getTitle).containsExactly("Kandyan dance performance");
+    }
+
+    // ── Search ──────────────────────────────────────────────────────────────
+
+    @Test
+    void search_neverPassesNullToTheQuery_soAnUnusedFilterCannotBreakIt() {
+        lenient().when(userRepository.findById(nimal.getId())).thenReturn(Optional.of(nimal));
+        lenient().when(opportunityRepository.search(any(), any(), any(), any(), any())).thenReturn(List.of());
+
+        service.search(20, nimal.getId(), null, false, "Education");
+
+        org.mockito.Mockito.verify(opportunityRepository).search(eq(OpportunityStatus.PUBLISHED), eq(""), eq(""), eq("Education"), any());
+    }
+
     // ── Detail page ─────────────────────────────────────────────────────────
 
     @Test
