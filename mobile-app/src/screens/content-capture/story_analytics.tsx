@@ -4,7 +4,11 @@ import { StatusBar } from 'expo-status-bar';
 import { ArrowDown, ArrowUp, Eye, Heart, MessageCircle } from 'lucide-react-native';
 import { Header, UserFooter } from '../../components/common';
 import type { UserTabKey } from '../../components/common';
-import { RatingStars, ContentCaptureColors as D } from '../../components/module-specific/content-capture';
+import {
+  RatingStars,
+  StoryListenerPreview,
+  ContentCaptureColors as D,
+} from '../../components/module-specific/content-capture';
 import { useStoryAnalytics } from '../../hooks/useStoryAnalytics';
 import { formatCount } from '../../utils/formatCount';
 import { resolveUploadUrl } from '../../constants/api';
@@ -66,6 +70,8 @@ export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({ storyId, onBack,
               <Text style={s.storyTitle}>{analytics.title}</Text>
               {!!analytics.publishedAt && <Text style={s.mutedText}>Published {formatDate(analytics.publishedAt)}</Text>}
             </View>
+
+            <StoryListenerPreview storyId={analytics.storyId} />
 
             <View style={s.card}>
               <View style={s.trendRow}>
