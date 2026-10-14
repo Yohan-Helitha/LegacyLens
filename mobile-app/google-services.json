@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "759617340054",
+    "project_id": "legacylens-66283",
+    "storage_bucket": "legacylens-66283.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:759617340054:android:e5f014b966af1f0177b8b7",
+        "android_client_info": {
+          "package_name": "com.legacylens.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBY3K-DyC4DDmg6gU3o6Bd2SyiBIvA5AJE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
