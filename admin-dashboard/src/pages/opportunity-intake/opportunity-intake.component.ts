@@ -47,6 +47,7 @@ export interface AudioIntakeItem {
   transcriptOriginal: { time: string; text: string; active?: boolean }[];
   transcriptTranslation: { time: string; text: string; active?: boolean }[];
   reviewerNotes?: string;
+  audioUrl?: string;
 }
 
 export interface KnowledgeHolder {
@@ -434,18 +435,21 @@ export interface OpportunityItem {
                       <!-- Audio Waveform Strip -->
                       <div class="flex items-center gap-3 bg-[#f8faf9] p-2.5 rounded-xl border border-[#dde3eb] mb-3">
                         <button 
-                          (click)="openQuickPreview(item)"
-                          class="w-9 h-9 rounded-full bg-[#004343] text-white hover:bg-[#003131] flex items-center justify-center shadow-xs shrink-0 transition-transform active:scale-95 cursor-pointer"
-                          title="Play Preview">
-                          <span class="material-symbols-outlined text-xl">play_arrow</span>
+                          (click)="toggleCardPlay(item)"
+                          [class]="(isPlaying() && activePlayingItemId() === item.id) ? 'bg-[#9b4600] hover:bg-[#763300]' : 'bg-[#004343] hover:bg-[#003131]'"
+                          class="w-9 h-9 rounded-full text-white flex items-center justify-center shadow-xs shrink-0 transition-transform active:scale-95 cursor-pointer"
+                          title="Play Audio">
+                          <span class="material-symbols-outlined text-xl">
+                            {{ (isPlaying() && activePlayingItemId() === item.id) ? 'pause' : 'play_arrow' }}
+                          </span>
                         </button>
 
-                        <div class="flex-1 flex items-end gap-[2px] h-8 overflow-hidden">
+                        <div class="flex-1 flex items-center gap-[2px] h-9 overflow-hidden">
                           @for (bar of waveformBars(); track $index) {
                             <div 
                               [style.height.%]="bar.height"
-                              [class]="bar.played ? 'bg-[#004343]' : 'bg-[#dde3eb]'"
-                              class="flex-1 rounded-sm min-w-[2px]">
+                              [class]="(bar.played && isPlaying() && activePlayingItemId() === item.id) ? 'bg-[#004343]' : 'bg-[#dde3eb]'"
+                              class="flex-1 rounded-full min-w-[2px] transition-all duration-100">
                             </div>
                           }
                         </div>
@@ -548,13 +552,13 @@ export interface OpportunityItem {
                   <!-- Advanced Waveform Visualizer & Scrubbing Player -->
                   <div class="bg-[#f8faf9] rounded-2xl border border-[#dde3eb] p-4 mt-3 shadow-xs">
                     <!-- 45 Interactive Waveform Bars -->
-                    <div class="h-16 flex items-end gap-[3px] mb-3 w-full px-1 overflow-hidden">
+                    <div class="h-16 flex items-center gap-[3px] mb-3 w-full px-1 overflow-hidden">
                       @for (bar of waveformBars(); track $index) {
                         <div 
                           (click)="seekToBar($index)"
                           [style.height.%]="bar.height"
                           [class]="bar.played ? 'bg-[#004343]' : (bar.active ? 'bg-[#fe893e] scale-y-110' : 'bg-[#dde3eb] hover:bg-[#90d2d1]')"
-                          class="flex-1 rounded-sm transition-all duration-150 cursor-pointer min-w-[2px]"
+                          class="flex-1 rounded-full transition-all duration-150 cursor-pointer min-w-[2px]"
                           [title]="'Jump to ' + bar.time">
                         </div>
                       }
@@ -1909,18 +1913,18 @@ export interface OpportunityItem {
 
             <!-- Waveform in Modal -->
             <div class="bg-black/30 p-4 rounded-2xl border border-white/10">
-              <div class="h-14 flex items-end gap-[3px] mb-2">
+              <div class="h-14 flex items-center gap-[3px] mb-2">
                 @for (bar of waveformBars(); track $index) {
                   <div 
                     [style.height.%]="bar.height"
                     [class]="bar.played ? 'bg-emerald-400' : 'bg-white/20'"
-                    class="flex-1 rounded-sm min-w-[2px]">
+                    class="flex-1 rounded-full min-w-[2px] transition-all duration-100">
                   </div>
                 }
               </div>
               <div class="flex justify-between text-xs font-mono text-emerald-300">
                 <span>{{ currentPlaybackTime() }}</span>
-                <span>{{ previewItem()?.duration || '12:48' }}</span>
+                <span>{{ previewItem()?.duration || '02:45' }}</span>
               </div>
             </div>
 
@@ -2101,12 +2105,14 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   
   // Audio Player State (Intake & Review)
   isPlaying = signal<boolean>(false);
-  currentPlaybackTime = signal<string>('04:32');
-  totalPlaybackDuration = signal<string>('12:48');
-  playbackProgress = signal<number>(35); // 0 - 100
+  activePlayingItemId = signal<string | null>(null);
+  currentPlaybackTime = signal<string>('00:00');
+  totalPlaybackDuration = signal<string>('02:45');
+  playbackProgress = signal<number>(0); // 0 - 100
   playbackSpeed = signal<number>(1.0);
   waveformBars = signal<{ height: number; played: boolean; active: boolean; time: string }[]>([]);
   private audioTimer: any;
+  private activeAudioElement: HTMLAudioElement | null = null;
 
   // Quick Preview Audio Modal
   previewModalOpen = signal<boolean>(false);
@@ -2651,6 +2657,33 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
           if (!this.selectedIntakeItem() && mapped.length > 0) {
             this.selectedIntakeItem.set(mapped[0]);
           }
+
+          // Preload and detect real audio duration from audio URL metadata
+          mapped.forEach((item, idx) => {
+            if (item.audioUrl && (item.audioUrl.startsWith('http://') || item.audioUrl.startsWith('https://'))) {
+              const probe = new Audio();
+              probe.preload = 'metadata';
+              probe.onloadedmetadata = () => {
+                if (probe.duration && !isNaN(probe.duration) && isFinite(probe.duration)) {
+                  const totalSecs = Math.round(probe.duration);
+                  const m = Math.floor(totalSecs / 60);
+                  const s = totalSecs % 60;
+                  const formatted = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                  
+                  this.audioSubmissions.update(items =>
+                    items.map(it => it.id === item.id ? { ...it, duration: formatted } : it)
+                  );
+                  if (this.selectedIntakeItem()?.id === item.id) {
+                    this.totalPlaybackDuration.set(formatted);
+                  }
+                  if (this.previewItem()?.id === item.id) {
+                    this.totalPlaybackDuration.set(formatted);
+                  }
+                }
+              };
+              probe.src = item.audioUrl;
+            }
+          });
         }
         if (!silent && list.length > 0) {
           this.showToastNotification(`Loaded ${list.length} field audio records.`, 'success');
@@ -2765,11 +2798,18 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
         { time: '00:12', text: 'We have dedicated our lives to preserving this indigenous tradition.' },
         { time: '01:45', text: 'It is our collective duty to pass down this knowledge accurately to future generations.' }
       ],
-      reviewerNotes: 'Audio submission verified.'
+      reviewerNotes: 'Audio submission verified.',
+      audioUrl: res.audioUrl
     };
   }
 
   ngOnDestroy(): void {
+    if (this.activeAudioElement) {
+      try {
+        this.activeAudioElement.pause();
+        this.activeAudioElement = null;
+      } catch (e) {}
+    }
     if (this.audioTimer) {
       clearInterval(this.audioTimer);
     }
@@ -2802,34 +2842,164 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   generateWaveformBars(): void {
     const bars: { height: number; played: boolean; active: boolean; time: string }[] = [];
     const totalBars = 45;
-    const activeIndex = 14;
+
+    // Rhythmic acoustic voice profile: simulates speech syllables, pauses, pitch peaks and valleys
+    const voiceEnvelope = [
+      18, 28, 48, 22, 16, 52, 78, 64, 34, 18, 12, 38, 72, 94, 82, 44, 20, 14, 30, 58, 
+      88, 100, 76, 42, 16, 26, 68, 86, 72, 36, 18, 14, 46, 80, 92, 70, 32, 18, 24, 60, 
+      84, 52, 28, 18, 14
+    ];
 
     for (let i = 0; i < totalBars; i++) {
-      const height = Math.max(20, Math.floor(Math.sin(i / 2.5) * 35 + Math.cos(i / 1.8) * 25 + 45));
-      const mins = Math.floor((i * 18) / 60);
-      const secs = (i * 18) % 60;
+      const height = voiceEnvelope[i % voiceEnvelope.length];
+      const totalSecs = Math.round((i / (totalBars - 1)) * 165); // Default scale
+      const mins = Math.floor(totalSecs / 60);
+      const secs = totalSecs % 60;
       const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
       
       bars.push({
         height,
-        played: i < activeIndex,
-        active: i === activeIndex,
+        played: false,
+        active: i === 0,
         time: timeStr
       });
     }
     this.waveformBars.set(bars);
   }
 
-  togglePlay(): void {
-    const next = !this.isPlaying();
-    this.isPlaying.set(next);
+  resetPlaybackToBeginning(): void {
+    this.currentPlaybackTime.set('00:00');
+    this.playbackProgress.set(0);
+    this.waveformBars.update(bars => bars.map((b, idx) => ({
+      ...b,
+      played: false,
+      active: idx === 0
+    })));
+  }
 
-    if (next) {
-      this.audioTimer = setInterval(() => {
+  toggleCardPlay(item: AudioIntakeItem): void {
+    if (this.activePlayingItemId() === item.id) {
+      if (this.isPlaying()) {
+        // Pause current audio
+        this.isPlaying.set(false);
+        if (this.activeAudioElement) {
+          try { this.activeAudioElement.pause(); } catch (e) {}
+        }
+        if (this.audioTimer) clearInterval(this.audioTimer);
+      } else {
+        // Resume from where it paused
+        this.startAudioEngine(item.audioUrl, false);
+      }
+      return;
+    }
+
+    // Switched to a different item: start fresh from 00:00
+    this.selectedIntakeItem.set(item);
+    this.activePlayingItemId.set(item.id);
+    this.totalPlaybackDuration.set(item.duration || '02:45');
+    this.resetPlaybackToBeginning();
+    this.startAudioEngine(item.audioUrl, true);
+  }
+
+  togglePlay(): void {
+    const currentItem = this.previewItem() || this.selectedIntakeItem();
+    if (!currentItem) return;
+
+    if (this.isPlaying()) {
+      this.isPlaying.set(false);
+      if (this.activeAudioElement) {
+        try { this.activeAudioElement.pause(); } catch (e) {}
+      }
+      if (this.audioTimer) clearInterval(this.audioTimer);
+    } else {
+      // Resume without restarting
+      this.startAudioEngine(currentItem.audioUrl, false);
+    }
+  }
+
+  private startAudioEngine(audioUrl?: string, restartFromZero = false): void {
+    this.isPlaying.set(true);
+
+    if (audioUrl && (audioUrl.startsWith('http://') || audioUrl.startsWith('https://'))) {
+      try {
+        const isDifferentSource = !this.activeAudioElement || this.activeAudioElement.src !== audioUrl;
+        if (isDifferentSource) {
+          if (this.activeAudioElement) {
+            this.activeAudioElement.pause();
+          }
+          this.activeAudioElement = new Audio(audioUrl);
+          this.activeAudioElement.playbackRate = this.playbackSpeed();
+          
+          this.activeAudioElement.onloadedmetadata = () => {
+            if (this.activeAudioElement && this.activeAudioElement.duration && isFinite(this.activeAudioElement.duration)) {
+              const durSecs = Math.round(this.activeAudioElement.duration);
+              const m = Math.floor(durSecs / 60);
+              const s = durSecs % 60;
+              const durStr = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+              this.totalPlaybackDuration.set(durStr);
+              
+              // Recalculate bar timestamps based on actual audio duration
+              this.waveformBars.update(bars => bars.map((b, i) => {
+                const barSecs = Math.round((i / (bars.length - 1)) * durSecs);
+                const bm = Math.floor(barSecs / 60);
+                const bs = barSecs % 60;
+                return {
+                  ...b,
+                  time: `${bm.toString().padStart(2, '0')}:${bs.toString().padStart(2, '0')}`
+                };
+              }));
+            }
+          };
+
+          this.activeAudioElement.onended = () => {
+            this.isPlaying.set(false);
+            if (this.audioTimer) clearInterval(this.audioTimer);
+            this.resetPlaybackToBeginning();
+          };
+        }
+
+        if (restartFromZero && this.activeAudioElement) {
+          this.activeAudioElement.currentTime = 0;
+        }
+
+        this.activeAudioElement?.play().catch(e => console.warn('Audio play error:', e));
+      } catch (e) {
+        console.warn('Audio play initialization error:', e);
+      }
+    }
+
+    if (this.audioTimer) clearInterval(this.audioTimer);
+    this.audioTimer = setInterval(() => {
+      if (this.activeAudioElement && this.activeAudioElement.duration && isFinite(this.activeAudioElement.duration)) {
+        const curSec = this.activeAudioElement.currentTime;
+        const totalSec = this.activeAudioElement.duration;
+        const ratio = Math.min(1, Math.max(0, curSec / totalSec));
+        
+        const m = Math.floor(curSec / 60);
+        const s = Math.floor(curSec % 60);
+        this.currentPlaybackTime.set(`${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+        this.playbackProgress.set(Math.round(ratio * 100));
+
+        this.waveformBars.update(bars => {
+          const currentBarIndex = Math.min(bars.length - 1, Math.floor(ratio * bars.length));
+          return bars.map((b, idx) => ({
+            ...b,
+            played: idx < currentBarIndex,
+            active: idx === currentBarIndex
+          }));
+        });
+      } else {
+        // Fallback for simulated intervals if duration metadata not yet available
         this.waveformBars.update(bars => {
           const activeIdx = bars.findIndex(b => b.active);
-          const nextIdx = (activeIdx + 1) % bars.length;
-          
+          const nextIdx = (activeIdx + 1);
+
+          if (nextIdx >= bars.length) {
+            this.isPlaying.set(false);
+            clearInterval(this.audioTimer);
+            return bars.map(b => ({ ...b, played: true, active: false }));
+          }
+
           const curBar = bars[nextIdx];
           if (curBar) {
             this.currentPlaybackTime.set(curBar.time);
@@ -2842,10 +3012,8 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
             active: idx === nextIdx
           }));
         });
-      }, 700);
-    } else {
-      if (this.audioTimer) clearInterval(this.audioTimer);
-    }
+      }
+    }, 200);
   }
 
   seekToBar(index: number): void {
@@ -2860,6 +3028,11 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     if (target) {
       this.currentPlaybackTime.set(target.time);
       this.playbackProgress.set(Math.round((index / this.waveformBars().length) * 100));
+      if (this.activeAudioElement && this.activeAudioElement.duration) {
+        try {
+          this.activeAudioElement.currentTime = (index / this.waveformBars().length) * this.activeAudioElement.duration;
+        } catch (e) {}
+      }
     }
   }
 
@@ -2877,6 +3050,11 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
         active: idx === newIdx
       }));
     });
+    if (this.activeAudioElement) {
+      try {
+        this.activeAudioElement.currentTime = Math.max(0, this.activeAudioElement.currentTime - seconds);
+      } catch (e) {}
+    }
     this.showToastNotification(`Rewound ${seconds}s`, 'info');
   }
 
@@ -2894,6 +3072,11 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
         active: idx === newIdx
       }));
     });
+    if (this.activeAudioElement) {
+      try {
+        this.activeAudioElement.currentTime = Math.min(this.activeAudioElement.duration || 9999, this.activeAudioElement.currentTime + seconds);
+      } catch (e) {}
+    }
     this.showToastNotification(`Forwarded ${seconds}s`, 'info');
   }
 
@@ -2902,6 +3085,11 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     const cur = this.playbackSpeed();
     const next = speeds[(speeds.indexOf(cur) + 1) % speeds.length];
     this.playbackSpeed.set(next);
+    if (this.activeAudioElement) {
+      try {
+        this.activeAudioElement.playbackRate = next;
+      } catch (e) {}
+    }
     this.showToastNotification(`Playback speed set to ${next}x`, 'info');
   }
 
@@ -2920,13 +3108,21 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   // ----------------------------------------------------
   openQuickPreview(item: AudioIntakeItem): void {
     this.previewItem.set(item);
+    this.activePlayingItemId.set(item.id);
+    this.totalPlaybackDuration.set(item.duration || '02:45');
     this.previewModalOpen.set(true);
-    this.isPlaying.set(true);
+    this.resetPlaybackToBeginning();
+    this.startAudioEngine(item.audioUrl, true);
   }
 
   closeQuickPreview(): void {
     this.previewModalOpen.set(false);
     this.isPlaying.set(false);
+    if (this.activeAudioElement) {
+      try {
+        this.activeAudioElement.pause();
+      } catch (e) {}
+    }
     if (this.audioTimer) clearInterval(this.audioTimer);
   }
 
