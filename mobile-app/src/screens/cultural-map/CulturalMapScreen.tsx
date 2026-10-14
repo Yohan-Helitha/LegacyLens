@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -64,10 +64,49 @@ const buildMapHTML = (token: string, areas: MapLandmarkResponse[]) => {
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet">
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body, #map { width: 100%; height: 100%; overflow: hidden; }
-  .marker-bubble.event { border-color: #FE893E; background: #FFF5F0; }
+  .landmark-marker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+  }
+  .landmark-model-wrap {
+    width: 90px;
+    height: 90px;
+    position: relative;
+  }
+  .landmark-label {
+    background: #004343;
+    color: #fff;
+    border: 1.5px solid #fff;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 10px;
+    font-family: sans-serif;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    white-space: nowrap;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    margin-top: -10px;
+    position: relative;
+    z-index: 2;
+  }
+  .landmark-pin {
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 10px solid #004343;
+    position: relative;
+    z-index: 2;
+  }
 </style>
 </head>
 <body>
@@ -75,12 +114,12 @@ const buildMapHTML = (token: string, areas: MapLandmarkResponse[]) => {
 <script>
 mapboxgl.accessToken = '${token}';
 
-const SL_BOUNDS = [
-  [79.5, 5.85],  // SW — Very tight bounds to prevent seeing India
-  [81.95, 9.9]   // NE
+var SL_BOUNDS = [
+  [79.5, 5.85],
+  [81.95, 9.9]
 ];
 
-const map = new mapboxgl.Map({
+var map = new mapboxgl.Map({
   container: 'map',
   style: 'mapbox://styles/mapbox/satellite-streets-v12',
   center: [80.85, 7.8],
@@ -92,8 +131,11 @@ const map = new mapboxgl.Map({
   maxBounds: SL_BOUNDS,
 });
 
-map.on('load', () => {
-  // ── 3D terrain ───────────────────────────────────────────────────────────
+var features = ${JSON.stringify(geojsonFeatures)};
+var htmlMarkers = [];
+
+map.on('load', function() {
+  // 3D terrain
   map.addSource('mapbox-dem', {
     type: 'raster-dem',
     url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
@@ -102,77 +144,24 @@ map.on('load', () => {
   });
   map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.8 });
 
-  // Sky atmosphere
   map.setFog({
     color: 'rgba(220, 240, 255, 0.6)',
     'high-color': '#b0d4e8',
     'horizon-blend': 0.06,
   });
 
-  // Hide roads, transit lines, and default labels (cities/POIs/countries)
-  const style = map.getStyle();
-  if (style && style.layers) {
-    style.layers.forEach(layer => {
-      if (
-        layer.id.includes('road') || 
-        layer.id.includes('bridge') || 
-        layer.id.includes('tunnel') || 
-        layer.id.includes('path') || 
-        layer.id.includes('transit') ||
-        layer.id.includes('aeroway') ||
-        layer.id.includes('label') ||
-        layer.id.includes('place') ||
-        layer.id.includes('poi') ||
-        layer.id.includes('admin') ||
-        layer.id.includes('country')
-      ) {
-        map.setLayoutProperty(layer.id, 'visibility', 'none');
-      }
-    });
-  }
-
-  // ── Place cultural markers as native WebGL points ─────────────────────
-  const features = ${JSON.stringify(geojsonFeatures)};
-  
+  // GeoJSON source only for circle-fallback landmarks (those without a modelUrl)
+  var circleFeatures = features.filter(function(f) { return !f.properties.modelUrl; });
   map.addSource('cultural-landmarks', {
     type: 'geojson',
-    data: {
-      type: 'FeatureCollection',
-      features: features
-    }
+    data: { type: 'FeatureCollection', features: circleFeatures }
   });
 
-  // ── Load 3D Models dynamically ─────────────────────────────────────
-  const uniqueModels = new Set();
-  features.forEach(f => {
-    if (f.properties.modelUrl) uniqueModels.add(f.properties.modelUrl);
-  });
-  uniqueModels.forEach(url => {
-    map.addModel(url, url);
-  });
-
-  // Draw the 3D models
-  map.addLayer({
-    id: 'landmark-models',
-    type: 'model',
-    source: 'cultural-landmarks',
-    filter: ['has', 'modelUrl'],
-    layout: {
-      'model-id': ['get', 'modelUrl']
-    },
-    paint: {
-      // Scale reduced so it acts like a normal map pin
-      'model-scale': [1800, 1800, 1800],
-      'model-rotation': [0, 0, 0]
-    }
-  });
-
-  // Fallback points (circles) for locations without models
+  // Circle markers for landmarks without a 3D model
   map.addLayer({
     id: 'landmark-points',
     type: 'circle',
     source: 'cultural-landmarks',
-    filter: ['!', ['has', 'modelUrl']],
     paint: {
       'circle-radius': 7,
       'circle-color': '#FE893E',
@@ -182,7 +171,7 @@ map.on('load', () => {
     }
   });
 
-  // Draw the text labels under the points
+  // Labels for circle landmarks
   map.addLayer({
     id: 'landmark-labels',
     type: 'symbol',
@@ -203,27 +192,66 @@ map.on('load', () => {
     }
   });
 
-  // Handle clicking on models or points
-  const clickHandler = (e) => {
-    if (!e.features.length) return;
-    const feature = e.features[0];
+  // Click on circle markers
+  map.on('click', 'landmark-points', function(e) {
+    if (!e.features || !e.features.length) return;
     window.ReactNativeWebView && window.ReactNativeWebView.postMessage(
-      JSON.stringify({ type: 'MARKER_PRESS', id: feature.properties.id })
+      JSON.stringify({ type: 'MARKER_PRESS', id: e.features[0].properties.id })
     );
-  };
-  map.on('click', 'landmark-models', clickHandler);
-  map.on('click', 'landmark-points', clickHandler);
+  });
+  map.on('mouseenter', 'landmark-points', function() { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'landmark-points', function() { map.getCanvas().style.cursor = ''; });
 
-  // Change cursor on hover
-  const enterHandler = () => { map.getCanvas().style.cursor = 'pointer'; };
-  const leaveHandler = () => { map.getCanvas().style.cursor = ''; };
-  map.on('mouseenter', 'landmark-models', enterHandler);
-  map.on('mouseleave', 'landmark-models', leaveHandler);
-  map.on('mouseenter', 'landmark-points', enterHandler);
-  map.on('mouseleave', 'landmark-points', leaveHandler);
-  
-  // Wait until everything is fully loaded and rendered before hiding the loading screen
-  map.once('idle', () => {
+  // HTML model-viewer markers for landmarks WITH a 3D model
+  features.forEach(function(f) {
+    var props = f.properties;
+    if (!props.modelUrl) return;
+
+    var el = document.createElement('div');
+    el.className = 'landmark-marker';
+
+    var wrap = document.createElement('div');
+    wrap.className = 'landmark-model-wrap';
+
+    var mv = document.createElement('model-viewer');
+    mv.setAttribute('src', props.modelUrl);
+    mv.setAttribute('loading', 'eager');
+    mv.setAttribute('reveal', 'auto');
+    mv.setAttribute('camera-controls', '');
+    mv.setAttribute('disable-zoom', '');
+    mv.setAttribute('interaction-prompt', 'none');
+    mv.setAttribute('shadow-intensity', '1');
+    mv.setAttribute('exposure', '1.1');
+    mv.setAttribute('min-camera-orbit', 'auto 75deg auto');
+    mv.setAttribute('max-camera-orbit', 'auto 75deg auto');
+    mv.setAttribute('field-of-view', '30deg');
+    mv.style.cssText = 'width:100%;height:100%;background:transparent;outline:none;pointer-events:none;';
+    wrap.appendChild(mv);
+    el.appendChild(wrap);
+
+    var label = document.createElement('div');
+    label.className = 'landmark-label';
+    label.textContent = props.name;
+    el.appendChild(label);
+
+    var pin = document.createElement('div');
+    pin.className = 'landmark-pin';
+    el.appendChild(pin);
+
+    el.addEventListener('click', function() {
+      window.ReactNativeWebView && window.ReactNativeWebView.postMessage(
+        JSON.stringify({ type: 'MARKER_PRESS', id: props.id })
+      );
+    });
+
+    var marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+      .setLngLat([f.geometry.coordinates[0], f.geometry.coordinates[1]])
+      .addTo(map);
+
+    htmlMarkers.push({ marker: marker, id: props.id, region: props.region });
+  });
+
+  map.once('idle', function() {
     window.ReactNativeWebView && window.ReactNativeWebView.postMessage(
       JSON.stringify({ type: 'MAP_LOADED' })
     );
@@ -231,47 +259,35 @@ map.on('load', () => {
 });
 
 // Forward zoom events to RN
-map.on('zoom', () => {
+map.on('zoom', function() {
   window.ReactNativeWebView && window.ReactNativeWebView.postMessage(
     JSON.stringify({ type: 'ZOOM', zoom: map.getZoom() })
   );
 });
 
-// Expose function so RN can fly camera
-window.flyTo = (lng, lat, zoom) => {
-  map.flyTo({ center: [lng, lat], zoom: zoom ?? 10, pitch: 55, duration: 1400, essential: true });
+window.flyTo = function(lng, lat, zoom) {
+  map.flyTo({ center: [lng, lat], zoom: zoom || 10, pitch: 55, duration: 1400, essential: true });
 };
-window.resetCamera = () => {
+window.resetCamera = function() {
   map.flyTo({ center: [80.85, 7.8], zoom: 7.2, pitch: 50, duration: 1400, essential: true });
 };
 window.filterRegion = function(regionName, lng, lat, zoom) {
-  var LAYERS = ['landmark-models', 'landmark-points', 'landmark-labels'];
-
+  var LAYERS = ['landmark-points', 'landmark-labels'];
   LAYERS.forEach(function(layerId) {
     if (!map.getLayer(layerId)) return;
-
     if (!regionName || regionName === 'All') {
-      // Restore original layer defaults
-      if (layerId === 'landmark-models') {
-        map.setFilter(layerId, ['has', 'modelUrl']);
-      } else if (layerId === 'landmark-points') {
-        map.setFilter(layerId, ['!', ['has', 'modelUrl']]);
-      } else {
-        map.setFilter(layerId, null);
-      }
+      map.setFilter(layerId, null);
     } else {
-      // Show only features whose 'region' property matches
-      if (layerId === 'landmark-models') {
-        map.setFilter(layerId, ['all', ['has', 'modelUrl'], ['==', ['get', 'region'], regionName]]);
-      } else if (layerId === 'landmark-points') {
-        map.setFilter(layerId, ['all', ['!', ['has', 'modelUrl']], ['==', ['get', 'region'], regionName]]);
-      } else {
-        map.setFilter(layerId, ['==', ['get', 'region'], regionName]);
-      }
+      map.setFilter(layerId, ['==', ['get', 'region'], regionName]);
     }
   });
 
-  // Fly AFTER filter so the remaining landmarks are visible on arrival
+  // Show/hide HTML model-viewer markers by region
+  htmlMarkers.forEach(function(m) {
+    var visible = !regionName || regionName === 'All' || m.region === regionName;
+    m.marker.getElement().style.display = visible ? 'flex' : 'none';
+  });
+
   if (!regionName || regionName === 'All') {
     map.flyTo({ center: [80.85, 7.8], zoom: 7.2, pitch: 50, duration: 900, essential: true });
   } else {
