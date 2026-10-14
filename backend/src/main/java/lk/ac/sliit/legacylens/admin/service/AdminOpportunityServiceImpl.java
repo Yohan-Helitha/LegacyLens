@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.admin.service;
 
+import jakarta.annotation.PostConstruct;
 import lk.ac.sliit.legacylens.admin.dto.AdminOpportunityResponse;
 import lk.ac.sliit.legacylens.admin.dto.CreateOpportunityRequest;
 import lk.ac.sliit.legacylens.admin.dto.OpportunityAudioResponse;
@@ -8,6 +9,9 @@ import lk.ac.sliit.legacylens.admin.entity.AudioReviewStatus;
 import lk.ac.sliit.legacylens.admin.entity.AuditActionType;
 import lk.ac.sliit.legacylens.admin.entity.OpportunityAudio;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
+import lk.ac.sliit.legacylens.hiring.entity.JobRequest;
+import lk.ac.sliit.legacylens.hiring.entity.JobRequestStatus;
+import lk.ac.sliit.legacylens.hiring.repository.JobRequestRepository;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
 import lk.ac.sliit.legacylens.admin.repository.OpportunityAudioRepository;
@@ -21,9 +25,10 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -38,18 +43,79 @@ public class AdminOpportunityServiceImpl implements AdminOpportunityService {
     private final UserRepository userRepository;
     private final AdminAuditService auditService;
     private final ApplicationEventPublisher events;
+    private final JobRequestRepository jobRequestRepository;
 
     public AdminOpportunityServiceImpl(
             OpportunityAudioRepository opportunityAudioRepository,
             OpportunityRepository opportunityRepository,
             UserRepository userRepository,
             AdminAuditService auditService,
-            ApplicationEventPublisher events) {
+            ApplicationEventPublisher events,
+            JobRequestRepository jobRequestRepository) {
         this.opportunityAudioRepository = opportunityAudioRepository;
         this.opportunityRepository = opportunityRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.events = events;
+        this.jobRequestRepository = jobRequestRepository;
+    }
+
+    /**
+     * Auto-sync any unsynced elder job requests from job_requests table into opportunity_audios table
+     * so the admin opportunity intake queue always reflects live db data.
+     */
+    @PostConstruct
+    public void syncExistingJobRequestsOnStartup() {
+        try {
+            List<JobRequest> requests = jobRequestRepository.findAll();
+            for (JobRequest jr : requests) {
+                syncJobRequestToOpportunityAudio(jr);
+            }
+            log.info("Synchronized {} job_requests into opportunity_audios table on startup.", requests.size());
+        } catch (Exception e) {
+            log.warn("Startup sync of job_requests to opportunity_audios skipped or failed: {}", e.getMessage());
+        }
+    }
+
+    private void syncJobRequestToOpportunityAudio(JobRequest jr) {
+        if (jr == null || jr.getElder() == null) {
+            return;
+        }
+        try {
+            String audioUrl = jr.getVoiceNoteUrl();
+            if (audioUrl == null || audioUrl.isBlank()) {
+                audioUrl = "job-request://" + jr.getId();
+            }
+
+            Optional<OpportunityAudio> existing = opportunityAudioRepository.findByAudioUrl(audioUrl);
+            if (existing.isPresent()) {
+                return;
+            }
+
+            User elder = jr.getElder();
+            OpportunityAudio audio = new OpportunityAudio();
+            audio.setKnowledgeHolder(elder);
+            audio.setElderName(elder.getFullName() != null ? elder.getFullName() : "Elder Knowledge Keeper");
+            audio.setElderAvatarUrl(elder.getProfilePhotoUrl());
+            audio.setVerified(elder.isPhoneVerified());
+
+            String location = "Sri Lanka";
+            if (elder.getCity() != null) {
+                location = elder.getCity().getName() + (elder.getCity().getRegion() != null ? ", " + elder.getCity().getRegion() : "");
+            }
+            audio.setLocation(location);
+            audio.setRecordedAt(jr.getCreatedAt() != null ? jr.getCreatedAt() : LocalDateTime.now());
+            audio.setDuration("02:45");
+            audio.setAudioUrl(audioUrl);
+            audio.setTopic(jr.getTitle());
+            audio.setTags("Oral History, Cultural Documentation, Traditional Heritage");
+            audio.setTranscript(jr.getDescription() != null && !jr.getDescription().isBlank() ? jr.getDescription() : jr.getTitle());
+            audio.setStatus(jr.getStatus() == JobRequestStatus.PUBLISHED ? AudioReviewStatus.FULLY_LISTENED : AudioReviewStatus.UNLISTENED);
+
+            opportunityAudioRepository.save(audio);
+        } catch (Exception e) {
+            log.warn("Failed to sync job_request {} to opportunity_audios: {}", jr.getId(), e.getMessage());
+        }
     }
 
     /** Tells the knowledge holder their opportunity is live; one with no knowledge holder has nobody to tell. */
@@ -116,12 +182,31 @@ public class AdminOpportunityServiceImpl implements AdminOpportunityService {
 
         Opportunity opportunity = mapToEntity(request);
         opportunity.setStatus(OpportunityStatus.PUBLISHED);
+        if (opportunity.getElder() == null && audio.getKnowledgeHolder() != null) {
+            opportunity.setElder(audio.getKnowledgeHolder());
+        }
         Opportunity saved = opportunityRepository.save(opportunity);
         auditService.logAction(AuditActionType.PUBLISHED, "Opportunity", saved.getId() != null ? saved.getId().toString() : null, request.getTitle(), performedById, performedByName, "Opportunity published from audio submission: " + audioId);
         announcePublished(saved);
 
         audio.setStatus(AudioReviewStatus.FULLY_LISTENED);
         opportunityAudioRepository.save(audio);
+
+        // Sync status back to corresponding JobRequest if present
+        try {
+            if (audio.getAudioUrl() != null && !audio.getAudioUrl().isBlank()) {
+                jobRequestRepository.findAll().stream()
+                        .filter(jr -> audio.getAudioUrl().equals(jr.getVoiceNoteUrl()) || audio.getAudioUrl().contains(jr.getId().toString()))
+                        .findFirst()
+                        .ifPresent(jr -> {
+                            jr.setStatus(JobRequestStatus.PUBLISHED);
+                            jobRequestRepository.save(jr);
+                            log.info("Updated JobRequest {} status to PUBLISHED", jr.getId());
+                        });
+            }
+        } catch (Exception e) {
+            log.warn("Could not sync published status back to JobRequest: {}", e.getMessage());
+        }
 
         return mapToAdminResponse(saved);
     }
