@@ -32,6 +32,8 @@ export interface OpportunityApplicationResponse {
   /** The languages the creator offered for this opportunity; empty for older drafts. */
   languages?: CreatorLanguage[];
   status: OpportunityApplicationStatus;
+  /** Whether the opportunity is urgent - its cards get a red edge. */
+  urgent?: boolean;
   savedAt: string;
   submittedAt: string | null;
   /** Null while a rejection has not been looked at - those are what the menu's red number counts. */

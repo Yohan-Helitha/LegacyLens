@@ -116,6 +116,51 @@ class OpportunityApplicationServiceImplTest {
                 () -> service.saveDraft(creatorId, request(List.of("Klingon:FLUENT"))));
     }
 
+    /** An approved application on the test opportunity, ready to be booked. */
+    private OpportunityApplication approvedApplication() {
+        OpportunityApplication application = new OpportunityApplication();
+        application.setId(UUID.randomUUID());
+        application.setCreator(userRepository.findById(creatorId).orElseThrow());
+        application.setOpportunity(opportunity);
+        application.setStatus(lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus.APPROVED);
+        when(applicationRepository.findByIdAndCreatorId(application.getId(), creatorId)).thenReturn(Optional.of(application));
+        when(applicationRepository.save(any(OpportunityApplication.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        return application;
+    }
+
+    private lk.ac.sliit.legacylens.marketplace.dto.BookApplicationRequest bookingRequest() {
+        lk.ac.sliit.legacylens.marketplace.dto.BookApplicationRequest request = new lk.ac.sliit.legacylens.marketplace.dto.BookApplicationRequest();
+        request.setConfirmedDate(java.time.LocalDate.of(2026, 10, 28));
+        request.setStartTime(java.time.LocalTime.of(8, 0));
+        request.setEndTime(java.time.LocalTime.of(12, 0));
+        return request;
+    }
+
+    @Test
+    void booking_anUrgentOpportunity_makesAnUrgentJob() {
+        opportunity.setUrgent(true);
+        OpportunityApplication application = approvedApplication();
+
+        service.bookApplication(creatorId, application.getId(), bookingRequest());
+
+        org.mockito.ArgumentCaptor<lk.ac.sliit.legacylens.marketplace.entity.Job> job =
+                org.mockito.ArgumentCaptor.forClass(lk.ac.sliit.legacylens.marketplace.entity.Job.class);
+        verify(jobRepository).save(job.capture());
+        assertThat(job.getValue().isUrgent()).isTrue();
+    }
+
+    @Test
+    void booking_anOrdinaryOpportunity_makesAnOrdinaryJob() {
+        OpportunityApplication application = approvedApplication();
+
+        service.bookApplication(creatorId, application.getId(), bookingRequest());
+
+        org.mockito.ArgumentCaptor<lk.ac.sliit.legacylens.marketplace.entity.Job> job =
+                org.mockito.ArgumentCaptor.forClass(lk.ac.sliit.legacylens.marketplace.entity.Job.class);
+        verify(jobRepository).save(job.capture());
+        assertThat(job.getValue().isUrgent()).isFalse();
+    }
+
     @Test
     void markRejectedSeen_stampsOnlyTheRejectedApplicationsNotLookedAtYet() {
         OpportunityApplication unseenOne = new OpportunityApplication();

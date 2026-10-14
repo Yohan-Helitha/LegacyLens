@@ -394,7 +394,7 @@ const ApprovedApplicationCard: React.FC<{
   item: OpportunityApplicationResponse;
   onBook: () => void;
 }> = ({ item, onBook }) => (
-  <View style={s.jobCard}>
+  <View style={[s.jobCard, item.urgent && s.jobCardUrgent]}>
     <View style={s.jobCardHeader}>
       <View style={s.jobCardLeft}>
         <JobIcon />

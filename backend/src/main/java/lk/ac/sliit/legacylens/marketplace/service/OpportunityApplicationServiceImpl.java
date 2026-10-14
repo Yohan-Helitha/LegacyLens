@@ -205,6 +205,8 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         job.setDescription(opportunity.getDescription());
         job.setLocation(opportunity.getLocation());
         job.setOfferedAmount(opportunity.getOfferedAmount());
+        // The red edge and the Urgent mark follow the opportunity, so they show on the schedule, My Work and Completed.
+        job.setUrgent(opportunity.isUrgent());
         job.setStatus(JobStatus.UPCOMING);
         job.setScheduledAt(LocalDateTime.of(request.getConfirmedDate(), request.getStartTime()));
         job.setTimeWindowText(formatTimeWindow(request.getStartTime(), request.getEndTime()));

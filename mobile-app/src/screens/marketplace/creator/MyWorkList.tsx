@@ -200,10 +200,11 @@ const WorkCard: React.FC<{
   const scheduledOn = formatScheduleDate(job.scheduledAt);
 
   return (
-    <View style={s.card}>
-      {(dueText || variant === 'continue' || variant === 'submitted') && (
+    <View style={[s.card, job.urgent && s.cardUrgent]}>
+      {(dueText || job.urgent || variant === 'continue' || variant === 'submitted') && (
         <View style={s.chipsRow}>
           <View style={s.chipsLeft}>
+            {job.urgent && <UrgentPill />}
             {variant === 'continue' && <WorkStatusChip status={progress?.workStatus ?? 'IN_PROGRESS'} />}
             {variant === 'submitted' && <WorkStatusChip status={progress?.workStatus ?? 'SUBMITTED'} />}
             {!!dueText && (
@@ -334,6 +335,13 @@ const ReviewerStatus: React.FC<{ who: string; approved: boolean }> = ({ who, app
   </View>
 );
 
+/** Marks urgent work wherever it is listed; ordinary work carries no mark. */
+const UrgentPill: React.FC = () => (
+  <View style={s.urgentPill}>
+    <Text style={s.urgentPillText}>{'\u{1F525} Urgent'}</Text>
+  </View>
+);
+
 const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; published: boolean; onView: () => void; onTestRate: (stars: number) => void }> = ({ job, heroImageUrl, published, onView, onTestRate }) => {
   const doneOn = formatDoneDate(job.completedAt);
 
@@ -346,6 +354,7 @@ const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; p
           </View>
           <Text style={s.donePillText}>{published ? 'Published' : 'Completed'}</Text>
         </View>
+        {job.urgent && <UrgentPill />}
       </View>
 
       <View style={s.doneBody}>
@@ -836,6 +845,9 @@ const s = StyleSheet.create({
   // A softer, wider shadow plus a faint white top edge gives the card a
   // subtle "glass" lift off the page background, instead of the flat
   // hairline-bordered look every other list card here uses.
+  cardUrgent: { borderLeftWidth: 3, borderLeftColor: '#C0392B' },
+  urgentPill: { backgroundColor: '#C0392B', borderRadius: Radii.full, paddingHorizontal: 10, paddingVertical: 3 },
+  urgentPillText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.3 },
   card: {
     backgroundColor: D.surfaceContainerLowest,
     borderRadius: Radii.xl,
