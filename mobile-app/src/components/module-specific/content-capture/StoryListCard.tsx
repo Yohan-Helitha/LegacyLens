@@ -28,7 +28,7 @@ export const StoryListCard: React.FC<StoryListCardProps> = ({ story, onPress }) 
     accessibilityRole="button"
     accessibilityLabel={t('storyCards.open', { title: story.title })}
   >
-    <StoryMediaThumb mediaType={story.mediaType} variant="list" />
+    <StoryMediaThumb mediaType={story.mediaType} variant="list" imageUrl={story.imageUrl} />
 
     <View style={s.body}>
       <Text style={s.title} numberOfLines={1}>{story.title}</Text>

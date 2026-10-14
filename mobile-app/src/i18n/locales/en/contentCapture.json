@@ -300,7 +300,9 @@
     "discardTitle": "Discard this story?",
     "discardMessage": "Your recording and anything you've written here will be lost.",
     "discard": "Discard",
-    "keepEditing": "Keep editing"
+    "keepEditing": "Keep editing",
+    "thumbnailFailedTitle": "Thumbnail not saved",
+    "thumbnailFailed": "Your story was saved, but the thumbnail couldn't be uploaded. You can add it again by editing the story."
   },
   "recorder": {
     "micNeededTitle": "Microphone access needed",

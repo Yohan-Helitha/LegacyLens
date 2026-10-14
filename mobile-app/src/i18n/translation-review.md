@@ -4,7 +4,7 @@ Machine-translated (Google Cloud Translation) first drafts. A native speaker sho
 then edit the JSON files in `src/i18n/locales/{si,ta}` directly - reviewed text is kept when the script is re-run.
 `(!)` = still identical to English (left untranslated, or the machine output could not be verified).
 
-Rows: 318, needing attention: 0
+Rows: 320, needing attention: 0
 
 | Key | English | Sinhala | Tamil |
 | --- | --- | --- | --- |
@@ -265,6 +265,8 @@ Rows: 318, needing attention: 0
 | contentCapture:form.discardMessage | Your recording and anything you've written here will be lost. | ඔබගේ පටිගත කිරීම සහ ඔබ මෙහි ලියා ඇති ඕනෑම දෙයක් අහිමි වනු ඇත. | உங்கள் பதிவும், நீங்கள் இங்கு எழுதிய அனைத்தும் இழக்கப்படும். |
 | contentCapture:form.discard | Discard | ඉවතලන්න | நிராகரி |
 | contentCapture:form.keepEditing | Keep editing | සංස්කරණය කිරීම දිගටම කරගෙන යන්න | தொடர்ந்து திருத்தவும் |
+| contentCapture:form.thumbnailFailedTitle | Thumbnail not saved | සිඟිති රුව සුරැකී නැත | சிறுபடம் சேமிக்கப்படவில்லை |
+| contentCapture:form.thumbnailFailed | Your story was saved, but the thumbnail couldn't be uploaded. You can add it again by editing the story. | ඔබේ කතාව සුරකින ලදී, නමුත් සිඟිති රුව උඩුගත කළ නොහැකි විය. කතාව සංස්කරණය කිරීමෙන් ඔබට එය නැවත එක් කළ හැකිය. | உங்கள் கதை சேமிக்கப்பட்டுவிட்டது, ஆனால் சிறுபடத்தைப் பதிவேற்ற முடியவில்லை. கதையைத் திருத்துவதன் மூலம் நீங்கள் அதை மீண்டும் சேர்க்கலாம். |
 | contentCapture:recorder.micNeededTitle | Microphone access needed | මයික්‍රෆෝන ප්‍රවේශය අවශ්‍යයි | மைக்ரோஃபோன் அணுகல் தேவை |
 | contentCapture:recorder.micNeededBody | Legacy Lens needs microphone access to record your story. | ඔබේ කතාව පටිගත කිරීමට Legacy Lens හට මයික්‍රෆෝන ප්‍රවේශය අවශ්‍යයි. | உங்கள் கதையைப் பதிவுசெய்ய Legacy Lens மைக்ரோஃபோன் வசதி தேவை. |
 | contentCapture:recorder.started | Recording started | පටිගත කිරීම ආරම්භ විය | பதிவு தொடங்கியது |

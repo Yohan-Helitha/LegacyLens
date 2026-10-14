@@ -25,6 +25,8 @@ export interface StoryResponse {
   /** Root-relative — prefix with the API host to get a playable URL. */
   mediaUrl: string | null;
   mediaDurationMillis: number | null;
+  /** Cover image (complete URL), set by the storyteller or an admin. */
+  imageUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
@@ -60,6 +62,8 @@ export interface StorySummary {
   /** Root-relative — prefix with the API host to get a playable URL. */
   mediaUrl: string | null;
   viewCount: number;
+  /** Cover image (complete URL), set by the storyteller or an admin. */
+  imageUrl?: string | null;
   createdAt: string;
 }
 

@@ -57,6 +57,14 @@ export const storiesApi = {
 
   remove: (storyId: string) => apiDelete<void>(`/stories/${storyId}`),
 
+  /** Sets the cover image of one of the caller's own unpublished stories (an image of at most 5 MB). */
+  uploadThumbnail: (storyId: string, file: { uri: string; name: string; type: string }) => {
+    const formData = new FormData();
+    // React Native's FormData takes this {uri, name, type} shape directly; the DOM typings don't cover it.
+    formData.append('thumbnail', file as unknown as Blob);
+    return apiPostForm<StoryResponse>(`/stories/${storyId}/thumbnail`, formData);
+  },
+
   /** Dashboard analytics card — totals and the 7-day view trend across the caller's published stories. */
   getAnalyticsSummary: () => apiGet<AnalyticsSummary>('/stories/mine/analytics/summary'),
 

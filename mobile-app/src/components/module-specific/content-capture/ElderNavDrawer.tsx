@@ -6,6 +6,7 @@ import {
   Image,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -145,20 +146,21 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
         <Animated.View
           style={[
             s.drawer,
-            { width: DRAWER_WIDTH, paddingTop: insets.top + Spacing.md, transform: [{ translateX }] },
+            { width: DRAWER_WIDTH, transform: [{ translateX }] },
           ]}
         >
+          {/* Everything scrolls together, so nothing gets squeezed or overlaps when labels wrap (long Sinhala/Tamil
+              text) or the screen is short; Log out is the last row and sits at the bottom when there is room. */}
+          <ScrollView
+            style={s.scroll}
+            contentContainerStyle={[
+              s.scrollContent,
+              { paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + Spacing.md },
+            ]}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
           <View style={s.header}>
-            <Pressable
-              onPress={onClose}
-              accessibilityRole="button"
-              accessibilityLabel={t('drawer.closeNavigation')}
-              style={s.closeBtn}
-              hitSlop={8}
-            >
-              <X size={26} color={D.onPrimaryContainer} strokeWidth={2} />
-            </Pressable>
-
             <View style={s.avatarCircle}>
               {avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={s.avatarImage} />
@@ -226,14 +228,28 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
             })}
           </View>
 
+          <View style={s.footer}>
+            <Pressable
+              onPress={onLogout}
+              accessibilityRole="button"
+              accessibilityLabel={t('drawer.logOut')}
+              style={({ pressed }) => [s.navItem, pressed && s.navItemPressed]}
+            >
+              <LogOut size={24} color={D.onPrimaryContainer} strokeWidth={2} />
+              <Text style={s.navLabel}>{t('drawer.logOut')}</Text>
+            </Pressable>
+          </View>
+          </ScrollView>
+
+          {/* Fixed so it stays reachable however far the list is scrolled. */}
           <Pressable
-            onPress={onLogout}
+            onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel={t('drawer.logOut')}
-            style={({ pressed }) => [s.logoutBtn, { paddingBottom: insets.bottom + Spacing.sm }, pressed && s.navItemPressed]}
+            accessibilityLabel={t('drawer.closeNavigation')}
+            style={[s.closeBtn, { top: insets.top + Spacing.sm }]}
+            hitSlop={8}
           >
-            <LogOut size={22} color="rgba(144,210,209,0.6)" strokeWidth={2} />
-            <Text style={s.logoutText}>{t('drawer.logOut')}</Text>
+            <X size={26} color={D.onPrimaryContainer} strokeWidth={2} />
           </Pressable>
         </Animated.View>
       </View>
@@ -260,6 +276,9 @@ const s = StyleSheet.create({
     elevation: 16,
   },
 
+  scroll: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
+
   header: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
@@ -268,8 +287,8 @@ const s = StyleSheet.create({
   },
   closeBtn: {
     position: 'absolute',
-    top: 0,
     right: Spacing.sm,
+    zIndex: 2,
     width: 40,
     height: 40,
     alignItems: 'center',
@@ -300,7 +319,7 @@ const s = StyleSheet.create({
   userMetaText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onPrimaryContainer },
   metaDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: D.onPrimaryContainer, opacity: 0.5 },
 
-  navList: { flex: 1, paddingHorizontal: Spacing.sm, paddingTop: Spacing.md, gap: 2 },
+  navList: { flexGrow: 1, paddingHorizontal: Spacing.sm, paddingTop: Spacing.md, gap: 2 },
   navItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -338,17 +357,14 @@ const s = StyleSheet.create({
     marginHorizontal: Spacing.sm,
   },
 
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
+  // Log out is a normal row (same size and look as the others) below a divider, so it can never collide with Settings.
+  footer: {
+    marginTop: Spacing.sm,
     marginHorizontal: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.lg,
+    paddingTop: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(144,210,209,0.2)',
   },
-  logoutText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeMD, color: 'rgba(144,210,209,0.7)' },
 });
 
 export default ElderNavDrawer;

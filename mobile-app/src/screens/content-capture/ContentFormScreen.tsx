@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Trash2 } from 'lucide-react-native';
@@ -17,6 +17,7 @@ import { useStoryDraft } from '../../hooks/useStoryDraft';
 import { storiesApi } from '../../services/api/storiesApi';
 import { getMediaUrl } from '../../constants/api';
 import { ApiError } from '../../services/api/client';
+import { isRemoteUri, thumbnailFileFromUri } from '../../utils/thumbnailFile';
 import { Typography, Spacing, Radii } from '../../theme';
 import type { StoryMediaType } from '../../types/story';
 import { useTranslation } from 'react-i18next';
@@ -101,6 +102,7 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
           mediaDurationMillis: story.mediaDurationMillis ?? undefined,
           transcriptText: isWritten ? story.description ?? '' : undefined,
           status: story.status,
+          thumbnailUri: story.imageUrl ? getMediaUrl(story.imageUrl) : undefined,
         });
       })
       .catch(() => {
@@ -183,13 +185,24 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
   });
 
   const persist = async () => {
-    if (draft.id) {
-      await storiesApi.update(draft.id, {
+    let storyId = draft.id;
+    if (storyId) {
+      await storiesApi.update(storyId, {
         title: draft.title.trim(),
         description: (isWritten ? draft.transcriptText : draft.description)?.trim() || undefined,
       });
     } else {
-      await storiesApi.create(buildPayload());
+      storyId = (await storiesApi.create(buildPayload())).id;
+    }
+
+    // A cover picked on this phone still has to be uploaded; one that is already on the server is left alone.
+    if (storyId && draft.thumbnailUri && !isRemoteUri(draft.thumbnailUri)) {
+      try {
+        await storiesApi.uploadThumbnail(storyId, thumbnailFileFromUri(draft.thumbnailUri));
+      } catch {
+        // The story itself is saved - don't fail the whole save (and risk a duplicate on retry) over the picture.
+        Alert.alert(t('form.thumbnailFailedTitle'), t('form.thumbnailFailed'));
+      }
     }
   };
 
@@ -296,7 +309,10 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
         )}
 
         <View style={s.section}>
-          <Text style={s.sectionLabel}>{isWritten ? t('form.yourStory') : draft.mediaType === 'VIDEO' ? t('form.video') : t('form.voice')}</Text>
+          {/* Written stories: the text field below carries the "Your story" label itself, so a heading here would repeat it. */}
+          {!isWritten && (
+            <Text style={s.sectionLabel}>{draft.mediaType === 'VIDEO' ? t('form.video') : t('form.voice')}</Text>
+          )}
 
           {isWritten ? (
             <MicInputField

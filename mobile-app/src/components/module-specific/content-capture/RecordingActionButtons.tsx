@@ -26,14 +26,14 @@ export const RecordingActionButtons: React.FC<RecordingActionButtonsProps> = ({
       style={({ pressed }) => [s.outlineBtn, pressed && s.pressed]}
       accessibilityRole="button"
     >
-      <Text style={s.outlineBtnText}>{startOverLabel ?? t('recording.startOver')}</Text>
+      <Text style={s.outlineBtnText} numberOfLines={3}>{startOverLabel ?? t('recording.startOver')}</Text>
     </Pressable>
     <Pressable
       onPress={onFinishPress}
       style={({ pressed }) => [s.fillBtn, pressed && s.pressed]}
       accessibilityRole="button"
     >
-      <Text style={s.fillBtnText}>{finishLabel ?? t('recording.finish')}</Text>
+      <Text style={s.fillBtnText} numberOfLines={3}>{finishLabel ?? t('recording.finish')}</Text>
     </Pressable>
   </View>
   );
@@ -46,12 +46,16 @@ const s = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: D.outline,
     borderRadius: Radii.full,
-    paddingVertical: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
   },
   outlineBtnText: {
+    flexShrink: 1,
+    textAlign: 'center',
+    lineHeight: 20,
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeSM,
     color: D.onSurfaceVariant,
@@ -60,7 +64,8 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: D.primary,
     borderRadius: Radii.full,
-    paddingVertical: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
@@ -71,6 +76,9 @@ const s = StyleSheet.create({
     elevation: 3,
   },
   fillBtnText: {
+    flexShrink: 1,
+    textAlign: 'center',
+    lineHeight: 20,
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeSM,
     color: D.onPrimary,
