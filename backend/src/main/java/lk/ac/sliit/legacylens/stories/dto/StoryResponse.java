@@ -21,6 +21,8 @@ public class StoryResponse {
     /** Root-relative URL the client can play directly, e.g. "/uploads/stories/xxx.m4a". Null with no clip. */
     private String mediaUrl;
     private Long mediaDurationMillis;
+    /** Cover image (complete URL), set by the storyteller or an admin. Null when there is none. */
+    private String imageUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime publishedAt;

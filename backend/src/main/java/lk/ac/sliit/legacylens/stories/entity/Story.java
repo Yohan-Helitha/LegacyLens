@@ -75,6 +75,13 @@ public class Story {
     @Column(name = "media_file_size_bytes")
     private Long mediaFileSizeBytes;
 
+    /**
+     * Cover image shown on story cards. Maps the same stories.image_url column as ModerationQueueItem.imageUrl,
+     * so an image set by an admin during moderation and one the storyteller uploads are the same thing.
+     */
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

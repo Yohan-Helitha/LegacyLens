@@ -23,4 +23,10 @@ public interface StoryService {
 
     /** Deletes the story and its media file (if any). Owner-only. */
     void delete(UUID userId, UUID storyId);
+
+    /**
+     * Sets (or replaces) the cover image of one of the caller's own stories that hasn't been published yet.
+     * The file must be an image of at most 5 MB.
+     */
+    StoryResponse setThumbnail(UUID userId, UUID storyId, org.springframework.web.multipart.MultipartFile thumbnail);
 }
