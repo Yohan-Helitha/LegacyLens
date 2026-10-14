@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.marketplace.repository;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import lk.ac.sliit.legacylens.marketplace.entity.Job;
 import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
 import org.springframework.data.domain.Pageable;
@@ -19,9 +20,11 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
 
     /** Backs both the Active/Upcoming/Completed tabs and "recent work" — the
      * caller supplies sort order and page size via Pageable. */
+    @EntityGraph(attributePaths = "elder")
     List<Job> findByCreatorIdAndStatus(UUID creatorId, JobStatus status, Pageable pageable);
 
     /** Every job of one creator in any of the given statuses - no page limit, so nothing is silently left out. */
+    @EntityGraph(attributePaths = "elder")
     List<Job> findByCreatorIdAndStatusIn(UUID creatorId, java.util.Collection<JobStatus> statuses);
 
     /** Ownership-scoped lookup for logging a payment against a job — a creator may only pick their own jobs. */

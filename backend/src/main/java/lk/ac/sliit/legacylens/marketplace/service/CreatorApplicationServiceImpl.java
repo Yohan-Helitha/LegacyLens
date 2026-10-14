@@ -96,6 +96,9 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
         application.setProofDocumentUrl(proofDocumentUrl);
         application.setStatus(VerificationStatus.PENDING);
         application.setSubmittedAt(LocalDateTime.now());
+        // A resubmission starts a fresh review - the last decision's reason no longer applies.
+        application.setReviewNote(null);
+        application.setReviewedAt(null);
 
         CreatorApplication saved = creatorApplicationRepository.save(application);
 
@@ -183,6 +186,8 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
                 .proofUploaded(application.getProofDocumentUrl() != null && !application.getProofDocumentUrl().isBlank())
                 .status(application.getStatus().name())
                 .submittedAt(application.getSubmittedAt())
+                .reviewNote(application.getReviewNote())
+                .reviewedAt(application.getReviewedAt())
                 .build();
     }
 }

@@ -20,6 +20,8 @@ import lk.ac.sliit.legacylens.marketplace.repository.JobWorkProgressRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityChecklistItemRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.WorkChecklistProgressRepository;
+import lk.ac.sliit.legacylens.marketplace.event.WorkSubmittedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,6 +48,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
     private final WorkChecklistProgressRepository checklistProgressRepository;
     private final OpportunityRepository opportunityRepository;
     private final FileStorageService fileStorageService;
+    private final ApplicationEventPublisher events;
 
     public JobWorkProgressServiceImpl(
             JobRepository jobRepository,
@@ -54,7 +57,8 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
             OpportunityChecklistItemRepository checklistItemRepository,
             WorkChecklistProgressRepository checklistProgressRepository,
             OpportunityRepository opportunityRepository,
-            FileStorageService fileStorageService) {
+            FileStorageService fileStorageService,
+            ApplicationEventPublisher events) {
 
         this.jobRepository = jobRepository;
         this.workProgressRepository = workProgressRepository;
@@ -63,6 +67,94 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         this.checklistProgressRepository = checklistProgressRepository;
         this.opportunityRepository = opportunityRepository;
         this.fileStorageService = fileStorageService;
+        this.events = events;
+    }
+
+    @Override
+    @Transactional
+    public List<WorkProgressResponse> listMyProgress(UUID creatorId) {
+        List<Job> jobs = jobRepository.findByCreatorIdAndStatusIn(
+                creatorId, List.of(JobStatus.UPCOMING, JobStatus.ACTIVE, JobStatus.COMPLETED));
+        if (jobs.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> jobIds = jobs.stream().map(Job::getId).toList();
+        List<UUID> opportunityIds = jobs.stream().map(Job::getOpportunityId).filter(java.util.Objects::nonNull).distinct().toList();
+
+        // A handful of queries for ALL the jobs, however many there are - the per-job version asks about 15 each.
+        Map<UUID, JobWorkProgress> progressByJob = new java.util.HashMap<>();
+        workProgressRepository.findByJobIdIn(jobIds).forEach(p -> progressByJob.put(p.getJob().getId(), p));
+        List<JobWorkProgress> fresh = new java.util.ArrayList<>();
+        for (Job job : jobs) {
+            if (!progressByJob.containsKey(job.getId())) {
+                JobWorkProgress created = new JobWorkProgress();
+                created.setJob(job);
+                fresh.add(created);
+            }
+        }
+        if (!fresh.isEmpty()) {
+            workProgressRepository.saveAll(fresh).forEach(p -> progressByJob.put(p.getJob().getId(), p));
+        }
+
+        List<WorkChecklistProgress> rows = new java.util.ArrayList<>(checklistProgressRepository.findWithItemByJobIdIn(jobIds));
+        Map<UUID, List<OpportunityChecklistItem>> tasksByOpportunity = opportunityIds.isEmpty() ? Map.of()
+                : checklistItemRepository.findByOpportunityIdInOrderBySortOrderAsc(opportunityIds).stream()
+                        .collect(Collectors.groupingBy(item -> item.getOpportunity().getId()));
+        java.util.Set<String> have = rows.stream()
+                .map(cp -> cp.getJob().getId() + ":" + cp.getChecklistItem().getId()).collect(Collectors.toSet());
+        List<WorkChecklistProgress> missing = new java.util.ArrayList<>();
+        for (Job job : jobs) {
+            if (job.getOpportunityId() == null) {
+                continue;
+            }
+            for (OpportunityChecklistItem item : tasksByOpportunity.getOrDefault(job.getOpportunityId(), List.of())) {
+                if (!have.contains(job.getId() + ":" + item.getId())) {
+                    WorkChecklistProgress row = new WorkChecklistProgress();
+                    row.setJob(job);
+                    row.setChecklistItem(item);
+                    missing.add(row);
+                }
+            }
+        }
+        if (!missing.isEmpty()) {
+            rows.addAll(checklistProgressRepository.saveAll(missing));
+        }
+        Map<UUID, List<WorkChecklistProgress>> rowsByJob = rows.stream()
+                .sorted(java.util.Comparator.comparingInt(cp -> cp.getChecklistItem().getSortOrder()))
+                .collect(Collectors.groupingBy(cp -> cp.getJob().getId()));
+
+        Map<UUID, List<JobWorkMaterial>> materialsByJob = workMaterialRepository.findByJobIdInOrderByUploadedAtAsc(jobIds).stream()
+                .collect(Collectors.groupingBy(m -> m.getJob().getId()));
+        Map<UUID, Opportunity> opportunityById = new java.util.HashMap<>();
+        if (!opportunityIds.isEmpty()) {
+            opportunityRepository.findAllById(opportunityIds).forEach(o -> opportunityById.put(o.getId(), o));
+        }
+
+        return jobs.stream()
+                .map(job -> {
+                    Opportunity opportunity = job.getOpportunityId() == null ? null : opportunityById.get(job.getOpportunityId());
+                    String hero = job.getHeroImageUrl() != null ? job.getHeroImageUrl()
+                            : opportunity == null ? null : opportunity.getHeroImageUrl();
+                    return mapToResponse(progressByJob.get(job.getId()),
+                            rowsByJob.getOrDefault(job.getId(), List.of()),
+                            materialsByJob.getOrDefault(job.getId(), List.of()), hero);
+                })
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countUnseenRejected(UUID creatorId) {
+        return workProgressRepository.countByJobCreatorIdAndRejectedTrueAndRejectionSeenAtIsNull(creatorId);
+    }
+
+    @Override
+    @Transactional
+    public void markRejectedSeen(UUID creatorId) {
+        LocalDateTime now = LocalDateTime.now();
+        List<JobWorkProgress> unseen = workProgressRepository.findByJobCreatorIdAndRejectedTrueAndRejectionSeenAtIsNull(creatorId);
+        unseen.forEach(progress -> progress.setRejectionSeenAt(now));
+        workProgressRepository.saveAll(unseen);
     }
 
     @Override
@@ -175,6 +267,8 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         // Submitting no longer force-completes the checklist or the percentage —
         // whatever fraction of tasks is actually checked off is what gets sent
         // for review. The frontend warns the creator first if items remain.
+        // Work that was sent back and is now sent again reads differently to the reviewer than a first submission.
+        boolean resubmission = progress.isRejected();
         progress.setDraft(false);
         if (progress.getSubmittedAt() == null) {
             progress.setSubmittedAt(LocalDateTime.now());
@@ -195,7 +289,14 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         progress.setElderApproved(false);
         progress.setAdminApproved(false);
 
-        return mapToResponse(workProgressRepository.save(progress));
+        JobWorkProgress saved = workProgressRepository.save(progress);
+
+        // The knowledge holder is told once this is committed; a job with no owner has nobody to tell.
+        if (job.getElder() != null) {
+            events.publishEvent(new WorkSubmittedEvent(
+                    job.getElder().getId(), job.getId(), job.getTitle(), job.getCreator().getFullName(), resubmission));
+        }
+        return mapToResponse(saved);
     }
 
     @Override
@@ -274,21 +375,24 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
      * UI shows as "No tasks added yet."
      */
     private List<WorkChecklistProgress> ensureChecklistProgress(Job job) {
-        if (job.getOpportunityId() != null) {
-            List<OpportunityChecklistItem> items =
-                    checklistItemRepository.findByOpportunityIdOrderBySortOrderAsc(job.getOpportunityId());
+        // One query for what the job already has (tasks included) and one for what the opportunity lists -
+        // not one "does it exist?" question per task, which is slow over a network database.
+        List<WorkChecklistProgress> rows = new java.util.ArrayList<>(checklistProgressRepository.findWithItemByJobId(job.getId()));
 
-            for (OpportunityChecklistItem item : items) {
-                if (!checklistProgressRepository.existsByJobIdAndChecklistItemId(job.getId(), item.getId())) {
+        if (job.getOpportunityId() != null) {
+            java.util.Set<UUID> have = rows.stream().map(cp -> cp.getChecklistItem().getId()).collect(Collectors.toSet());
+            for (OpportunityChecklistItem item : checklistItemRepository.findByOpportunityIdOrderBySortOrderAsc(job.getOpportunityId())) {
+                if (!have.contains(item.getId())) {
                     WorkChecklistProgress progress = new WorkChecklistProgress();
                     progress.setJob(job);
                     progress.setChecklistItem(item);
-                    checklistProgressRepository.save(progress);
+                    rows.add(checklistProgressRepository.save(progress));
                 }
             }
         }
 
-        return checklistProgressRepository.findByJobIdOrderByChecklistItem_SortOrderAsc(job.getId());
+        rows.sort(java.util.Comparator.comparingInt(cp -> cp.getChecklistItem().getSortOrder()));
+        return rows;
     }
 
     /**
@@ -372,16 +476,25 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
 
     private WorkProgressResponse mapToResponse(JobWorkProgress progress) {
         Job job = progress.getJob();
+        return mapToResponse(progress, ensureChecklistProgress(job),
+                workMaterialRepository.findByJobIdOrderByUploadedAtAsc(job.getId()), resolveHeroImageUrl(job));
+    }
+
+    /** Everything is handed in, so the batch listing can build many of these from a handful of queries. */
+    private WorkProgressResponse mapToResponse(
+            JobWorkProgress progress, List<WorkChecklistProgress> checklistRows,
+            List<JobWorkMaterial> materialRows, String heroImageUrl) {
+        Job job = progress.getJob();
 
         // The tasks an opportunity lists are the Prep tasks. Record, Edit and Submit are the three steps
         // built into the page itself, so a task tagged with one of those stages is not listed.
-        List<WorkChecklistProgress> checklist = ensureChecklistProgress(job).stream()
+        List<WorkChecklistProgress> checklist = checklistRows.stream()
                 .filter(cp -> cp.getChecklistItem().getStage() == ChecklistStage.PREP)
                 .collect(Collectors.toList());
 
         long prepTasksDone = checklist.stream().filter(WorkChecklistProgress::isCompleted).count();
         boolean prepDone = prepTasksDone == checklist.size();
-        boolean recordDone = hasMaterials(job);
+        boolean recordDone = !materialRows.isEmpty();
         boolean editDone = filled(progress.getIntroduction()) && filled(progress.getStory()) && filled(progress.getSeoSummary());
         boolean submitted = isSubmitted(progress);
 
@@ -401,8 +514,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                         .build())
                 .collect(Collectors.toList());
 
-        List<WorkMaterialResponse> materials = workMaterialRepository
-                .findByJobIdOrderByUploadedAtAsc(job.getId()).stream()
+        List<WorkMaterialResponse> materials = materialRows.stream()
                 .map(m -> WorkMaterialResponse.builder()
                         .id(m.getId())
                         .fileName(m.getFileName())
@@ -413,7 +525,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
 
         return WorkProgressResponse.builder()
                 .jobId(job.getId())
-                .heroImageUrl(resolveHeroImageUrl(job))
+                .heroImageUrl(heroImageUrl)
                 .offeredAmount(job.getOfferedAmount())
                 .progressPercentage(percentage)
                 .currentStage(currentStageFor(prepDone, recordDone, editDone, submitted))

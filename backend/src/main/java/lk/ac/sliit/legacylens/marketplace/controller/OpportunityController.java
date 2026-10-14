@@ -2,6 +2,7 @@ package lk.ac.sliit.legacylens.marketplace.controller;
 
 import lk.ac.sliit.legacylens.auth.security.CustomUserDetails;
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
+import lk.ac.sliit.legacylens.marketplace.dto.OpportunityBrowseResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityCardResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityDetailResponse;
 import lk.ac.sliit.legacylens.marketplace.service.OpportunityService;
@@ -31,6 +32,13 @@ public class OpportunityController {
 
     public OpportunityController(OpportunityService opportunityService) {
         this.opportunityService = opportunityService;
+    }
+
+    /** The Opportunities page's opening view - recommended, urgent and recent in one request. */
+    @GetMapping("/browse")
+    public ResponseEntity<ApiResponse<OpportunityBrowseResponse>> browse(
+            @AuthenticationPrincipal CustomUserDetails principal) {
+        return ResponseEntity.ok(ApiResponse.ok(opportunityService.browse(principal.getUser().getId())));
     }
 
     @GetMapping("/recommended")

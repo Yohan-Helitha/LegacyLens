@@ -75,6 +75,7 @@ public class ElderApplicationReviewServiceImpl implements ElderApplicationReview
         }
 
         application.setStatus(decision);
+        application.setDecidedAt(java.time.LocalDateTime.now());
         OpportunityApplication saved = applicationRepository.save(application);
 
         // The creator is told on their phone once this is committed; that can never undo the decision.

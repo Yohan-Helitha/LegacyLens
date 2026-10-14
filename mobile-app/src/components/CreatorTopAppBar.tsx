@@ -38,7 +38,7 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
-  const { rejectedApplicationsCount, onOpenRejectedApplications } = useCreatorMenu();
+  const { rejectedApplicationsCount, rejectedWorkCount, onOpenRejectedApplications } = useCreatorMenu();
 
   // Slide-in/out like ElderNavDrawer: stay mounted until the close animation finishes.
   const progress = useRef(new Animated.Value(0)).current;
@@ -75,7 +75,7 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
                 badge: rejectedApplicationsCount,
               }]
             : []),
-          { label: 'Rejected Submissions', icon: FileX, onPress: props.onOpenRejectedWork },
+          { label: 'Rejected Submissions', icon: FileX, onPress: props.onOpenRejectedWork, badge: rejectedWorkCount },
         ]
       : [];
 
@@ -94,7 +94,7 @@ export const CreatorTopAppBar: React.FC<CreatorTopAppBarProps> = (props) => {
               <View style={s.hamburgerLine} />
               <View style={s.hamburgerLine} />
             </View>
-            {rejectedApplicationsCount > 0 && <View style={s.hamburgerDot} />}
+            {rejectedApplicationsCount + rejectedWorkCount > 0 && <View style={s.hamburgerDot} />}
           </Pressable>
         ) : (
           <Pressable

@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.marketplace.service;
 
+import lk.ac.sliit.legacylens.marketplace.dto.OpportunityBrowseResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityCardResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityDetailResponse;
 
@@ -22,6 +23,9 @@ public interface OpportunityService {
 
     /** Published opportunities, newest first. */
     List<OpportunityCardResponse> getRecent(int limit, UUID creatorId);
+
+    /** What the Opportunities page opens with - recommended, urgent and recent - worked out together in one go. */
+    OpportunityBrowseResponse browse(UUID creatorId);
 
     /** One published opportunity's full detail, with how well it fits the signed-in creator. */
     OpportunityDetailResponse getById(UUID id, UUID creatorId);

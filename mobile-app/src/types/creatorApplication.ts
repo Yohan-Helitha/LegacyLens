@@ -24,6 +24,9 @@ export interface CreatorLanguage {
 export type CreatorApplicationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
 
 export interface CreatorApplicationResponse {
+  /** The admin's reason when the application was not approved; null otherwise. */
+  reviewNote?: string | null;
+  reviewedAt?: string | null;
   id: string;
   userId: string;
   fullName: string;
