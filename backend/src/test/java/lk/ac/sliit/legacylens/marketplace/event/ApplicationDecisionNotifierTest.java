@@ -40,7 +40,7 @@ class ApplicationDecisionNotifierTest {
 
         ArgumentCaptor<PushMessage> sent = ArgumentCaptor.forClass(PushMessage.class);
         verify(pushNotificationService).sendToUser(eq(creatorId), sent.capture());
-        assertThat(sent.getValue().title()).isEqualTo("Application update");
+        assertThat(sent.getValue().title()).isEqualTo("Rejected");
         assertThat(sent.getValue().body()).contains("Traditional recipe documentation").contains("not accepted");
         assertThat(sent.getValue().data()).containsEntry("type", "application-rejected")
                 .containsEntry("applicationId", applicationId.toString());
@@ -64,8 +64,18 @@ class ApplicationDecisionNotifierTest {
 
         ArgumentCaptor<PushMessage> sent = ArgumentCaptor.forClass(PushMessage.class);
         verify(pushNotificationService).sendToUser(eq(creatorId), sent.capture());
-        assertThat(sent.getValue().title()).contains("Urgent").contains("Approved");
+        assertThat(sent.getValue().title()).isEqualTo("🔥 Urgent Approved");
         assertThat(sent.getValue().body()).contains("Traditional recipe documentation").contains("Kamala Wijesinghe");
+    }
+
+    @Test
+    void anUrgentRejection_getsTheSameFireMarkedHeader() {
+        new ApplicationDecisionNotifier(pushNotificationService)
+                .onDecision(decision(OpportunityApplicationStatus.REJECTED, true));
+
+        ArgumentCaptor<PushMessage> sent = ArgumentCaptor.forClass(PushMessage.class);
+        verify(pushNotificationService).sendToUser(eq(creatorId), sent.capture());
+        assertThat(sent.getValue().title()).isEqualTo("🔥 Urgent Rejected");
     }
 
     @Test
