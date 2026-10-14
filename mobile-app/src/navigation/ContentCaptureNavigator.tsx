@@ -189,7 +189,11 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
             setStoriesTab('published');
             setStep('stories');
           }}
-          onReviewStory={(story) => openStory(story.id, 'dashboard')}
+          onOpenStory={(storyId) => openStory(storyId, 'dashboard')}
+          onOpenPublishedStory={(storyId) => {
+            setAnalyticsStoryId(storyId);
+            setStep('storyAnalytics');
+          }}
           onOpenTrustScore={() => setStep('trustScore')}
           onDrawerNavigate={handleDrawerNavigate}
           onTabPress={handleTabPress}

@@ -10,19 +10,19 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { Award, Mic, ChevronDown } from 'lucide-react-native';
 import { Typography, Spacing, Radii } from '../../theme';
-import { ConfirmDialog, Header, UserFooter } from '../../components/common';
+import { Header, UserFooter } from '../../components/common';
 import type { UserTabKey } from '../../components/common';
 import {
   AnalyticsSummaryCard,
   ElderNavDrawer,
-  StoryCard,
-  toStoryCardItem,
+  StoryHeroCard,
+  StoryListCard,
   ContentCaptureColors as D,
 } from '../../components/module-specific/content-capture';
 import type { ElderDrawerItem } from '../../components/module-specific/content-capture';
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
-import { useStoriesList } from '../../hooks/useStoriesList';
-import type { StoryResponse } from '../../types/story';
+import { useRecentStories } from '../../hooks/useRecentStories';
+import type { StoryStatus, StorySummary } from '../../types/story';
 
 /** How many recent stories the dashboard preview shows before "View All". */
 const DASHBOARD_STORY_PREVIEW_COUNT = 2;
@@ -102,42 +102,41 @@ const RequestsSection: React.FC<{ onReplyPress?: () => void }> = ({ onReplyPress
 // YourStoriesSection — "Your Stories"
 // ─────────────────────────────────────────────────────────────────────────────
 interface YourStoriesSectionProps {
-  stories: StoryResponse[];
+  stories: StorySummary[];
+  totalCount: number;
   loading: boolean;
   onViewAllPress?: () => void;
-  onReview?: (story: StoryResponse) => void;
-  onRequestDelete?: (storyId: string) => void;
+  onOpenStory?: (story: StorySummary) => void;
 }
 
+/**
+ * The two newest stories, shown with the same cards as My Stories (the newest featured larger, the
+ * next as a list row). Like on My Stories, tapping a card is the only interaction — delete and
+ * editing live on the story's own screen.
+ */
 const YourStoriesSection: React.FC<YourStoriesSectionProps> = ({
   stories,
+  totalCount,
   loading,
   onViewAllPress,
-  onReview,
-  onRequestDelete,
+  onOpenStory,
 }) => {
-  const preview = stories.slice(0, DASHBOARD_STORY_PREVIEW_COUNT);
+  const [hero, ...rest] = stories.slice(0, DASHBOARD_STORY_PREVIEW_COUNT);
 
   return (
     <View style={s.section}>
       <Text style={s.sectionTitle}>Your Stories</Text>
 
-      {!loading && preview.length === 0 && (
-        <Text style={s.emptyStoriesText}>You haven't recorded any stories yet.</Text>
-      )}
+      {!loading && !hero && <Text style={s.emptyStoriesText}>You haven't recorded any stories yet.</Text>}
 
       <View style={{ gap: Spacing.sm }}>
-        {preview.map((story) => (
-          <StoryCard
-            key={story.id}
-            story={toStoryCardItem(story)}
-            onReview={() => onReview?.(story)}
-            onDelete={() => onRequestDelete?.(story.id)}
-          />
+        {!!hero && <StoryHeroCard story={hero} onPress={() => onOpenStory?.(hero)} />}
+        {rest.map((story) => (
+          <StoryListCard key={story.id} story={story} onPress={() => onOpenStory?.(story)} />
         ))}
       </View>
 
-      {stories.length > 0 && (
+      {totalCount > 0 && (
         <Pressable
           onPress={onViewAllPress}
           style={({ pressed }) => [s.viewAllBtn, pressed && s.pressed]}
@@ -162,7 +161,10 @@ interface ElderDashboardProps {
   onViewAllStories?: () => void;
   /** Opens My Stories on its Published tab — where the analytics for each story live. */
   onOpenAnalytics?: () => void;
-  onReviewStory?: (story: StoryResponse) => void;
+  /** Opens a story that isn't published yet (draft / pending / rejected) in the story form. */
+  onOpenStory?: (storyId: string, status: StoryStatus) => void;
+  /** Opens a published story's analytics. */
+  onOpenPublishedStory?: (storyId: string) => void;
   /** Fired when a drawer item other than "Home" is tapped — no screens exist for these yet */
   onDrawerNavigate?: (item: ElderDrawerItem) => void;
   onLogout?: () => void;
@@ -175,21 +177,14 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
   onReplyToRequest,
   onViewAllStories,
   onOpenAnalytics,
-  onReviewStory,
+  onOpenStory,
+  onOpenPublishedStory,
   onDrawerNavigate,
   onLogout,
 }) => {
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const { stories, loading: storiesLoading, deletingId, deleteStory } = useStoriesList();
+  const { stories, totalCount, loading: storiesLoading } = useRecentStories(DASHBOARD_STORY_PREVIEW_COUNT);
   const { summary: analytics, loading: analyticsLoading, loadError: analyticsError } = useAnalyticsSummary();
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-
-  const confirmDelete = async () => {
-    if (!deleteTargetId) return;
-    await deleteStory(deleteTargetId);
-    setDeleteTargetId(null);
-  };
-
   return (
     <View style={s.safeArea}>
       <StatusBar style="dark" />
@@ -212,10 +207,12 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
         <RequestsSection onReplyPress={onReplyToRequest} />
         <YourStoriesSection
           stories={stories}
+          totalCount={totalCount}
           loading={storiesLoading}
           onViewAllPress={onViewAllStories}
-          onReview={onReviewStory}
-          onRequestDelete={setDeleteTargetId}
+          onOpenStory={(story) =>
+            story.status === 'PUBLISHED' ? onOpenPublishedStory?.(story.id) : onOpenStory?.(story.id, story.status)
+          }
         />
         <View style={{ height: 8 }} />
       </ScrollView>
@@ -229,16 +226,6 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
         requestsCount={1}
         onNavigate={onDrawerNavigate}
         onLogout={onLogout}
-      />
-
-      <ConfirmDialog
-        visible={!!deleteTargetId}
-        title="Delete this story?"
-        message="This can't be undone — the recording and details will be permanently removed."
-        confirmLabel={deletingId ? 'Deleting…' : 'Delete'}
-        cancelLabel="Cancel"
-        onCancel={() => setDeleteTargetId(null)}
-        onConfirm={confirmDelete}
       />
     </View>
   );
