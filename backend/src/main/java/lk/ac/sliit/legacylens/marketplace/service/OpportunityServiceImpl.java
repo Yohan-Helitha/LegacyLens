@@ -96,7 +96,11 @@ public class OpportunityServiceImpl implements OpportunityService {
         Set<UUID> applied = alreadyAppliedTo(creatorId);
         List<OpportunityCardResponse> recommended = recommended(1, creatorId, matching, applied);
         List<OpportunityCardResponse> urgent = urgent(1, matching, applied);
-        List<OpportunityCardResponse> recent = recent(10, matching, applied);
+        // A job already shown as Recommended or Urgent is not listed a second time under Recent Postings.
+        Set<UUID> alreadyShown = new java.util.HashSet<>(applied);
+        recommended.forEach(card -> alreadyShown.add(card.getId()));
+        urgent.forEach(card -> alreadyShown.add(card.getId()));
+        List<OpportunityCardResponse> recent = recent(10, matching, alreadyShown);
         return OpportunityBrowseResponse.builder()
                 .recommended(recommended)
                 .urgent(urgent)
@@ -118,7 +122,7 @@ public class OpportunityServiceImpl implements OpportunityService {
             log.warn("Recommendations only looked at the newest {} published opportunities; older ones were not considered",
                     RECOMMENDATION_POOL);
         }
-        return pool.stream()
+        return cards(pool.stream()
                 .filter(opportunity -> !applied.contains(opportunity.getId()))
                 .filter(matching::isEligible)
                 .map(opportunity -> new Scored(opportunity, matching.score(opportunity)))
@@ -127,7 +131,12 @@ public class OpportunityServiceImpl implements OpportunityService {
                         .thenComparing(scored -> scored.opportunity().getCreatedAt(),
                                 Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(limit)
-                .map(scored -> mapCard(scored.opportunity(), scored.match()))
+                .collect(Collectors.toList()));
+    }
+
+    private List<OpportunityCardResponse> cards(List<Scored> scored) {
+        return scored.stream()
+                .map(s -> mapCard(s.opportunity(), s.match()))
                 .collect(Collectors.toList());
     }
 
@@ -138,13 +147,13 @@ public class OpportunityServiceImpl implements OpportunityService {
     }
 
     private List<OpportunityCardResponse> urgent(int limit, CreatorMatching matching, Set<UUID> applied) {
-        return opportunityRepository
+        return cards(opportunityRepository
                 .findByStatusAndUrgentTrueOrderByDueAtAsc(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit + applied.size()))
                 .stream()
                 .filter(o -> !applied.contains(o.getId()))
                 .limit(limit)
-                .map(o -> mapCard(o, matching.score(o)))
-                .collect(Collectors.toList());
+                .map(o -> new Scored(o, matching.score(o)))
+                .collect(Collectors.toList()));
     }
 
     @Override
@@ -154,13 +163,13 @@ public class OpportunityServiceImpl implements OpportunityService {
     }
 
     private List<OpportunityCardResponse> recent(int limit, CreatorMatching matching, Set<UUID> applied) {
-        return opportunityRepository
+        return cards(opportunityRepository
                 .findByStatusOrderByCreatedAtDesc(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit + applied.size()))
                 .stream()
                 .filter(o -> !applied.contains(o.getId()))
                 .limit(limit)
-                .map(o -> mapCard(o, matching.score(o)))
-                .collect(Collectors.toList());
+                .map(o -> new Scored(o, matching.score(o)))
+                .collect(Collectors.toList()));
     }
 
     @Override
@@ -179,15 +188,15 @@ public class OpportunityServiceImpl implements OpportunityService {
 
         CreatorMatching matching = matcher.forCreator(creatorId);
         Set<UUID> applied = alreadyAppliedTo(creatorId);
-        return opportunityRepository
+        return cards(opportunityRepository
                 .search(OpportunityStatus.PUBLISHED, category == null || category.isBlank() ? "" : category.trim(), location,
                         text == null || text.isBlank() ? "" : text.trim(),
                         PageRequest.of(0, limit + applied.size()))
                 .stream()
                 .filter(o -> !applied.contains(o.getId()))
                 .limit(limit)
-                .map(o -> mapCard(o, matching.score(o)))
-                .collect(Collectors.toList());
+                .map(o -> new Scored(o, matching.score(o)))
+                .collect(Collectors.toList()));
     }
 
     @Override

@@ -352,7 +352,23 @@ class OpportunityServiceImplTest {
 
         assertThat(page.getRecommended()).extracting(OpportunityCardResponse::getTitle).containsExactly("Kandyan dance performance");
         assertThat(page.getUrgent()).extracting(OpportunityCardResponse::getTitle).containsExactly("Kandyan dance performance");
-        assertThat(page.getRecent()).extracting(OpportunityCardResponse::getTitle).containsExactly("Kandyan dance performance");
+        // The dance job is already shown above, and the recipe was applied for - so nothing is left for Recent.
+        assertThat(page.getRecent()).isEmpty();
+    }
+
+    @Test
+    void browse_listsAJobOnlyOnce_recommendedAndUrgentAreLeftOutOfRecent() {
+        Opportunity recipe = opportunity("Traditional recipe documentation", "Food", "Matara");
+        Opportunity words = opportunity("Old village words and proverbs", "Language", "Matara");
+        published(recipe, words);
+        lenient().when(opportunityRepository.findByStatusAndUrgentTrueOrderByDueAtAsc(eq(OpportunityStatus.PUBLISHED), any()))
+                .thenReturn(List.of(recipe));
+
+        var page = service.browse(nimal.getId());
+
+        assertThat(page.getRecommended()).extracting(OpportunityCardResponse::getTitle).containsExactly("Traditional recipe documentation");
+        assertThat(page.getUrgent()).extracting(OpportunityCardResponse::getTitle).containsExactly("Traditional recipe documentation");
+        assertThat(page.getRecent()).extracting(OpportunityCardResponse::getTitle).containsExactly("Old village words and proverbs");
     }
 
     // ── Search ──────────────────────────────────────────────────────────────

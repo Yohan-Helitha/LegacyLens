@@ -74,9 +74,32 @@ const LocationPinIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
   </Svg>
 );
 
-function joinMeta(a: string | null | undefined, b: string | null | undefined): string {
-  return [a, b].filter(Boolean).join(' · ');
-}
+/** How the work is done ("On-Site") and what kind it is (microphone + "Craft"), side by side. */
+const TypeTags: React.FC<{ item: OpportunityCardResponse }> = ({ item }) =>
+  item.locationType || item.category ? (
+    <View style={s.tagsRow}>
+      {!!item.locationType && (
+        <View style={s.tagNeutral}>
+          <Text style={s.tagNeutralText}>{item.locationType}</Text>
+        </View>
+      )}
+      {!!item.category && (
+        <View style={[s.tagNeutral, s.tagWithIcon]}>
+          <Text style={s.tagIcon}>{'🎙'}</Text>
+          <Text style={s.tagNeutralText}>{item.category}</Text>
+        </View>
+      )}
+    </View>
+  ) : null;
+
+/** Where the work happens - the opportunity's own location, not the knowledge holder's home town. */
+const PlaceLine: React.FC<{ item: OpportunityCardResponse }> = ({ item }) =>
+  item.location ? (
+    <View style={s.placeLine}>
+      <LocationPinIcon size={13} />
+      <Text style={s.placeText} numberOfLines={1}>{item.location}</Text>
+    </View>
+  ) : null;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline icon helpers (emoji / primitive, zero extra dependencies)
@@ -205,46 +228,26 @@ const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: (
       </View>
 
       <View style={s.recommendedBody}>
-        {/* 1. what kind of work it is */}
-        {(item.category || item.locationType) && (
-          <View style={s.tagsRow}>
-            {!!item.category && (
-              <View style={s.tagSecondary}>
-                <Text style={s.tagSecondaryText}>{item.category}</Text>
-              </View>
-            )}
-            {!!item.locationType && (
-              <View style={s.tagNeutral}>
-                <Text style={s.tagNeutralText}>{item.locationType}</Text>
-              </View>
-            )}
+        {/* 1. who it is from, and where the work is */}
+        {!!item.elderName && (
+          <View style={s.authorRow}>
+            <Image
+              source={resolveAvatarImage(item.elderAvatarUrl) ?? { uri: PLACEHOLDER_AVATAR }}
+              style={s.recommendedAvatar}
+              accessibilityLabel={`${item.elderName} profile photo`}
+            />
+            <View style={s.authorText}>
+              <Text style={s.holderName} numberOfLines={1}>{item.elderName}</Text>
+              <PlaceLine item={item} />
+            </View>
           </View>
         )}
 
-        {/* 2. its name */}
+        {/* 2. what kind of work it is */}
+        <TypeTags item={item} />
+
+        {/* 3. its name, and what it involves */}
         <Text style={s.cardTitle}>{item.title}</Text>
-
-        {/* 3. who it is for, and where */}
-        <View style={s.recommendedFacts}>
-          {!!item.elderName && (
-            <View style={s.authorRow}>
-              <Image
-                source={resolveAvatarImage(item.elderAvatarUrl) ?? { uri: PLACEHOLDER_AVATAR }}
-                style={s.recommendedAvatar}
-                accessibilityLabel={`${item.elderName} profile photo`}
-              />
-              <Text style={s.holderName} numberOfLines={1}>{item.elderName}</Text>
-            </View>
-          )}
-          {!!item.location && (
-            <View style={s.authorRow}>
-              <LocationPinIcon size={14} />
-              <Text style={s.cardMeta} numberOfLines={1}>{item.location}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* 4. what it involves */}
         {!!item.description && <Text style={s.recentDesc} numberOfLines={3}>{item.description}</Text>}
         <View style={s.cardCta}>
           <Pressable
@@ -295,16 +298,8 @@ const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () 
             {item.title}
           </Text>
           {!!item.elderName && <Text style={s.holderName} numberOfLines={1}>{`By ${item.elderName}`}</Text>}
-          <View style={s.urgentMeta}>
-            <View style={s.urgentMetaItem}>
-              <Text style={s.metaIcon}>{'\uD83C\uDF99'}</Text>
-              <Text style={s.urgentMetaText}>{item.category}</Text>
-            </View>
-            <View style={s.urgentMetaItem}>
-              <LocationPinIcon size={14} />
-              <Text style={s.urgentMetaText}>{item.location}</Text>
-            </View>
-          </View>
+          <PlaceLine item={item} />
+          <TypeTags item={item} />
         </View>
       </View>
       {/* Starts at the card's left edge, under the picture, with room above it. */}
@@ -338,35 +333,22 @@ const RecentOpportunityCard: React.FC<{
     accessibilityLabel={`${item.title} opportunity`}
   >
     <View style={s.recentHeader}>
-      <View style={s.authorRow}>
+      <View style={[s.authorRow, s.authorRowFit]}>
         <Image
           source={resolveAvatarImage(item.elderAvatarUrl) ?? { uri: PLACEHOLDER_AVATAR }}
           style={s.authorAvatar}
           accessibilityLabel={`${item.elderName} profile photo`}
         />
-        <View>
-          <Text style={s.authorName}>{item.elderName}</Text>
-          <Text style={s.authorLocation}>{item.elderLocation}</Text>
+        <View style={s.authorText}>
+          <Text style={s.authorName} numberOfLines={1}>{item.elderName}</Text>
+          <PlaceLine item={item} />
         </View>
       </View>
       <MatchBadgeInline item={item} />
     </View>
 
     <View style={s.recentContent}>
-      {(item.category || item.locationType) && (
-        <View style={s.tagsRow}>
-          {item.category && (
-            <View style={s.tagSecondary}>
-              <Text style={s.tagSecondaryText}>{item.category}</Text>
-            </View>
-          )}
-          {item.locationType && (
-            <View style={s.tagNeutral}>
-              <Text style={s.tagNeutralText}>{item.locationType}</Text>
-            </View>
-          )}
-        </View>
-      )}
+      <TypeTags item={item} />
       <Text style={s.cardTitle}>{item.title}</Text>
       <Text style={s.recentDesc} numberOfLines={2}>
         {item.description}
@@ -380,14 +362,6 @@ const RecentOpportunityCard: React.FC<{
         accessibilityRole="button"
       >
         <Text style={s.ctaTextMuted}>{'View Opportunity  \u2192'}</Text>
-      </Pressable>
-      <Pressable
-        style={({ pressed }) => [s.applyBtn, pressed && s.pressed]}
-        onPress={onApply}
-        accessibilityRole="button"
-        accessibilityLabel={`Apply for ${item.title}`}
-      >
-        <Text style={s.applyBtnText}>Apply</Text>
       </Pressable>
     </View>
   </Pressable>
@@ -792,7 +766,7 @@ const s = StyleSheet.create({
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeSM,      // 14sp
     color: '#E8792E',                 // orange (was muted gray — unified per request)
-    minHeight: 44, textAlignVertical: 'center',
+    minHeight: 32, textAlignVertical: 'center',
   },
   cardTitle: {
     fontFamily: Typography.fontBodySemi,
@@ -828,6 +802,12 @@ const s = StyleSheet.create({
   urgentThumb:    { width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: Radii.xl, flexShrink: 0 },
   urgentBody:     { gap: Spacing.sm },
   urgentTitle:    { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 24, color: D.onSurface },
+  tagWithIcon:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  tagIcon:         { fontSize: 12 },
+  authorText:      { flexShrink: 1, gap: 1 },
+  authorRowFit:    { flexShrink: 1 },
+  placeLine:       { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  placeText:       { flexShrink: 1, fontFamily: Typography.fontBody, fontSize: 12, color: D.onSurfaceVariant },
   urgentBadgeTop:  { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: -Spacing.xs },
   urgentMeta:     { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs },
   urgentMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -839,7 +819,7 @@ const s = StyleSheet.create({
   recentCard: {
     backgroundColor: D.surfaceContainerLowest,
     borderRadius: 20,
-    padding: 16,
+    padding: 12,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
     shadowColor: D.primary,
@@ -847,12 +827,12 @@ const s = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 20,
     elevation: 2,
-    gap: Spacing.sm,
+    gap: 6,
   },
   recentHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   authorRow:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   authorAvatar: {
-    width: 48, height: 48, borderRadius: 24,
+    width: 40, height: 40, borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth, borderColor: D.outlineVariant,
   },
   authorName:     { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
@@ -874,7 +854,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
   },
   tagNeutralText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
-  recentContent:  { gap: 6 },
+  recentContent:  { gap: 4 },
   recentDesc: {
     fontFamily: Typography.fontBody,
     fontSize: Typography.sizeSM,
@@ -884,10 +864,10 @@ const s = StyleSheet.create({
   recentActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: D.surfaceVariant,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
   },
   applyBtn: {
     backgroundColor: '#0F5C5C',       // teal (30% — primary action)
