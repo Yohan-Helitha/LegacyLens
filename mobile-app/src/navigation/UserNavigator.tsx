@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Modal } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -26,6 +26,7 @@ export const UserNavigator: React.FC<UserNavigatorProps> = ({ navigation, route 
   const [screen, setScreen] = useState<UserScreen>(initial);
   const [selectedPost, setSelectedPost] = useState<any>(null);
   const [hasVisitedMap, setHasVisitedMap] = useState(initial === 'map');
+  const [mapSearchQuery, setMapSearchQuery] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (route?.params?.initialTab) {
@@ -65,7 +66,12 @@ export const UserNavigator: React.FC<UserNavigatorProps> = ({ navigation, route 
     <View style={{ flex: 1 }}>
       {showHeader && <Header onNavigate={handleNavigate} />}
 
-      {screen === 'home' && <HomeScreen onNavigate={handleNavigate} />}
+      {screen === 'home' && (
+        <HomeScreen
+          onNavigate={handleNavigate}
+          initialSearchQuery={mapSearchQuery}
+        />
+      )}
 
       {hasVisitedMap && (
         <View
@@ -74,7 +80,14 @@ export const UserNavigator: React.FC<UserNavigatorProps> = ({ navigation, route 
             display: screen === 'map' ? 'flex' : 'none',
           }}
         >
-          <CulturalMapScreen isActive={screen === 'map'} onNavigate={handleNavigate} />
+          <CulturalMapScreen
+            isActive={screen === 'map'}
+            onNavigate={handleNavigate}
+            onNavigateSearch={(query) => {
+              setMapSearchQuery(query);
+              setScreen('home');
+            }}
+          />
         </View>
       )}
 
