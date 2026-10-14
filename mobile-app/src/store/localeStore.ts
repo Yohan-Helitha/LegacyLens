@@ -23,8 +23,16 @@ const detectDeviceLocale = (): AppLocale => {
 
 interface LocaleState {
   locale: AppLocale;
+  /**
+   * True once the elder has picked a language on the onboarding Language screen. The Loading screen only
+   * shows that screen to first-time users — everyone else goes straight on to Login.
+   */
+  hasChosenLanguage: boolean;
   setLocale: (code: string) => void;
 }
+
+/** Bump when the persisted shape changes, and handle the old shape in `migrate` below. */
+const STORE_VERSION = 1;
 
 /**
  * The elder's chosen display language. Set from the onboarding Language
@@ -35,11 +43,19 @@ export const useLocaleStore = create<LocaleState>()(
   persist(
     (set) => ({
       locale: detectDeviceLocale(),
-      setLocale: (code) => set({ locale: toAppLocale(code) }),
+      hasChosenLanguage: false,
+      setLocale: (code) => set({ locale: toAppLocale(code), hasChosenLanguage: true }),
     }),
     {
       name: 'legacylens-locale',
       storage: createJSONStorage(() => AsyncStorage),
+      version: STORE_VERSION,
+      // Before version 1 nothing recorded whether a language had been chosen. Anyone who already has a saved
+      // locale has used the app before, so they count as returning users and skip the Language screen.
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<LocaleState>;
+        return version < 1 ? { ...state, hasChosenLanguage: true } : state;
+      },
     },
   ),
 );
