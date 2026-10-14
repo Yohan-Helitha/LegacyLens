@@ -48,6 +48,7 @@ class OpportunityApplicationResponseMapper {
                 .savedAt(application.getSavedAt())
                 .submittedAt(application.getSubmittedAt())
                 .rejectionSeenAt(application.getRejectionSeenAt())
+                .decidedAt(application.getDecidedAt())
                 .build();
     }
 

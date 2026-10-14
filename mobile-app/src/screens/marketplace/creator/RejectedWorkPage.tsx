@@ -85,6 +85,10 @@ const RejectedCard: React.FC<{
 
   return (
     <View style={s.card}>
+      <View style={s.statusRow}>
+        <WorkStatusChip status={progress?.workStatus ?? 'REJECTED'} />
+      </View>
+
       <View style={s.cardPhotoWrapper}>
         <Image
           source={resolveOpportunityImage(heroImageUrl) ?? GENERIC_HERO_IMAGE}
@@ -93,8 +97,6 @@ const RejectedCard: React.FC<{
           accessibilityLabel={job.title}
         />
       </View>
-
-      <WorkStatusChip status={progress?.workStatus ?? 'REJECTED'} />
 
       <Text style={s.cardTitle} numberOfLines={2}>{job.title}</Text>
 
@@ -127,6 +129,7 @@ const RejectedCard: React.FC<{
           elderFeedbackAt={progress?.elderFeedbackAt}
           adminFeedback={progress?.adminFeedback}
           adminFeedbackAt={progress?.adminFeedbackAt}
+          showEmpty
         />
       ) : (
         !progress?.rejectionReason && (
@@ -276,6 +279,8 @@ export default RejectedWorkPage;
 // ─────────────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
+
+  statusRow: { flexDirection: 'row', alignItems: 'center' },
 
   headerSection: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: Spacing.xs, gap: 4 },
   pageHeading: {

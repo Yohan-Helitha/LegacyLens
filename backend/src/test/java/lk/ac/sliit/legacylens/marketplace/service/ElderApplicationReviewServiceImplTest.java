@@ -115,6 +115,17 @@ class ElderApplicationReviewServiceImplTest {
     }
 
     @Test
+    void aDecision_recordsTheMomentItWasMade_forTheCreatorsCard() {
+        owns(elder.getId());
+        when(applicationRepository.save(any(OpportunityApplication.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        java.time.LocalDateTime before = java.time.LocalDateTime.now().minusSeconds(1);
+
+        OpportunityApplicationResponse response = service.reject(elder.getId(), application.getId());
+
+        assertThat(response.getDecidedAt()).isAfter(before).isBeforeOrEqualTo(java.time.LocalDateTime.now());
+    }
+
+    @Test
     void anotherUser_cannotDecide_andIsToldItDoesNotExist() {
         UUID someoneElse = UUID.randomUUID();
         when(applicationRepository.findByIdAndOpportunityElderId(application.getId(), someoneElse))

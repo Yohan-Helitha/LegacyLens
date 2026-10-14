@@ -217,6 +217,7 @@ export const ApplicationSummary: React.FC<{
 }> = ({ record, trailing, children }) => {
   const isDraft = record.status === 'SAVED';
   const stamp = formatStamp(isDraft ? record.savedAt : record.submittedAt ?? record.savedAt);
+  const rejectedStamp = record.status === 'REJECTED' ? formatStamp(record.decidedAt) : '';
 
   return (
     <View style={s.card}>
@@ -264,6 +265,12 @@ export const ApplicationSummary: React.FC<{
         <View style={s.stampRow}>
           <ClockIcon size={12} color={D.onSurfaceVariant} />
           <Text style={s.stampText}>{`${isDraft ? 'Saved' : 'Submitted'} on ${stamp}`}</Text>
+        </View>
+      )}
+      {!!rejectedStamp && (
+        <View style={s.stampRow}>
+          <ClockIcon size={12} color={D.onSurfaceVariant} />
+          <Text style={s.stampText}>{`Rejected on ${rejectedStamp}`}</Text>
         </View>
       )}
 

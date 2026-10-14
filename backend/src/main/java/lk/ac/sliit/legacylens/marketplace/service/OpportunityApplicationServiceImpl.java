@@ -159,6 +159,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         }
 
         application.setStatus(OpportunityApplicationStatus.APPROVED);
+        application.setDecidedAt(LocalDateTime.now());
 
         OpportunityApplicationResponse response = responseMapper.toResponse(opportunityApplicationRepository.save(application));
         announceDecision(application, OpportunityApplicationStatus.APPROVED);
@@ -177,6 +178,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         }
 
         application.setStatus(OpportunityApplicationStatus.REJECTED);
+        application.setDecidedAt(LocalDateTime.now());
 
         OpportunityApplicationResponse response = responseMapper.toResponse(opportunityApplicationRepository.save(application));
         announceDecision(application, OpportunityApplicationStatus.REJECTED);

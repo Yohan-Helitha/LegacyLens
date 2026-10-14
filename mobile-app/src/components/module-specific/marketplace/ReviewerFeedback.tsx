@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Typography, Spacing, Radii } from '../../../theme';
+import { formatStamp } from '../../../utils/applicationDates';
 
 const D = {
   surfaceContainerLowest: '#ffffff',
@@ -11,11 +12,6 @@ const D = {
   onSurfaceVariant:       '#4a5568',
 } as const;
 
-function formatWhen(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
 const FeedbackBox: React.FC<{
   title: string;
   message: string | null | undefined;
@@ -25,7 +21,7 @@ const FeedbackBox: React.FC<{
 }> = ({ title, message, at, accent, showEmpty }) => {
   const hasMessage = !!message?.trim();
   if (!hasMessage && !showEmpty) return null;
-  const when = formatWhen(at);
+  const when = formatStamp(at);
 
   return (
     <View style={[s.box, { borderLeftColor: accent }]}>
