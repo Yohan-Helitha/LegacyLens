@@ -205,12 +205,47 @@ const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: (
       </View>
 
       <View style={s.recommendedBody}>
-        <View style={{ gap: 4 }}>
-          <Text style={s.cardTitle}>{item.title}</Text>
-          {!!item.elderName && <Text style={s.holderName} numberOfLines={1}>{`By ${item.elderName}`}</Text>}
-          <Text style={s.cardMeta}>{joinMeta(item.location, item.category)}</Text>
-          {!!item.description && <Text style={s.recentDesc} numberOfLines={3}>{item.description}</Text>}
+        {/* 1. what kind of work it is */}
+        {(item.category || item.locationType) && (
+          <View style={s.tagsRow}>
+            {!!item.category && (
+              <View style={s.tagSecondary}>
+                <Text style={s.tagSecondaryText}>{item.category}</Text>
+              </View>
+            )}
+            {!!item.locationType && (
+              <View style={s.tagNeutral}>
+                <Text style={s.tagNeutralText}>{item.locationType}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* 2. its name */}
+        <Text style={s.cardTitle}>{item.title}</Text>
+
+        {/* 3. who it is for, and where */}
+        <View style={s.recommendedFacts}>
+          {!!item.elderName && (
+            <View style={s.authorRow}>
+              <Image
+                source={resolveAvatarImage(item.elderAvatarUrl) ?? { uri: PLACEHOLDER_AVATAR }}
+                style={s.recommendedAvatar}
+                accessibilityLabel={`${item.elderName} profile photo`}
+              />
+              <Text style={s.holderName} numberOfLines={1}>{item.elderName}</Text>
+            </View>
+          )}
+          {!!item.location && (
+            <View style={s.authorRow}>
+              <LocationPinIcon size={14} />
+              <Text style={s.cardMeta} numberOfLines={1}>{item.location}</Text>
+            </View>
+          )}
         </View>
+
+        {/* 4. what it involves */}
+        {!!item.description && <Text style={s.recentDesc} numberOfLines={3}>{item.description}</Text>}
         <View style={s.cardCta}>
           <Pressable
             onPress={onViewDetail}
@@ -243,6 +278,12 @@ const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () 
       accessibilityRole="button"
       accessibilityLabel={`${item.title} opportunity`}
     >
+      {/* The percentage sits at the top right of the card; the picture and the job details come below it. */}
+      {showsMatchBadge(item.matchPercentage, item.matchLevel) && (
+        <View style={s.urgentBadgeTop}>
+          <MatchBadgeInline item={item} />
+        </View>
+      )}
       <View style={s.urgentTop}>
         <Image
           source={resolveOpportunityImage(item.heroImageUrl)}
@@ -269,9 +310,6 @@ const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () 
       {/* Starts at the card's left edge, under the picture, with room above it. */}
       <View style={s.urgentBody}>
         {!!item.description && <Text style={s.recentDesc} numberOfLines={3}>{item.description}</Text>}
-        <View style={s.urgentBadgeSlot}>
-          <MatchBadgeInline item={item} />
-        </View>
         <View style={s.urgentCtaRow}>
           <Pressable
             onPress={onViewDetail}
@@ -726,6 +764,11 @@ const s = StyleSheet.create({
   matchStar: { fontSize: 12, color: '#FFD166' },
   matchText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.5 },
   recommendedBody: { padding: 16, gap: Spacing.sm },
+  recommendedFacts: { gap: 6 },
+  recommendedAvatar: {
+    width: 28, height: 28, borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: D.outlineVariant,
+  },
   cardCta: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: D.surfaceVariant,
@@ -785,7 +828,7 @@ const s = StyleSheet.create({
   urgentThumb:    { width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: Radii.xl, flexShrink: 0 },
   urgentBody:     { gap: Spacing.sm },
   urgentTitle:    { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 24, color: D.onSurface },
-  urgentBadgeSlot: { marginTop: 4 },
+  urgentBadgeTop:  { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: -Spacing.xs },
   urgentMeta:     { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs },
   urgentMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaIcon:       { fontSize: 14, lineHeight: 20 },
