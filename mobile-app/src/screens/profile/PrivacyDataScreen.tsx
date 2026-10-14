@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Fingerprint, Phone, ShieldCheck } from 'lucide-react-native';
 import { BackButton, SettingsListRow } from '../../components/common';
 import { Colors, Typography, Spacing } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -24,28 +25,29 @@ export const PrivacyDataScreen: React.FC<PrivacyDataScreenProps> = ({
   onChangeNic,
   onChangePin,
   onBack,
-}) => (
+}) => {
+  const { t } = useTranslation('profile');
+  return (
   <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
     <StatusBar style="dark" backgroundColor={Colors.dominant} />
 
     <View style={styles.topBar}>
       <BackButton onPress={onBack} />
-      <Text style={styles.title}>Privacy & data</Text>
+      <Text style={styles.title}>{t('privacy.title')}</Text>
       <View style={styles.topBarSpacer} />
     </View>
 
-    <Text style={styles.sectionLabel}>Account security</Text>
+    <Text style={styles.sectionLabel}>{t('privacy.accountSecurity')}</Text>
     <View style={styles.card}>
-      <SettingsListRow icon={Phone} label="Change mobile number" onPress={onChangePhone} />
-      <SettingsListRow icon={ShieldCheck} label="Change NIC number" onPress={onChangeNic} />
-      <SettingsListRow icon={Fingerprint} label="Change PIN" onPress={onChangePin} />
+      <SettingsListRow icon={Phone} label={t('privacy.changePhone')} onPress={onChangePhone} />
+      <SettingsListRow icon={ShieldCheck} label={t('privacy.changeNic')} onPress={onChangeNic} />
+      <SettingsListRow icon={Fingerprint} label={t('privacy.changePin')} onPress={onChangePin} />
     </View>
 
-    <Text style={styles.hint}>
-      Each change is verified with a one-time code sent by SMS before it takes effect.
-    </Text>
+    <Text style={styles.hint}>{t('privacy.hint')}</Text>
   </SafeAreaView>
-);
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles

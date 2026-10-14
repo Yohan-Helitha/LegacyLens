@@ -12,6 +12,7 @@ import {
 import { profileApi } from '../../services/api/profileApi';
 import { useAuthStore } from '../../store/authStore';
 import { LOCALE_NATIVE_NAMES, useLocaleStore } from '../../store/localeStore';
+import { LOCALE_DATE_TAG } from '../../constants/hireStrings';
 import { LanguagePickerSheet } from '../../components/common/LanguagePickerSheet';
 import { useTranslation } from 'react-i18next';
 import { UserProfile } from '../../types/profile';
@@ -44,10 +45,10 @@ interface ProfileScreenProps {
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-function formatMemberSince(iso: string): string {
+function formatMemberSince(iso: string, dateTag: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return date.toLocaleDateString(dateTag, { month: 'long', year: 'numeric' });
 }
 
 /** Rough completeness score based on which optional fields are filled in. */
@@ -72,7 +73,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [loading, setLoading] = useState(true);
   const [storytellerConfirmVisible, setStorytellerConfirmVisible] = useState(false);
   const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
-  const { t } = useTranslation('common');
+  const { t } = useTranslation('profile');
+  const { t: tCommon } = useTranslation('common');
   const locale = useLocaleStore((state) => state.locale);
 
   useEffect(() => {
@@ -97,7 +99,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const cityLabel = profile?.city
     ? [profile.city.name, profile.city.region].filter(Boolean).join(', ')
     : null;
-  const memberSince = profile?.createdAt ? formatMemberSince(profile.createdAt) : null;
+  const memberSince = profile?.createdAt ? formatMemberSince(profile.createdAt, LOCALE_DATE_TAG[locale]) : null;
   const completeness = profile ? profileCompleteness(profile) : 0;
   const isStoryteller = (profile?.roles ?? cachedUser?.roles ?? []).includes('ELDER');
 
@@ -121,7 +123,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <View style={styles.locationRow}>
               <MapPin size={14} color={Colors.textMuted} strokeWidth={2} />
               <Text style={styles.locationText}>
-                {[cityLabel, memberSince && `Member since ${memberSince}`]
+                {[cityLabel, memberSince && t('memberSince', { date: memberSince })]
                   .filter(Boolean)
                   .join('  •  ')}
               </Text>
@@ -131,9 +133,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           {!loading && profile && (
             <View style={styles.completenessCard}>
               <View style={styles.completenessTop}>
-                <Text style={styles.completenessLabel}>
-                  Profile {completeness}% complete
-                </Text>
+                <Text style={styles.completenessLabel}>{t('completeness', { percent: completeness })}</Text>
               </View>
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${completeness}%` }]} />
@@ -144,38 +144,30 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
         {/* ── Activity snapshot (static placeholders — no backend yet) ─────── */}
         <View style={styles.statsRow}>
-          <StatCard value={12} label="day streak" />
-          <StatCard value={8} label="lessons completed" />
-          <StatCard value={5} label="saved stories" />
+          <StatCard value={12} label={t('stats.dayStreak')} />
+          <StatCard value={8} label={t('stats.lessons')} />
+          <StatCard value={5} label={t('stats.saved')} />
         </View>
 
         {/* ── Role upgrade ──────────────────────────────────────────────── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Grow your role in the community</Text>
+          <Text style={styles.sectionTitle}>{t('grow.title')}</Text>
           <View style={styles.upgradeCards}>
             <RoleUpgradeCard
               icon={Mic}
-              title={isStoryteller ? 'Your Storyteller Dashboard' : 'Become a Storyteller'}
-              description={
-                isStoryteller
-                  ? "Record new stories and manage the ones you've already shared."
-                  : 'Share your stories, dialects, and traditions with the community.'
-              }
-              hint={
-                isStoryteller
-                  ? 'Tap to open your dashboard.'
-                  : 'No experience needed — record however feels comfortable.'
-              }
-              ctaLabel={isStoryteller ? 'Open Dashboard' : 'Get Started'}
+              title={isStoryteller ? t('storyteller.titleActive') : t('storyteller.titleNew')}
+              description={isStoryteller ? t('storyteller.descriptionActive') : t('storyteller.descriptionNew')}
+              hint={isStoryteller ? t('storyteller.hintActive') : t('storyteller.hintNew')}
+              ctaLabel={isStoryteller ? t('storyteller.ctaActive') : t('storyteller.ctaNew')}
               onPress={() =>
                 isStoryteller ? onBecomeStoryteller?.() : setStorytellerConfirmVisible(true)
               }
             />
             <RoleUpgradeCard
               icon={Briefcase}
-              title="Become a Freelancer"
-              description="Get hired by elders to help record and preserve their stories."
-              hint="Earn credits and build your reputation."
+              title={t('freelancer.title')}
+              description={t('freelancer.description')}
+              hint={t('freelancer.hint')}
               onPress={onBecomeFreelancer}
             />
           </View>
@@ -185,14 +177,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         <View style={styles.settingsCard}>
           <SettingsListRow
             icon={Globe}
-            label={t('profile.languagePreference')}
+            label={tCommon('profile.languagePreference')}
             value={LOCALE_NATIVE_NAMES[locale]}
             onPress={() => setLanguageSheetVisible(true)}
           />
-          <SettingsListRow icon={Bell} label="Notification settings" />
-          <SettingsListRow icon={Lock} label="Privacy & data" onPress={onOpenPrivacyData} />
-          <SettingsListRow icon={HelpCircle} label="Help & support" />
-          <SettingsListRow icon={LogOut} label="Log out" variant="danger" onPress={onLogout} />
+          <SettingsListRow icon={Bell} label={t('settings.notifications')} />
+          <SettingsListRow icon={Lock} label={t('settings.privacy')} onPress={onOpenPrivacyData} />
+          <SettingsListRow icon={HelpCircle} label={t('settings.help')} />
+          <SettingsListRow icon={LogOut} label={t('settings.logOut')} variant="danger" onPress={onLogout} />
         </View>
       </ScrollView>
 
@@ -200,10 +192,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
       <ConfirmDialog
         visible={storytellerConfirmVisible}
-        title="Become a Storyteller?"
-        message="You'll answer a couple of quick questions about the content you'd like to share, then verify your number to unlock story recording."
-        confirmLabel="Continue"
-        cancelLabel="Not now"
+        title={t('dialog.title')}
+        message={t('dialog.message')}
+        confirmLabel={tCommon('continue')}
+        cancelLabel={t('dialog.notNow')}
         onCancel={() => setStorytellerConfirmVisible(false)}
         onConfirm={() => {
           setStorytellerConfirmVisible(false);
@@ -214,17 +206,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   );
 };
 
-const SettingsGear: React.FC<{ onPress?: () => void }> = ({ onPress }) => (
-  <Pressable
-    onPress={onPress}
-    accessibilityRole="button"
-    accessibilityLabel="Settings"
-    hitSlop={8}
-    style={styles.gearButton}
-  >
-    <Settings size={22} color={Colors.textMuted} strokeWidth={2} />
-  </Pressable>
-);
+const SettingsGear: React.FC<{ onPress?: () => void }> = ({ onPress }) => {
+  const { t } = useTranslation('common');
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={t('settings')}
+      hitSlop={8}
+      style={styles.gearButton}
+    >
+      <Settings size={22} color={Colors.textMuted} strokeWidth={2} />
+    </Pressable>
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles

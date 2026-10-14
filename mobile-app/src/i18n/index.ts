@@ -8,6 +8,9 @@ import siCommon from './locales/si/common.json';
 import siContentCapture from './locales/si/contentCapture.json';
 import taCommon from './locales/ta/common.json';
 import taContentCapture from './locales/ta/contentCapture.json';
+import enProfile from './locales/en/profile.json';
+import siProfile from './locales/si/profile.json';
+import taProfile from './locales/ta/profile.json';
 
 /**
  * App-wide i18n for fixed interface text (buttons, labels, messages). The language is the elder's choice
@@ -17,16 +20,16 @@ import taContentCapture from './locales/ta/contentCapture.json';
  * User-written content (stories, comments) isn't handled here — it is translated on demand by the backend.
  */
 export const resources = {
-  en: { common: enCommon, contentCapture: enContentCapture },
-  si: { common: siCommon, contentCapture: siContentCapture },
-  ta: { common: taCommon, contentCapture: taContentCapture },
+  en: { common: enCommon, contentCapture: enContentCapture, profile: enProfile },
+  si: { common: siCommon, contentCapture: siContentCapture, profile: siProfile },
+  ta: { common: taCommon, contentCapture: taContentCapture, profile: taProfile },
 } as const;
 
 void i18n.use(initReactI18next).init({
   resources,
   lng: useLocaleStore.getState().locale,
   fallbackLng: 'en',
-  ns: ['common', 'contentCapture'],
+  ns: ['common', 'contentCapture', 'profile'],
   defaultNS: 'common',
   interpolation: { escapeValue: false }, // React Native renders text safely — no HTML escaping needed
   returnNull: false,

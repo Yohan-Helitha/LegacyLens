@@ -8,7 +8,7 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 
 const SRC = path.resolve(__dirname, '..', '..', 'src');
 const LOCALES = path.join(SRC, 'i18n', 'locales');
-const NAMESPACES = ['common', 'contentCapture'];
+const NAMESPACES = ['common', 'contentCapture', 'profile'];
 const LANGUAGES = ['si', 'ta'];
 
 type Flat = Record<string, string>;

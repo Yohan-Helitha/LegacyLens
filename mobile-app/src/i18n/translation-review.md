@@ -4,7 +4,7 @@ Machine-translated (Google Cloud Translation) first drafts. A native speaker sho
 then edit the JSON files in `src/i18n/locales/{si,ta}` directly - reviewed text is kept when the script is re-run.
 `(!)` = still identical to English (left untranslated, or the machine output could not be verified).
 
-Rows: 270, needing attention: 0
+Rows: 318, needing attention: 0
 
 | Key | English | Sinhala | Tamil |
 | --- | --- | --- | --- |
@@ -27,6 +27,9 @@ Rows: 270, needing attention: 0
 | common:translation.showTranslation | Original · Show translation | මුල් · පරිවර්තනය පෙන්වන්න | அசல் · மொழிபெயர்ப்பைக் காட்டு |
 | common:profile.languagePreference | Language preference | භාෂා මනාපය | மொழி விருப்பம் |
 | common:language.title | Choose your language | ඔබේ භාෂාව තෝරන්න | உங்கள் மொழியைத் தேர்ந்தெடுக்கவும் |
+| common:settings | Settings | සැකසුම් | அமைப்புகள் |
+| common:avatar.edit | Edit profile picture | පැතිකඩ පින්තූරය සංස්කරණය කරන්න | சுயவிவரப் படத்தைத் திருத்தவும் |
+| common:getStarted | Get Started | ආරම්භ කිරීම | தொடங்குங்கள் |
 | contentCapture:drawer.home | Home | මුල් පිටුව | வீடு |
 | contentCapture:drawer.stories | My Stories | මගේ කතා | என் கதைகள் |
 | contentCapture:drawer.requests | Requests | ඉල්ලීම් | கோரிக்கைகள் |
@@ -67,10 +70,10 @@ Rows: 270, needing attention: 0
 | contentCapture:submit.termsSoon | Terms & Conditions coming soon. | නියමයන් සහ කොන්දේසි ඉක්මනින් පැමිණේ. | விதிமுறைகள் மற்றும் நிபந்தனைகள் விரைவில் வெளியிடப்படும். |
 | contentCapture:submit.submit | Submit | ඉදිරිපත් කරන්න | சமர்ப்பிக்கவும் |
 | contentCapture:submit.submitting | Submitting… | ඉදිරිපත් කරමින්... | சமர்ப்பிக்கப்படுகிறது… |
-| contentCapture:thumbnail.selected | Selected thumbnail | තෝරාගත් සිඟිති රුව | தேர்ந்தெடுக்கப்பட்ட சிறுபடம் |
-| contentCapture:thumbnail.remove | Remove thumbnail | සිඟිති රුව ඉවත් කරන්න | சிறுபடத்தை அகற்று |
-| contentCapture:thumbnail.addAria | Add thumbnail, optional | සිඟිති රුව එක් කරන්න, විකල්පමය | சிறுபடத்தைச் சேர்க்கவும், விருப்பத்தேர்வு |
-| contentCapture:thumbnail.add | Add thumbnail | සිඟිති රුව එක් කරන්න | சிறுபடத்தைச் சேர்க்கவும் |
+| contentCapture:thumbnail.selected | Selected thumbnail | තෝරාගත් මුල් රුව | தேர்ந்தெடுக்கப்பட்ட சிறுபடம் |
+| contentCapture:thumbnail.remove | Remove thumbnail | මුල් රුව ඉවත් කරන්න | சிறுபடத்தை அகற்று |
+| contentCapture:thumbnail.addAria | Add thumbnail, optional | මුල් රුව එක් කරන්න, විකල්පමය | சிறுபடத்தைச் சேர்க்கவும், விருப்பத்தேர்வு |
+| contentCapture:thumbnail.add | Add thumbnail | මුල් රුව එක් කරන්න | சிறுபடத்தைச் சேர்க்கவும் |
 | contentCapture:thumbnail.optional | Optional | විකල්ප | விருப்பத்தேர்வு |
 | contentCapture:storyCard.openVideo | Open video story | වීඩියෝ කතාව විවෘත කරන්න | வீடியோ கதையைத் திறக்கவும் |
 | contentCapture:storyCard.openVoice | Open voice story | විවෘත හඬ කතාව | திறந்த வாய் கதை |
@@ -249,7 +252,7 @@ Rows: 270, needing attention: 0
 | contentCapture:form.voice | Voice recording | කටහඬ පටිගත කිරීම | குரல் பதிவு |
 | contentCapture:form.storyPlaceholder | Speak or type your story… | ඔබේ කතාව කතා කරන්න හෝ ටයිප් කරන්න... | உங்கள் கதையைப் பேசுங்கள் அல்லது தட்டச்சு செய்யுங்கள்… |
 | contentCapture:form.noRecording | No recording attached | පටිගත කිරීමක් අමුණා නැත | பதிவு இணைக்கப்படவில்லை |
-| contentCapture:form.thumbnail | Thumbnail | සිඟිති රුව | சிறுபடம் |
+| contentCapture:form.thumbnail | Thumbnail | මුල් රුව | சிறுபடம் |
 | contentCapture:form.saving | Saving… | සුරකිමින්... | சேமிப்பு… |
 | contentCapture:form.saveDraft | Save as Draft | කෙටුම්පතක් ලෙස සුරකින්න | வரைவாகச் சேமிக்கவும் |
 | contentCapture:form.submitForReview | Submit for Review | සමාලෝචනය සඳහා ඉදිරිපත් කරන්න | மதிப்பாய்வுக்குச் சமர்ப்பிக்கவும் |
@@ -278,3 +281,48 @@ Rows: 270, needing attention: 0
 | contentCapture:search.placeholder | Search your stories… | ඔබේ කතා සොයන්න... | உங்கள் கதைகளைத் தேடுங்கள்… |
 | contentCapture:search.stopVoice | Stop voice search | හඬ සෙවීම නවත්වන්න | குரல் தேடலை நிறுத்து |
 | contentCapture:search.speak | Search by speaking | කතා කිරීමෙන් සොයන්න | பேசித் தேடுங்கள் |
+| profile:memberSince | Member since {{date}} | {{date}} සිට සාමාජිකයෙකි | {{date}} முதல் உறுப்பினர் |
+| profile:completeness | Profile {{percent}}% complete | පැතිකඩ {{percent}}% සම්පූර්ණයි | சுயவிவரம் {{percent}}% நிறைவடைந்தது |
+| profile:stats.dayStreak | day streak | දින රේඛාව | நாள் தொடர் |
+| profile:stats.lessons | lessons completed | පාඩම් අවසන් | பாடங்கள் நிறைவடைந்தன |
+| profile:stats.saved | saved stories | සුරැකි කතා | சேமிக்கப்பட்ட கதைகள் |
+| profile:grow.title | Grow your role in the community | ප්‍රජාව තුළ ඔබේ භූමිකාව වර්ධනය කරගන්න | சமூகத்தில் உங்கள் பங்கை வளர்த்துக் கொள்ளுங்கள் |
+| profile:storyteller.titleActive | Your Storyteller Dashboard | ඔබේ කතන්දරකාර උපකරණ පුවරුව | உங்கள் கதைசொல்லி டாஷ்போர்டு |
+| profile:storyteller.titleNew | Become a Storyteller | කතන්දරකාරයෙක් වෙන්න | கதைசொல்லியாக மாறுங்கள் |
+| profile:storyteller.descriptionActive | Record new stories and manage the ones you've already shared. | නව කථා පටිගත කර ඔබ දැනටමත් බෙදාගෙන ඇති ඒවා කළමනාකරණය කරන්න. | புதிய கதைகளைப் பதிவுசெய்து, ஏற்கனவே பகிர்ந்தவற்றை நிர்வகிக்கவும். |
+| profile:storyteller.descriptionNew | Share your stories, dialects, and traditions with the community. | ඔබේ කතා, උපභාෂා සහ සම්ප්‍රදායන් ප්‍රජාව සමඟ බෙදා ගන්න. | உங்கள் கதைகளையும், வட்டார வழக்குகளையும், மரபுகளையும் சமூகத்துடன் பகிர்ந்துகொள்ளுங்கள். |
+| profile:storyteller.hintActive | Tap to open your dashboard. | ඔබගේ උපකරණ පුවරුව විවෘත කිරීමට තට්ටු කරන්න. | உங்கள் டாஷ்போர்டைத் திறக்கத் தட்டவும். |
+| profile:storyteller.hintNew | No experience needed — record however feels comfortable. | අත්දැකීම් අවශ්‍ය නැහැ - කෙසේ වෙතත් පටිගත කිරීම සුවපහසුවක් දැනෙනවා. | முன் அனுபவம் தேவையில்லை — உங்களுக்கு வசதியான முறையில் பதிவு செய்யுங்கள். |
+| profile:storyteller.ctaActive | Open Dashboard | උපකරණ පුවරුව විවෘත කරන්න | டாஷ்போர்டைத் திறக்கவும் |
+| profile:storyteller.ctaNew | Get Started | ආරම්භ කිරීම | தொடங்குங்கள் |
+| profile:freelancer.title | Become a Freelancer | නිදහස් සේවකයෙකු වන්න | ஃப்ரீலான்சராக ஆகுங்கள் |
+| profile:freelancer.description | Get hired by elders to help record and preserve their stories. | ඔවුන්ගේ කථා පටිගත කිරීමට සහ සංරක්ෂණය කිරීමට උදව් කිරීමට වැඩිහිටියන් විසින් කුලියට ගන්න. | பெரியவர்களின் கதைகளைப் பதிவுசெய்து பாதுகாப்பதற்கு, அவர்களால் பணியமர்த்தப்படுங்கள். |
+| profile:freelancer.hint | Earn credits and build your reputation. | ණය උපයා ඔබේ කීර්ති නාමය ගොඩනඟා ගන්න. | வரவுகளைப் பெற்று உங்கள் நற்பெயரை வளர்த்துக் கொள்ளுங்கள். |
+| profile:settings.notifications | Notification settings | දැනුම්දීම් සැකසුම් | அறிவிப்பு அமைப்புகள் |
+| profile:settings.privacy | Privacy & data | පෞද්ගලිකත්වය සහ දත්ත | தனியுரிமை மற்றும் தரவு |
+| profile:settings.help | Help & support | උදව් සහ සහාය | உதவி மற்றும் ஆதரவு |
+| profile:settings.logOut | Log out | ඉවත් වන්න | வெளியேறு |
+| profile:dialog.title | Become a Storyteller? | කතන්දරකාරයෙක් වෙනවාද? | கதைசொல்லியாக மாற வேண்டுமா? |
+| profile:dialog.message | You'll answer a couple of quick questions about the content you'd like to share, then verify your number to unlock story recording. | ඔබ බෙදා ගැනීමට කැමති අන්තර්ගතය පිළිබඳ ඉක්මන් ප්‍රශ්න කිහිපයකට පිළිතුරු සපයනු ඇත, පසුව කතන්දර පටිගත කිරීම අගුළු ඇරීමට ඔබේ අංකය සත්‍යාපනය කරන්න. | நீங்கள் பகிர விரும்பும் உள்ளடக்கம் குறித்த சில விரைவான கேள்விகளுக்குப் பதிலளித்த பிறகு, ஸ்டோரி பதிவைத் திறக்க உங்கள் எண்ணைச் சரிபார்க்கவும். |
+| profile:dialog.notNow | Not now | දැන් නොවේ | இப்போது இல்லை |
+| profile:privacy.title | Privacy & data | පෞද්ගලිකත්වය සහ දත්ත | தனியுரிமை மற்றும் தரவு |
+| profile:privacy.accountSecurity | Account security | ගිණුම් ආරක්ෂාව | கணக்கு பாதுகாப்பு |
+| profile:privacy.changePhone | Change mobile number | ජංගම දුරකථන අංකය වෙනස් කරන්න | மொபைல் எண்ணை மாற்றவும் |
+| profile:privacy.changeNic | Change NIC number | ජාතික හැඳුනුම්පත් අංකය වෙනස් කරන්න | NIC எண்ணை மாற்றவும் |
+| profile:privacy.changePin | Change PIN | PIN අංකය වෙනස් කරන්න | PIN-ஐ மாற்றவும் |
+| profile:privacy.hint | Each change is verified with a one-time code sent by SMS before it takes effect. | සෑම වෙනස්කමක්ම ක්‍රියාත්මක වීමට පෙර කෙටි පණිවුඩයක් මගින් එවන ලද එක්-වර කේතයක් සමඟ සත්‍යාපනය කෙරේ. | ஒவ்வொரு மாற்றமும் நடைமுறைக்கு வருவதற்கு முன்பு, குறுஞ்செய்தி (SMS) மூலம் அனுப்பப்படும் ஒருமுறை பயன்படுத்தும் குறியீட்டைக் கொண்டு சரிபார்க்கப்படுகிறது. |
+| profile:errors.generic | Something went wrong. Please try again. | යමක් වැරදී ඇත. කරුණාකර නැවත උත්සාහ කරන්න. | ஏதோ தவறு நிகழ்ந்துவிட்டது. தயவுசெய்து மீண்டும் முயற்சிக்கவும். |
+| profile:sendingCode | Sending code… | කේතය යවමින්... | குறியீட்டை அனுப்புகிறது… |
+| profile:changeNic.required | New NIC number is required | නව ජාතික හැඳුනුම්පත් අංකයක් අවශ්‍යයි. | புதிய தேசிய காப்பீட்டு எண் (NIC) தேவைப்படுகிறது. |
+| profile:changeNic.tooLong | NIC number must not exceed 20 characters | ජාතික හැඳුනුම්පත් අංකය අක්ෂර 20 නොඉක්මවිය යුතුය. | தேசிய அடையாள அட்டை எண் 20 எழுத்துக்களுக்கு மிகாமல் இருக்க வேண்டும். |
+| profile:changeNic.headline | Change NIC number | ජාතික හැඳුනුම්පත් අංකය වෙනස් කරන්න | NIC எண்ணை மாற்றவும் |
+| profile:changeNic.subheadline | We'll text a code to your current phone number to confirm this change. | මෙම වෙනස තහවුරු කිරීම සඳහා අපි ඔබගේ වත්මන් දුරකථන අංකයට කේතයක් කෙටි පණිවිඩයක් එවන්නෙමු. | இந்த மாற்றத்தை உறுதிப்படுத்த, உங்கள் தற்போதைய தொலைபேசி எண்ணுக்கு ஒரு குறியீட்டை குறுஞ்செய்தியாக அனுப்புவோம். |
+| profile:changeNic.fieldLabel | New NIC number | නව ජාතික හැඳුනුම්පත් අංකය | புதிய என்ஐசி எண் |
+| profile:changeNic.placeholder | Enter your new NIC number | ඔබගේ නව NIC අංකය ඇතුළත් කරන්න | உங்கள் புதிய தேசிய காப்பீட்டு எண் (NIC number) உள்ளிடவும் |
+| profile:changePhone.required | New phone number is required | නව දුරකථන අංකයක් අවශ්‍යයි | புதிய தொலைபேசி எண் தேவைப்படுகிறது |
+| profile:changePhone.invalid | Enter a valid phone number | වලංගු දුරකථන අංකයක් ඇතුළත් කරන්න. | சரியான தொலைபேசி எண்ணை உள்ளிடவும் |
+| profile:changePhone.headline | Change mobile number | ජංගම දුරකථන අංකය වෙනස් කරන්න | மொபைல் எண்ணை மாற்றவும் |
+| profile:changePhone.subheadlineWithPhone | Currently {{phone}}. We'll text a code to your new number to confirm it. | දැනට {{phone}}. එය තහවුරු කිරීම සඳහා අපි ඔබගේ නව අංකයට කේතයක් කෙටි පණිවිඩයක් එවන්නෙමු. | தற்போது {{phone}}. உங்கள் புதிய எண்ணை உறுதிப்படுத்த, நாங்கள் அதற்கு ஒரு குறியீட்டைக் குறுஞ்செய்தியாக அனுப்புவோம். |
+| profile:changePhone.subheadline | We'll text a code to your new number to confirm it. | එය තහවුරු කිරීම සඳහා අපි ඔබගේ නව අංකයට කේතයක් කෙටි පණිවිඩයක් එවන්නෙමු. | அதை உறுதிப்படுத்த, உங்கள் புதிய எண்ணுக்கு ஒரு குறியீட்டை குறுஞ்செய்தியாக அனுப்புவோம். |
+| profile:changePhone.fieldLabel | New phone number | නව දුරකථන අංකය | புதிய தொலைபேசி எண் |
+| profile:changePhone.placeholder | Enter your new phone number | ඔබගේ නව දුරකථන අංකය ඇතුළත් කරන්න | உங்கள் புதிய தொலைபேசி எண்ணை உள்ளிடவும் |

@@ -25,5 +25,10 @@
   },
   "language": {
     "title": "Choose your language"
-  }
+  },
+  "settings": "Settings",
+  "avatar": {
+    "edit": "Edit profile picture"
+  },
+  "getStarted": "Get Started"
 }
