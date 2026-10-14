@@ -11,11 +11,13 @@ import {
   TouchableOpacity,
   Easing,
   ScrollView,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
+import { useAudioPlayer } from 'expo-audio';
+
 import { Colors } from '../../theme';
 import { styles } from './CulturalMapScreen.styles';
 
@@ -23,7 +25,7 @@ import { styles } from './CulturalMapScreen.styles';
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SHEET_HEIGHT = SCREEN_HEIGHT * 0.57;
+const SHEET_HEIGHT = SCREEN_HEIGHT * 0.28;
 
 import { mapApi, MapLandmarkResponse } from '../../services/api/mapApi';
 import { useTreasureHunt } from '../../context/TreasureHuntContext';
@@ -121,7 +123,7 @@ var SL_BOUNDS = [
 
 var map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/satellite-streets-v12',
+  style: 'mapbox://styles/mapbox/satellite-v9',
   center: [80.85, 7.8],
   zoom: 7.2,
   pitch: 50,
@@ -149,58 +151,6 @@ map.on('load', function() {
     'high-color': '#b0d4e8',
     'horizon-blend': 0.06,
   });
-
-  // GeoJSON source only for circle-fallback landmarks (those without a modelUrl)
-  var circleFeatures = features.filter(function(f) { return !f.properties.modelUrl; });
-  map.addSource('cultural-landmarks', {
-    type: 'geojson',
-    data: { type: 'FeatureCollection', features: circleFeatures }
-  });
-
-  // Circle markers for landmarks without a 3D model
-  map.addLayer({
-    id: 'landmark-points',
-    type: 'circle',
-    source: 'cultural-landmarks',
-    paint: {
-      'circle-radius': 7,
-      'circle-color': '#FE893E',
-      'circle-stroke-width': 2,
-      'circle-stroke-color': '#ffffff',
-      'circle-pitch-alignment': 'map'
-    }
-  });
-
-  // Labels for circle landmarks
-  map.addLayer({
-    id: 'landmark-labels',
-    type: 'symbol',
-    source: 'cultural-landmarks',
-    layout: {
-      'text-field': ['get', 'name'],
-      'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-      'text-size': 13,
-      'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
-      'text-radial-offset': 1.5,
-      'text-justify': 'auto',
-      'text-allow-overlap': false
-    },
-    paint: {
-      'text-color': '#ffffff',
-      'text-halo-color': '#0e1823',
-      'text-halo-width': 2
-    }
-  });
-
-  // Click on circle markers
-  map.on('click', 'landmark-points', function(e) {
-    if (!e.features || !e.features.length) return;
-    window.ReactNativeWebView && window.ReactNativeWebView.postMessage(
-      JSON.stringify({ type: 'MARKER_PRESS', id: e.features[0].properties.id })
-    );
-  });
-  map.on('mouseenter', 'landmark-points', function() { map.getCanvas().style.cursor = 'pointer'; });
-  map.on('mouseleave', 'landmark-points', function() { map.getCanvas().style.cursor = ''; });
 
   // HTML model-viewer markers for landmarks WITH a 3D model
   features.forEach(function(f) {
@@ -272,16 +222,6 @@ window.resetCamera = function() {
   map.flyTo({ center: [80.85, 7.8], zoom: 7.2, pitch: 50, duration: 1400, essential: true });
 };
 window.filterRegion = function(regionName, lng, lat, zoom) {
-  var LAYERS = ['landmark-points', 'landmark-labels'];
-  LAYERS.forEach(function(layerId) {
-    if (!map.getLayer(layerId)) return;
-    if (!regionName || regionName === 'All') {
-      map.setFilter(layerId, null);
-    } else {
-      map.setFilter(layerId, ['==', ['get', 'region'], regionName]);
-    }
-  });
-
   // Show/hide HTML model-viewer markers by region
   htmlMarkers.forEach(function(m) {
     var visible = !regionName || regionName === 'All' || m.region === regionName;
@@ -428,7 +368,7 @@ const panelStyles = StyleSheet.create({
     zIndex: 40,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 80,
+    paddingBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
@@ -448,12 +388,14 @@ const panelStyles = StyleSheet.create({
 // ── Main Screen ───────────────────────────────────────────────────────────────
 interface CulturalMapProps {
   onNavigate?: (tab: string) => void;
+  onNavigateSearch?: (query: string) => void;
   isActive?: boolean;
   initialRegion?: string;
 }
 
 export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
   onNavigate,
+  onNavigateSearch,
   isActive = true,
   initialRegion,
 }) => {
@@ -471,8 +413,7 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
 
   const webViewRef = useRef<WebView>(null);
 
-  const playerRef = useRef<AudioPlayer | null>(null);
-  const soundIdRef = useRef(0);
+
 
   React.useEffect(() => {
     const fetchLandmarks = async () => {
@@ -516,84 +457,41 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
     }).start();
   }, [filterVisible]);
 
-  const stopSound = () => {
-    soundIdRef.current += 1;
-    if (playerRef.current) {
-      playerRef.current.remove();
-      playerRef.current = null;
-    }
-  };
-
-  const playOceanSound = async () => {
-    const playId = ++soundIdRef.current;
-    try {
-      if (playerRef.current) {
-        playerRef.current.remove();
-        playerRef.current = null;
-      }
-      await setAudioModeAsync({ playsInSilentMode: true });
-      const player = createAudioPlayer(require('../../../assets/sounds/ocean.mp3'));
-      player.loop = true;
-      player.volume = 1.0;
-      
-      if (playId === soundIdRef.current) {
-        playerRef.current = player;
-        player.play();
-      } else {
-        player.remove();
-      }
-    } catch (error) {
-      console.warn('Error playing ocean sound', error);
-    }
-  };
-
-  const playLocationSound = async (id: string) => {
-    const playId = ++soundIdRef.current;
-    try {
-      if (playerRef.current) {
-        playerRef.current.remove();
-        playerRef.current = null;
-      }
-
-      let soundFile;
-      if (id === 'ella' || id === 'nuwara' || id === 'ratnapura') {
-        soundFile = require('../../../assets/sounds/waterfall.mp3');
-      } else {
-        soundFile = require('../../../assets/sounds/bells.mp3');
-      }
-
-      await setAudioModeAsync({ playsInSilentMode: true });
-      const player = createAudioPlayer(soundFile);
-      player.loop = true;
-      player.volume = 1.0;
-      
-      if (playId === soundIdRef.current) {
-        playerRef.current = player;
-        player.play();
-      } else {
-        player.remove();
-      }
-    } catch (error) {
-      console.warn('Error playing location sound', error);
-    }
-  };
+  const oceanPlayer = useAudioPlayer(require('../../../assets/sounds/ocean.mp3'));
 
   React.useEffect(() => {
+    let isMounted = true;
+
     if (isActive) {
-      if (!selectedArea) {
-        playOceanSound();
-      } else {
-        playLocationSound(selectedArea.id);
+      try {
+        oceanPlayer.loop = true;
+        oceanPlayer.volume = 1.0;
+        oceanPlayer.play();
+      } catch (err) {
+        console.log('Failed to play ocean sound', err);
       }
     } else {
-      stopSound();
+      try {
+        oceanPlayer.pause();
+      } catch (_) {}
     }
 
-    return () => {
-      stopSound();
-    };
-  }, [isActive, selectedArea]);
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active' && isActive && isMounted) {
+        try { oceanPlayer.play(); } catch (_) {}
+      } else {
+        try { oceanPlayer.pause(); } catch (_) {}
+      }
+    });
 
+    return () => {
+      isMounted = false;
+      subscription.remove();
+      try {
+        oceanPlayer.pause();
+      } catch (_) {}
+    };
+  }, [isActive, oceanPlayer]);
   const handleMessage = (e: WebViewMessageEvent) => {
     try {
       const msg = JSON.parse(e.nativeEvent.data);
@@ -778,18 +676,19 @@ export const CulturalMapScreen: React.FC<CulturalMapProps> = ({
             <Text style={styles.sheetTitle}>{selectedArea.name}</Text>
             <Text style={styles.sheetDescription}>{selectedArea.description}</Text>
 
-            <View style={styles.sheetStats}>
-              <View style={styles.statBadge}>
-                <Feather name="map-pin" size={14} color={Colors.secondary} />
-                <Text style={styles.statText}>View on Map</Text>
-              </View>
-              <View style={styles.statBadge}>
-                <Feather name="headphones" size={14} color={Colors.secondary} />
-                <Text style={styles.statText}>Listen to Story</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.exploreBtn}>
+            <TouchableOpacity
+              style={styles.exploreBtn}
+              onPress={() => {
+                if (selectedArea) {
+                  handleCloseSheet();
+                  if (onNavigateSearch) {
+                    onNavigateSearch(selectedArea.name);
+                  } else if (onNavigate) {
+                    onNavigate('search');
+                  }
+                }
+              }}
+            >
               <Text style={styles.exploreBtnText}>Explore Location</Text>
               <Feather name="arrow-right" size={18} color={Colors.white} />
             </TouchableOpacity>
