@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,6 +12,7 @@ import {
   ImageBackground,
   Dimensions,
   Modal,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -21,6 +22,7 @@ import { Colors, Typography, Spacing, Radii } from '../../../theme';
 import { useTreasureHunt } from '../../../context/TreasureHuntContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { mapApi } from '../../../services/api/mapApi';
+import { getMediaUrl } from '../../../constants/api';
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '';
 
@@ -55,9 +57,6 @@ const buildTreasureMapHTML = (token: string, stages: any[], currentIndex: number
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet">
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
 <style>
-  :root {
-    --marker-scale: 0.35;
-  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body, #map { width: 100%; height: 100%; overflow: hidden; }
   
@@ -66,34 +65,43 @@ const buildTreasureMapHTML = (token: string, stages: any[], currentIndex: number
   }
   
   .treasure-marker {
-    width: calc(70px * var(--marker-scale));
-    height: calc(70px * var(--marker-scale));
-    border-radius: calc(35px * var(--marker-scale));
-    background-color: transparent;
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    background-color: rgba(255, 255, 255, 0.95);
+    border: 2px solid #D4AF37;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 calc(4px * var(--marker-scale)) calc(6px * var(--marker-scale)) rgba(0,0,0,0.3);
-    position: relative;
-    background-size: 70%;
-    background-position: center;
-    background-repeat: no-repeat;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .treasure-marker img {
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+    pointer-events: none;
   }
   .marker-active {
-    width: calc(110px * var(--marker-scale));
-    height: calc(110px * var(--marker-scale));
-    border-radius: calc(55px * var(--marker-scale));
-    background-size: 100%;
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
+    border: 3px solid #FE893E;
+    background-color: #FFF5F0;
+    box-shadow: 0 4px 14px rgba(254, 137, 62, 0.6);
     animation: pulse 1.5s infinite;
-    cursor: pointer;
     z-index: 10;
   }
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.6); }
-    70% { box-shadow: 0 0 0 calc(40px * var(--marker-scale)) rgba(212, 175, 55, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+  .marker-active img {
+    width: 36px;
+    height: 36px;
   }
-</style>
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(254, 137, 62, 0.7); }
+    70% { box-shadow: 0 0 0 12px rgba(254, 137, 62, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(254, 137, 62, 0); }
+  }</style>
 </head>
 <body>
 <div id="map"></div>
@@ -103,7 +111,7 @@ const SL_BOUNDS = [[79.5, 5.85], [81.95, 9.9]];
 
 const map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/satellite-streets-v12',
+  style: 'mapbox://styles/mapbox/satellite-v9',
   center: [80.7, 7.3],
   zoom: 6.8,
   pitch: 0,
@@ -114,24 +122,6 @@ const map = new mapboxgl.Map({
 });
 
 map.on('load', () => {
-  const style = map.getStyle();
-  if (style && style.layers) {
-    style.layers.forEach(layer => {
-      if (
-        layer.id.includes('road') || 
-        layer.id.includes('bridge') || 
-        layer.id.includes('tunnel') || 
-        layer.id.includes('path') || 
-        layer.id.includes('label') ||
-        layer.id.includes('place') ||
-        layer.id.includes('poi') ||
-        layer.id.includes('boundary')
-      ) {
-        map.setLayoutProperty(layer.id, 'visibility', 'none');
-      }
-    });
-  }
-
   const stages = ${JSON.stringify(stages)};
   const currentIndex = ${currentIndex};
   
@@ -141,10 +131,24 @@ map.on('load', () => {
     
     const el = document.createElement('div');
     el.className = 'treasure-marker' + (index === currentIndex ? ' marker-active' : '');
-    el.style.backgroundImage = 'url(' + stage.imageUri + ')';
+    
+    const img = document.createElement('img');
+    img.src = stage.imageUri || '';
+    img.alt = stage.title || 'Badge';
+    img.onerror = function() {
+      this.style.display = 'none';
+      if (!el.querySelector('.badge-fallback')) {
+        const fallback = document.createElement('span');
+        fallback.className = 'badge-fallback';
+        fallback.textContent = '🏆';
+        fallback.style.fontSize = (index === currentIndex ? '24px' : '18px');
+        el.appendChild(fallback);
+      }
+    };
+    el.appendChild(img);
     
     el.addEventListener('click', () => {
-      map.flyTo({ center: [stage.lng, stage.lat - 0.025], zoom: 12.5, duration: 1500, pitch: 0 });
+      map.flyTo({ center: [stage.lng, stage.lat], zoom: 11, duration: 1200, pitch: 0 });
       if (index === currentIndex) {
         window.ReactNativeWebView && window.ReactNativeWebView.postMessage(
           JSON.stringify({ type: 'MARKER_PRESS', id: stage.id })
@@ -152,19 +156,11 @@ map.on('load', () => {
       }
     });
     
-    new mapboxgl.Marker({ element: el, pitchAlignment: 'map', rotationAlignment: 'map' })
+    new mapboxgl.Marker({ element: el, anchor: 'center' })
       .setLngLat([stage.lng, stage.lat])
       .addTo(map);
   });
-  
-  const updateMarkerScale = () => {
-    const scale = Math.max(0.35, Math.min(1, (map.getZoom() - 6.5) / 5.5));
-    document.documentElement.style.setProperty('--marker-scale', scale);
-  };
-  map.on('zoom', updateMarkerScale);
-  updateMarkerScale();
-  
-  window.map = map;
+    window.map = map;
 });
 </script>
 </body>
@@ -211,17 +207,39 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
         const landmarks = await mapApi.getLandmarks();
         const stages = landmarks
           .filter(l => l.badge && l.quests && l.quests.length > 0)
-          .map(l => ({
-            id: l.id,
-            badgeId: l.badge!.id,
-            title: l.badge!.title,
-            badgeImage: BADGE_IMAGES[l.badge!.image] || BADGE_IMAGES['1.png'],
-            location: l.name,
-            lng: l.lng,
-            lat: l.lat,
-            questId: l.quests[0].id,
-            questions: []
-          }));
+          .map(l => {
+            const rawImg = l.badge?.image || '';
+            let resolvedSource: any = BADGE_IMAGES[rawImg];
+            let webUri = '';
+
+            if (resolvedSource) {
+              try {
+                webUri = Image.resolveAssetSource(resolvedSource)?.uri || '';
+              } catch (_) {}
+            } else if (rawImg) {
+              const fullUrl = getMediaUrl(rawImg);
+              resolvedSource = { uri: fullUrl };
+              webUri = fullUrl || '';
+            } else {
+              resolvedSource = BADGE_IMAGES['1.png'];
+              try {
+                webUri = Image.resolveAssetSource(resolvedSource)?.uri || '';
+              } catch (_) {}
+            }
+
+            return {
+              id: l.id,
+              badgeId: l.badge!.id,
+              title: l.badge!.title,
+              badgeImage: resolvedSource,
+              imageUri: webUri,
+              location: l.name,
+              lng: Number(l.lng),
+              lat: Number(l.lat),
+              questId: l.quests[0].id,
+              questions: []
+            };
+          });
 
         // Enforce the intended linear progression by sorting by quest ID (insertion order)
         stages.sort((a, b) => a.questId - b.questId);
@@ -232,7 +250,6 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
     };
     loadStages();
   }, []);
-
   const isGameActive = useRef(false);
 
   useEffect(() => {
@@ -274,11 +291,37 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
   const unlockPlayer = useAudioPlayer(require('../../../../assets/sounds/inside-map/badge-unlocked.mp3'));
   const musicPlayer = useAudioPlayer(require('../../../../assets/sounds/inside-map/treasure-hunt-music.mp3'));
 
-  useEffect(() => {
-    musicPlayer.loop = true;
-    musicPlayer.volume = 0.45;
-    musicPlayer.play();
-  }, [musicPlayer]);
+  // Stop/play music based on screen focus and app active state
+  useFocusEffect(
+    React.useCallback(() => {
+      let isFocused = true;
+      try {
+        musicPlayer.loop = true;
+        musicPlayer.volume = 0.45;
+        musicPlayer.play();
+      } catch (err) {
+        console.log('Failed to play treasure hunt music', err);
+      }
+
+      const subscription = AppState.addEventListener('change', (nextAppState) => {
+        if (nextAppState === 'active' && isFocused) {
+          try { musicPlayer.play(); } catch (_) {}
+        } else {
+          try { musicPlayer.pause(); } catch (_) {}
+        }
+      });
+
+      return () => {
+        isFocused = false;
+        subscription.remove();
+        try {
+          musicPlayer.pause();
+        } catch (err) {
+          console.log('Failed to pause treasure hunt music', err);
+        }
+      };
+    }, [musicPlayer])
+  );
 
   useEffect(() => {
     Animated.spring(introAnimY, { toValue: showIntro ? 0 : SCREEN_HEIGHT, useNativeDriver: true, friction: 8, tension: 40 }).start();
@@ -353,7 +396,8 @@ export const TreasureHuntScreen: React.FC<TreasureHuntProps> = ({ onNavigate }) 
       {MAPBOX_TOKEN && isReady && adventureStages.length > 0 ? (
         <WebView
           ref={webviewRef}
-          source={{ html: buildTreasureMapHTML(MAPBOX_TOKEN, adventureStages.map(s => ({ ...s, imageUri: Image.resolveAssetSource(s.badgeImage).uri })), currentStageIndex) }}
+          key={`treasure-map-${currentStageIndex}-${adventureStages.length}`}
+          source={{ html: buildTreasureMapHTML(MAPBOX_TOKEN, adventureStages, currentStageIndex) }}
           style={StyleSheet.absoluteFillObject}
           onMessage={(event) => { try { const data = JSON.parse(event.nativeEvent.data); if (data.type === 'MARKER_PRESS') setShowObjective(true); } catch (e) { } }}
         />
