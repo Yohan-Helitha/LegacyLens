@@ -11,18 +11,21 @@ import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
+import lk.ac.sliit.legacylens.marketplace.event.ApplicationDecidedEvent;
+import lk.ac.sliit.legacylens.marketplace.matching.LanguageSkills;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
+import lk.ac.sliit.legacylens.messaging.service.ConversationOpener;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -44,16 +47,25 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
     private final OpportunityRepository opportunityRepository;
     private final UserRepository userRepository;
     private final JobRepository jobRepository;
+    private final ConversationOpener conversationOpener;
+    private final OpportunityApplicationResponseMapper responseMapper;
+    private final ApplicationEventPublisher events;
 
     public OpportunityApplicationServiceImpl(
             OpportunityApplicationRepository opportunityApplicationRepository,
             OpportunityRepository opportunityRepository,
             UserRepository userRepository,
-            JobRepository jobRepository) {
+            JobRepository jobRepository,
+            ConversationOpener conversationOpener,
+            OpportunityApplicationResponseMapper responseMapper,
+            ApplicationEventPublisher events) {
         this.opportunityApplicationRepository = opportunityApplicationRepository;
         this.opportunityRepository = opportunityRepository;
         this.userRepository = userRepository;
         this.jobRepository = jobRepository;
+        this.conversationOpener = conversationOpener;
+        this.responseMapper = responseMapper;
+        this.events = events;
     }
 
     @Override
@@ -75,6 +87,12 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
                     "This application has already been submitted and can no longer be edited.");
         }
 
+        // Checked before anything is stored: a language without a level is a mistake, not a draft.
+        List<String> languages = request.getLanguages();
+        application.setLanguages(languages == null || languages.isEmpty()
+                ? ""
+                : LanguageSkills.serialize(LanguageSkills.parseSubmitted(languages)));
+
         application.setCreator(creator);
         application.setOpportunity(opportunity);
         application.setSkills(joinOrEmpty(request.getSkills()));
@@ -85,14 +103,14 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         application.setStatus(OpportunityApplicationStatus.SAVED);
 
         OpportunityApplication saved = opportunityApplicationRepository.save(application);
-        return mapToResponse(saved);
+        return responseMapper.toResponse(saved);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OpportunityApplicationResponse> getMyApplications(UUID creatorId) {
         return opportunityApplicationRepository.findByCreatorIdOrderBySavedAtDesc(creatorId).stream()
-                .map(this::mapToResponse)
+                .map(responseMapper::toResponse)
                 .collect(Collectors.toList());
     }
 
@@ -100,7 +118,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
     @Transactional(readOnly = true)
     public Optional<OpportunityApplicationResponse> getByOpportunity(UUID creatorId, UUID opportunityId) {
         return opportunityApplicationRepository.findByCreatorIdAndOpportunityId(creatorId, opportunityId)
-                .map(this::mapToResponse);
+                .map(responseMapper::toResponse);
     }
 
     @Override
@@ -117,7 +135,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         application.setStatus(OpportunityApplicationStatus.PENDING);
         application.setSubmittedAt(LocalDateTime.now());
 
-        return mapToResponse(opportunityApplicationRepository.save(application));
+        return responseMapper.toResponse(opportunityApplicationRepository.save(application));
     }
 
     @Override
@@ -133,7 +151,9 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
 
         application.setStatus(OpportunityApplicationStatus.APPROVED);
 
-        return mapToResponse(opportunityApplicationRepository.save(application));
+        OpportunityApplicationResponse response = responseMapper.toResponse(opportunityApplicationRepository.save(application));
+        announceDecision(application, OpportunityApplicationStatus.APPROVED);
+        return response;
     }
 
     @Override
@@ -149,7 +169,9 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
 
         application.setStatus(OpportunityApplicationStatus.REJECTED);
 
-        return mapToResponse(opportunityApplicationRepository.save(application));
+        OpportunityApplicationResponse response = responseMapper.toResponse(opportunityApplicationRepository.save(application));
+        announceDecision(application, OpportunityApplicationStatus.REJECTED);
+        return response;
     }
 
     @Override
@@ -181,13 +203,33 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         job.setApplicationId(application.getId());
         jobRepository.save(job);
 
+        // A booked job always gets a chat with the elder, so the two can plan the visit.
+        conversationOpener.openConversation(opportunity.getElder().getId(), application.getCreator().getId(), opportunity.getId());
+
         application.setStatus(OpportunityApplicationStatus.BOOKED);
 
-        return mapToResponse(opportunityApplicationRepository.save(application));
+        return responseMapper.toResponse(opportunityApplicationRepository.save(application));
+    }
+
+    /** Same phone notification the knowledge holder's real decision sends, so the temporary test buttons exercise it too. */
+    private void announceDecision(OpportunityApplication application, OpportunityApplicationStatus decision) {
+        events.publishEvent(new ApplicationDecidedEvent(
+                application.getCreator().getId(), application.getId(), application.getOpportunity().getTitle(),
+                application.getOpportunity().getElder().getFullName(), application.getOpportunity().isUrgent(), decision));
     }
 
     private static String formatTimeWindow(LocalTime start, LocalTime end) {
         return start.format(TIME_LABEL_FORMAT) + " - " + end.format(TIME_LABEL_FORMAT);
+    }
+
+    @Override
+    @Transactional
+    public void markRejectedSeen(UUID creatorId) {
+        LocalDateTime now = LocalDateTime.now();
+        List<OpportunityApplication> unseen = opportunityApplicationRepository
+                .findByCreatorIdAndStatusAndRejectionSeenAtIsNull(creatorId, OpportunityApplicationStatus.REJECTED);
+        unseen.forEach(application -> application.setRejectionSeenAt(now));
+        opportunityApplicationRepository.saveAll(unseen);
     }
 
     @Override
@@ -198,40 +240,6 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
 
         opportunityApplicationRepository.delete(application);
-    }
-
-    private OpportunityApplicationResponse mapToResponse(OpportunityApplication application) {
-        Opportunity opportunity = application.getOpportunity();
-
-        return OpportunityApplicationResponse.builder()
-                .id(application.getId())
-                .opportunityId(opportunity.getId())
-                .title(opportunity.getTitle())
-                .elderName(opportunity.getElder().getFullName())
-                .location(opportunity.getLocation())
-                .heroImageUrl(opportunity.getHeroImageUrl())
-                .scheduledDate(opportunity.getScheduledDate())
-                .timeWindowText(opportunity.getTimeWindowText())
-                .offeredAmount(opportunity.getOfferedAmount())
-                .skills(splitCsv(application.getSkills()))
-                .experienceText(application.getExperienceText())
-                .approachText(application.getApproachText())
-                .availabilityConfirmed(application.isAvailabilityConfirmed())
-                .equipment(splitCsv(application.getEquipment()))
-                .status(application.getStatus().name())
-                .savedAt(application.getSavedAt())
-                .submittedAt(application.getSubmittedAt())
-                .build();
-    }
-
-    private static List<String> splitCsv(String value) {
-        if (value == null || value.isBlank()) {
-            return List.of();
-        }
-        return Arrays.stream(value.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toList());
     }
 
     private static String joinOrEmpty(List<String> items) {

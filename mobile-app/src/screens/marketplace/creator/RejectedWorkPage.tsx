@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { WorkStatusChip } from '../../../components/module-specific/marketplace/WorkStatusChip';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -7,6 +8,7 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
+import { ReviewerFeedback, hasReviewerFeedback } from '../../../components/module-specific/marketplace/ReviewerFeedback';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
 import { workProgressApi } from '../../../services/api/workProgressApi';
 import type { JobResponse } from '../../../types/creatorDashboard';
@@ -76,9 +78,9 @@ const ClockIcon: React.FC<{ size?: number; color?: string }> = ({ size = 13, col
 const RejectedCard: React.FC<{
   job: JobResponse;
   heroImageUrl: string | null;
-  rejectionReason: string | null;
+  progress: WorkProgressResponse | undefined;
   onEdit: () => void;
-}> = ({ job, heroImageUrl, rejectionReason, onEdit }) => {
+}> = ({ job, heroImageUrl, progress, onEdit }) => {
   const dateTimeText = formatDateTime(job.scheduledAt, job.timeWindowText);
 
   return (
@@ -91,6 +93,8 @@ const RejectedCard: React.FC<{
           accessibilityLabel={job.title}
         />
       </View>
+
+      <WorkStatusChip status={progress?.workStatus ?? 'REJECTED'} />
 
       <Text style={s.cardTitle} numberOfLines={2}>{job.title}</Text>
 
@@ -111,10 +115,26 @@ const RejectedCard: React.FC<{
         </View>
       )}
 
-      <View style={s.reasonBox}>
-        <Text style={s.reasonTitle}>What needs to be fixed</Text>
-        <Text style={s.reasonText}>{rejectionReason ?? 'An admin sent this back — please review and resubmit.'}</Text>
-      </View>
+      <Text style={s.reasonHeading}>What needs to be fixed</Text>
+      {!!progress?.rejectionReason && (
+        <View style={s.reasonBox}>
+          <Text style={s.reasonText}>{progress.rejectionReason}</Text>
+        </View>
+      )}
+      {hasReviewerFeedback(progress?.elderFeedback, progress?.adminFeedback) ? (
+        <ReviewerFeedback
+          elderFeedback={progress?.elderFeedback}
+          elderFeedbackAt={progress?.elderFeedbackAt}
+          adminFeedback={progress?.adminFeedback}
+          adminFeedbackAt={progress?.adminFeedbackAt}
+        />
+      ) : (
+        !progress?.rejectionReason && (
+          <View style={s.reasonBox}>
+            <Text style={s.reasonText}>Your reviewers sent this back - please review and resubmit.</Text>
+          </View>
+        )
+      )}
 
       <Pressable
         onPress={onEdit}
@@ -228,7 +248,7 @@ export const RejectedWorkPage: React.FC<{
                 key={job.id}
                 job={job}
                 heroImageUrl={progress?.heroImageUrl ?? null}
-                rejectionReason={progress?.rejectionReason ?? null}
+                progress={progress}
                 onEdit={() => onEditWork(job.id, job.title, job.elderName, job.location)}
               />
             );
@@ -299,8 +319,9 @@ const s = StyleSheet.create({
   reasonBox: {
     backgroundColor: D.dangerContainer, borderRadius: Radii.lg,
     borderWidth: 1, borderColor: D.danger,
-    padding: Spacing.sm, marginTop: Spacing.md, gap: 2,
+    padding: Spacing.sm, marginBottom: 6, gap: 2,
   },
+  reasonHeading: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.danger, marginTop: Spacing.md, marginBottom: 6 },
   reasonTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.danger },
   reasonText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeXS, color: D.onSurface },
 

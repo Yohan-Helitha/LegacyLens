@@ -2,6 +2,7 @@ package lk.ac.sliit.legacylens.config;
 
 import lk.ac.sliit.legacylens.auth.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -12,6 +13,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+
 /**
  * Spring Security configuration.
  * Auth endpoints are public.
@@ -20,6 +23,7 @@ import org.springframework.security.web.SecurityFilterChain;
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -31,6 +35,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                .cors(org.springframework.security.config.Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -51,19 +56,41 @@ public class SecurityConfig {
                         // permitAll-ing any of those would leave them reachable by
                         // anyone with no login at all. See the merge commit message
                         // for the related admin-registration gap this also surfaced.
+                        // Creator verification documents (NIC photos etc.) are private:
+                        // the stored files are never served directly, only through the
+                        // owner's short-lived link (CreatorProofController). This rule
+                        // must come before the /uploads/** one below.
+                        .requestMatchers("/uploads/creator-proofs/**").denyAll()
+                        .requestMatchers(HttpMethod.GET, "/api/creator-proofs/*").permitAll()
+                        // Admin endpoints list every user's full NIC and phone number, so a
+                        // plain login is not enough - only accounts holding the ADMIN role.
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/cities/**",
                                 "/uploads/**",
+                                "/stories/**",
                                 "/api/home/**",
+                                "/api/v1/discovery/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/swagger-resources/**",
                                 "/swagger-ui.html",
-                                "/webjars/**")
+                                "/webjars/**",
+                                "/api/learning/certificates/verify/**")
+                        .permitAll()
+                        .requestMatchers(
+                                org.springframework.http.HttpMethod.GET,
+                                "/api/learning/tracks",
+                                "/api/learning/tracks/**",
+                                "/api/learning/builder/content")
+                        .permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/tags/**")
                         .permitAll()
                         // Everything else requires authentication
                         .anyRequest().authenticated())
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(new org.springframework.security.web.authentication.HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED)))
                 // Without this, JwtAuthenticationFilter is never invoked and every
                 // Bearer-token request falls through as anonymous — see the class's
                 // own javadoc; it exists specifically to populate SecurityContext.

@@ -6,6 +6,8 @@ import { AuthService } from '../../app/core/services/auth.service';
 import { AuditService } from '../../app/core/services/audit.service';
 import { SidebarComponent } from '../../components/common/sidebar/sidebar.component';
 import { HeaderComponent } from '../../components/common/header/header.component';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export interface AuditActivity {
   id: string;
@@ -45,6 +47,47 @@ export interface AuditActivity {
         </div>
       }
 
+      <!-- Export PDF Modal -->
+      @if (showExportPdfModal()) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col border border-[#c2c8c7]">
+            <div class="px-6 py-4 border-b border-[#dde3eb] flex items-center justify-between bg-[#f8faf9]">
+              <div class="flex items-center gap-2 text-[#004343]">
+                <span class="material-symbols-outlined">picture_as_pdf</span>
+                <h3 class="font-serif font-bold text-lg">Export to PDF</h3>
+              </div>
+              <button (click)="showExportPdfModal.set(false)" class="text-[#6e7978] hover:text-[#191c1c] transition-colors">
+                <span class="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+            
+            <div class="p-6 space-y-4">
+              <p class="text-sm text-[#3e4948]">Select a date range for the PDF report. The export will include currently filtered logs within this range.</p>
+              
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-[#3e4948] mb-1">From</label>
+                  <input type="date" [(ngModel)]="exportDateFrom" class="w-full bg-[#f8faf9] text-xs font-semibold px-3 py-2 rounded-xl border border-[#c2c8c7] focus:bg-white focus:outline-none focus:border-[#004343]" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-[#3e4948] mb-1">To</label>
+                  <input type="date" [(ngModel)]="exportDateTo" class="w-full bg-[#f8faf9] text-xs font-semibold px-3 py-2 rounded-xl border border-[#c2c8c7] focus:bg-white focus:outline-none focus:border-[#004343]" />
+                </div>
+              </div>
+            </div>
+            
+            <div class="px-6 py-4 bg-[#f8faf9] border-t border-[#dde3eb] flex justify-end gap-2">
+              <button (click)="showExportPdfModal.set(false)" class="px-4 py-2 text-xs font-bold text-[#3e4948] hover:bg-[#dde3eb] rounded-xl transition-colors">
+                Cancel
+              </button>
+              <button (click)="downloadPdf()" class="px-4 py-2 bg-[#004343] text-white text-xs font-bold rounded-xl hover:bg-[#003131] transition-all shadow-sm">
+                Generate PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
       <!-- Reusable Sidebar Component -->
       <app-sidebar></app-sidebar>
 
@@ -56,19 +99,6 @@ export interface AuditActivity {
           pageTitle="Audit Log" 
           section="Console"
           searchPlaceholder="Search by admin name, ref code, or action...">
-          <div class="hidden sm:flex items-center gap-2">
-            <button (click)="printLog()"
-                    class="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#c2c8c7] rounded-xl text-xs font-semibold text-[#3e4948] hover:bg-[#f2f4f7] transition-colors shadow-xs">
-              <span class="material-symbols-outlined text-base text-[#6e7978]">print</span>
-              <span>Print</span>
-            </button>
-
-            <button (click)="exportLogCsv()"
-                    class="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#004343] text-white rounded-xl text-xs font-semibold hover:bg-[#003131] transition-all shadow-xs shadow-[#004343]/20">
-              <span class="material-symbols-outlined text-base">download</span>
-              <span>Export CSV</span>
-            </button>
-          </div>
         </app-header>
 
         <!-- Main Body Scroll Container -->
@@ -104,6 +134,18 @@ export interface AuditActivity {
             </div>
 
             <div class="flex items-center gap-2 self-start xl:self-auto flex-wrap">
+              <button (click)="exportLogCsv()"
+                      class="flex items-center gap-1.5 px-3 py-2 bg-[#004343] text-white rounded-xl text-xs font-bold hover:bg-[#003131] transition-all shadow-xs shadow-[#004343]/20">
+                <span class="material-symbols-outlined text-sm">download</span>
+                <span>Export CSV</span>
+              </button>
+              
+              <button (click)="showExportPdfModal.set(true)"
+                      class="flex items-center gap-1.5 px-3 py-2 bg-[#9b4600] text-white rounded-xl text-xs font-bold hover:bg-[#7a3700] transition-all shadow-xs shadow-[#9b4600]/20">
+                <span class="material-symbols-outlined text-sm">picture_as_pdf</span>
+                <span>Export PDF</span>
+              </button>
+
               <button (click)="refreshFeed()" class="flex items-center gap-1.5 px-3 py-2 bg-white border border-[#dde3eb] rounded-xl text-xs font-bold text-[#191c1c] hover:bg-[#f2f4f3] transition-colors shadow-xs">
                 <span class="material-symbols-outlined text-sm text-[#004343]">refresh</span>
                 <span>Refresh Feed</span>
@@ -435,6 +477,11 @@ export class AuditComponent implements OnInit {
   isLoading = signal<boolean>(true);
   hasError = signal<boolean>(false);
 
+  // Export PDF Modal
+  showExportPdfModal = signal<boolean>(false);
+  exportDateFrom = '';
+  exportDateTo = '';
+
   searchQuery = signal<string>('');
   selectedAdmin = signal<string>('ALL');
   selectedActionType = signal<string>('ALL');
@@ -546,6 +593,62 @@ export class AuditComponent implements OnInit {
     a.click();
     URL.revokeObjectURL(url);
     this.showToast('Audit log exported as CSV.');
+  }
+
+  downloadPdf(): void {
+    const doc = new jsPDF();
+    const adminName = 'Admin'; // Get from Auth if available
+    
+    doc.setFontSize(18);
+    doc.text('LegacyLens', 14, 20);
+    
+    doc.setFontSize(11);
+    doc.text(`Generated by: ${adminName}`, 14, 28);
+    
+    let dateText = 'Date: All Time';
+    if (this.exportDateFrom && this.exportDateTo) {
+      dateText = `Date: ${this.exportDateFrom} to ${this.exportDateTo}`;
+    } else if (this.exportDateFrom) {
+      dateText = `Date: From ${this.exportDateFrom}`;
+    } else if (this.exportDateTo) {
+      dateText = `Date: Until ${this.exportDateTo}`;
+    }
+    doc.text(dateText, 14, 34);
+
+    let filteredData = this.filteredActivities();
+
+    if (this.exportDateFrom) {
+      const from = new Date(this.exportDateFrom).getTime();
+      filteredData = filteredData.filter(log => new Date(log.date).getTime() >= from);
+    }
+    if (this.exportDateTo) {
+      const toDate = new Date(this.exportDateTo);
+      toDate.setDate(toDate.getDate() + 1);
+      const to = toDate.getTime();
+      filteredData = filteredData.filter(log => new Date(log.date).getTime() < to);
+    }
+
+    const tableData = filteredData.map(log => [
+      log.date,
+      log.time,
+      log.adminName,
+      log.actionTaken,
+      log.targetTitle,
+      log.targetCategory,
+      log.statusBadge
+    ]);
+
+    autoTable(doc, {
+      startY: 40,
+      head: [['Date', 'Time', 'Admin', 'Action', 'Target', 'Category', 'Status']],
+      body: tableData,
+      theme: 'grid',
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [0, 67, 67] }
+    });
+
+    doc.save('audit-log.pdf');
+    this.showExportPdfModal.set(false);
   }
 
   refreshFeed(): void {

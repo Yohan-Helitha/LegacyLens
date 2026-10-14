@@ -24,7 +24,18 @@ public class ModerationSchemaInitializer implements CommandLineRunner {
                 jdbcTemplate.execute("ALTER TABLE stories ADD COLUMN IF NOT EXISTS likes_count INTEGER DEFAULT 0");
                 jdbcTemplate.execute("ALTER TABLE stories ADD COLUMN IF NOT EXISTS comments_count INTEGER DEFAULT 0");
                 jdbcTemplate.execute("ALTER TABLE feed_item_comments ADD COLUMN IF NOT EXISTS story_id UUID");
+                jdbcTemplate.execute("ALTER TABLE feed_item_comments ADD COLUMN IF NOT EXISTS user_id VARCHAR(255)");
+                jdbcTemplate.execute("ALTER TABLE feed_item_comments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP");
+                jdbcTemplate.execute("ALTER TABLE feed_item_comments ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()");
                 jdbcTemplate.execute("ALTER TABLE feed_item_comments ALTER COLUMN feed_item_id DROP NOT NULL");
+
+                jdbcTemplate.execute("ALTER TABLE featured_keepers ADD COLUMN IF NOT EXISTS story_id VARCHAR(100)");
+                jdbcTemplate.execute("ALTER TABLE featured_keepers ADD COLUMN IF NOT EXISTS story_title VARCHAR(255)");
+                jdbcTemplate.execute("ALTER TABLE featured_keepers ADD COLUMN IF NOT EXISTS active_date DATE");
+                jdbcTemplate.execute("ALTER TABLE featured_keepers ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'Active'");
+                jdbcTemplate.execute("ALTER TABLE featured_keepers ADD COLUMN IF NOT EXISTS generated_by_ai BOOLEAN DEFAULT FALSE");
+                jdbcTemplate.execute("ALTER TABLE featured_keepers ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()");
+                jdbcTemplate.execute("ALTER TABLE featured_keepers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()");
 
                 jdbcTemplate.execute("""
                     CREATE TABLE IF NOT EXISTS story_quizzes (

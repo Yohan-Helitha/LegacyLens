@@ -1,9 +1,14 @@
-import { Component, signal, computed, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, signal, computed, OnInit, OnDestroy, inject, NgZone, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../app/core/services/auth.service';
 import { OpportunityService } from '../../app/core/services/opportunity.service';
+import { MapService } from '../../app/core/services/map.service';
+import { environment } from '../../environments/environment';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   AdminOpportunityResponse,
   OpportunityAudioResponse,
@@ -11,6 +16,8 @@ import {
 } from '../../app/core/models/opportunity.model';
 import { SidebarComponent } from '../../components/common/sidebar/sidebar.component';
 import { HeaderComponent } from '../../components/common/header/header.component';
+
+declare const mapboxgl: any;
 
 export type TopSection = 'intake' | 'opportunities';
 export type ViewState = 'intake_queue' | 'intake_review' | 'opp_hub' | 'opp_create';
@@ -96,6 +103,49 @@ export interface OpportunityItem {
           </span>
           <div class="text-xs font-semibold">{{ toastMessage() }}</div>
           <button (click)="toastMessage.set(null)" class="text-white/70 hover:text-white ml-2 text-xs">✕</button>
+        </div>
+      }
+
+      <!-- Export PDF Modal -->
+      @if (showExportPdfModal()) {
+        <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-[#dde3eb]">
+            <h3 class="text-lg font-bold text-[#004343] mb-4 font-serif">Export Opportunities to PDF</h3>
+            
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-[#191c1c] mb-1 uppercase tracking-wider">From Date</label>
+                <input 
+                  type="date" 
+                  [(ngModel)]="exportDateFrom"
+                  class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3 py-2 text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:ring-1 focus:ring-[#004343]"
+                />
+              </div>
+              
+              <div>
+                <label class="block text-xs font-bold text-[#191c1c] mb-1 uppercase tracking-wider">To Date</label>
+                <input 
+                  type="date" 
+                  [(ngModel)]="exportDateTo"
+                  class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl px-3 py-2 text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:ring-1 focus:ring-[#004343]"
+                />
+              </div>
+            </div>
+
+            <div class="mt-6 flex items-center justify-end gap-3">
+              <button 
+                (click)="showExportPdfModal.set(false)"
+                class="px-4 py-2 bg-[#f2f4f3] hover:bg-[#e1e3e2] text-[#3f4948] rounded-xl text-xs font-bold transition-colors cursor-pointer">
+                Cancel
+              </button>
+              <button 
+                (click)="downloadPdf()"
+                class="px-4 py-2 bg-[#004343] hover:bg-[#003131] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-sm">download</span>
+                <span>Download PDF</span>
+              </button>
+            </div>
+          </div>
         </div>
       }
 
@@ -854,6 +904,14 @@ export interface OpportunityItem {
                     </button>
                   </div>
 
+                  <!-- Export PDF Button -->
+                  <button 
+                    (click)="showExportPdfModal.set(true)"
+                    class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer">
+                    <span class="material-symbols-outlined text-sm">picture_as_pdf</span>
+                    <span>Export PDF</span>
+                  </button>
+
                   <!-- New Opportunity Button -->
                   <button 
                     (click)="startNewOpportunity()"
@@ -1111,7 +1169,7 @@ export interface OpportunityItem {
 
                             <!-- Host + Location -->
                             <div class="flex items-center gap-2.5 pt-2 border-t border-[#f2f4f3] text-xs text-[#3f4948]">
-                              <img [src]="opp.elderAvatarUrl" class="w-7 h-7 rounded-full object-cover border border-[#dde3eb]" />
+                              <img [src]="opp.elderAvatarUrl" alt="" class="w-7 h-7 rounded-full object-cover border border-[#dde3eb]" />
                               <div class="min-w-0 flex-1 truncate">
                                 <span class="font-bold text-[#191c1c]">{{ opp.elderName }}</span>
                                 <span class="text-[#6f7978] block text-[11px] truncate">{{ opp.location }}</span>
@@ -1165,7 +1223,7 @@ export interface OpportunityItem {
                     @for (item of filteredRemovedOpportunities(); track item.id) {
                       <div class="bg-white border border-[#dde3eb] rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
                         <div class="flex items-center gap-3">
-                          <img [src]="item.heroImageUrl" class="w-16 h-16 rounded-xl object-cover opacity-80" />
+                          <img [src]="item.heroImageUrl" alt="" class="w-16 h-16 rounded-xl object-cover opacity-80" />
                           <div>
                             <div class="flex items-center gap-2 mb-1">
                               <span class="px-2 py-0.5 rounded bg-gray-200 text-gray-700 text-[10px] font-bold">ARCHIVED</span>
@@ -1290,7 +1348,7 @@ export interface OpportunityItem {
                       
                       @if (oppCoverImage()) {
                         <div class="relative h-48 sm:h-56 rounded-xl overflow-hidden border border-[#dde3eb]">
-                          <img [src]="oppCoverImage()" class="w-full h-full object-cover" />
+                          <img [src]="oppCoverImage()" alt="Opportunity cover image" class="w-full h-full object-cover" />
                           <div class="absolute top-2.5 right-2.5 flex items-center gap-1.5">
                             <button 
                               (click)="deviceFileInput.click()" 
@@ -1350,7 +1408,7 @@ export interface OpportunityItem {
                       <span class="material-symbols-outlined absolute left-3 top-2.5 text-[#6f7978] text-sm">search</span>
                       <input 
                         type="text" 
-                        [(ngModel)]="holderSearchQuery" 
+                        [ngModel]="holderSearchQuery()" (ngModelChange)="holderSearchQuery.set($event)" 
                         placeholder="Search knowledge custodians by name, craft, or district..."
                         class="w-full bg-[#f8faf9] border border-[#dde3eb] rounded-xl pl-9 pr-4 py-2 text-xs text-[#191c1c] focus:outline-none focus:border-[#004343] focus:bg-white"
                       />
@@ -1412,99 +1470,108 @@ export interface OpportunityItem {
                         
                         @if (isLocationSaved()) {
                           <span class="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                            <span class="material-symbols-outlined text-xs">check_circle</span>
+                            <span class="material-symbols-outlined text-xs">verified</span>
                             <span>Location Confirmed</span>
+                          </span>
+                        } @else {
+                          <span class="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <span class="material-symbols-outlined text-xs">pin_drop</span>
+                            <span>Positioning Pin</span>
                           </span>
                         }
                       </div>
 
                       <!-- Search & Locate Input -->
-                      <div class="flex items-center gap-2">
-                        <div class="relative flex-1">
-                          <span class="material-symbols-outlined absolute left-3 top-2.5 text-[#6f7978] text-sm">search</span>
-                          <input 
-                            type="text" 
-                            [(ngModel)]="oppLocationText" 
-                            (keyup.enter)="handleLocationSearch()"
-                            placeholder="Enter site location, district, or town..."
-                            class="w-full bg-white border border-[#c2c8c7] rounded-xl pl-9 pr-3 py-2 text-xs text-[#191c1c] focus:ring-1 focus:ring-[#004343] focus:outline-none"
-                          />
+                      <div class="relative">
+                        <div class="flex items-center gap-2">
+                          <div class="relative flex-1">
+                            <span class="material-symbols-outlined absolute left-3 top-2.5 text-[#6f7978] text-sm">search</span>
+                            <input 
+                              type="text" 
+                              [ngModel]="oppLocationText()" (ngModelChange)="oppLocationText.set($event)" 
+                              (keyup.enter)="handleLocationSearch()"
+                              placeholder="Enter site location, district, or town..."
+                              class="w-full bg-white border border-[#c2c8c7] rounded-xl pl-9 pr-8 py-2 text-xs text-[#191c1c] focus:ring-1 focus:ring-[#004343] focus:outline-none"
+                            />
+                            @if (isSearchingMap()) {
+                              <span class="material-symbols-outlined absolute right-2.5 top-2.5 text-[#004343] text-sm animate-spin">progress_activity</span>
+                            }
+                          </div>
+                          <button 
+                            (click)="handleLocationSearch()"
+                            [disabled]="isSearchingMap() || !oppLocationText().trim()"
+                            class="px-3.5 py-2 bg-[#004343] hover:bg-[#003131] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 disabled:opacity-50 flex items-center gap-1.5 shadow-xs">
+                            <span class="material-symbols-outlined text-sm">near_me</span>
+                            <span>Locate</span>
+                          </button>
                         </div>
-                        <button 
-                          (click)="handleLocationSearch()"
-                          class="px-3 py-2 bg-[#f2f4f3] hover:bg-[#e1e3e2] text-[#004343] rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0">
-                          Locate
-                        </button>
+
+                        <!-- Mapbox Geocoding Search Results Dropdown -->
+                        @if (showMapSearchResults() && mapSearchResults().length > 0) {
+                          <div class="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl shadow-xl border border-[#dde3eb] max-h-52 overflow-y-auto z-30 divide-y divide-[#f2f4f3] custom-scrollbar">
+                            <div class="px-3 py-1.5 bg-[#f8faf9] text-[10px] font-bold uppercase tracking-wider text-[#6f7978] flex items-center justify-between">
+                              <span>Matching Locations ({{ mapSearchResults().length }})</span>
+                              <button (click)="showMapSearchResults.set(false)" class="text-[#6f7978] hover:text-[#191c1c] text-xs">✕</button>
+                            </div>
+                            @for (item of mapSearchResults(); track item.id) {
+                              <div 
+                                (click)="selectLocationSearchResult(item)"
+                                class="px-3 py-2 text-xs hover:bg-[#f0f4f4] flex items-center justify-between text-[#191c1c] transition-colors cursor-pointer">
+                                <div class="flex items-center gap-2 truncate pr-2">
+                                  <span class="material-symbols-outlined text-[#fe893e] text-sm shrink-0">location_on</span>
+                                  <span class="truncate font-medium">{{ item.placeName }}</span>
+                                </div>
+                                <span class="text-[10px] text-[#004343] font-semibold shrink-0">Select</span>
+                              </div>
+                            }
+                          </div>
+                        }
                       </div>
 
-                      <!-- Quick Region Preset Chips -->
-                      <div>
-                        <span class="text-[10px] font-bold text-[#6f7978] uppercase tracking-wider block mb-1">Quick Select Region:</span>
-                        <div class="flex flex-wrap gap-1.5">
-                          @for (preset of mapPresets; track preset.name) {
-                            <button 
-                              (click)="selectMapPreset(preset)"
-                              class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white hover:bg-[#004343] hover:text-white text-[#3f4948] border border-[#dde3eb] transition-colors cursor-pointer">
-                              {{ preset.name }}
-                            </button>
-                          }
-                        </div>
-                      </div>
+                      <!-- Interactive Mapbox Canvas -->
+                      <div class="relative w-full h-64 sm:h-72 rounded-xl overflow-hidden border border-[#dde3eb] bg-[#f0f4f4] shadow-inner select-none group">
+                        <div id="opp-intake-mapbox" class="w-full h-full"></div>
 
-                      <!-- Interactive Map Canvas -->
-                      <div 
-                        (click)="onMapClick($event)"
-                        [class]="isLocationSaved() ? 'cursor-default' : 'cursor-crosshair'"
-                        class="relative h-48 sm:h-56 rounded-xl overflow-hidden border border-[#dde3eb] bg-[#004343] shadow-inner select-none group">
-                        
-                        <!-- Map Background Cartography Canvas -->
-                        <div 
-                          class="absolute inset-0 bg-cover bg-center opacity-85 group-hover:scale-101 transition-transform" 
-                          style="background-image: url('https://images.unsplash.com/photo-1524661135-423995f22d0b?w=1000&auto=format&fit=crop&q=80')">
-                        </div>
+                        <!-- Map Loading State Overlay -->
+                        @if (isMapLoading()) {
+                          <div class="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center z-10 pointer-events-none">
+                            <div class="flex items-center gap-2 text-xs text-[#004343] font-semibold">
+                              <span class="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                              <span>Loading Mapbox...</span>
+                            </div>
+                          </div>
+                        }
 
                         <!-- Top-Left GPS HUD Badge -->
-                        <div class="absolute top-2.5 left-2.5 z-10 bg-black/75 backdrop-blur-xs text-white px-2.5 py-1 rounded-lg text-[10px] font-mono flex items-center gap-1.5">
+                        <div class="absolute top-2.5 left-2.5 z-10 bg-black/75 backdrop-blur-xs text-white px-2.5 py-1 rounded-lg text-[10px] font-mono flex items-center gap-1.5 shadow-md pointer-events-none">
                           <span class="w-1.5 h-1.5 rounded-full" [class]="isLocationSaved() ? 'bg-emerald-400' : 'bg-[#fe893e] animate-pulse'"></span>
                           <span>Lat: {{ oppMapLat() | number:'1.4-4' }}°N, Lng: {{ oppMapLng() | number:'1.4-4' }}°E</span>
                         </div>
 
-                        <!-- Interactive Pin Location Marker -->
-                        <div 
-                          class="absolute z-20 flex flex-col items-center pointer-events-none transition-all duration-300 transform -translate-x-1/2 -translate-y-full"
-                          [style.left.%]="oppMapPinX()"
-                          [style.top.%]="oppMapPinY()">
-                          <span 
-                            class="material-symbols-outlined text-3xl drop-shadow-md"
-                            [class]="isLocationSaved() ? 'text-emerald-500' : 'text-[#fe893e] animate-bounce'">
-                            location_on
-                          </span>
-                          <span class="bg-black/80 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-md whitespace-nowrap mt-[-4px]">
-                            {{ oppLocationText() || 'Target Heritage Site' }}
-                          </span>
-                        </div>
-
                         <!-- Bottom Helper Note -->
-                        @if (!isLocationSaved()) {
-                          <div class="absolute bottom-2 right-2 bg-black/60 backdrop-blur-xs text-white/90 text-[10px] px-2 py-0.5 rounded pointer-events-none">
-                            Click anywhere on map to reposition pin
-                          </div>
-                        }
+                        <div class="absolute bottom-2 right-2 z-10 bg-black/75 backdrop-blur-xs text-white/90 text-[10px] px-2.5 py-1 rounded-md shadow-md pointer-events-none flex items-center gap-1.5">
+                          <span class="material-symbols-outlined text-xs" [class]="isLocationSaved() ? 'text-emerald-400' : 'text-[#fe893e]'">
+                            {{ isLocationSaved() ? 'lock' : 'drag_pan' }}
+                          </span>
+                          <span>{{ isLocationSaved() ? 'Pin locked • Click "Change Location" to edit' : 'Drag pin or click map to locate' }}</span>
+                        </div>
                       </div>
 
                       <!-- Save / Confirm Location Button -->
                       <div class="flex items-center justify-between pt-1">
                         <span class="text-[11px] text-[#6f7978]">
-                          {{ isLocationSaved() ? 'Location confirmed and locked for this mission.' : 'Click "Save Location" once the pin is positioned.' }}
+                          {{ isLocationSaved() ? 'Pin position is confirmed and locked.' : 'Position pin on map, then confirm to lock coordinates.' }}
                         </span>
                         
                         <button 
-                          (click)="isLocationSaved.set(!isLocationSaved())"
+                          (click)="toggleLocationSaved()"
                           [disabled]="!oppLocationText().trim()"
                           [class]="isLocationSaved() ? 'bg-emerald-700 hover:bg-emerald-800 text-white' : 'bg-[#004343] hover:bg-[#003131] text-white'"
                           class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                          <span class="material-symbols-outlined text-sm">{{ isLocationSaved() ? 'edit' : 'my_location' }}</span>
-                          <span>{{ isLocationSaved() ? 'Change Pin' : 'Save Location' }}</span>
+                          <span class="material-symbols-outlined text-sm">
+                            {{ isLocationSaved() ? 'edit_location' : 'check_circle' }}
+                          </span>
+                          <span>{{ isLocationSaved() ? 'Change Location' : 'Confirm Location' }}</span>
                         </button>
                       </div>
                     </div>
@@ -1724,7 +1791,7 @@ export interface OpportunityItem {
                       
                       <div class="border-2 border-[#004343]/30 rounded-2xl overflow-hidden shadow-md bg-white max-w-md mx-auto">
                         <div class="relative h-44 bg-[#f2f4f3]">
-                          <img [src]="oppCoverImage() || sampleCoverImages[0].url" class="w-full h-full object-cover" />
+                          <img [src]="oppCoverImage() || sampleCoverImages[0].url" alt="Opportunity cover image" class="w-full h-full object-cover" />
                           <div class="absolute top-2.5 left-2.5 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                             PREVIEW
                           </div>
@@ -1735,7 +1802,7 @@ export interface OpportunityItem {
 
                         <div class="p-3.5 space-y-2.5">
                           <div class="flex items-center gap-2">
-                            <img [src]="selectedKnowledgeHolderObj()?.avatarUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80'" class="w-7 h-7 rounded-full object-cover border border-[#dde3eb]" />
+                            <img [src]="selectedKnowledgeHolderObj()?.avatarUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80'" alt="" class="w-7 h-7 rounded-full object-cover border border-[#dde3eb]" />
                             <div class="min-w-0">
                               <span class="text-xs font-bold text-[#191c1c] block truncate">Hosted by {{ selectedKnowledgeHolderObj()?.name || 'Selected Custodian' }}</span>
                               <span class="text-[10px] text-[#6f7978] block truncate">{{ oppLocationText() || 'Location TBD' }}</span>
@@ -1935,7 +2002,7 @@ export interface OpportunityItem {
             </div>
 
             <div class="bg-[#f8faf9] p-3 rounded-2xl border border-[#dde3eb] flex items-center gap-3 text-left">
-              <img [src]="oppCoverImage() || sampleCoverImages[0].url" class="w-14 h-14 rounded-xl object-cover" />
+              <img [src]="oppCoverImage() || sampleCoverImages[0].url" alt="Opportunity cover image" class="w-14 h-14 rounded-xl object-cover" />
               <div class="min-w-0 flex-1">
                 <span class="text-[10px] font-bold text-[#fe893e] uppercase">Preservation Task</span>
                 <h5 class="text-xs font-bold text-[#191c1c] truncate">{{ oppTitle() }}</h5>
@@ -2032,6 +2099,11 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   toastMessage = signal<string | null>(null);
   toastType = signal<'success' | 'warning' | 'info' | 'error'>('info');
 
+  // Export PDF Modal
+  showExportPdfModal = signal<boolean>(false);
+  exportDateFrom = '';
+  exportDateTo = '';
+
   // ----------------------------------------------------
   // CREATE OPPORTUNITY WIZARD STATE
   // ----------------------------------------------------
@@ -2072,15 +2144,14 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   // Editing existing draft
   editingDraftId = signal<string | null>(null);
 
-  // Map Location Presets
-  mapPresets = [
-    { name: 'Matara Artisan Quarter', district: 'Matara', lat: 5.9549, lng: 80.5550 },
-    { name: 'Kandy Temple Guilds', district: 'Kandy', lat: 7.2906, lng: 80.6337 },
-    { name: 'Galle Fort Heritage Zone', district: 'Galle', lat: 6.0329, lng: 80.2168 },
-    { name: 'Jaffna Cultural Precinct', district: 'Jaffna', lat: 9.6615, lng: 80.0255 },
-    { name: 'Anuradhapura Sacred Area', district: 'Anuradhapura', lat: 8.3114, lng: 80.4037 },
-    { name: 'Colombo Folk Archive', district: 'Colombo', lat: 6.9271, lng: 79.8612 }
-  ];
+  // Mapbox Interactive State
+  oppMapInstance: any = null;
+  oppMapMarker: any = null;
+  isMapLoading = signal<boolean>(false);
+  isSearchingMap = signal<boolean>(false);
+  mapSearchResults = signal<{ id: string; placeName: string; text: string; lng: number; lat: number }[]>([]);
+  showMapSearchResults = signal<boolean>(false);
+  currentMapboxToken = signal<string>(environment.mapboxToken || '');
 
   // Preset Available Assets & Knowledge Holders
   availableCategories: string[] = [
@@ -2122,6 +2193,20 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   knowledgeHolders = signal<KnowledgeHolder[]>([]);
 
   private opportunityService = inject(OpportunityService);
+  private mapService = inject(MapService);
+  private http = inject(HttpClient);
+  private ngZone = inject(NgZone);
+
+  constructor() {
+    effect(() => {
+      const state = this.currentViewState();
+      const step = this.createStep();
+      if (state === 'opp_create' && step === 3) {
+        setTimeout(() => this.initOppMapbox(), 150);
+      }
+    });
+  }
+
   isSyncingOpportunities = signal<boolean>(false);
   isSyncingAudios = signal<boolean>(false);
   isLoading = signal<boolean>(false);
@@ -2216,13 +2301,13 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
 
     if (query) {
       items = items.filter(o =>
-        o.title.toLowerCase().includes(query) ||
-        o.description.toLowerCase().includes(query) ||
-        o.location.toLowerCase().includes(query) ||
+        (o.title && o.title.toLowerCase().includes(query)) ||
+        (o.description && o.description.toLowerCase().includes(query)) ||
+        (o.location && o.location.toLowerCase().includes(query)) ||
         (o.elderName && o.elderName.toLowerCase().includes(query)) ||
         (o.category && o.category.toLowerCase().includes(query)) ||
-        o.skills.some(s => s.toLowerCase().includes(query)) ||
-        o.perks.some(p => p.toLowerCase().includes(query))
+        (o.skills && o.skills.some(s => s.toLowerCase().includes(query))) ||
+        (o.perks && o.perks.some(p => p.toLowerCase().includes(query)))
       );
     }
 
@@ -2249,13 +2334,13 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
 
     if (query) {
       items = items.filter(o =>
-        o.title.toLowerCase().includes(query) ||
-        o.description.toLowerCase().includes(query) ||
-        o.location.toLowerCase().includes(query) ||
+        (o.title && o.title.toLowerCase().includes(query)) ||
+        (o.description && o.description.toLowerCase().includes(query)) ||
+        (o.location && o.location.toLowerCase().includes(query)) ||
         (o.elderName && o.elderName.toLowerCase().includes(query)) ||
         (o.category && o.category.toLowerCase().includes(query)) ||
-        o.skills.some(s => s.toLowerCase().includes(query)) ||
-        o.perks.some(p => p.toLowerCase().includes(query))
+        (o.skills && o.skills.some(s => s.toLowerCase().includes(query))) ||
+        (o.perks && o.perks.some(p => p.toLowerCase().includes(query)))
       );
     }
 
@@ -2281,9 +2366,9 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
 
     if (query) {
       items = items.filter(o =>
-        o.title.toLowerCase().includes(query) ||
-        o.description.toLowerCase().includes(query) ||
-        o.location.toLowerCase().includes(query) ||
+        (o.title && o.title.toLowerCase().includes(query)) ||
+        (o.description && o.description.toLowerCase().includes(query)) ||
+        (o.location && o.location.toLowerCase().includes(query)) ||
         (o.elderName && o.elderName.toLowerCase().includes(query)) ||
         (o.category && o.category.toLowerCase().includes(query))
       );
@@ -2292,16 +2377,69 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     return items;
   });
 
+  filteredOpportunities = computed(() => {
+    const tab = this.activeHubTab();
+    if (tab === 'drafts') return this.filteredDraftOpportunities();
+    if (tab === 'published') return this.filteredPublishedOpportunities();
+    return this.filteredRemovedOpportunities();
+  });
+
+  downloadPdf(): void {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text('LegacyLens', 14, 20);
+    
+    doc.setFontSize(12);
+    doc.text('Generated by Admin', 14, 28);
+    
+    if (this.exportDateFrom || this.exportDateTo) {
+      doc.setFontSize(10);
+      doc.text(`Date Range: ${this.exportDateFrom || 'Any'} to ${this.exportDateTo || 'Any'}`, 14, 34);
+    }
+    
+    let exportData = this.filteredOpportunities();
+    if (this.exportDateFrom) {
+      const from = new Date(this.exportDateFrom).getTime();
+      exportData = exportData.filter(item => new Date(item.lastEditedAt || item.createdAt).getTime() >= from);
+    }
+    if (this.exportDateTo) {
+      const to = new Date(this.exportDateTo).getTime();
+      exportData = exportData.filter(item => new Date(item.lastEditedAt || item.createdAt).getTime() <= to + 86400000);
+    }
+
+    const data = exportData.map(item => [
+      item.title || 'N/A',
+      item.category || 'N/A',
+      item.location || 'N/A',
+      item.status || 'N/A'
+    ]);
+    
+    autoTable(doc, {
+      startY: 40,
+      head: [['Title', 'Category', 'Location', 'Status']],
+      body: data,
+    });
+    
+    doc.save('opportunities_export.pdf');
+    this.showExportPdfModal.set(false);
+  }
+
   featuredDraft = computed(() => {
     const drafts = this.filteredDraftOpportunities();
     if (drafts.length === 0) return null;
-    return [...drafts].sort((a, b) => new Date(b.lastEditedAt).getTime() - new Date(a.lastEditedAt).getTime())[0];
+    const mostRecent = [...drafts].sort((a, b) => new Date(b.lastEditedAt).getTime() - new Date(a.lastEditedAt).getTime())[0];
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    if (new Date(mostRecent.lastEditedAt) >= threeDaysAgo) return mostRecent;
+    return null;
   });
 
   otherDrafts = computed(() => {
     const feat = this.featuredDraft();
-    if (!feat) return [];
-    return this.filteredDraftOpportunities().filter(d => d.id !== feat.id);
+    const drafts = this.filteredDraftOpportunities();
+    if (!feat) return drafts;
+    return drafts.filter(d => d.id !== feat.id);
   });
 
   featuredPublished = computed(() => {
@@ -2410,9 +2548,17 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     this.generateWaveformBars();
     this.loadOpportunitiesFromBackend(true);
     this.loadAudiosFromBackend(true);
+    this.mapService.getMapboxToken().subscribe(token => {
+      if (token) {
+        this.currentMapboxToken.set(token);
+        if (typeof mapboxgl !== 'undefined') {
+          mapboxgl.accessToken = token;
+        }
+      }
+    });
   }
 
-  loadOpportunitiesFromBackend(silent: boolean = false): void {
+  loadOpportunitiesFromBackend(silent = false): void {
     this.isLoading.set(true);
     this.hasError.set(false);
     this.isSyncingOpportunities.set(true);
@@ -2463,7 +2609,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadAudiosFromBackend(silent: boolean = false): void {
+  loadAudiosFromBackend(silent = false): void {
     this.isSyncingAudios.set(true);
     this.opportunityService.getAudioSubmissions('ALL').subscribe({
       next: (data: OpportunityAudioResponse[]) => {
@@ -2597,6 +2743,15 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     if (this.audioTimer) {
       clearInterval(this.audioTimer);
     }
+    if (this.oppMapInstance) {
+      try {
+        this.oppMapInstance.remove();
+      } catch (e) {
+        console.warn('Error removing oppMapInstance on destroy:', e);
+      }
+      this.oppMapInstance = null;
+      this.oppMapMarker = null;
+    }
   }
 
   // ----------------------------------------------------
@@ -2678,7 +2833,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     }
   }
 
-  seekBackward(seconds: number = 10): void {
+  seekBackward(seconds = 10): void {
     this.waveformBars.update(bars => {
       const activeIdx = bars.findIndex(b => b.active);
       const newIdx = Math.max(0, activeIdx - 4);
@@ -2695,7 +2850,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     this.showToastNotification(`Rewound ${seconds}s`, 'info');
   }
 
-  seekForward(seconds: number = 10): void {
+  seekForward(seconds = 10): void {
     this.waveformBars.update(bars => {
       const activeIdx = bars.findIndex(b => b.active);
       const newIdx = Math.min(bars.length - 1, activeIdx + 4);
@@ -2979,42 +3134,304 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     }
   }
 
-  selectMapPreset(preset: { name: string; district: string; lat: number; lng: number }): void {
-    this.oppMapLat.set(preset.lat);
-    this.oppMapLng.set(preset.lng);
-    this.oppLocationText.set(`${preset.name}, ${preset.district}`);
-    this.isLocationSaved.set(true);
-    this.showToastNotification(`Pinned location: ${preset.name}`, 'info');
+  getMapboxAccessToken(): string {
+    return this.currentMapboxToken() || environment.mapboxToken || '';
   }
 
-  onMapClick(event: MouseEvent): void {
-    if (this.isLocationSaved()) return;
-    const target = event.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    
-    // Map bounds: Lat: 5.9 to 9.8, Lng: 79.5 to 81.9
-    const lat = +(9.8 - (y / rect.height) * (9.8 - 5.9)).toFixed(4);
-    const lng = +(79.5 + (x / rect.width) * (81.9 - 79.5)).toFixed(4);
-    
-    this.oppMapLat.set(lat);
-    this.oppMapLng.set(lng);
-    if (!this.oppLocationText().trim()) {
-      this.oppLocationText.set(`Custom Site Coordinates (${lat}° N, ${lng}° E)`);
+  initOppMapbox(targetCoordinates?: [number, number], targetZoom?: number): void {
+    const container = document.getElementById('opp-intake-mapbox');
+    if (!container) return;
+
+    if (typeof mapboxgl === 'undefined') {
+      console.warn('[Mapbox] Waiting for Mapbox GL JS script to load...');
+      setTimeout(() => this.initOppMapbox(targetCoordinates, targetZoom), 300);
+      return;
+    }
+
+    if (this.oppMapInstance) {
+      try {
+        this.oppMapInstance.remove();
+      } catch (e) {
+        console.warn('Error removing previous map instance:', e);
+      }
+      this.oppMapInstance = null;
+      this.oppMapMarker = null;
+    }
+
+    const token = this.getMapboxAccessToken();
+    if (token) {
+      mapboxgl.accessToken = token;
+    }
+
+    const initialLng = targetCoordinates ? targetCoordinates[0] : (this.oppMapLng() || 79.8612);
+    const initialLat = targetCoordinates ? targetCoordinates[1] : (this.oppMapLat() || 6.9271);
+    const initialZoom = targetZoom || (this.oppLocationText() ? 12 : 7.2);
+
+    try {
+      this.isMapLoading.set(true);
+      this.oppMapInstance = new mapboxgl.Map({
+        container: 'opp-intake-mapbox',
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [initialLng, initialLat],
+        zoom: initialZoom,
+        minZoom: 6.0,
+        maxZoom: 18.0
+      });
+
+      this.oppMapInstance.addControl(new mapboxgl.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right');
+
+      this.oppMapInstance.on('load', () => {
+        this.isMapLoading.set(false);
+        this.oppMapInstance.resize();
+        this.renderOppMapMarker(initialLng, initialLat);
+
+        // If location text is already filled but coords are default, try auto-geocoding
+        if (this.oppLocationText().trim() && initialLng === 79.8612 && initialLat === 6.9271) {
+          this.handleLocationSearch(false);
+        }
+      });
+
+      this.oppMapInstance.on('click', (e: any) => {
+        if (this.isLocationSaved()) return;
+        const lng = Number(e.lngLat.lng.toFixed(6));
+        const lat = Number(e.lngLat.lat.toFixed(6));
+        this.ngZone.run(() => {
+          this.oppMapLng.set(lng);
+          this.oppMapLat.set(lat);
+          this.updateOppMapMarker(lng, lat);
+          this.reverseGeocodeLocation(lng, lat);
+          this.showToastNotification(`Pin moved to: ${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E`, 'info');
+        });
+      });
+
+      this.oppMapInstance.on('error', (err: any) => {
+        console.warn('[Mapbox Opportunity Intake Notice]:', err);
+        this.isMapLoading.set(false);
+      });
+    } catch (err) {
+      console.error('Failed to initialize Opportunity Intake Mapbox:', err);
+      this.isMapLoading.set(false);
     }
   }
 
-  handleLocationSearch(): void {
-    const query = this.oppLocationText().trim().toLowerCase();
-    if (!query) return;
-    const found = this.mapPresets.find(p => p.name.toLowerCase().includes(query) || p.district.toLowerCase().includes(query));
-    if (found) {
-      this.selectMapPreset(found);
+  renderOppMapMarker(lng: number, lat: number): void {
+    if (!this.oppMapInstance || typeof mapboxgl === 'undefined') return;
+
+    if (this.oppMapMarker) {
+      this.oppMapMarker.remove();
+      this.oppMapMarker = null;
+    }
+
+    const isSaved = this.isLocationSaved();
+    const pinColor = isSaved ? '#059669' : '#fe893e';
+    const pinIcon = isSaved ? 'verified' : 'location_on';
+
+    const el = document.createElement('div');
+    el.className = 'opp-custom-map-marker';
+    el.style.width = '36px';
+    el.style.height = '36px';
+    el.style.cursor = isSaved ? 'default' : 'grab';
+    el.style.userSelect = 'none';
+    el.style.touchAction = 'none';
+    el.title = isSaved ? 'Location Confirmed (Click "Change Location" to edit)' : 'Drag pin to locate';
+    el.innerHTML = `
+      <div style="
+        width: 36px; 
+        height: 36px; 
+        background: ${pinColor}; 
+        border: 3px solid #ffffff; 
+        border-radius: 50% 50% 50% 0; 
+        transform: rotate(-45deg); 
+        box-shadow: ${isSaved ? '0 4px 14px rgba(5,150,105,0.45)' : '0 4px 14px rgba(0,0,0,0.35)'};
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        user-select: none;
+        transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.15s ease;">
+        <span class="material-symbols-outlined" style="transform: rotate(45deg); font-size: 18px; color: white; pointer-events: none; user-select: none;">${pinIcon}</span>
+      </div>
+    `;
+
+    this.oppMapMarker = new mapboxgl.Marker({
+      element: el,
+      draggable: !isSaved,
+      anchor: 'bottom'
+    })
+      .setLngLat([lng, lat])
+      .addTo(this.oppMapInstance);
+
+    this.oppMapMarker.on('dragstart', () => {
+      if (this.isLocationSaved()) return;
+      el.style.cursor = 'grabbing';
+      const inner = el.firstElementChild as HTMLElement;
+      if (inner) {
+        inner.style.transform = 'rotate(-45deg) scale(1.22)';
+        inner.style.boxShadow = '0 8px 24px rgba(0,0,0,0.45)';
+      }
+    });
+
+    this.oppMapMarker.on('drag', () => {
+      if (this.isLocationSaved()) return;
+      const lngLat = this.oppMapMarker.getLngLat();
+      this.ngZone.run(() => {
+        this.oppMapLng.set(Number(lngLat.lng.toFixed(6)));
+        this.oppMapLat.set(Number(lngLat.lat.toFixed(6)));
+      });
+    });
+
+    this.oppMapMarker.on('dragend', () => {
+      if (this.isLocationSaved()) return;
+      el.style.cursor = 'grab';
+      const inner = el.firstElementChild as HTMLElement;
+      if (inner) {
+        inner.style.transform = 'rotate(-45deg) scale(1)';
+        inner.style.boxShadow = '0 4px 14px rgba(0,0,0,0.35)';
+      }
+      const lngLat = this.oppMapMarker.getLngLat();
+      const newLng = Number(lngLat.lng.toFixed(6));
+      const newLat = Number(lngLat.lat.toFixed(6));
+      this.ngZone.run(() => {
+        this.oppMapLng.set(newLng);
+        this.oppMapLat.set(newLat);
+        this.reverseGeocodeLocation(newLng, newLat);
+        this.showToastNotification(`Pin moved: ${newLat.toFixed(4)}°N, ${newLng.toFixed(4)}°E`, 'info');
+      });
+    });
+  }
+
+  updateMarkerAppearance(): void {
+    if (!this.oppMapMarker) return;
+    const isSaved = this.isLocationSaved();
+    this.oppMapMarker.setDraggable(!isSaved);
+
+    const el = this.oppMapMarker.getElement();
+    if (!el) return;
+
+    el.style.cursor = isSaved ? 'default' : 'grab';
+    el.title = isSaved ? 'Location Confirmed (Click "Change Location" to edit)' : 'Drag pin to locate';
+
+    const inner = el.firstElementChild as HTMLElement;
+    if (inner) {
+      inner.style.background = isSaved ? '#059669' : '#fe893e';
+      inner.style.boxShadow = isSaved ? '0 4px 14px rgba(5,150,105,0.45)' : '0 4px 14px rgba(0,0,0,0.35)';
+      const icon = inner.querySelector('.material-symbols-outlined') as HTMLElement;
+      if (icon) {
+        icon.innerText = isSaved ? 'verified' : 'location_on';
+      }
+    }
+  }
+
+  updateOppMapMarker(lng: number, lat: number): void {
+    if (this.oppMapMarker) {
+      this.oppMapMarker.setLngLat([lng, lat]);
     } else {
-      this.isLocationSaved.set(true);
-      this.showToastNotification(`Custom location pinned: ${this.oppLocationText()}`, 'info');
+      this.renderOppMapMarker(lng, lat);
     }
+  }
+
+  reverseGeocodeLocation(lng: number, lat: number): void {
+    const token = this.getMapboxAccessToken();
+    if (!token) return;
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${token}&limit=1`;
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        if (res && res.features && res.features.length > 0) {
+          const place = res.features[0];
+          const name = place.place_name || place.text;
+          if (name) {
+            this.oppLocationText.set(name);
+          }
+        }
+      },
+      error: (err) => console.warn('Reverse geocode error:', err)
+    });
+  }
+
+  handleLocationSearch(showNotification = true): void {
+    const query = this.oppLocationText().trim();
+    if (!query) return;
+
+    const token = this.getMapboxAccessToken();
+    if (!token) {
+      if (showNotification) {
+        this.showToastNotification(`Location set to: ${query}`, 'info');
+      }
+      return;
+    }
+
+    this.isSearchingMap.set(true);
+    const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&country=lk&types=poi,address,neighborhood,place,locality,region,district&limit=5`;
+
+    this.http.get<any>(mapboxUrl).subscribe({
+      next: (resp) => {
+        this.isSearchingMap.set(false);
+        if (resp && resp.features && resp.features.length > 0) {
+          const results = resp.features.map((feat: any) => ({
+            id: feat.id,
+            placeName: feat.place_name,
+            text: feat.text,
+            lng: Number(feat.center[0].toFixed(6)),
+            lat: Number(feat.center[1].toFixed(6))
+          }));
+          this.mapSearchResults.set(results);
+          if (results.length > 1) {
+            this.showMapSearchResults.set(true);
+          }
+          const first = results[0];
+          this.selectLocationSearchResult(first);
+        } else {
+          if (showNotification) {
+            this.showToastNotification(`No map location found for "${query}". You can click directly on the map.`, 'warning');
+          }
+        }
+      },
+      error: (err) => {
+        this.isSearchingMap.set(false);
+        console.warn('Mapbox Geocoding lookup error:', err);
+        if (showNotification) {
+          this.showToastNotification('Could not search location. Click directly on the map to pin.', 'warning');
+        }
+      }
+    });
+  }
+
+  selectLocationSearchResult(result: { id: string; placeName: string; text: string; lng: number; lat: number }): void {
+    this.oppLocationText.set(result.placeName || result.text);
+    this.oppMapLng.set(result.lng);
+    this.oppMapLat.set(result.lat);
+    this.showMapSearchResults.set(false);
+
+    if (this.oppMapInstance) {
+      this.oppMapInstance.flyTo({
+        center: [result.lng, result.lat],
+        zoom: 13,
+        essential: true
+      });
+      this.updateOppMapMarker(result.lng, result.lat);
+    }
+  }
+
+  toggleLocationSaved(): void {
+    if (this.isLocationSaved()) {
+      // Unlock pin to allow repositioning
+      this.isLocationSaved.set(false);
+      this.updateMarkerAppearance();
+      this.showToastNotification('Pin unlocked. You can now drag the pin or click on the map to relocate.', 'info');
+    } else {
+      if (!this.oppLocationText().trim()) {
+        this.showToastNotification('Please enter or locate a valid place first.', 'warning');
+        return;
+      }
+      // Lock pin and confirm coordinates
+      this.isLocationSaved.set(true);
+      this.updateMarkerAppearance();
+      this.showToastNotification(`Location confirmed & pin locked: ${this.oppLocationText()}`, 'success');
+    }
+  }
+
+  confirmLocation(): void {
+    this.toggleLocationSaved();
   }
 
   selectCategory(cat: string): void {
@@ -3083,13 +3500,21 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.createStep.set(Math.min(5, cur + 1));
+    const next = Math.min(5, cur + 1);
+    this.createStep.set(next);
+    if (next === 3) {
+      setTimeout(() => this.initOppMapbox(), 150);
+    }
   }
 
   goToPrevStep(): void {
     const cur = this.createStep();
     if (cur > 1) {
-      this.createStep.set(cur - 1);
+      const prev = cur - 1;
+      this.createStep.set(prev);
+      if (prev === 3) {
+        setTimeout(() => this.initOppMapbox(), 150);
+      }
     } else {
       if (this.creationOrigin() === 'intake_review') {
         this.currentViewState.set('intake_review');
@@ -3229,3 +3654,4 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     }, 3800);
   }
 }
+

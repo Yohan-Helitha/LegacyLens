@@ -23,6 +23,8 @@ public interface AdminCulturalMapService {
 
     String uploadBadgeImage(MultipartFile file);
 
+    String uploadModelFile(MultipartFile file);
+
     BadgeResponse saveBadge(AdminBadgeRequest request,
             String performedById, String performedByName);
 

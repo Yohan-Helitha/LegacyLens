@@ -5,6 +5,8 @@ import { Colors } from '../../theme';
 import { styles } from './AudioCard.styles';
 import { FeedCardActions } from './FeedCardActions';
 import { homeApi } from '../../services/api/homeApi';
+import { apiPost } from '../../services/api/client';
+import { getMediaUrl } from '../../constants/api';
 
 const TOTAL_BARS = 30; // number of waveform bars rendered
 
@@ -13,14 +15,19 @@ export const AudioCard = ({
   item,
   setActivePostId,
   setCommentModalVisible,
-  onNavigate,
+  onLikeChange,
 }: {
   a: any;
   item: any;
   setActivePostId: (id: string) => void;
   setCommentModalVisible: (v: boolean) => void;
-  onNavigate?: (tab: string, item?: any) => void;
+  onLikeChange?: (postId: string, newLikesCount: number, liked: boolean) => void;
 }) => {
+  const rawAvatar = a.avatar || a.thumbnail || item?.avatar || item?.thumbnail || item?.imageUrl;
+  const resolvedAvatar = rawAvatar && !rawAvatar.startsWith('http')
+    ? getMediaUrl(rawAvatar.startsWith('/uploads/') ? rawAvatar : (rawAvatar.startsWith('uploads/') ? `/${rawAvatar}` : `/uploads/${rawAvatar.replace(/^\/+/, '')}`))
+    : (rawAvatar || 'https://i.pravatar.cc/150?img=1');
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0 … TOTAL_BARS
 
@@ -40,7 +47,13 @@ export const AudioCard = ({
     return () => clearInterval(interval);
   }, [isPlaying, progress]);
 
+  const [hasRecordedView, setHasRecordedView] = useState(false);
+
   const handlePlayPause = () => {
+    if (!isPlaying && !hasRecordedView && a.id) {
+      setHasRecordedView(true);
+      apiPost(`/stories/${a.id}/view`, {}).catch(() => {});
+    }
     if (progress >= TOTAL_BARS) {
       // Replay from start
       setProgress(0);
@@ -52,13 +65,9 @@ export const AudioCard = ({
 
   return (
     <View style={styles.card}>
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={() => onNavigate?.('video', item || a)}
-        style={styles.cardHeader}
-      >
+      <View style={styles.cardHeader}>
         <View style={styles.authorRow}>
-          <Image source={{ uri: a.avatar }} style={styles.avatar} />
+          <Image source={{ uri: resolvedAvatar }} style={styles.avatar} />
           <View>
             <Text style={styles.authorName}>{a.name}</Text>
             <Text style={styles.timeAgo}>{a.location}</Text>
@@ -68,12 +77,10 @@ export const AudioCard = ({
           <MaterialIcons name="mic" size={13} color={Colors.secondary} />
           <Text style={styles.audioBadgeText}>Audio</Text>
         </View>
-      </TouchableOpacity>
+      </View>
 
       {a.topic ? (
-        <TouchableOpacity activeOpacity={0.8} onPress={() => onNavigate?.('video', item || a)}>
-          <Text style={styles.audioTopic}>{a.topic}</Text>
-        </TouchableOpacity>
+        <Text style={styles.audioTopic}>{a.topic}</Text>
       ) : null}
 
       {/* ── Audio strip inside green box — full width, flex bars ── */}
@@ -115,14 +122,13 @@ export const AudioCard = ({
 
       <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
         <FeedCardActions
+          postId={item?.id || a?.id}
           theme="light"
-          initialLikes={a.likesCount || 0}
-          initialComments={a.commentsCount || 0}
-          onLikePress={() => {
-            if (a.id) homeApi.likePost(a.id).catch(console.error);
-          }}
+          initialLikes={a.likesCount ?? item?.likesCount ?? 0}
+          initialComments={a.commentsCount ?? item?.commentsCount ?? 0}
+          onLikeChange={onLikeChange}
           onCommentPress={() => {
-            setActivePostId(item.id);
+            setActivePostId(item?.id || a?.id);
             setCommentModalVisible(true);
           }}
         />

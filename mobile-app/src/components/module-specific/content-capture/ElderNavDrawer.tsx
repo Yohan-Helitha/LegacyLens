@@ -66,6 +66,8 @@ const NAV_ITEMS: { key: ElderDrawerItem; label: string; icon: LucideIcon }[] = [
   { key: 'requests', label: 'Requests', icon: Handshake },
   { key: 'trust', label: 'Trust Score', icon: BadgeCheck },
   { key: 'reviews', label: 'Reviews & Ratings', icon: Star },
+  // Opens the creators recommended for each of the elder's open opportunities; posting a new request
+  // lives under My Requests (or the floating "Ask for help" button).
   { key: 'hire', label: 'Hire a Creator', icon: UserSearch },
   { key: 'myRequests', label: 'My Requests', icon: ClipboardList },
 ];

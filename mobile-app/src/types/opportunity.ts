@@ -1,3 +1,6 @@
+/** How well an opportunity fits the signed-in creator - NOT_RECOMMENDED is below 30%. */
+export type MatchLevel = 'NOT_RECOMMENDED' | 'WEAK' | 'GOOD_POTENTIAL' | 'STRONG' | 'EXCELLENT';
+
 export interface OpportunityCardResponse {
   id: string;
   title: string;
@@ -6,7 +9,11 @@ export interface OpportunityCardResponse {
   location: string | null;
   category: string | null;
   locationType: string | null;
+  /** 0-100 from the creator -> opportunity algorithm; null when the user is not a creator. */
   matchPercentage: number | null;
+  matchLevel?: MatchLevel | null;
+  /** "Why this matches you", strongest first. */
+  matchReasons?: string[] | null;
   urgent: boolean;
   dueAt: string | null;
   elderName: string;
@@ -19,6 +26,7 @@ export interface OpportunityDetailResponse {
   id: string;
   title: string;
   description: string;
+  category?: string | null;
   heroImageUrl: string | null;
   elderName: string;
   elderAvatarUrl: string | null;
@@ -31,6 +39,9 @@ export interface OpportunityDetailResponse {
   language: string | null;
   preservationGoal: string | null;
   tasks: string[];
+  matchPercentage?: number | null;
+  matchLevel?: MatchLevel | null;
+  matchReasons?: string[] | null;
 }
 
 export interface AdminOpportunityResponse {
@@ -90,6 +101,8 @@ export interface CreateOpportunityRequest {
   offeredAmount: number;
   preservationGoal?: string;
   tasks?: string;
+  /** Comma separated "Required Skills" — used to match the right kind of creator to the opportunity. */
+  requiredSkills?: string;
   status: string;
   elderId?: string;
   elderName?: string;

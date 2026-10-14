@@ -1,4 +1,5 @@
 import { apiGet, apiPost } from './client';
+import { getMediaUrl } from '../../constants/api';
 
 export interface ChoiceResponse {
   id: string;
@@ -54,10 +55,35 @@ export interface RegionResponse {
 }
 
 export const mapApi = {
-  getLandmarks: () => apiGet<MapLandmarkResponse[]>('/map/landmarks'),
+  getLandmarks: async () => {
+    const landmarks = await apiGet<MapLandmarkResponse[]>('/map/landmarks');
+    return landmarks.map(l => ({
+      ...l,
+      modelUrl: l.modelUrl ? resolveModelUrl(l.modelUrl) : l.modelUrl,
+    }));
+  },
+
   getRegions: () => apiGet<RegionResponse[]>('/map/regions'),
   getQuestQuestions: (questId: number) => apiGet<QuestionResponse[]>(`/map/quests/${questId}/questions`),
   getMyBadges: () => apiGet<string[]>('/map/my-badges'),
   earnBadge: (badgeCode: string) => apiPost<string>(`/map/my-badges/${badgeCode}`, {}),
   getAllBadges: () => apiGet<BadgeResponse[]>('/map/badges'),
 };
+
+function resolveModelUrl(url: string): string {
+  if (!url) return url;
+  // Already absolute
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) {
+    return url;
+  }
+  // Paths with /uploads/ prefix
+  if (url.startsWith('/uploads/') || url.startsWith('uploads/')) {
+    return getMediaUrl(url);
+  }
+  // Bare models/ paths (e.g., "models/xxx.glb" stored in DB without /uploads/ prefix)
+  if (url.startsWith('models/')) {
+    return getMediaUrl('/uploads/' + url);
+  }
+  // Fallback
+  return getMediaUrl(url);
+}

@@ -7,7 +7,6 @@ dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
 
 # ─── Java / Spring Boot ───────────────────────────────────────────────────────
 target/
@@ -23,6 +22,9 @@ target/
 application-local.yml
 application-local.properties
 backend/seed-*.js
+
+# Angular environment files (contain secrets like API keys)
+admin-dashboard/src/environments/environment.ts
 
 # ─── IDE ──────────────────────────────────────────────────────────────────────
 .vscode/

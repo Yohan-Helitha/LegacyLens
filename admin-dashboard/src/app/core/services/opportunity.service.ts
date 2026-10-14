@@ -37,7 +37,7 @@ export class OpportunityService {
    * Fetch all opportunities from backend
    * Endpoint: GET /api/admin/opportunities?status=ALL|PUBLISHED|DRAFT|CLOSED
    */
-  getAllOpportunities(status: string = 'ALL'): Observable<AdminOpportunityResponse[]> {
+  getAllOpportunities(status = 'ALL'): Observable<AdminOpportunityResponse[]> {
     const params = new HttpParams().set('status', status);
     return this.http.get<any>(
       `${environment.apiUrl}/admin/opportunities`,
@@ -116,7 +116,7 @@ export class OpportunityService {
    * Fetch all audio submissions
    * Endpoint: GET /api/admin/opportunities/audios?status=ALL|FULLY_LISTENED|PARTIALLY_LISTENED|UNLISTENED|NEEDS_REVIEW
    */
-  getAudioSubmissions(status: string = 'ALL'): Observable<OpportunityAudioResponse[]> {
+  getAudioSubmissions(status = 'ALL'): Observable<OpportunityAudioResponse[]> {
     const params = new HttpParams().set('status', status);
     return this.http.get<any>(
       `${environment.apiUrl}/admin/opportunities/audios`,

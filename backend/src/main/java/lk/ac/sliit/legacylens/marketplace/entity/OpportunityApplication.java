@@ -73,6 +73,13 @@ public class OpportunityApplication {
     @Column(name = "availability_confirmed", nullable = false)
     private boolean availabilityConfirmed = false;
 
+    /**
+     * The languages the creator says they can work in for this opportunity, as "Language:LEVEL"
+     * pairs (e.g. "Sinhala:FLUENT,English:BASIC"). Null/empty for drafts made before this was asked.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String languages;
+
     /** Comma separated tags selected from the "Equipment" checkbox list. */
     @Column(columnDefinition = "TEXT")
     private String equipment;
@@ -93,4 +100,11 @@ public class OpportunityApplication {
     /** Set when the creator submits (SAVED -> PENDING); null until then. */
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
+
+    /**
+     * When the creator first looked at the fact that this application was rejected; null until then.
+     * Drives the red number on the creator's menu - an unseen rejection counts, a seen one does not.
+     */
+    @Column(name = "rejection_seen_at")
+    private LocalDateTime rejectionSeenAt;
 }

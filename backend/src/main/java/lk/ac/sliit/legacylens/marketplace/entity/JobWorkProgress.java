@@ -52,6 +52,17 @@ public class JobWorkProgress {
     @Column(columnDefinition = "TEXT")
     private String story;
 
+    /**
+     * "Search Context (SEO)" — a short search-result description of the
+     * content, so beneficiaries can find it once it's published.
+     */
+    @Column(name = "seo_summary", length = 160)
+    private String seoSummary;
+
+    /** Comma separated search keywords/tags for the same purpose — see JobWorkProgressServiceImpl#updateSeo. */
+    @Column(name = "seo_keywords", columnDefinition = "TEXT")
+    private String seoKeywords;
+
     /** Explicitly saved via "Save As a Draft" — cleared once the work is actually submitted for review. */
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean draft = false;
@@ -76,6 +87,43 @@ public class JobWorkProgress {
 
     @Column(name = "rejected_at")
     private LocalDateTime rejectedAt;
+
+    /**
+     * What the knowledge holder wants changed. Private to the creator and the admin - the knowledge
+     * holder never sees the admin's note, and neither note is part of the published content.
+     * Cleared when the creator resubmits (see JobWorkProgressServiceImpl#submitDraft).
+     */
+    @Column(name = "elder_feedback", columnDefinition = "TEXT")
+    private String elderFeedback;
+
+    @Column(name = "elder_feedback_at")
+    private LocalDateTime elderFeedbackAt;
+
+    /** What the admin wants changed. Visible to the creator only; the knowledge holder cannot see it. */
+    @Column(name = "admin_feedback", columnDefinition = "TEXT")
+    private String adminFeedback;
+
+    @Column(name = "admin_feedback_at")
+    private LocalDateTime adminFeedbackAt;
+
+    /**
+     * Each reviewer's go-ahead. The work is complete only when the knowledge holder AND the admin have
+     * both approved and neither has feedback outstanding. Reset when the creator resubmits, so a changed
+     * piece of work is looked at again.
+     */
+    @Column(name = "elder_approved", nullable = false, columnDefinition = "boolean default false")
+    private boolean elderApproved = false;
+
+    @Column(name = "admin_approved", nullable = false, columnDefinition = "boolean default false")
+    private boolean adminApproved = false;
+
+    /** Set when the admin publishes completed work - until then a completed job reads "Completed", after it "Published". */
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
+
+    /** When the creator first opened this job to work on it; null until then - what the "New" tag on My Work follows. */
+    @Column(name = "opened_at")
+    private LocalDateTime openedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

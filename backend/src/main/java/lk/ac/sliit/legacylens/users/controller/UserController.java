@@ -10,6 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -48,6 +51,17 @@ public class UserController {
 
         return ResponseEntity.ok(ApiResponse.ok("Profile updated", profile));
     }
+    /** Changes the profile picture - multipart/form-data with the image in the "photo" part. */
+    @PostMapping(value = "/me/photo", consumes = "multipart/form-data")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> updateMyPhoto(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @RequestParam("photo") MultipartFile photo) {
+
+        UserProfileResponse profile = userProfileService.updateProfilePhoto(principal.getUser().getId(), photo);
+
+        return ResponseEntity.ok(ApiResponse.ok("Profile photo updated", profile));
+    }
+
     /** The "replay tutorial" action itself needs no backend call — it's a pure frontend replay. */
     @PatchMapping("/me/tutorial-complete")
     public ResponseEntity<ApiResponse<Void>> markTutorialComplete(

@@ -11,4 +11,8 @@ public interface FeedItemCommentRepository extends JpaRepository<FeedItemComment
     List<FeedItemComment> findByFeedItemIdOrderByCreatedAtDesc(Long feedItemId);
 
     List<FeedItemComment> findByStoryIdOrderByCreatedAtDesc(java.util.UUID storyId);
+ 
+    long countByStoryId(java.util.UUID storyId);
+
+    long countByFeedItemId(Long feedItemId);
 }

@@ -28,12 +28,12 @@ import java.util.regex.Pattern;
 @Service
 public class FileStorageService {
 
-    private static final List<String> ALLOWED_CONTENT_TYPES = List.of(
+    /** PDF/image/video/audio — shared by payment proofs and work materials (photos/recordings attached on ContinueMyWorkPage). */
+    public static final List<String> MEDIA_CONTENT_TYPES = List.of(
             "application/pdf", "image/jpeg", "image/png", "image/jpg",
-            // Work materials (photos/recordings attached on ContinueMyWorkPage) also ride through here.
             "video/mp4", "video/quicktime", "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav"
     );
-    private static final long MAX_FILE_SIZE_BYTES = 50L * 1024 * 1024; // 50MB — video/audio work materials need more than a document scan does.
+    public static final long MAX_MEDIA_FILE_SIZE_BYTES = 50L * 1024 * 1024; // 50MB — video/audio work materials need more than a document scan does.
     private static final Pattern SAFE_EXTENSION = Pattern.compile("^\\.[A-Za-z0-9]{1,10}$");
 
     private final Path rootDir;

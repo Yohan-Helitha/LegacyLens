@@ -60,6 +60,10 @@ public class CreatorProfile {
     @Column(precision = 3, scale = 2)
     private BigDecimal rating;
 
+    /** How many reviews the rating above is the average of - kept in step by CreatorRatingService. */
+    @Column(name = "rating_count", nullable = false, columnDefinition = "integer default 0")
+    private int ratingCount = 0;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -1,0 +1,116 @@
+// track-form.component.scss
+
+:host {
+  display: block;
+  background: var(--le-bg);
+  min-height: 100vh;
+  transition: background 0.3s ease;
+}
+
+.le-page {
+  padding: 2rem 2.5rem 4rem;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.le-nav-bar {
+  background: var(--le-bg);
+  border-bottom: 1px solid var(--le-border);
+  backdrop-filter: blur(16px);
+  opacity: 0.97;
+  transition: background 0.3s, border-color 0.3s;
+}
+
+// Glass card mixin
+%glass-card {
+  background: var(--le-surface);
+  border: 1px solid var(--le-border);
+  border-radius: 20px;
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+.glass-card { @extend %glass-card; }
+
+.card-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 1.5rem 1.75rem 0.5rem;
+}
+
+.card-body {
+  padding: 1.25rem 1.75rem 1.75rem;
+}
+
+// Forms
+.form-group {
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+.form-label {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--le-text-secondary);
+}
+
+.form-control {
+  width: 100%;
+  background: var(--le-surface);
+  border: 1px solid var(--le-border);
+  border-radius: 12px;
+  color: var(--le-text-primary);
+  font-size: 13px; font-weight: 500;
+  padding: 12px 16px;
+  outline: none; transition: all 0.2s;
+  
+  &::placeholder { color: var(--le-text-muted); }
+  
+  &:focus {
+    border-color: var(--le-accent-border);
+    background: var(--le-accent-soft);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--le-accent) 10%, transparent);
+  }
+}
+
+// Select wrapper
+.select-wrapper {
+  position: relative;
+  select.form-control {
+    appearance: none; cursor: pointer; padding-right: 40px;
+    option { background: var(--le-bg); color: var(--le-text-primary); }
+  }
+  .select-icon {
+    position: absolute; right: 14px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--le-text-muted); font-size: 18px; pointer-events: none;
+  }
+}
+
+// Buttons
+.btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 24px; border-radius: 12px;
+  font-size: 13px; font-weight: 700;
+  color: white; border: none; cursor: pointer;
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 4px 20px rgba(16,185,129,0.3);
+  transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(16,185,129,0.4);
+  }
+  &:disabled {
+    background: var(--le-surface);
+    color: var(--le-text-muted);
+    box-shadow: none; border: 1px solid var(--le-border);
+    cursor: not-allowed;
+  }
+}
+
+// Small spinner
+.spinner-small {
+  display: inline-block; width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

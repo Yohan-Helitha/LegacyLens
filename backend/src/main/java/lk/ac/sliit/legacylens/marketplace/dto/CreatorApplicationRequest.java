@@ -37,6 +37,10 @@ public class CreatorApplicationRequest {
     @NotEmpty(message = "Select at least one interest")
     private List<String> interests;
 
+    /** One "Language:LEVEL" entry per language the applicant speaks, e.g. "Sinhala:FLUENT". */
+    @NotEmpty(message = "Select at least one language")
+    private List<String> languages;
+
     @NotNull(message = "Experience level is required")
     private ExperienceLevel experienceLevel;
 

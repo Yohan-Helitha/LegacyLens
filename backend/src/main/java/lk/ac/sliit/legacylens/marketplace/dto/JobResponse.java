@@ -26,4 +26,14 @@ public class JobResponse {
     /** Display text for the confirmed time range, e.g. "10:00 AM - 2:00 PM" — set only for Jobs created via booking. */
     private String timeWindowText;
     private LocalDateTime completedAt;
+    /** The linked opportunity's category (e.g. "Oral History"); null for jobs with no opportunity behind them. */
+    private String category;
+    /** The linked opportunity's language, as the opportunity detail page shows it; null when there is none. */
+    private String language;
+    /** The job's own photo, else its opportunity's - "local:<key>" for bundled placeholder pictures. */
+    private String heroImageUrl;
+    /** The knowledge holder's star rating for this job; null until they have rated it. */
+    private Integer reviewRating;
+    /** The knowledge holder's written feedback for this job; null when none. */
+    private String reviewComment;
 }

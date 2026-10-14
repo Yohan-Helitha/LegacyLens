@@ -1,7 +1,7 @@
 package lk.ac.sliit.legacylens.admin.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+
+
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -51,6 +51,10 @@ public class CreateOpportunityRequest {
     private String preservationGoal;
 
     private String tasks;
+
+    /** Comma separated "Required Skills" the admin picked (e.g. "Photography,Videography") — drives creator matching. */
+    @Size(max = 500)
+    private String requiredSkills;
 
     @Size(max = 20)
     private String status;

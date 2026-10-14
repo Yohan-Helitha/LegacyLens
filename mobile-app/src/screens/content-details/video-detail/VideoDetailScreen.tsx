@@ -14,6 +14,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Typography } from '../../../theme';
 import { CommentModal } from '../../../components/common/CommentModal';
 import { homeApi, FeedItemResponse } from '../../../services/api/homeApi';
+import { discoveryApi } from '../../../services/api/discoveryApi';
 import { styles } from './VideoDetailScreen.styles';
 
 export interface VideoDetailScreenProps {
@@ -119,24 +120,56 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
   }, [currentPost?.id]);
 
   useEffect(() => {
-    homeApi
-      .getFeedItems()
-      .then(items => {
-        const currentId = currentPost?.id;
-        const currentTags = currentPost?.tags || [];
-        const filtered = items.filter(i => String(i.id) !== String(currentId));
+    const currentId = currentPost?.id;
 
-        filtered.sort((a, b) => {
-          const aTagMatch = a.tags?.some((t: string) => currentTags.includes(t)) ? 1 : 0;
-          const bTagMatch = b.tags?.some((t: string) => currentTags.includes(t)) ? 1 : 0;
-          return bTagMatch - aTagMatch;
+    function fallbackFeedRelated() {
+      homeApi
+        .getFeedItems()
+        .then(items => {
+          const currentTags = currentPost?.tags || [];
+          const filtered = items.filter(i => String(i.id) !== String(currentId));
+
+          filtered.sort((a, b) => {
+            const aTagMatch = a.tags?.some((t: string) => currentTags.includes(t)) ? 1 : 0;
+            const bTagMatch = b.tags?.some((t: string) => currentTags.includes(t)) ? 1 : 0;
+            return bTagMatch - aTagMatch;
+          });
+
+          setRelatedItems(filtered.slice(0, 4));
+        })
+        .catch(err => {
+          console.log('Failed to fetch fallback related items:', err);
         });
+    }
 
-        setRelatedItems(filtered.slice(0, 4));
-      })
-      .catch(err => {
-        console.log('Failed to fetch related items:', err);
-      });
+    if (currentId) {
+      discoveryApi
+        .getRelatedStories(String(currentId), 4)
+        .then(stories => {
+          if (stories && stories.length > 0) {
+            const mapped: FeedItemResponse[] = stories.map(s => ({
+              id: String(s.id),
+              title: s.title,
+              type: (s.type || 'video') as any,
+              author: s.authorName || 'Elder Storyteller',
+              location: s.district ? `${s.district}, ${s.region || 'Sri Lanka'}` : (s.region || 'Sri Lanka'),
+              tags: s.tags || [],
+              thumbnail: s.imageUrl || DEFAULT_THUMBNAIL,
+              likesCount: s.likesCount || 0,
+              commentsCount: s.commentsCount || 0,
+              description: s.description || '',
+              excerpt: s.description || '',
+              duration: '4:20',
+            }));
+            setRelatedItems(mapped);
+          } else {
+            fallbackFeedRelated();
+          }
+        })
+        .catch(() => fallbackFeedRelated());
+    } else {
+      fallbackFeedRelated();
+    }
   }, [currentPost?.id]);
 
   const handleSelectRelated = (item: FeedItemResponse) => {

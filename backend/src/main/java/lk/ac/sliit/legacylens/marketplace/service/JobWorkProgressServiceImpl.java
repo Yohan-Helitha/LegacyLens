@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.marketplace.service;
 
+import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.common.storage.FileStorageService;
 import lk.ac.sliit.legacylens.marketplace.dto.ChecklistItemResponse;
@@ -8,6 +9,7 @@ import lk.ac.sliit.legacylens.marketplace.dto.WorkProgressResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.ChecklistStage;
 import lk.ac.sliit.legacylens.marketplace.entity.Job;
 import lk.ac.sliit.legacylens.marketplace.entity.JobWorkMaterial;
+import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.JobWorkProgress;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityChecklistItem;
@@ -23,7 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -78,6 +84,12 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .findByJobIdAndChecklistItemId(jobId, checklistItemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Checklist item not found for this job"));
 
+        // Record, Edit and Submit are steps of their own (uploading, writing, submitting) and finish by
+        // themselves - only a Prep task is ticked by hand.
+        if (progress.getChecklistItem().getStage() != ChecklistStage.PREP) {
+            throw new InvalidRequestException("This step completes by itself - there is nothing to tick here.");
+        }
+
         progress.setCompleted(completed);
         progress.setCompletedAt(completed ? LocalDateTime.now() : null);
         if (note != null) {
@@ -100,11 +112,26 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
 
     @Override
     @Transactional
+    public WorkProgressResponse updateSeo(UUID creatorId, UUID jobId, String summary, List<String> keywords) {
+        Job job = getOwnedJob(creatorId, jobId);
+        JobWorkProgress progress = getOrCreateProgress(job);
+
+        progress.setSeoSummary(summary == null || summary.isBlank() ? null : summary.trim());
+
+        List<String> cleaned = normalizeKeywords(keywords);
+        progress.setSeoKeywords(cleaned.isEmpty() ? null : String.join(",", cleaned));
+
+        return mapToResponse(workProgressRepository.save(progress));
+    }
+
+    @Override
+    @Transactional
     public WorkProgressResponse addMaterial(UUID creatorId, UUID jobId, MultipartFile file) {
         Job job = getOwnedJob(creatorId, jobId);
         JobWorkProgress progress = getOrCreateProgress(job);
 
-        String fileUrl = fileStorageService.store(file, WORK_MATERIAL_UPLOAD_SUBDIR);
+        String fileUrl = fileStorageService.store(file, WORK_MATERIAL_UPLOAD_SUBDIR,
+                FileStorageService.MEDIA_CONTENT_TYPES, FileStorageService.MAX_MEDIA_FILE_SIZE_BYTES);
 
         JobWorkMaterial material = new JobWorkMaterial();
         material.setJob(job);
@@ -159,8 +186,27 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         progress.setRejected(false);
         progress.setRejectionReason(null);
         progress.setRejectedAt(null);
+        // ...and so are the reviewers' notes - they asked for these changes, which are now made.
+        progress.setElderFeedback(null);
+        progress.setElderFeedbackAt(null);
+        progress.setAdminFeedback(null);
+        progress.setAdminFeedbackAt(null);
+        // A changed piece of work is looked at again by both reviewers.
+        progress.setElderApproved(false);
+        progress.setAdminApproved(false);
 
         return mapToResponse(workProgressRepository.save(progress));
+    }
+
+    @Override
+    @Transactional
+    public void markOpened(UUID creatorId, UUID jobId) {
+        Job job = getOwnedJob(creatorId, jobId);
+        JobWorkProgress progress = getOrCreateProgress(job);
+        if (progress.getOpenedAt() == null) {
+            progress.setOpenedAt(LocalDateTime.now());
+            workProgressRepository.save(progress);
+        }
     }
 
     @Override
@@ -170,6 +216,35 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         workMaterialRepository.deleteByJobId(job.getId());
         checklistProgressRepository.deleteByJobId(job.getId());
         workProgressRepository.findByJobId(job.getId()).ifPresent(workProgressRepository::delete);
+    }
+
+    /**
+     * Trims each keyword, drops a leading "#", strips commas (the storage
+     * separator), skips blanks and removes case-insensitive duplicates while
+     * keeping the creator's original order and casing.
+     */
+    private static List<String> normalizeKeywords(List<String> keywords) {
+        if (keywords == null) {
+            return List.of();
+        }
+        Map<String, String> unique = new LinkedHashMap<>();
+        for (String raw : keywords) {
+            if (raw == null) {
+                continue;
+            }
+            String keyword = raw.replace(",", " ").trim().replaceFirst("^#+", "").trim();
+            if (!keyword.isEmpty()) {
+                unique.putIfAbsent(keyword.toLowerCase(Locale.ROOT), keyword);
+            }
+        }
+        return List.copyOf(unique.values());
+    }
+
+    private static List<String> splitKeywords(String stored) {
+        if (stored == null || stored.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(stored.split(",")).map(String::trim).filter(k -> !k.isEmpty()).toList();
     }
 
     private Job getOwnedJob(UUID creatorId, UUID jobId) {
@@ -250,40 +325,68 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
                 .orElse(null);
     }
 
-    private static final List<ChecklistStage> STAGE_ORDER =
-            List.of(ChecklistStage.PREP, ChecklistStage.RECORD, ChecklistStage.EDIT, ChecklistStage.SUBMIT);
-
-    /**
-     * A stage is "done" only once every checklist item tagged with it is
-     * completed — never inferred from the overall percentage. A stage with no
-     * items tagged for it (a job type that skips that stage) counts as
-     * vacuously done, so the stepper moves straight past it.
-     */
-    private static String currentStageFor(List<WorkChecklistProgress> checklist) {
-        if (checklist.isEmpty()) {
-            return "PREP";
+    /** The one word that says where a piece of work stands - the same rules every screen follows. */
+    static String workStatusOf(Job job, JobWorkProgress progress, boolean submitted) {
+        if (progress.getPublishedAt() != null) {
+            return "PUBLISHED";
         }
-        if (checklist.stream().allMatch(WorkChecklistProgress::isCompleted)) {
+        if (job.getStatus() == JobStatus.COMPLETED) {
             return "COMPLETED";
         }
-        for (ChecklistStage stage : STAGE_ORDER) {
-            boolean stageDone = checklist.stream()
-                    .filter(cp -> cp.getChecklistItem().getStage() == stage)
-                    .allMatch(WorkChecklistProgress::isCompleted);
-            if (!stageDone) {
-                return stage.name();
-            }
+        if (progress.isRejected()) {
+            return "REJECTED";
         }
-        return ChecklistStage.SUBMIT.name();
+        if (submitted) {
+            return "SUBMITTED";
+        }
+        return progress.isDraft() ? "SAVED" : "IN_PROGRESS";
+    }
+
+    private boolean hasMaterials(Job job) {
+        return !workMaterialRepository.findByJobIdOrderByUploadedAtAsc(job.getId()).isEmpty();
+    }
+
+    private static boolean filled(String text) {
+        return text != null && !text.isBlank();
+    }
+
+    private static boolean isSubmitted(JobWorkProgress progress) {
+        return progress.getSubmittedAt() != null && !progress.isDraft();
+    }
+
+    /** How far a creator is: four steps, each worth a quarter, however many tasks sit inside Prep. */
+    private static final int STEP_WEIGHT = 25;
+
+    private static String currentStageFor(boolean prepDone, boolean recordDone, boolean editDone, boolean submitted) {
+        if (!prepDone) {
+            return "PREP";
+        }
+        if (!recordDone) {
+            return "RECORD";
+        }
+        if (!editDone) {
+            return "EDIT";
+        }
+        return submitted ? "COMPLETED" : "SUBMIT";
     }
 
     private WorkProgressResponse mapToResponse(JobWorkProgress progress) {
         Job job = progress.getJob();
 
-        List<WorkChecklistProgress> checklist = ensureChecklistProgress(job);
-        int total = checklist.size();
-        long completedCount = checklist.stream().filter(WorkChecklistProgress::isCompleted).count();
-        int percentage = total == 0 ? 0 : (int) Math.round((completedCount * 100.0) / total);
+        // The tasks an opportunity lists are the Prep tasks. Record, Edit and Submit are the three steps
+        // built into the page itself, so a task tagged with one of those stages is not listed.
+        List<WorkChecklistProgress> checklist = ensureChecklistProgress(job).stream()
+                .filter(cp -> cp.getChecklistItem().getStage() == ChecklistStage.PREP)
+                .collect(Collectors.toList());
+
+        long prepTasksDone = checklist.stream().filter(WorkChecklistProgress::isCompleted).count();
+        boolean prepDone = prepTasksDone == checklist.size();
+        boolean recordDone = hasMaterials(job);
+        boolean editDone = filled(progress.getIntroduction()) && filled(progress.getStory()) && filled(progress.getSeoSummary());
+        boolean submitted = isSubmitted(progress);
+
+        double prepShare = checklist.isEmpty() ? 1.0 : (double) prepTasksDone / checklist.size();
+        int percentage = (int) Math.round(STEP_WEIGHT * (prepShare + (recordDone ? 1 : 0) + (editDone ? 1 : 0) + (submitted ? 1 : 0)));
 
         List<ChecklistItemResponse> checklistItems = checklist.stream()
                 .map(cp -> ChecklistItemResponse.builder()
@@ -311,15 +414,31 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         return WorkProgressResponse.builder()
                 .jobId(job.getId())
                 .heroImageUrl(resolveHeroImageUrl(job))
+                .offeredAmount(job.getOfferedAmount())
                 .progressPercentage(percentage)
-                .currentStage(currentStageFor(checklist))
+                .currentStage(currentStageFor(prepDone, recordDone, editDone, submitted))
+                .prepDone(prepDone)
+                .recordDone(recordDone)
+                .editDone(editDone)
+                .submitted(submitted)
                 .introduction(progress.getIntroduction())
                 .story(progress.getStory())
+                .seoSummary(progress.getSeoSummary())
+                .seoKeywords(splitKeywords(progress.getSeoKeywords()))
+                .workStatus(workStatusOf(job, progress, submitted))
                 .draft(progress.isDraft())
                 .submittedAt(progress.getSubmittedAt())
                 .rejected(progress.isRejected())
                 .rejectionReason(progress.getRejectionReason())
                 .rejectedAt(progress.getRejectedAt())
+                .elderApproved(progress.isElderApproved())
+                .openedAt(progress.getOpenedAt())
+                .adminApproved(progress.isAdminApproved())
+                .publishedAt(progress.getPublishedAt())
+                .elderFeedback(progress.getElderFeedback())
+                .elderFeedbackAt(progress.getElderFeedbackAt())
+                .adminFeedback(progress.getAdminFeedback())
+                .adminFeedbackAt(progress.getAdminFeedbackAt())
                 .materials(materials)
                 .checklistItems(checklistItems)
                 .build();

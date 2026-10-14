@@ -16,10 +16,11 @@ import {
   Animated,
   Alert,
   Share,
-StyleSheet,} from 'react-native';
+  StyleSheet,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode, Audio } from 'expo-av';
+
 import * as Haptics from 'expo-haptics';
 import { VoiceSearchModal } from '../../components/common/VoiceSearchModal';
 import { CommentModal } from '../../components/common/CommentModal';
@@ -34,6 +35,7 @@ import { VideoCard } from '../../components/home/VideoCard';
 import { BlogCard } from '../../components/home/BlogCard';
 import { AudioCard } from '../../components/home/AudioCard';
 import { homeApi } from '../../services/api/homeApi';
+import { discoveryApi, mapDiscoveryToFeedItem } from '../../services/api/discoveryApi';
 import { loadedVideoIds, VItem, BItem, AItem } from '../home/HomeScreen';
 
 const CATEGORIES: Array<{
@@ -43,8 +45,8 @@ const CATEGORIES: Array<{
 // ─────────────────────────────────────────────────────────────────────────────
 // Component Definition
 // ─────────────────────────────────────────────────────────────────────────────
-export const SearchScreen: React.FC<{ 
-  onNavigate?: (tab: string) => void, 
+export const SearchScreen: React.FC<{
+  onNavigate?: (tab: string) => void,
   isOverlayActive?: boolean,
   initialSearchQuery?: string,
   onBack?: () => void
@@ -128,13 +130,53 @@ export const SearchScreen: React.FC<{
 
   // ── Shuffled Initial Feed ────────────────────────────────────────────────
   const [allFeedItems, setAllFeedItems] = useState<(VItem | BItem | AItem)[]>([]);
+  const [includeRelated, setIncludeRelated] = useState(true);
+  const [discoveryResults, setDiscoveryResults] = useState<(VItem | BItem | AItem)[] | null>(null);
+  const [isSearchingDiscovery, setIsSearchingDiscovery] = useState(false);
+
+  // ── AI Cultural Discovery Search Effect ──────────────────────────────────
+  useEffect(() => {
+    if (!searchQuery || !searchQuery.trim()) {
+      setDiscoveryResults(null);
+      return;
+    }
+
+    let isCurrent = true;
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearchingDiscovery(true);
+        const results = await discoveryApi.searchStories({
+          query: searchQuery,
+          includeRelated,
+          type: activeTab !== 'Explore all' ? activeTab : undefined
+        });
+        if (isCurrent) {
+          if (results && results.length > 0) {
+            setDiscoveryResults(results.map(mapDiscoveryToFeedItem));
+          } else {
+            setDiscoveryResults([]);
+          }
+        }
+      } catch (err) {
+        console.log('Discovery search fallback to local:', err);
+        if (isCurrent) setDiscoveryResults(null);
+      } finally {
+        if (isCurrent) setIsSearchingDiscovery(false);
+      }
+    }, 250);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [searchQuery, includeRelated, activeTab]);
 
   // 🎙️ Filtering logic 🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️
   const filterMatches = (keywords: string[]) => {
     if (!searchQuery && !selectedCategoryId) return true;
-    
+
     const lower = keywords.map(k => k.toLowerCase());
-    
+
     // 1. Search bar filter
     if (searchQuery) {
       const queryParts = searchQuery.toLowerCase().split(' ').map(p => p.replace(/^#/, '')).filter(p => p.trim() !== '');
@@ -156,6 +198,10 @@ export const SearchScreen: React.FC<{
 
   // Derive final feed based on tab, then search/category filters
   const feed = useMemo(() => {
+    if (discoveryResults !== null && searchQuery && searchQuery.trim()) {
+      return discoveryResults;
+    }
+
     let pool = allFeedItems;
     if (activeTab === 'Videos') {
       pool = allFeedItems.filter(i => i.type === 'video');
@@ -167,16 +213,16 @@ export const SearchScreen: React.FC<{
 
     return pool.filter(item => {
       const kw = [
-        (item as any).title  || (item as any).name  || '',
-        (item as any).author || (item as any).name  || '',
+        (item as any).title || (item as any).name || '',
+        (item as any).author || (item as any).name || '',
         (item as any).location || '',
-        (item as any).topic    || '',
-        (item as any).excerpt  || '',
+        (item as any).topic || '',
+        (item as any).excerpt || '',
         ...((item as any).tags || []),
       ];
       return filterMatches(kw);
     });
-  }, [allFeedItems, activeTab, searchQuery, selectedCategoryId]);
+  }, [allFeedItems, activeTab, searchQuery, selectedCategoryId, discoveryResults]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -194,144 +240,187 @@ export const SearchScreen: React.FC<{
     <View style={[styles.safeArea, { backgroundColor: Colors.secondary }]}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.secondary} />
 
-      <CommentModal 
-        visible={commentModalVisible} 
-        onClose={() => setCommentModalVisible(false)} 
-        postId={activePostId} 
+      <CommentModal
+        visible={commentModalVisible}
+        onClose={() => setCommentModalVisible(false)}
+        postId={activePostId}
       />
 
       <View style={{ flex: 1, overflow: 'hidden', backgroundColor: '#F8FAF9' }}>
-        <Animated.View 
+        <Animated.View
           onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
           style={[styles.stickyHeader, { backgroundColor: Colors.secondary, transform: [{ translateY: headerTranslateY }] }]}
         >
         
         {/* Custom Dark Green Search Header */}
         <View style={{
-          flexDirection: 'row',
-          alignItems: 'flex-start',
           paddingHorizontal: Spacing.md,
           paddingTop: (StatusBar.currentHeight || 24) + Spacing.sm,
           paddingBottom: Spacing.md,
           backgroundColor: Colors.secondary,
         }}>
-          {onBack && (
-            <TouchableOpacity onPress={onBack} style={{ marginRight: Spacing.sm, padding: 4, marginLeft: -4, marginTop: 4 }}>
-              <MaterialIcons name="arrow-back" size={26} color={Colors.white} />
-            </TouchableOpacity>
-          )}
-          
-          <View style={styles.tagInputContainer}>
-            <MaterialIcons
-              name="search"
-              size={24}
-              color={Colors.textMuted}
-              style={{ marginTop: 3 }}
-            />
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {onBack && (
+              <TouchableOpacity onPress={onBack} style={{ marginRight: Spacing.sm, padding: 4, marginLeft: -4 }}>
+                <MaterialIcons name="arrow-back" size={26} color={Colors.white} />
+              </TouchableOpacity>
+            )}
             
-            <View style={styles.tagInputInner}>
-              {(searchQuery.match(/#[^\s]+/g) || []).map(tag => (
-                <View key={tag} style={styles.tagPill}>
-                  <Text style={styles.tagPillText}>{tag}</Text>
-                  <TouchableOpacity onPress={() => setSearchQuery(searchQuery.replace(tag, '').replace(/\s+/g, ' ').trim())}>
-                    <MaterialIcons name="close" size={16} color={Colors.textMuted} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-
-              <TextInput
-                style={styles.tagTextInput}
-                placeholder={searchQuery.match(/#[^\s]+/g) ? "Add tag..." : "Search by tags..."}
-                placeholderTextColor="#6F7978"
-                value={searchQuery.replace(/#[^\s]+/g, '').trimStart()}
-                onChangeText={(text) => {
-                  const tags = (searchQuery.match(/#[^\s]+/g) || []).join(' ');
-                  setSearchQuery((tags ? tags + ' ' : '') + text);
-                }}
-                autoCapitalize="none"
+            <View style={[styles.tagInputContainer, { flex: 1 }]}>
+              <MaterialIcons
+                name="search"
+                size={24}
+                color={Colors.textMuted}
+                style={{ marginTop: 3 }}
               />
+              
+              <View style={styles.tagInputInner}>
+                {(searchQuery.match(/#[^\s]+/g) || []).map(tag => (
+                  <View key={tag} style={styles.tagPill}>
+                    <Text style={styles.tagPillText}>{tag}</Text>
+                    <TouchableOpacity onPress={() => setSearchQuery(searchQuery.replace(tag, '').replace(/\s+/g, ' ').trim())}>
+                      <MaterialIcons name="close" size={16} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+
+                <TextInput
+                  style={styles.tagTextInput}
+                  placeholder={searchQuery.match(/#[^\s]+/g) ? "Add tag..." : "Search heritage by tags..."}
+                  placeholderTextColor="#6F7978"
+                  value={searchQuery.replace(/#[^\s]+/g, '').trimStart()}
+                  onChangeText={(text) => {
+                    const tags = (searchQuery.match(/#[^\s]+/g) || []).join(' ');
+                    setSearchQuery((tags ? tags + ' ' : '') + text);
+                  }}
+                  autoCapitalize="none"
+                />
+              </View>
             </View>
-            
+          </View>
+
+          {/* Media Type Filter Tabs & AI Semantic Expansion Toggle */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+              {['Explore all', 'Videos', 'Blogs', 'Audio'].map((tab) => (
+                <TouchableOpacity
+                  key={tab}
+                  onPress={() => setActiveTab(tab)}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 5,
+                    borderRadius: 16,
+                    backgroundColor: activeTab === tab ? '#fe893e' : 'rgba(255,255,255,0.15)',
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#ffffff' }}>{tab}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              onPress={() => setIncludeRelated(!includeRelated)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: includeRelated ? 'rgba(254, 137, 62, 0.25)' : 'rgba(255,255,255,0.12)',
+                borderColor: includeRelated ? '#fe893e' : 'rgba(255,255,255,0.25)',
+                borderWidth: 1,
+                borderRadius: 16,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                marginLeft: 8,
+              }}
+            >
+              <MaterialIcons
+                name={includeRelated ? "auto-awesome" : "filter-alt"}
+                size={14}
+                color={includeRelated ? '#fe893e' : '#ffffff'}
+                style={{ marginRight: 4 }}
+              />
+              <Text style={{ fontSize: 11, fontWeight: '700', color: includeRelated ? '#fe893e' : '#ffffff' }}>
+                {includeRelated ? "AI Related" : "Exact"}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </Animated.View>
+        </Animated.View>
 
-      <Animated.FlatList
-        data={feed}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight + 16 }]}
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[Colors.secondary, Colors.accent]}
-            tintColor={Colors.secondary}
-            progressViewOffset={190}
-          />
-        }
-        ListHeaderComponent={null}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <MaterialIcons name="search-off" size={48} color={Colors.textMuted} />
-            <Text style={styles.emptyStateText}>No results found</Text>
-            <Text style={styles.emptyStateSubtext}>Try a different keyword or category</Text>
-          </View>
-        }
-        renderItem={({ item }: any) => {
-                /* ── VIDEO CARD ──────────────────────────────────────── */
-                if (item.type === 'video') {
-                  const v = item as VItem;
-                  const isPlaying = visibleVideoId === v.id && !isOverlayActive;
-                  return (
-                    <VideoCard 
-                      v={v} 
-                      isPlaying={isPlaying} 
-                      item={item} 
-                      setActivePostId={setActivePostId} 
-                      setCommentModalVisible={setCommentModalVisible} 
-                      onNavigate={onNavigate}
-                      loadedVideoIds={loadedVideoIds}
-                    />
-                  );
-                }
+        <Animated.FlatList
+          data={feed}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight + 16 }]}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors.secondary, Colors.accent]}
+              tintColor={Colors.secondary}
+              progressViewOffset={190}
+            />
+          }
+          ListHeaderComponent={null}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <MaterialIcons name="search-off" size={48} color={Colors.textMuted} />
+              <Text style={styles.emptyStateText}>No results found</Text>
+              <Text style={styles.emptyStateSubtext}>Try a different keyword or category</Text>
+            </View>
+          }
+          renderItem={({ item }: any) => {
+            /* ── VIDEO CARD ──────────────────────────────────────── */
+            if (item.type === 'video') {
+              const v = item as VItem;
+              const isPlaying = visibleVideoId === v.id && !isOverlayActive;
+              return (
+                <VideoCard
+                  v={v}
+                  isPlaying={isPlaying}
+                  item={item}
+                  setActivePostId={setActivePostId}
+                  setCommentModalVisible={setCommentModalVisible}
+                  onNavigate={onNavigate}
+                  loadedVideoIds={loadedVideoIds}
+                />
+              );
+            }
 
-                /* ── BLOG / STORY CARD ───────────────────────────────── */
-                if (item.type === 'blog') {
-                  const b = item as BItem;
-                  return (
-                    <BlogCard 
-                      b={b} 
-                      item={item} 
-                      setActivePostId={setActivePostId} 
-                      setCommentModalVisible={setCommentModalVisible} 
-                      onNavigate={onNavigate} 
-                    />
-                  );
-                }
+            /* ── BLOG / STORY CARD ───────────────────────────────── */
+            if (item.type === 'blog') {
+              const b = item as BItem;
+              return (
+                <BlogCard
+                  b={b}
+                  item={item}
+                  setActivePostId={setActivePostId}
+                  setCommentModalVisible={setCommentModalVisible}
+                  onNavigate={onNavigate}
+                />
+              );
+            }
 
-                /* ── AUDIO CARD ──────────────────────────────────────── */
-                const a = item as AItem;
-                return (
-                  <AudioCard
-                    a={a}
-                    item={item}
-                    setActivePostId={setActivePostId}
-                    setCommentModalVisible={setCommentModalVisible}
-                  />
-                );
-        }}
-        ListFooterComponent={<View style={styles.bottomSpacer} />}
-      />
+            /* ── AUDIO CARD ──────────────────────────────────────── */
+            const a = item as AItem;
+            return (
+              <AudioCard
+                a={a}
+                item={item}
+                setActivePostId={setActivePostId}
+                setCommentModalVisible={setCommentModalVisible}
+              />
+            );
+          }}
+          ListFooterComponent={<View style={styles.bottomSpacer} />}
+        />
 
-      {/* ── Voice Search ─────────────────────────────────────────────────── */}
+        {/* ── Voice Search ─────────────────────────────────────────────────── */}
       </View>
       <VoiceSearchModal
         visible={isVoiceModalVisible}

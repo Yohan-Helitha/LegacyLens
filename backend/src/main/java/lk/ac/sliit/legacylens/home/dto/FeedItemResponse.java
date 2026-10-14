@@ -36,4 +36,5 @@ public class FeedItemResponse {
     private String topic;
     private String avatar;
     private List<Integer> bars;
+    private String mediaUrl;
 }

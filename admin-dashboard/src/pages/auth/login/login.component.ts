@@ -1,5 +1,5 @@
 import { Component, signal, ViewChild, ElementRef, AfterViewInit, HostListener } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../../app/core/services/auth.service';
@@ -7,7 +7,7 @@ import { AuthService } from '../../../app/core/services/auth.service';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [ReactiveFormsModule, RouterModule],
   template: `
     <main class="relative w-full h-screen overflow-y-auto overflow-x-hidden font-body-md text-on-surface">
       

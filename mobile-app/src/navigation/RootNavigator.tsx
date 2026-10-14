@@ -45,7 +45,7 @@ export type RootStackParamList = {
   OnBoarding1: undefined;
   OnBoarding2: undefined;
   OnBoarding3: undefined;
-  User: undefined;
+  User: { initialTab?: 'home' | 'learn' | 'market' | 'map' | 'profile' } | undefined;
   Admin: undefined;
   StorytellerOnboarding: undefined;
   ContentCapture: undefined;
@@ -102,12 +102,11 @@ export const RootNavigator: React.FC = () => {
           <LoginScreen
             onLoginSuccess={() => {
               // Already-verified content creators skip the general elder
-              // "Become a Freelancer" profile screen (a stopgap from when the
-              // elder home experience wasn't built yet) and land directly in
-              // their own creator profile instead.
+              // "Become a Freelancer" profile screen and land on their own
+              // home (CreatorDashboard - the CreatorNavigator's default screen).
               const roles = useAuthStore.getState().user?.roles ?? [];
               if (roles.includes('YOUTH_CREATOR')) {
-                navigation.replace('Creator', { initialScreen: 'profile' });
+                navigation.replace('Creator');
               } else {
                 navigation.replace(roles.includes('ADMIN') ? 'Admin' : 'User');
               }
@@ -264,7 +263,7 @@ export const RootNavigator: React.FC = () => {
 
       {/* ── General-user flow (home feed, map, profile) ─────────────────────── */}
       <Stack.Screen name="User">
-        {({ navigation }) => <UserNavigator navigation={navigation} />}
+        {({ navigation, route }) => <UserNavigator navigation={navigation} route={route} />}
       </Stack.Screen>
 
       {/* ── Admin flow — only reached when the logged-in user has the ADMIN role ── */}

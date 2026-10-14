@@ -146,6 +146,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
       offeredAmount: 3500,
       preservationGoal: preservationDescription,
       tasks: tasks.filter(t => t.trim()).join('\n'),
+      requiredSkills: selectedSkills.join(','),
       status: 'DRAFT',
       elderName,
     } as CreateOpportunityRequest;
@@ -195,6 +196,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
         offeredAmount: 3500,
         preservationGoal: preservationDescription,
         tasks: tasks.filter(t => t.trim()).join('\n'),
+        requiredSkills: selectedSkills.join(','),
         status: 'PUBLISHED',
         elderName,
       } as CreateOpportunityRequest;
@@ -212,7 +214,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   const formatTime = (date: Date | null) => {
     if (!date) return '';
     let hours = date.getHours();
-    let minutes = date.getMinutes();
+    const minutes = date.getMinutes();
     const ampm = hours >= 12 ? 'PM' : 'AM';
     hours = hours % 12;
     hours = hours ? hours : 12;
@@ -227,7 +229,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   };
 
   const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [16, 9],

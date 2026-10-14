@@ -4,11 +4,14 @@ import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityCardResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityDetailResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
+import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
+import lk.ac.sliit.legacylens.marketplace.matching.CreatorMatchScorer.Match;
+import lk.ac.sliit.legacylens.marketplace.matching.OpportunityMatcher;
+import lk.ac.sliit.legacylens.marketplace.matching.OpportunityMatcher.CreatorMatching;
+import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
-import lk.ac.sliit.legacylens.users.entity.CreatorProfile;
 import lk.ac.sliit.legacylens.users.entity.User;
-import lk.ac.sliit.legacylens.users.repository.CreatorProfileRepository;
 import lk.ac.sliit.legacylens.users.repository.KnowledgeHolderProfileRepository;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
 import org.slf4j.Logger;
@@ -18,14 +21,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Read-only for content creators. Nothing here writes an Opportunity — the
- * elder audio submission + admin transcription/publish flow is a separate,
- * not-yet-built feature (see Opportunity's javadoc).
+ * Read-only for content creators. Nothing here writes an Opportunity - the
+ * elder audio submission + admin transcription/publish flow is a separate
+ * feature (see Opportunity's javadoc).
+ *
+ * Every match percentage is worked out by the creator -> opportunity algorithm
+ * (see {@link CreatorMatchScorer}); it is never made up. A user who is not a
+ * creator simply gets no percentage.
  */
 @Service
 public class OpportunityServiceImpl implements OpportunityService {
@@ -33,62 +42,108 @@ public class OpportunityServiceImpl implements OpportunityService {
     private static final Logger log = LoggerFactory.getLogger(OpportunityServiceImpl.class);
 
     /**
-     * Shown whenever a personalised score can't be computed (no creator, no
-     * profile, or any error).
+     * How many published opportunities are looked at when picking recommendations. Scoring happens
+     * in memory, so this keeps one request bounded; a warning is logged whenever it is reached.
      */
-    private static final int DEFAULT_MATCH_PERCENTAGE = 60;
+    private static final int RECOMMENDATION_POOL = 500;
 
     private final OpportunityRepository opportunityRepository;
     private final KnowledgeHolderProfileRepository knowledgeHolderProfileRepository;
-    private final CreatorProfileRepository creatorProfileRepository;
     private final UserRepository userRepository;
+    private final OpportunityMatcher matcher;
+    private final OpportunityApplicationRepository applicationRepository;
 
     public OpportunityServiceImpl(
             OpportunityRepository opportunityRepository,
             KnowledgeHolderProfileRepository knowledgeHolderProfileRepository,
-            CreatorProfileRepository creatorProfileRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            OpportunityMatcher matcher,
+            OpportunityApplicationRepository applicationRepository) {
         this.opportunityRepository = opportunityRepository;
         this.knowledgeHolderProfileRepository = knowledgeHolderProfileRepository;
-        this.creatorProfileRepository = creatorProfileRepository;
         this.userRepository = userRepository;
+        this.matcher = matcher;
+        this.applicationRepository = applicationRepository;
+    }
+
+    /**
+     * The opportunities this creator has already applied for. A saved draft is not an application yet,
+     * so it stays listed; a sent one - whatever the answer - is left out so the creator only browses
+     * what is still open to them. Other creators are not affected.
+     */
+    private Set<UUID> alreadyAppliedTo(UUID creatorId) {
+        if (creatorId == null) {
+            return Set.of();
+        }
+        return applicationRepository.findByCreatorIdOrderBySavedAtDesc(creatorId).stream()
+                .filter(application -> application.getStatus() != OpportunityApplicationStatus.SAVED)
+                .map(application -> application.getOpportunity().getId())
+                .collect(Collectors.toSet());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OpportunityCardResponse> getRecommended(int limit, UUID creatorId) {
-        User creator = loadCreator(creatorId);
-        return opportunityRepository.findRecommended(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit)).stream()
-                .map(o -> mapCard(o, creator))
+        CreatorMatching matching = matcher.forCreator(creatorId);
+        if (!matching.isCreator()) {
+            return List.of();
+        }
+
+        // 1. Eligibility - leave out whatever cannot realistically be taken.
+        // 2. Score the rest and keep the ones worth recommending.
+        // 3. Rank by score, best first.
+        List<Opportunity> pool = opportunityRepository
+                .findByStatusOrderByCreatedAtDesc(OpportunityStatus.PUBLISHED, PageRequest.of(0, RECOMMENDATION_POOL));
+        if (pool.size() >= RECOMMENDATION_POOL) {
+            log.warn("Recommendations only looked at the newest {} published opportunities; older ones were not considered",
+                    RECOMMENDATION_POOL);
+        }
+        Set<UUID> applied = alreadyAppliedTo(creatorId);
+        return pool.stream()
+                .filter(opportunity -> !applied.contains(opportunity.getId()))
+                .filter(matching::isEligible)
+                .map(opportunity -> new Scored(opportunity, matching.score(opportunity)))
+                .filter(scored -> scored.match().recommendableToCreator())
+                .sorted(Comparator.comparingInt((Scored scored) -> scored.match().percentage()).reversed()
+                        .thenComparing(scored -> scored.opportunity().getCreatedAt(),
+                                Comparator.nullsLast(Comparator.reverseOrder())))
+                .limit(limit)
+                .map(scored -> mapCard(scored.opportunity(), scored.match()))
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OpportunityCardResponse> getUrgent(int limit, UUID creatorId) {
-        User creator = loadCreator(creatorId);
+        CreatorMatching matching = matcher.forCreator(creatorId);
+        Set<UUID> applied = alreadyAppliedTo(creatorId);
         return opportunityRepository
-                .findByStatusAndUrgentTrueOrderByDueAtAsc(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit))
+                .findByStatusAndUrgentTrueOrderByDueAtAsc(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit + applied.size()))
                 .stream()
-                .map(o -> mapCard(o, creator))
+                .filter(o -> !applied.contains(o.getId()))
+                .limit(limit)
+                .map(o -> mapCard(o, matching.score(o)))
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OpportunityCardResponse> getRecent(int limit, UUID creatorId) {
-        User creator = loadCreator(creatorId);
+        CreatorMatching matching = matcher.forCreator(creatorId);
+        Set<UUID> applied = alreadyAppliedTo(creatorId);
         return opportunityRepository
-                .findByStatusOrderByCreatedAtDesc(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit))
+                .findByStatusOrderByCreatedAtDesc(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit + applied.size()))
                 .stream()
-                .map(o -> mapCard(o, creator))
+                .filter(o -> !applied.contains(o.getId()))
+                .limit(limit)
+                .map(o -> mapCard(o, matching.score(o)))
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<OpportunityCardResponse> search(int limit, UUID creatorId, String category, boolean nearby) {
-        User creator = loadCreator(creatorId);
+    public List<OpportunityCardResponse> search(int limit, UUID creatorId, String category, boolean nearby, String text) {
+        User creator = creatorId == null ? null : userRepository.findById(creatorId).orElse(null);
 
         String location = null;
         if (nearby) {
@@ -98,16 +153,21 @@ public class OpportunityServiceImpl implements OpportunityService {
             location = creator.getCity().getName();
         }
 
+        CreatorMatching matching = matcher.forCreator(creatorId);
+        Set<UUID> applied = alreadyAppliedTo(creatorId);
         return opportunityRepository
-                .search(OpportunityStatus.PUBLISHED, category, location, PageRequest.of(0, limit))
+                .search(OpportunityStatus.PUBLISHED, category, location, text == null || text.isBlank() ? null : text.trim(),
+                        PageRequest.of(0, limit + applied.size()))
                 .stream()
-                .map(o -> mapCard(o, creator))
+                .filter(o -> !applied.contains(o.getId()))
+                .limit(limit)
+                .map(o -> mapCard(o, matching.score(o)))
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public OpportunityDetailResponse getById(UUID id) {
+    public OpportunityDetailResponse getById(UUID id, UUID creatorId) {
         Opportunity opportunity = opportunityRepository.findByIdAndStatus(id, OpportunityStatus.PUBLISHED)
                 .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
 
@@ -123,10 +183,13 @@ public class OpportunityServiceImpl implements OpportunityService {
                         .filter(line -> !line.isEmpty())
                         .collect(Collectors.toList());
 
+        Match match = matcher.forCreator(creatorId).score(opportunity);
+
         return OpportunityDetailResponse.builder()
                 .id(opportunity.getId())
                 .title(opportunity.getTitle())
                 .description(opportunity.getDescription())
+                .category(opportunity.getCategory())
                 .heroImageUrl(opportunity.getHeroImageUrl())
                 .elderName(elder != null ? elder.getFullName() : null)
                 .elderAvatarUrl(elder != null ? elder.getProfilePhotoUrl() : null)
@@ -139,10 +202,13 @@ public class OpportunityServiceImpl implements OpportunityService {
                 .language(opportunity.getLanguage())
                 .preservationGoal(opportunity.getPreservationGoal())
                 .tasks(tasks)
+                .matchPercentage(match == null ? null : match.percentage())
+                .matchLevel(match == null ? null : match.level().name())
+                .matchReasons(match == null ? null : match.reasons())
                 .build();
     }
 
-    private OpportunityCardResponse mapCard(Opportunity opportunity, User creator) {
+    private OpportunityCardResponse mapCard(Opportunity opportunity, Match match) {
         User elder = opportunity.getElder();
         return OpportunityCardResponse.builder()
                 .id(opportunity.getId())
@@ -152,7 +218,9 @@ public class OpportunityServiceImpl implements OpportunityService {
                 .location(opportunity.getLocation())
                 .category(opportunity.getCategory())
                 .locationType(opportunity.getLocationType())
-                .matchPercentage(computeMatchPercentage(creator, opportunity))
+                .matchPercentage(match == null ? null : match.percentage())
+                .matchLevel(match == null ? null : match.level().name())
+                .matchReasons(match == null ? null : match.reasons())
                 .urgent(opportunity.isUrgent())
                 .dueAt(opportunity.getDueAt())
                 .elderName(elder != null ? elder.getFullName() : null)
@@ -162,62 +230,6 @@ public class OpportunityServiceImpl implements OpportunityService {
                 .build();
     }
 
-    /**
-     * Loads the logged-in creator for personalising match scores; null (and never
-     * an exception) if unavailable.
-     */
-    private User loadCreator(UUID creatorId) {
-        if (creatorId == null) {
-            return null;
-        }
-        try {
-            return userRepository.findById(creatorId).orElse(null);
-        } catch (Exception e) {
-            log.warn("Could not load creator {} for opportunity matching, using default score instead", creatorId, e);
-            return null;
-        }
-    }
-
-    /**
-     * A simple, explainable relevance score: how well this opportunity fits the
-     * creator, based on two signals — do their listed skills/interests mention
-     * this opportunity's category, and is the opportunity near their city.
-     * Deliberately not a machine-learned recommender (no interaction history
-     * exists yet to train one) — just a small weighted heuristic that always
-     * returns a sensible number, even when profile data is missing.
-     */
-    private int computeMatchPercentage(User creator, Opportunity opportunity) {
-        try {
-            if (creator == null) {
-                return DEFAULT_MATCH_PERCENTAGE;
-            }
-
-            int score = 45; // baseline so every opportunity still looks reasonably relevant
-
-            String category = opportunity.getCategory();
-            if (category != null && !category.isBlank()) {
-                CreatorProfile profile = creatorProfileRepository.findByUserId(creator.getId()).orElse(null);
-                if (profile != null) {
-                    String keywords = ((profile.getSkills() != null ? profile.getSkills() : "") + ","
-                            + (profile.getInterests() != null ? profile.getInterests() : "")).toLowerCase();
-                    if (!keywords.isBlank() && keywords.contains(category.toLowerCase())) {
-                        score += 35;
-                    }
-                }
-            }
-
-            String creatorCity = creator.getCity() != null ? creator.getCity().getName() : null;
-            String opportunityLocation = opportunity.getLocation();
-            if (creatorCity != null && !creatorCity.isBlank()
-                    && opportunityLocation != null
-                    && opportunityLocation.toLowerCase().contains(creatorCity.toLowerCase())) {
-                score += 20;
-            }
-
-            return Math.max(40, Math.min(96, score));
-        } catch (Exception e) {
-            log.warn("Match percentage calculation failed, falling back to default", e);
-            return DEFAULT_MATCH_PERCENTAGE;
-        }
+    private record Scored(Opportunity opportunity, Match match) {
     }
 }

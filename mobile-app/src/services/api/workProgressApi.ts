@@ -26,11 +26,31 @@ export const workProgressApi = {
       { introduction, story },
     ),
 
+  /** "Search Context (SEO)" — replaces the search summary and keywords wholesale. */
+  updateSeo: (jobId: string, summary: string, keywords: string[]) =>
+    apiPut<WorkProgressResponse, { summary: string; keywords: string[] }>(
+      `/jobs/${jobId}/work-progress/seo`,
+      { summary, keywords },
+    ),
+
   markDraft: (jobId: string) =>
     apiPost<WorkProgressResponse, undefined>(`/jobs/${jobId}/work-progress/draft`, undefined),
 
   submitDraft: (jobId: string) =>
     apiPost<WorkProgressResponse, undefined>(`/jobs/${jobId}/work-progress/submit`, undefined),
+
+  /** TEMPORARY - stands in for the knowledge holder or admin until their screens exist. See TemporaryReviewTestController. */
+  testReview: (jobId: string, by: 'elder' | 'admin', action: 'approve' | 'reject') =>
+    apiPost<unknown, undefined>(`/jobs/${jobId}/work-progress/test/${by}/${action}`, undefined),
+
+  /** The creator opened the job - its "New" tag goes away. */
+  markOpened: (jobId: string) =>
+    apiPost<void, undefined>(`/jobs/${jobId}/work-progress/opened`, undefined),
+
+  /** TEMPORARY - the knowledge holder gives the creator 1-5 stars on a completed job. See TemporaryReviewTestController. */
+  testRate: (jobId: string, stars: number) =>
+    apiPost<{ rating: number; creatorRating: number | null; creatorRatingCount: number }, undefined>(
+      `/jobs/${jobId}/work-progress/test/rate/${stars}`, undefined),
 
   resetProgress: (jobId: string) => apiDelete<void>(`/jobs/${jobId}/work-progress`),
 

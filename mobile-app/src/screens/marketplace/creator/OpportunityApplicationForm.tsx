@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   Image,
   Modal,
   Pressable,
@@ -13,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle, Line, Path, Polyline, Rect } from 'react-native-svg';
+import { appAlert } from '../../../components/common/AppDialog';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
@@ -20,15 +20,33 @@ import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import { profileApi } from '../../../services/api/profileApi';
 import { cityApi } from '../../../services/api/cityApi';
+import { creatorProfileApi } from '../../../services/api/creatorProfileApi';
 import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
 import { ApiError } from '../../../services/api/client';
 import type { OpportunityDetailResponse } from '../../../types/opportunity';
 import type { City } from '../../../types/city';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
+import { resolveImageUrl } from '../../../constants/api';
+import { LanguagePicker } from '../../../components/module-specific/marketplace/LanguagePicker';
+import {
+  languageMissingLevel,
+  selectionFromLanguages,
+  toLanguageRequests,
+  toWireFormat,
+} from '../../../utils/creatorLanguages';
+import type { LanguageSelection } from '../../../utils/creatorLanguages';
+
+// Shown when an opportunity has no picture of its own, or its picture cannot be loaded.
+const GENERIC_HERO_IMAGE = require('../../../../assets/images/work/traditional-rice-menu.jpg');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
 // ─────────────────────────────────────────────────────────────────────────────
+interface OptionGroup {
+  title: string;
+  items: string[];
+}
+
 const D = {
   surface:                '#EDEFEE',
   surfaceContainerLowest: '#ffffff',
@@ -51,25 +69,19 @@ const D = {
  * the backend yet, so these checklists are static/illustrative for now —
  * matching the mockup — rather than derived from real per-opportunity data.
  */
-const RELEVANT_SKILLS = [
-  'Photography',
-  'Videography',
-  'Basic Video Editing',
-  'Photo Editing',
-  'Audio Recording',
-  'Oral History Interviewing',
-  'Documentation & Report Writing',
-  'Translation & Transcription',
+const SKILL_GROUPS: OptionGroup[] = [
+  { title: 'Capture', items: ['Photography', 'Videography', 'Audio Recording'] },
+  { title: 'Edit', items: ['Basic Video Editing', 'Photo Editing'] },
+  {
+    title: 'Research & writing',
+    items: ['Oral History Interviewing', 'Documentation & Report Writing', 'Translation & Transcription'],
+  },
 ];
 
-const EQUIPMENT_ITEMS = [
-  'DSLR / Mirrorless Camera',
-  'Smartphone Camera',
-  'Tripod',
-  'Microphone (Lavalier / Shotgun)',
-  'Portable Audio Recorder',
-  'Portable Lighting Kit',
-  'Laptop for Editing',
+const EQUIPMENT_GROUPS: OptionGroup[] = [
+  { title: 'Cameras', items: ['DSLR / Mirrorless Camera', 'Smartphone Camera'] },
+  { title: 'Sound', items: ['Microphone (Lavalier / Shotgun)', 'Portable Audio Recorder'] },
+  { title: 'Support', items: ['Tripod', 'Portable Lighting Kit', 'Laptop for Editing'] },
 ];
 
 function formatScheduledDate(iso: string | null): string {
@@ -105,6 +117,12 @@ const CardIcon: React.FC<IconProps> = ({ size = 13, color = D.secondary }) => (
   </Svg>
 );
 
+const PhoneIcon: React.FC<IconProps> = ({ size = 14, color = D.primary }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z" />
+  </Svg>
+);
+
 const ArrowRightIcon: React.FC<IconProps> = ({ size = 11, color = D.secondary }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <Path d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
@@ -125,28 +143,106 @@ const CheckMark: React.FC<{ color?: string }> = ({ color = '#ffffff' }) => (
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Checkbox — custom square, matches the mockup's teal-filled checked state
+// Avatar - the creator's photo, or their initials when they have none
 // ─────────────────────────────────────────────────────────────────────────────
-const Checkbox: React.FC<{ label: string; checked: boolean; onToggle: () => void }> = ({
+const Avatar: React.FC<{ name: string; photoUrl: string | null }> = ({ name, photoUrl }) => {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase())
+    .join('');
+  return photoUrl ? (
+    <Image source={{ uri: photoUrl }} style={s.avatar} accessibilityLabel={`${name} photo`} />
+  ) : (
+    <View style={[s.avatar, s.avatarFallback]} accessibilityLabel={`${name} initials`}>
+      <Text style={s.avatarInitials}>{initials || '?'}</Text>
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TextField - a roomy writing box: accent edge, teal ring while typing, and a live character count
+// ─────────────────────────────────────────────────────────────────────────────
+const TEXT_FIELD_MAX = 600;
+
+const TextField: React.FC<{
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+  label: string;
+}> = ({ value, onChangeText, placeholder, label }) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={[s.fieldCard, focused && s.fieldCardFocused]}>
+      <View style={[s.fieldAccent, focused && s.fieldAccentFocused]} />
+      <View style={s.fieldBody}>
+        <TextInput
+          style={s.fieldInput}
+          value={value}
+          onChangeText={onChangeText}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder={placeholder}
+          placeholderTextColor={D.onSurfaceVariant}
+          multiline
+          maxLength={TEXT_FIELD_MAX}
+          textAlignVertical="top"
+          accessibilityLabel={label}
+        />
+        <Text style={s.fieldCount}>{`${value.length}/${TEXT_FIELD_MAX}`}</Text>
+      </View>
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OptionTile - one pick-any choice: a rounded box with a checkbox, 56pt tall so it is easy to hit
+// ─────────────────────────────────────────────────────────────────────────────
+const OptionTile: React.FC<{ label: string; selected: boolean; onToggle: () => void }> = ({
   label,
-  checked,
+  selected,
   onToggle,
 }) => (
   <Pressable
     onPress={onToggle}
-    style={({ pressed }) => [s.checkboxRow, pressed && s.pressed]}
+    style={({ pressed }) => [s.tile, selected && s.tileSelected, pressed && s.pressed]}
     accessibilityRole="checkbox"
-    accessibilityState={{ checked }}
+    accessibilityState={{ checked: selected }}
     accessibilityLabel={label}
   >
-    <View style={[s.checkboxBox, checked && s.checkboxBoxChecked]}>
-      {checked && <CheckMark />}
-    </View>
-    <Text style={s.checkboxLabel}>{label}</Text>
+    <View style={[s.tileBox, selected && s.tileBoxSelected]}>{selected && <CheckMark />}</View>
+    <Text style={[s.tileText, selected && s.tileTextSelected]} numberOfLines={3}>{label}</Text>
   </Pressable>
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
+/** Options under small group headings, two tiles to a row - one card per section. */
+const OptionGroups: React.FC<{
+  groups: OptionGroup[];
+  selected: Record<string, boolean>;
+  onToggle: (item: string) => void;
+}> = ({ groups, selected, onToggle }) => (
+  <View style={s.groupsCard}>
+    {groups.map((group) => (
+      <View key={group.title} style={s.groupBlock}>
+        <Text style={s.groupTitle}>{group.title}</Text>
+        <View style={s.tileGrid}>
+          {group.items.map((item) => (
+            <OptionTile key={item} label={item} selected={!!selected[item]} onToggle={() => onToggle(item)} />
+          ))}
+        </View>
+      </View>
+    ))}
+  </View>
+);
+
+const SectionHeader: React.FC<{ title: string; hint?: string }> = ({ title, hint }) => (
+  <View style={s.sectionHeaderRow}>
+    <Text style={s.sectionTitle}>{title}</Text>
+    {!!hint && <Text style={s.sectionHint}>{hint}</Text>}
+  </View>
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -161,6 +257,7 @@ export const OpportunityApplicationForm: React.FC<{
   const [detail, setDetail] = useState<OpportunityDetailResponse | null>(null);
   const [name, setName] = useState<string | null>(null);
   const [phone, setPhone] = useState<string | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [cityObj, setCityObj] = useState<City | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -169,6 +266,8 @@ export const OpportunityApplicationForm: React.FC<{
   const [approachText, setApproachText] = useState('');
   const [availabilityConfirmed, setAvailabilityConfirmed] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Record<string, boolean>>({});
+  const [languages, setLanguages] = useState<LanguageSelection>({});
+  const [heroFailed, setHeroFailed] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // "Edit Your Details" — full name + city only. Phone/NIC stay on their own
@@ -182,6 +281,7 @@ export const OpportunityApplicationForm: React.FC<{
   const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
+    setHeroFailed(false);
     if (!opportunityId) {
       setLoadError('No opportunity was selected.');
       return;
@@ -197,13 +297,24 @@ export const OpportunityApplicationForm: React.FC<{
     // (null data, no throw) simply means they're starting fresh.
     opportunityApplicationApi
       .getByOpportunity(opportunityId)
-      .then((existing) => {
-        if (!existing) return;
-        setSelectedSkills(Object.fromEntries(existing.skills.map((k) => [k, true])));
-        setExperienceText(existing.experienceText ?? '');
-        setApproachText(existing.approachText ?? '');
-        setAvailabilityConfirmed(existing.availabilityConfirmed);
-        setSelectedEquipment(Object.fromEntries(existing.equipment.map((k) => [k, true])));
+      .then(async (existing) => {
+        if (existing) {
+          setSelectedSkills(Object.fromEntries(existing.skills.map((k) => [k, true])));
+          setExperienceText(existing.experienceText ?? '');
+          setApproachText(existing.approachText ?? '');
+          setAvailabilityConfirmed(existing.availabilityConfirmed);
+          setSelectedEquipment(Object.fromEntries(existing.equipment.map((k) => [k, true])));
+          if (existing.languages?.length) {
+            setLanguages(selectionFromLanguages(existing.languages));
+            return;
+          }
+        }
+        // Nothing saved for this opportunity yet: start from the languages already on the
+        // creator's own profile, so they only have to adjust them.
+        const profile = await creatorProfileApi.getMine().catch(() => null);
+        if (profile?.languages?.length) {
+          setLanguages(selectionFromLanguages(profile.languages));
+        }
       })
       .catch(() => {});
   }, [opportunityId]);
@@ -214,6 +325,7 @@ export const OpportunityApplicationForm: React.FC<{
       .then((me) => {
         setName(me.fullName);
         setPhone(me.phoneNumber || '—');
+        setPhotoUrl(resolveImageUrl(me.profilePhotoUrl));
         setCityObj(me.city);
       })
       .catch((err) => setLoadError(err instanceof ApiError ? err.message : 'Could not load your profile.'));
@@ -237,7 +349,7 @@ export const OpportunityApplicationForm: React.FC<{
 
   const handleSaveProfile = async () => {
     if (!editName.trim()) {
-      Alert.alert('Name required', 'Please enter your full name.');
+      appAlert('Name required', 'Please enter your full name.');
       return;
     }
 
@@ -249,7 +361,7 @@ export const OpportunityApplicationForm: React.FC<{
       setEditVisible(false);
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Could not update your details.';
-      Alert.alert('Update failed', message);
+      appAlert('Update failed', message);
     } finally {
       setSavingProfile(false);
     }
@@ -257,7 +369,13 @@ export const OpportunityApplicationForm: React.FC<{
 
   const handleSave = async () => {
     if (!opportunityId) {
-      Alert.alert('Cannot save', 'No opportunity is selected.');
+      appAlert('Cannot save', 'No opportunity is selected.');
+      return;
+    }
+
+    const missingLevel = languageMissingLevel(languages);
+    if (missingLevel) {
+      appAlert('Language level needed', `Choose how well you speak ${missingLevel}, or untick it.`);
       return;
     }
 
@@ -270,13 +388,14 @@ export const OpportunityApplicationForm: React.FC<{
         approachText,
         availabilityConfirmed,
         equipment: Object.keys(selectedEquipment).filter((k) => selectedEquipment[k]),
+        languages: toWireFormat(toLanguageRequests(languages)),
       });
-      Alert.alert('Application saved', 'Your application draft has been saved.', [
+      appAlert('Application saved', 'Your application draft has been saved.', [
         { text: 'OK', onPress: onSave },
       ]);
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Could not save your application.';
-      Alert.alert('Save failed', message);
+      appAlert('Save failed', message);
     } finally {
       setSaving(false);
     }
@@ -326,30 +445,31 @@ export const OpportunityApplicationForm: React.FC<{
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.pageHeading}>Apply to Opportunity</Text>
+        <View style={s.headingBlock}>
+          <Text style={s.pageHeading}>Apply to Opportunity</Text>
+          <Text style={s.pageSubtitle}>Tell the knowledge holder why you are the right person for this work.</Text>
+        </View>
 
         {/* Opportunity summary card */}
         <View style={s.card}>
           <View style={s.summaryRow}>
             <Image
-              source={resolveOpportunityImage(detail.heroImageUrl)}
+              source={(heroFailed ? undefined : resolveOpportunityImage(detail.heroImageUrl)) ?? GENERIC_HERO_IMAGE}
               style={s.thumbnail}
               accessibilityLabel={detail.title}
               resizeMode="cover"
+              onError={() => setHeroFailed(true)}
             />
-            <View style={{ flex: 1 }}>
-              <Text style={s.summaryTitle} numberOfLines={2}>{detail.title}</Text>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={s.summaryTitle} numberOfLines={3}>{detail.title}</Text>
+              <Text style={s.elderName}>{detail.elderName}</Text>
+              {detail.location && (
+                <View style={s.metaInline}>
+                  <PinIcon />
+                  <Text style={s.metaInlineText}>{detail.location}</Text>
+                </View>
+              )}
             </View>
-          </View>
-
-          <View style={s.summaryMetaRow}>
-            <Text style={s.elderName}>{detail.elderName}</Text>
-            {detail.location && (
-              <View style={s.metaInline}>
-                <PinIcon />
-                <Text style={s.metaInlineText}>{detail.location}</Text>
-              </View>
-            )}
           </View>
 
           <View style={s.dateStipendStrip}>
@@ -375,75 +495,80 @@ export const OpportunityApplicationForm: React.FC<{
         </View>
 
         {/* Your Details */}
-        <View style={s.card}>
-          <View style={s.cardHeaderRow}>
-            <Text style={s.cardTitle}>Your Details</Text>
-            <Pressable
-              onPress={openEditDetails}
-              style={({ pressed }) => pressed && s.pressed}
-              accessibilityRole="button"
-              accessibilityLabel="Edit your details"
-            >
-              <Text style={s.editProfileText}>Edit Profile</Text>
-            </Pressable>
+        <View style={s.section}>
+          <SectionHeader title="Your Details" hint="Sent with your application" />
+          <View style={s.profileCard}>
+            <View style={s.profileTop}>
+              <Avatar name={name} photoUrl={photoUrl} />
+              <View style={s.profileNameBlock}>
+                <Text style={s.detailsName} numberOfLines={2}>{name}</Text>
+                <Text style={s.profileRole}>Content Creator</Text>
+              </View>
+              <Pressable
+                onPress={openEditDetails}
+                style={({ pressed }) => [s.editProfilePill, pressed && s.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Edit your details"
+              >
+                <Text style={s.editProfileText}>Edit Profile</Text>
+              </Pressable>
+            </View>
+
+            <View style={s.profileDivider} />
+
+            <View style={s.detailRow}>
+              <View style={s.detailIcon}><PhoneIcon /></View>
+              <Text style={s.detailText}>{phone}</Text>
+            </View>
+            <View style={s.detailRow}>
+              <View style={s.detailIcon}><PinIcon size={14} color={D.primary} /></View>
+              <Text style={s.detailText}>{cityObj?.name ?? 'No city set'}</Text>
+            </View>
           </View>
-          <Text style={s.detailsName}>{name}</Text>
-          <Text style={s.detailsMuted}>{phone}</Text>
-          <Text style={s.detailsMuted}>{cityObj?.name ?? 'No city set'}</Text>
         </View>
 
         {/* Relevant Skill */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Relevant Skill</Text>
+          <SectionHeader
+            title="Relevant Skill"
+            hint={`${Object.values(selectedSkills).filter(Boolean).length} selected`}
+          />
+          <OptionGroups groups={SKILL_GROUPS} selected={selectedSkills} onToggle={toggleSkill} />
+        </View>
+
+        {/* Languages - the same picker the "Become a Content Creator" form uses */}
+        <View style={s.section}>
+          <SectionHeader title="Languages" hint="Which can you work in?" />
           <View style={s.card}>
-            {RELEVANT_SKILLS.map((skill) => (
-              <Checkbox
-                key={skill}
-                label={skill}
-                checked={!!selectedSkills[skill]}
-                onToggle={() => toggleSkill(skill)}
-              />
-            ))}
+            <LanguagePicker value={languages} onChange={setLanguages} />
           </View>
         </View>
 
         {/* Relevant Experience */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Relevant Experience</Text>
-          <View style={s.textAreaCard}>
-            <TextInput
-              style={s.textArea}
-              value={experienceText}
-              onChangeText={setExperienceText}
-              placeholder="Tell the knowledge holder about similar work you have done."
-              placeholderTextColor={D.onSurfaceVariant}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-          </View>
+          <SectionHeader title="Relevant Experience" hint="Past work, in your own words" />
+          <TextField
+            label="Relevant experience"
+            value={experienceText}
+            onChangeText={setExperienceText}
+            placeholder="Tell the knowledge holder about similar work you have done."
+          />
         </View>
 
         {/* Approach */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Approach</Text>
-          <View style={s.textAreaCard}>
-            <TextInput
-              style={s.textArea}
-              value={approachText}
-              onChangeText={setApproachText}
-              placeholder="How will you approach this documentation work."
-              placeholderTextColor={D.onSurfaceVariant}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-          </View>
+          <SectionHeader title="Approach" hint="Your plan, step by step" />
+          <TextField
+            label="Approach"
+            value={approachText}
+            onChangeText={setApproachText}
+            placeholder="How will you approach this documentation work."
+          />
         </View>
 
         {/* Availability */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Availability</Text>
+          <SectionHeader title="Availability" />
           <View style={s.card}>
             <View style={s.availabilityRow}>
               <View style={s.availabilityBadge}>
@@ -451,27 +576,30 @@ export const OpportunityApplicationForm: React.FC<{
               </View>
               <Text style={s.availabilityText}>{availabilityText}</Text>
             </View>
-            <Checkbox
-              label="I'm available at this time."
-              checked={availabilityConfirmed}
-              onToggle={() => setAvailabilityConfirmed((v) => !v)}
-            />
+            <Pressable
+              onPress={() => setAvailabilityConfirmed((v) => !v)}
+              style={({ pressed }) => [s.confirmRow, availabilityConfirmed && s.confirmRowOn, pressed && s.pressed]}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: availabilityConfirmed }}
+              accessibilityLabel="I'm available at this time."
+            >
+              <View style={[s.confirmBox, availabilityConfirmed && s.confirmBoxOn]}>
+                {availabilityConfirmed && <CheckMark />}
+              </View>
+              <Text style={[s.confirmText, availabilityConfirmed && s.confirmTextOn]}>
+                {"I'm available at this time."}
+              </Text>
+            </Pressable>
           </View>
         </View>
 
         {/* Equipment */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Equipment</Text>
-          <View style={s.card}>
-            {EQUIPMENT_ITEMS.map((item) => (
-              <Checkbox
-                key={item}
-                label={item}
-                checked={!!selectedEquipment[item]}
-                onToggle={() => toggleEquipment(item)}
-              />
-            ))}
-          </View>
+          <SectionHeader
+            title="Equipment"
+            hint={`${Object.values(selectedEquipment).filter(Boolean).length} selected`}
+          />
+          <OptionGroups groups={EQUIPMENT_GROUPS} selected={selectedEquipment} onToggle={toggleEquipment} />
         </View>
 
         {/* Actions */}
@@ -628,10 +756,19 @@ const s = StyleSheet.create({
     gap: Spacing.md,
   },
 
+  headingBlock: { gap: 4 },
   pageHeading: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeMD,
-    color: D.onSurface,
+    fontFamily: Typography.fontDisplay,
+    fontSize: 22,
+    lineHeight: 28,
+    color: D.primary,
+    letterSpacing: -0.3,
+  },
+  pageSubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: 13,
+    lineHeight: 19,
+    color: D.onSurfaceVariant,
   },
 
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -645,23 +782,65 @@ const s = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
     gap: Spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowColor: D.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 2,
   },
   section: { gap: Spacing.sm },
-  sectionTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 2 },
+  sectionTitle: { fontFamily: Typography.fontDisplay, fontSize: 15, color: D.onSurface },
+  sectionHint: { fontFamily: Typography.fontBodyMed, fontSize: 11, color: D.onSurfaceVariant },
+
+  // ── Option tiles (skills, equipment) ─────────────────────────────────────
+  groupsCard: {
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.xl,
+    padding: Spacing.sm + 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: D.surfaceVariant,
+    gap: Spacing.sm + 4,
+  },
+  groupBlock: { gap: Spacing.sm },
+  groupTitle: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: D.onSurfaceVariant,
+  },
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: Spacing.sm },
+  tile: {
+    width: '48.5%',
+    minHeight: 48,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 6, paddingHorizontal: 10,
+    borderRadius: Radii.lg, borderWidth: 1, borderColor: D.surfaceVariant,
+    backgroundColor: D.surfaceContainerLowest,
+  },
+  tileSelected: { backgroundColor: '#E3F1F0', borderColor: D.primary },
+  tileBox: {
+    width: 20, height: 20, borderRadius: 6,
+    borderWidth: 1.5, borderColor: D.secondary,
+    backgroundColor: D.surfaceContainerLowest,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  tileBoxSelected: { backgroundColor: D.primary, borderColor: D.primary },
+  tileText: {
+    flex: 1, fontFamily: Typography.fontBodyMed, fontSize: 12.5, lineHeight: 16, color: D.onSurface,
+    includeFontPadding: false, textAlignVertical: 'center',
+  },
+  tileTextSelected: { fontFamily: Typography.fontBodySemi, color: D.primary },
 
   // ── Opportunity summary ──────────────────────────────────────────────────
   summaryRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
   thumbnail: {
-    width: 84, height: 68, borderRadius: Radii.lg,
+    width: 92, height: 92, borderRadius: Radii.lg,
     backgroundColor: D.surfaceContainerLow,
     borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant,
   },
-  summaryTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, lineHeight: 20, color: D.onSurface },
+  summaryTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 22, color: D.onSurface },
   summaryMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   elderName: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.onSurface },
   metaInline: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -677,47 +856,52 @@ const s = StyleSheet.create({
   viewOpportunityText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.secondary },
 
   // ── Your Details ─────────────────────────────────────────────────────────
-  cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
-  editProfileText: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
-  detailsName: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface },
-  detailsMuted: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
-
-  // ── Text areas ───────────────────────────────────────────────────────────
-  textAreaCard: {
+  profileCard: {
     backgroundColor: D.surfaceContainerLowest,
     borderRadius: Radii.xl,
+    padding: Spacing.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: D.surfaceVariant,
-    padding: Spacing.sm,
+    borderTopWidth: 4,
+    borderTopColor: D.primary,
+    gap: Spacing.sm,
+    shadowColor: D.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    elevation: 3,
   },
-  textArea: {
-    fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeSM,
-    lineHeight: 20,
-    color: D.onSurface,
-    minHeight: 64,
+  profileTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  profileNameBlock: { flex: 1, gap: 2 },
+  profileRole: { fontFamily: Typography.fontBodyMed, fontSize: 11, color: D.onSurfaceVariant },
+  profileDivider: { height: StyleSheet.hairlineWidth, backgroundColor: D.surfaceVariant, marginVertical: 2 },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: D.surfaceContainerLow },
+  avatarFallback: { backgroundColor: D.primary, alignItems: 'center', justifyContent: 'center' },
+  avatarInitials: { fontFamily: Typography.fontBodySemi, fontSize: 15, color: '#ffffff' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, minHeight: 32 },
+  detailIcon: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: '#E3F1F0', alignItems: 'center', justifyContent: 'center',
   },
-
-  // ── Checkbox ─────────────────────────────────────────────────────────────
-  checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  checkboxBox: {
-    width: 20, height: 20, borderRadius: 4,
-    borderWidth: 1.5, borderColor: D.secondary,
-    backgroundColor: D.surfaceContainerLowest,
-    alignItems: 'center', justifyContent: 'center',
+  detailText: { fontFamily: Typography.fontBodyMed, fontSize: 13, color: D.onSurface },
+  editProfilePill: {
+    borderRadius: Radii.full, borderWidth: 1, borderColor: D.secondary,
+    paddingVertical: 4, paddingHorizontal: 12,
   },
-  checkboxBoxChecked: { backgroundColor: D.primary, borderColor: D.primary },
-  checkboxLabel: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeSM, color: D.onSurface },
+  editProfileText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.secondary },
+  detailsName: { fontFamily: Typography.fontBodySemi, fontSize: 14, color: D.onSurface },
 
   // ── Availability ─────────────────────────────────────────────────────────
-  availabilityRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  availabilityRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: D.surfaceContainerLow, borderRadius: Radii.lg, padding: Spacing.sm,
+  },
   availabilityBadge: {
     width: 24, height: 24, borderRadius: 12,
     backgroundColor: D.secondary,
     alignItems: 'center', justifyContent: 'center',
   },
-  availabilityText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurface, flex: 1 },
+  availabilityText: { fontFamily: Typography.fontBodySemi, fontSize: 13, color: D.onSurface, flex: 1 },
 
   // ── Actions ──────────────────────────────────────────────────────────────
   actionsRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.md, paddingTop: Spacing.xs },
@@ -736,6 +920,57 @@ const s = StyleSheet.create({
   },
   saveBtnPressed: { opacity: 0.9 },
   saveBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
+
+  // ── Writing boxes (experience, approach) ────────────────────────────────
+  fieldCard: {
+    flexDirection: 'row',
+    backgroundColor: D.surfaceContainerLowest,
+    borderRadius: Radii.xl,
+    borderWidth: 1.5,
+    borderColor: D.surfaceVariant,
+    overflow: 'hidden',
+    shadowColor: D.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  fieldCardFocused: { borderColor: D.primary, shadowOpacity: 0.18, elevation: 4 },
+  fieldAccent: { width: 5, backgroundColor: D.secondary },
+  fieldAccentFocused: { backgroundColor: D.primary },
+  fieldBody: { flex: 1, paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: 6 },
+  fieldInput: {
+    fontFamily: Typography.fontBody,
+    fontSize: 13,
+    lineHeight: 20,
+    color: D.onSurface,
+    minHeight: 84,
+    paddingTop: 4,
+  },
+  fieldCount: {
+    alignSelf: 'flex-end',
+    fontFamily: Typography.fontBodyMed,
+    fontSize: 11,
+    color: D.onSurfaceVariant,
+  },
+
+  // ── "I'm available" strip - same inset as the time strip above it, so the two line up ──
+  confirmRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    minHeight: 48, padding: Spacing.sm,
+    borderRadius: Radii.lg, borderWidth: 1, borderColor: D.surfaceVariant,
+    backgroundColor: D.surfaceContainerLowest,
+  },
+  confirmRowOn: { backgroundColor: '#E3F1F0', borderColor: D.primary },
+  confirmBox: {
+    width: 24, height: 24, borderRadius: 7,
+    borderWidth: 1.5, borderColor: D.secondary,
+    backgroundColor: D.surfaceContainerLowest,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  confirmBoxOn: { backgroundColor: D.primary, borderColor: D.primary },
+  confirmText: { flex: 1, fontFamily: Typography.fontBodyMed, fontSize: 13, color: D.onSurface },
+  confirmTextOn: { fontFamily: Typography.fontBodySemi, color: D.primary },
 
   // ── Press feedback ───────────────────────────────────────────────────────
   pressed: { opacity: 0.75 },

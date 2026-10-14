@@ -26,11 +26,18 @@ public class MapService {
     private final LandmarkRepository landmarkRepository;
     private final QuestRepository questRepository;
     private final QuestionRepository questionRepository;
-    private final QuestionChoiceRepository questionChoiceRepository;
+
     private final UserBadgeRepository userBadgeRepository;
     private final BadgeRepository badgeRepository;
     private final RegionRepository regionRepository;
     private final lk.ac.sliit.legacylens.common.storage.FileStorageService fileStorageService;
+    private final lk.ac.sliit.legacylens.common.storage.MediaStorageService mediaStorageService;
+
+    /**
+     * Supabase bucket for 3D landmark models (GLB) uploaded from the admin dashboard. Must exist in
+     * Supabase as a public bucket so the mobile app can load the returned URL directly.
+     */
+    private static final String MODEL_BUCKET = "cultural-model";
 
     @PostConstruct
     public void seedData() {
@@ -179,6 +186,7 @@ public class MapService {
                 .lng(l.getLongitude())
                 .lat(l.getLatitude())
                 .type(l.getType())
+                .modelUrl(l.getModelUrl())
                 .region(l.getRegion())
                 .district(l.getDistrict())
                 .badge(badge)
@@ -199,6 +207,7 @@ public class MapService {
         l.setLongitude(request.getLongitude() != null ? request.getLongitude() : 80.7718);
         l.setLatitude(request.getLatitude() != null ? request.getLatitude() : 7.8731);
         l.setType(request.getType() != null && !request.getType().isBlank() ? request.getType() : "Historical & Archaeological Sites");
+        l.setModelUrl(request.getModelUrl());
         l.setRegion(request.getRegion());
         l.setDistrict(request.getDistrict());
 
@@ -230,6 +239,9 @@ public class MapService {
         if (request.getType() != null) {
             l.setType(request.getType());
         }
+        if (request.getModelUrl() != null) {
+            l.setModelUrl(request.getModelUrl());
+        }
         if (request.getRegion() != null) {
             l.setRegion(request.getRegion());
         }
@@ -254,6 +266,12 @@ public class MapService {
     @Transactional
     public String uploadBadgeImage(org.springframework.web.multipart.MultipartFile file) {
         return fileStorageService.store(file, "badges");
+    }
+
+    @Transactional
+    public String uploadModelFile(org.springframework.web.multipart.MultipartFile file) {
+        // Returns a complete URL (Supabase public URL, or a root-relative /uploads/... path on the local provider).
+        return mediaStorageService.store(file, MODEL_BUCKET, "models");
     }
 
     @Transactional

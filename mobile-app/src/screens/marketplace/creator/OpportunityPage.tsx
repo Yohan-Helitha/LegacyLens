@@ -18,6 +18,7 @@ import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import type { OpportunityCardResponse } from '../../../types/opportunity';
 import { resolveOpportunityImage, resolveAvatarImage } from '../../../utils/opportunityImages';
+import { showsMatchBadge } from '../../../utils/matchLevel';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -161,6 +162,17 @@ const FilterBar: React.FC<{
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MatchBadgeInline - the "55% MATCH" pill for cards that have no big photo to sit on
+// ─────────────────────────────────────────────────────────────────────────────
+const MatchBadgeInline: React.FC<{ item: OpportunityCardResponse }> = ({ item }) =>
+  showsMatchBadge(item.matchPercentage, item.matchLevel) ? (
+    <View style={s.matchBadgeInline}>
+      <Text style={s.matchStar}>{'★'}</Text>
+      <Text style={s.matchText}>{item.matchPercentage}% MATCH</Text>
+    </View>
+  ) : null;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // RecommendedCard
 // ─────────────────────────────────────────────────────────────────────────────
 const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void }> = ({
@@ -181,7 +193,7 @@ const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: (
           style={s.recommendedImg}
           accessibilityLabel={item.title}
         />
-        {item.matchPercentage != null && (
+        {showsMatchBadge(item.matchPercentage, item.matchLevel) && (
           <View style={s.matchBadge}>
             <Text style={s.matchStar}>{'\u2605'}</Text>
             <Text style={s.matchText}>{item.matchPercentage}% MATCH</Text>
@@ -193,6 +205,7 @@ const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: (
         <View style={{ gap: 4 }}>
           <Text style={s.cardTitle}>{item.title}</Text>
           <Text style={s.cardMeta}>{joinMeta(item.location, item.category)}</Text>
+          {!!item.description && <Text style={s.recentDesc} numberOfLines={3}>{item.description}</Text>}
         </View>
         <View style={s.cardCta}>
           <Pressable
@@ -245,6 +258,10 @@ const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () 
             <Text style={s.urgentMetaText}>{item.location}</Text>
           </View>
         </View>
+        {!!item.description && <Text style={s.recentDesc} numberOfLines={3}>{item.description}</Text>}
+        <View style={s.urgentBadgeSlot}>
+          <MatchBadgeInline item={item} />
+        </View>
         <View style={s.urgentCtaRow}>
           <Pressable
             onPress={onViewDetail}
@@ -284,21 +301,24 @@ const RecentOpportunityCard: React.FC<{
           <Text style={s.authorLocation}>{item.elderLocation}</Text>
         </View>
       </View>
-      <View style={s.tagsRow}>
-        {item.category && (
-          <View style={s.tagSecondary}>
-            <Text style={s.tagSecondaryText}>{item.category}</Text>
-          </View>
-        )}
-        {item.locationType && (
-          <View style={s.tagNeutral}>
-            <Text style={s.tagNeutralText}>{item.locationType}</Text>
-          </View>
-        )}
-      </View>
+      <MatchBadgeInline item={item} />
     </View>
 
     <View style={s.recentContent}>
+      {(item.category || item.locationType) && (
+        <View style={s.tagsRow}>
+          {item.category && (
+            <View style={s.tagSecondary}>
+              <Text style={s.tagSecondaryText}>{item.category}</Text>
+            </View>
+          )}
+          {item.locationType && (
+            <View style={s.tagNeutral}>
+              <Text style={s.tagNeutralText}>{item.locationType}</Text>
+            </View>
+          )}
+        </View>
+      )}
       <Text style={s.cardTitle}>{item.title}</Text>
       <Text style={s.recentDesc} numberOfLines={2}>
         {item.description}
@@ -393,8 +413,19 @@ export const OpportunityPage: React.FC<{
       .catch(() => setRecent([]));
   }, []);
 
+  // What was typed, once the creator pauses - so the backend is asked once, not on every key press.
+  const [typedText, setTypedText] = useState('');
   useEffect(() => {
-    if (activeFilter === 'all') {
+    const timer = setTimeout(() => setTypedText(searchQuery.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // A filter chip or some typed text means a real search of every published opportunity on the backend;
+  // with neither, the page shows its usual Recommended / Urgent / Recent sections.
+  const searching = activeFilter !== 'all' || typedText.length > 0;
+
+  useEffect(() => {
+    if (!searching) {
       setFilterResults(null);
       return;
     }
@@ -405,7 +436,7 @@ export const OpportunityPage: React.FC<{
     const category = activeFilter === 'nearby' ? undefined : FILTERS.find((f) => f.key === activeFilter)?.label;
 
     opportunityApi
-      .search({ category, nearby: activeFilter === 'nearby', limit: 20 })
+      .search({ category: activeFilter === 'all' ? undefined : category, nearby: activeFilter === 'nearby', q: typedText || undefined, limit: 20 })
       .then((data) => {
         if (!cancelled) setFilterResults(data);
       })
@@ -419,25 +450,10 @@ export const OpportunityPage: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [activeFilter]);
+  }, [activeFilter, typedText, searching]);
 
-  const matchesQuery = (item: OpportunityCardResponse): boolean => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      item.title.toLowerCase().includes(q) ||
-      (item.location ?? '').toLowerCase().includes(q) ||
-      (item.category ?? '').toLowerCase().includes(q)
-    );
-  };
-
-  const showRecommended = activeFilter === 'all' && recommended != null && matchesQuery(recommended);
-  const showUrgent = activeFilter === 'all' && urgent != null && matchesQuery(urgent);
-  const filteredRecent = activeFilter === 'all' ? (recent ?? []).filter(matchesQuery) : [];
-  const hasAnyDefaultResults = showRecommended || showUrgent || filteredRecent.length > 0;
-
-  const filteredFilterResults = (filterResults ?? []).filter(matchesQuery);
-  const activeFilterLabel = FILTERS.find((f) => f.key === activeFilter)?.label ?? 'Filtered';
+  const filteredFilterResults = filterResults ?? [];
+  const activeFilterLabel = activeFilter === 'all' ? 'Search' : (FILTERS.find((f) => f.key === activeFilter)?.label ?? 'Filtered');
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
@@ -455,36 +471,36 @@ export const OpportunityPage: React.FC<{
         <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
         <FilterBar active={activeFilter} onSelect={setActiveFilter} />
 
-        {activeFilter === 'all' ? (
+        {!searching ? (
           recent === null ? (
             <View style={s.emptyState}>
               <Text style={s.emptyStateText}>Loading…</Text>
             </View>
           ) : (
             <>
-              {showRecommended && recommended && (
+              {recommended && (
                 <RecommendedCard item={recommended} onViewDetail={() => onViewDetail(recommended.id)} />
               )}
-              {showUrgent && urgent && (
+              {urgent && (
                 <UrgentSection item={urgent} onViewDetail={() => onViewDetail(urgent.id)} />
               )}
-              {filteredRecent.length > 0 && (
-                <RecentSection items={filteredRecent} onApply={onViewDetail} onViewDetail={onViewDetail} />
+              {recent.length > 0 && (
+                <RecentSection items={recent} onApply={onViewDetail} onViewDetail={onViewDetail} />
               )}
-              {!hasAnyDefaultResults && (
+              {!recommended && !urgent && recent.length === 0 && (
                 <View style={s.emptyState}>
-                  <Text style={s.emptyStateText}>No opportunities match your search.</Text>
+                  <Text style={s.emptyStateText}>No opportunities to show yet.</Text>
                 </View>
               )}
             </>
           )
         ) : filterLoading ? (
           <View style={s.emptyState}>
-            <Text style={s.emptyStateText}>Loading…</Text>
+            <Text style={s.emptyStateText}>Searching…</Text>
           </View>
         ) : filteredFilterResults.length > 0 ? (
           <RecentSection
-            title={`${activeFilterLabel} Opportunities`}
+            title={activeFilter === 'all' ? `Results for "${typedText}"` : `${activeFilterLabel} Opportunities`}
             items={filteredFilterResults}
             onApply={onViewDetail}
             onViewDetail={onViewDetail}
@@ -492,9 +508,11 @@ export const OpportunityPage: React.FC<{
         ) : (
           <View style={s.emptyState}>
             <Text style={s.emptyStateText}>
-              {activeFilter === 'nearby'
-                ? 'No opportunities near your city yet — set your city in your profile to see nearby matches.'
-                : 'No opportunities match this filter.'}
+              {typedText
+                ? 'No opportunities match your search.'
+                : activeFilter === 'nearby'
+                  ? 'No opportunities near your city yet — set your city in your profile to see nearby matches.'
+                  : 'No opportunities match this filter.'}
             </Text>
           </View>
         )}
@@ -661,6 +679,13 @@ const s = StyleSheet.create({
     borderRadius: Radii.full,
     paddingHorizontal: 10, paddingVertical: 4,
   },
+  matchBadgeInline: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(20,20,20,0.55)',
+    borderRadius: Radii.full,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
   matchStar: { fontSize: 12, color: '#FFD166' },
   matchText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.5 },
   recommendedBody: { padding: 16, gap: Spacing.sm },
@@ -722,6 +747,7 @@ const s = StyleSheet.create({
   urgentThumb:    { width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: Radii.xl, flexShrink: 0 },
   urgentBody:     { flex: 1, justifyContent: 'space-between', paddingVertical: 4 },
   urgentTitle:    { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, lineHeight: 24, color: D.onSurface },
+  urgentBadgeSlot: { marginTop: 4 },
   urgentMeta:     { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs },
   urgentMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaIcon:       { fontSize: 14, lineHeight: 20 },

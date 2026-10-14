@@ -13,8 +13,10 @@ import { ProfileManagementComponent } from '../pages/profile-management/profile-
 import { AdminProfileComponent } from '../pages/admin-profile/admin-profile.component';
 import { AuditComponent } from '../pages/audit/audit.component';
 import { WordOfTheDayComponent } from '../pages/word-of-the-day/word-of-the-day.component';
+import { KnowledgeKeeperComponent } from '../pages/knowledge-keeper/knowledge-keeper.component';
 import { NotificationsComponent } from '../pages/notifications/notifications.component';
 import { GuidelinesComponent } from '../pages/guidelines/guidelines.component';
+import { TaxonomyComponent } from '../pages/taxonomy/taxonomy.component';
 import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -44,6 +46,23 @@ export const routes: Routes = [
     path: 'moderation',
     component: ModerationComponent,
     canActivate: [authGuard]
+  },
+  {
+    path: 'taxonomy',
+    component: TaxonomyComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'tag-intelligence',
+    redirectTo: 'taxonomy'
+  },
+  {
+    path: 'cultural-taxonomy',
+    redirectTo: 'taxonomy'
+  },
+  {
+    path: 'tags',
+    redirectTo: 'taxonomy'
   },
   {
     path: 'opportunity-intake',
@@ -127,8 +146,66 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
+    path: 'knowledge-keeper',
+    component: KnowledgeKeeperComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'knowledge-keepers',
+    redirectTo: 'knowledge-keeper'
+  },
+  {
+    path: 'featured-keeper',
+    redirectTo: 'knowledge-keeper'
+  },
+  {
     path: 'analytics',
     component: AnalyticsComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning',
+    redirectTo: 'learning/dashboard',
+    pathMatch: 'full'
+  },
+  {
+    path: 'learning/dashboard',
+    loadComponent: () => import('./features/learning/dashboard/dashboard.component').then(m => m.DashboardComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning/tracks',
+    loadComponent: () => import('./features/learning/track-list/track-list.component').then(m => m.TrackListComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning/tracks/new',
+    loadComponent: () => import('./features/learning/track-form/track-form.component').then(m => m.TrackFormComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning/tracks/ai-generate',
+    loadComponent: () => import('./features/learning/track-ai-generate/track-ai-generate.component').then(m => m.TrackAiGenerateComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning/tracks/:id/edit',
+    loadComponent: () => import('./features/learning/track-form/track-form.component').then(m => m.TrackFormComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning/tracks/:trackId/lessons',
+    loadComponent: () => import('./features/learning/lesson-list/lesson-list.component').then(m => m.LessonListComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning/tracks/:trackId/lessons/new',
+    loadComponent: () => import('./features/learning/lesson-form/lesson-form.component').then(m => m.LessonFormComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'learning/tracks/:trackId/lessons/:lessonId/edit',
+    loadComponent: () => import('./features/learning/lesson-form/lesson-form.component').then(m => m.LessonFormComponent),
     canActivate: [authGuard]
   },
   {

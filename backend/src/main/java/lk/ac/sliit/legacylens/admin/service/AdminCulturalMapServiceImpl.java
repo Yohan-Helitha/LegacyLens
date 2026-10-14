@@ -84,7 +84,7 @@ public class AdminCulturalMapServiceImpl implements AdminCulturalMapService {
                 String title = "Landmark #" + id;
                 try {
                         MapLandmarkResponse existing = mapService.getAllLandmarks().stream()
-                                        .filter(l -> id.equals(l.getId()))
+                                        .filter(l -> id.toString().equals(String.valueOf(l.getId())))
                                         .findFirst().orElse(null);
                         if (existing != null)
                                 title = existing.getName();
@@ -100,6 +100,11 @@ public class AdminCulturalMapServiceImpl implements AdminCulturalMapService {
         @Override
         public String uploadBadgeImage(MultipartFile file) {
                 return mapService.uploadBadgeImage(file);
+        }
+
+        @Override
+        public String uploadModelFile(MultipartFile file) {
+                return mapService.uploadModelFile(file);
         }
 
         @Override

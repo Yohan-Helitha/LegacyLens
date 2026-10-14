@@ -181,12 +181,6 @@ interface AuditLogEntry {
                         <td class="px-4 py-3 text-[#191c1c] font-bold">{{ authService.currentUser()?.accountStatus || 'ACTIVE' }}</td>
                       </tr>
                       <tr class="hover:bg-[#f8faf9] transition-colors">
-                        <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">2FA Status</th>
-                        <td class="px-4 py-3 text-[#191c1c]">
-                          {{ authService.currentUser()?.fingerprintEnabled ? 'Enabled' : 'Disabled' }}
-                        </td>
-                      </tr>
-                      <tr class="hover:bg-[#f8faf9] transition-colors">
                         <th class="px-4 py-3 font-bold text-[#6e7978] uppercase tracking-wider bg-[#f8faf9]">Account Timestamps</th>
                         <td class="px-4 py-3 text-[#6e7978] text-[10px] font-mono space-y-1">
                           <div>Created: {{ authService.currentUser()?.createdAt ? (authService.currentUser()!.createdAt! | date:'medium') : '—' }}</div>

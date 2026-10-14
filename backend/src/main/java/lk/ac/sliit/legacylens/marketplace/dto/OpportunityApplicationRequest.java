@@ -27,4 +27,7 @@ public class OpportunityApplicationRequest {
     private boolean availabilityConfirmed;
 
     private List<String> equipment = List.of();
+
+    /** One "Language:LEVEL" text per language, e.g. "Sinhala:FLUENT". Optional on a draft; a level is not. */
+    private List<String> languages = List.of();
 }

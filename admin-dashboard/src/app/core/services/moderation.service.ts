@@ -8,6 +8,7 @@ import {
   UpdateModerationStatusRequest,
   StoryQuizDTO,
   AiGenerateQuizRequest,
+  AiTagsResponse,
   RegionDTO
 } from '../models/moderation.model';
 import { AuthService } from './auth.service';
@@ -39,7 +40,7 @@ export class ModerationService {
    * Fetch all moderation queue items from backend
    * Endpoint: GET /api/admin/moderation/queue?status=ALL|PENDING|PUBLISHED|REJECTED|ARCHIVED
    */
-  getQueueItems(status: string = 'ALL'): Observable<ModerationQueueItemResponse[]> {
+  getQueueItems(status = 'ALL'): Observable<ModerationQueueItemResponse[]> {
     const params = new HttpParams().set('status', status);
     return this.http.get<any>(
       `${environment.apiUrl}/admin/moderation/queue`,
@@ -161,6 +162,23 @@ export class ModerationService {
   }
 
   /**
+   * AI-Generate Tags for a story
+   * Endpoint: POST /api/v1/moderation/stories/{storyId}/ai-tags
+   */
+  generateAiTags(storyId: string): Observable<AiTagsResponse> {
+    return this.http.post<AiTagsResponse>(
+      `${environment.apiUrl}/v1/moderation/stories/${storyId}/ai-tags`,
+      {},
+      { headers: this.getHeaders() }
+    ).pipe(
+      catchError(err => {
+        console.warn(`[ModerationService] AI tag generation failed for ${storyId}:`, err);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  /**
    * Fetch all cultural regions and their districts from database
    * Endpoint: GET /api/map/regions
    */
@@ -175,6 +193,90 @@ export class ModerationService {
         return of([]);
       })
     );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CANONICAL TAG TAXONOMY & DISCOVERY
+  // ─────────────────────────────────────────────────────────────────────────
+
+  getTags(params?: { search?: string; category?: string; isApproved?: boolean; page?: number; size?: number }): Observable<any> {
+    const httpParams: any = {};
+    if (params?.search) httpParams.search = params.search;
+    if (params?.category) httpParams.category = params.category;
+    if (params?.isApproved !== undefined) httpParams.isApproved = params.isApproved;
+    httpParams.page = params?.page ?? 0;
+    httpParams.size = params?.size ?? 50;
+
+    return this.http.get<any>(`${environment.apiUrl}/v1/tags`, {
+      params: httpParams,
+      headers: this.getHeaders()
+    }).pipe(
+      map(res => (res && res.data ? res.data : res)),
+      catchError(err => {
+        console.warn('[ModerationService] Error fetching tags:', err);
+        return of({ content: [] });
+      })
+    );
+  }
+
+  createTag(request: any): Observable<any> {
+    return this.http.post<any>(`${environment.apiUrl}/v1/tags`, request, {
+      headers: this.getHeaders()
+    }).pipe(map(res => (res && res.data ? res.data : res)));
+  }
+
+  getTag(tagId: string): Observable<any> {
+    return this.http.get<any>(`${environment.apiUrl}/v1/tags/${tagId}`, {
+      headers: this.getHeaders()
+    }).pipe(map(res => (res && res.data ? res.data : res)));
+  }
+
+  updateTag(tagId: string, request: any): Observable<any> {
+    return this.http.put<any>(`${environment.apiUrl}/v1/tags/${tagId}`, request, {
+      headers: this.getHeaders()
+    }).pipe(map(res => (res && res.data ? res.data : res)));
+  }
+
+  deleteTag(tagId: string): Observable<void> {
+    return this.http.delete<any>(`${environment.apiUrl}/v1/tags/${tagId}`, {
+      headers: this.getHeaders()
+    }).pipe(map(() => void 0));
+  }
+
+  addAlias(tagId: string, request: any): Observable<any> {
+    return this.http.post<any>(`${environment.apiUrl}/v1/tags/${tagId}/aliases`, request, {
+      headers: this.getHeaders()
+    }).pipe(map(res => (res && res.data ? res.data : res)));
+  }
+
+  removeAlias(aliasId: string): Observable<void> {
+    return this.http.delete<any>(`${environment.apiUrl}/v1/tags/aliases/${aliasId}`, {
+      headers: this.getHeaders()
+    }).pipe(map(() => void 0));
+  }
+
+  addRelationship(tagId: string, request: any): Observable<any> {
+    return this.http.post<any>(`${environment.apiUrl}/v1/tags/${tagId}/relationships`, request, {
+      headers: this.getHeaders()
+    }).pipe(map(res => (res && res.data ? res.data : res)));
+  }
+
+  removeRelationship(relId: string): Observable<void> {
+    return this.http.delete<any>(`${environment.apiUrl}/v1/tags/relationships/${relId}`, {
+      headers: this.getHeaders()
+    }).pipe(map(() => void 0));
+  }
+
+  mergeTags(request: any): Observable<void> {
+    return this.http.post<any>(`${environment.apiUrl}/v1/tags/merge`, request, {
+      headers: this.getHeaders()
+    }).pipe(map(() => void 0));
+  }
+
+  triggerTagBackfill(): Observable<any> {
+    return this.http.post<any>(`${environment.apiUrl}/v1/tags/backfill`, {}, {
+      headers: this.getHeaders()
+    }).pipe(map(res => (res && res.data ? res.data : res)));
   }
 }
 

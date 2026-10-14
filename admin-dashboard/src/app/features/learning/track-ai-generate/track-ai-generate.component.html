@@ -1,0 +1,496 @@
+<div class="flex h-screen overflow-hidden">
+  <app-learning-sidebar [isOpen]="isSidebarOpen" (closeSidebar)="isSidebarOpen = false"></app-learning-sidebar>
+
+  <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+    <!-- Top Navigation Bar -->
+    <header class="le-nav-bar flex items-center justify-between px-6 py-4 sticky top-0 z-20">
+      <div class="flex items-center gap-3">
+        <button (click)="isSidebarOpen = !isSidebarOpen" class="lg:hidden p-2 rounded-xl text-gray-500 hover:bg-gray-100">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+        <a routerLink="/learning/tracks" class="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-[#004343] transition-colors">
+          <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+          <span>Back to Tracks</span>
+        </a>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#fe893e]/10 text-[#fe893e]">
+          <span class="material-symbols-outlined text-[14px]">auto_awesome</span>
+          AI Curriculum Assistant
+        </span>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="le-page flex-1 p-6 md:p-8 max-w-6xl mx-auto w-full">
+
+      <!-- Page Title -->
+      <div class="mb-8">
+        <div class="flex items-center gap-2.5 mb-2">
+          <span class="material-symbols-outlined text-[#fe893e] text-2xl">magic_button</span>
+          <span class="text-xs font-bold tracking-widest uppercase text-[#fe893e]">Automated Course Creation</span>
+        </div>
+        <h1 class="text-3xl md:text-4xl font-extrabold text-[#004343] tracking-tight">
+          AI Track & Curriculum Generator
+        </h1>
+        <p class="text-sm text-gray-600 mt-2 max-w-2xl">
+          Instantly generate comprehensive cultural tracks, sequential lessons, vocabulary flashcards, and grounded quizzes from oral stories, folkloric texts, or artisan interviews.
+        </p>
+      </div>
+
+      <!-- Alerts -->
+      @if (errorMessage) {
+        <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-start gap-3">
+          <span class="material-symbols-outlined text-red-500 shrink-0">error</span>
+          <div class="text-sm font-medium">{{ errorMessage }}</div>
+        </div>
+      }
+
+      @if (successMessage) {
+        <div class="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-start gap-3">
+          <span class="material-symbols-outlined text-emerald-600 shrink-0">check_circle</span>
+          <div class="text-sm font-medium">{{ successMessage }}</div>
+        </div>
+      }
+
+      <!-- ══════════════════════════════════════════════════════════ -->
+      <!-- STEP 1: INPUT & CURATION PARAMETERS                      -->
+      <!-- ══════════════════════════════════════════════════════════ -->
+      @if (currentStep === 'INPUT') {
+        <div class="space-y-6">
+          <!-- Source Selection Card -->
+          <div class="glass-card p-6 md:p-8">
+            <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <span class="material-symbols-outlined text-[#004343]">menu_book</span>
+              1. Select Content Source
+            </h2>
+            <!-- Source Type Toggle -->
+            <div class="flex gap-4 mb-6">
+              <button type="button"
+                (click)="inputType = 'STORY'"
+                [class.active-toggle]="inputType === 'STORY'"
+                class="toggle-btn flex-1 py-3 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 border">
+                <span class="material-symbols-outlined text-[18px]">verified</span>
+                Approved Community Story
+              </button>
+              <button type="button"
+                (click)="inputType = 'TEXT'"
+                [class.active-toggle]="inputType === 'TEXT'"
+                class="toggle-btn flex-1 py-3 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 border">
+                <span class="material-symbols-outlined text-[18px]">edit_note</span>
+                Custom Folklore / Transcript Text
+              </button>
+            </div>
+            <!-- Option A: Community Story Selector -->
+            @if (inputType === 'STORY') {
+              <div class="space-y-3">
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Select Approved Story from Database
+                </label>
+                @if (isLoadingStories) {
+                  <div class="flex items-center gap-2 text-sm text-gray-500 py-4">
+                    <div class="spinner-small"></div> Loading approved heritage stories...
+                  </div>
+                }
+                @if (!isLoadingStories) {
+                  <select
+                    [(ngModel)]="selectedStoryId"
+                    (change)="onStorySelected()"
+                    class="input-control w-full p-3 rounded-xl border bg-white text-sm">
+                    @for (story of communityStories; track story) {
+                      <option [value]="story.id">
+                        {{ story.title }} ({{ story.region || 'National' }})
+                      </option>
+                    }
+                  </select>
+                }
+                <p class="text-xs text-gray-500">
+                  Only stories approved through the moderation queue are available for course synthesis.
+                </p>
+              </div>
+            }
+            <!-- Option B: Custom Textarea -->
+            @if (inputType === 'TEXT') {
+              <div class="space-y-3">
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Heritage Folklore or Interview Transcript
+                </label>
+                <textarea [(ngModel)]="customText"
+                  rows="6"
+                  placeholder="Paste traditional folklore, village craft history, elder transcript, or oral interview text here (at least 30 characters)..."
+                class="input-control w-full p-4 rounded-xl border bg-white text-sm leading-relaxed"></textarea>
+                <p class="text-xs text-gray-500">
+                  The AI will extract vocabulary terms, construct lessons, and ground quiz questions strictly from this text.
+                </p>
+              </div>
+            }
+          </div>
+          <!-- Curriculum Settings Card -->
+          <div class="glass-card p-6 md:p-8">
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+              <div>
+                <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <span class="material-symbols-outlined text-[#004343]">tune</span>
+                  2. Curriculum Parameters & Content Quantities
+                </h2>
+                <p class="text-xs text-gray-500 mt-0.5">
+                  Define exactly how many lessons, flashcards, and quizzes you want the AI to create.
+                </p>
+              </div>
+              <span class="px-3 py-1 rounded-full bg-[#004343]/10 text-[#004343] text-xs font-bold flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[14px]">auto_stories</span>
+                Auto-Balanced
+              </span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              <!-- Region -->
+              <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Region</label>
+                <select [(ngModel)]="region" class="input-control w-full p-3 rounded-xl border bg-white text-sm">
+                  @for (r of regionsList; track r) {
+                    <option [value]="r">{{ r }}</option>
+                  }
+                </select>
+              </div>
+              <!-- Occupation -->
+              <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Craft / Occupation</label>
+                <select [(ngModel)]="occupation" class="input-control w-full p-3 rounded-xl border bg-white text-sm">
+                  @for (o of occupationsList; track o) {
+                    <option [value]="o">{{ o }}</option>
+                  }
+                </select>
+              </div>
+              <!-- Difficulty Level -->
+              <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Difficulty Level</label>
+                <select [(ngModel)]="difficultyLevel" class="input-control w-full p-3 rounded-xl border bg-white text-sm">
+                  <option value="BEGINNER">BEGINNER</option>
+                  <option value="INTERMEDIATE">INTERMEDIATE</option>
+                  <option value="ADVANCED">ADVANCED</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-gray-100">
+              <!-- Total Lessons (Modules) -->
+              <div>
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="material-symbols-outlined text-[18px] text-[#004343]">view_timeline</span>
+                  <label class="text-xs font-bold text-gray-800 uppercase tracking-wider">Number of Lessons</label>
+                </div>
+                <p class="text-[11px] text-gray-500 mb-2">Curriculum size (paired Flashcards + Quizzes)</p>
+                <select [(ngModel)]="lessonCount" class="input-control w-full p-3 rounded-xl border bg-white text-sm font-semibold text-[#004343]">
+                  <option [value]="2">2 Lessons (1 Flashcard + 1 Quiz)</option>
+                  <option [value]="4">4 Lessons (2 Flashcards + 2 Quizzes)</option>
+                  <option [value]="6">6 Lessons (3 Flashcards + 3 Quizzes)</option>
+                  <option [value]="8">8 Lessons (4 Flashcards + 4 Quizzes)</option>
+                </select>
+              </div>
+              <!-- Flashcards per Lesson -->
+              <div>
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="material-symbols-outlined text-[18px] text-[#8b5cf6]">style</span>
+                  <label class="text-xs font-bold text-gray-800 uppercase tracking-wider">Flashcards / Lesson</label>
+                </div>
+                <p class="text-[11px] text-gray-500 mb-2">Dialect vocabulary terms & tools</p>
+                <select [(ngModel)]="flashcardCount" class="input-control w-full p-3 rounded-xl border bg-white text-sm font-semibold text-[#8b5cf6]">
+                  <option [value]="2">2 Flashcards per lesson</option>
+                  <option [value]="3">3 Flashcards per lesson (Recommended)</option>
+                  <option [value]="4">4 Flashcards per lesson</option>
+                  <option [value]="5">5 Flashcards per lesson</option>
+                  <option [value]="6">6 Flashcards per lesson</option>
+                </select>
+              </div>
+              <!-- Quiz Questions per Lesson -->
+              <div>
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="material-symbols-outlined text-[18px] text-[#3b82f6]">quiz</span>
+                  <label class="text-xs font-bold text-gray-800 uppercase tracking-wider">Quiz Questions / Lesson</label>
+                </div>
+                <p class="text-[11px] text-gray-500 mb-2">Grounded multiple-choice questions</p>
+                <select [(ngModel)]="quizQuestionCount" class="input-control w-full p-3 rounded-xl border bg-white text-sm font-semibold text-[#3b82f6]">
+                  <option [value]="2">2 Questions per quiz</option>
+                  <option [value]="3">3 Questions per quiz (Recommended)</option>
+                  <option [value]="4">4 Questions per quiz</option>
+                  <option [value]="5">5 Questions per quiz</option>
+                  <option [value]="6">6 Questions per quiz</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <!-- Submit Action -->
+          <div class="flex justify-end">
+            <button type="button"
+              (click)="generateCurriculum()"
+              [disabled]="isGenerating"
+              class="btn-generate-main flex items-center gap-3 px-8 py-4 rounded-xl text-white font-bold shadow-lg transition-all">
+              @if (!isGenerating) {
+                <span class="material-symbols-outlined">auto_awesome</span>
+              }
+              @if (isGenerating) {
+                <div class="spinner-small-white"></div>
+              }
+              <span>{{ isGenerating ? 'Synthesizing Curriculum with AI...' : 'Generate Full Curriculum with AI' }}</span>
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- ══════════════════════════════════════════════════════════ -->
+      <!-- STEP 2: INTERACTIVE PREVIEW & EDIT SCREEN                 -->
+      <!-- ══════════════════════════════════════════════════════════ -->
+      @if (currentStep === 'PREVIEW' && preview) {
+        <div class="space-y-6">
+          <!-- Status Bar -->
+          <div class="p-4 rounded-2xl bg-gradient-to-r from-[#004343] to-[#0f5c5c] text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                <span class="material-symbols-outlined text-[#fe893e]">task_alt</span>
+              </div>
+              <div>
+                <h3 class="font-bold text-base leading-tight">Curriculum Draft Ready for Review</h3>
+                <p class="text-xs text-white/80">
+                  Generated {{ preview.lessons.length }} lessons, {{ getTotalFlashcardsCount() }} flashcards, and {{ getTotalQuestionsCount() }} quiz questions.
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+              <button (click)="backToInput()" class="px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors">
+                Modify Parameters
+              </button>
+              <button (click)="publishCurriculum()"
+                [disabled]="isPublishing"
+                class="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#fe893e] hover:bg-[#e87a35] text-white shadow transition-all flex items-center gap-2">
+                @if (!isPublishing) {
+                  <span class="material-symbols-outlined text-[16px]">publish</span>
+                }
+                @if (isPublishing) {
+                  <div class="spinner-small-white"></div>
+                }
+                <span>{{ isPublishing ? 'Publishing...' : 'Approve & Publish to Mobile' }}</span>
+              </button>
+            </div>
+          </div>
+          <!-- Navigation Tabs -->
+          <div class="flex border-b border-gray-200 gap-2">
+            <button (click)="activePreviewTab = 'TRACK'"
+              [class.active-tab]="activePreviewTab === 'TRACK'"
+              class="preview-tab-btn py-3 px-5 font-bold text-sm border-b-2 flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">school</span>
+              Track Details
+            </button>
+            <button (click)="activePreviewTab = 'LESSONS'"
+              [class.active-tab]="activePreviewTab === 'LESSONS'"
+              class="preview-tab-btn py-3 px-5 font-bold text-sm border-b-2 flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">view_list</span>
+              Lessons ({{ preview.lessons.length }})
+            </button>
+            <button (click)="activePreviewTab = 'FLASHCARDS'"
+              [class.active-tab]="activePreviewTab === 'FLASHCARDS'"
+              class="preview-tab-btn py-3 px-5 font-bold text-sm border-b-2 flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">style</span>
+              Flashcards ({{ getTotalFlashcardsCount() }})
+            </button>
+            <button (click)="activePreviewTab = 'QUIZ'"
+              [class.active-tab]="activePreviewTab === 'QUIZ'"
+              class="preview-tab-btn py-3 px-5 font-bold text-sm border-b-2 flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">quiz</span>
+              Quiz Questions ({{ getTotalQuestionsCount() }})
+            </button>
+          </div>
+          <!-- TAB 1: TRACK DETAILS -->
+          @if (activePreviewTab === 'TRACK') {
+            <div class="glass-card p-6 md:p-8 space-y-5">
+              <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Track Title</label>
+                <input type="text" [(ngModel)]="preview.title" class="input-control w-full p-3 rounded-xl border bg-white text-base font-bold text-gray-900" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Cultural Overview & Description</label>
+                <textarea [(ngModel)]="preview.description" rows="4" class="input-control w-full p-3 rounded-xl border bg-white text-sm leading-relaxed"></textarea>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div>
+                  <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Region</label>
+                  <input type="text" [(ngModel)]="preview.region" class="input-control w-full p-3 rounded-xl border bg-white text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Occupation</label>
+                  <input type="text" [(ngModel)]="preview.occupation" class="input-control w-full p-3 rounded-xl border bg-white text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Difficulty Level</label>
+                  <select [(ngModel)]="preview.difficultyLevel" class="input-control w-full p-3 rounded-xl border bg-white text-sm">
+                    <option value="BEGINNER">BEGINNER</option>
+                    <option value="INTERMEDIATE">INTERMEDIATE</option>
+                    <option value="ADVANCED">ADVANCED</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Thumbnail URL (Optional)</label>
+                <input type="text" [(ngModel)]="preview.thumbnailUrl" placeholder="https://..." class="input-control w-full p-3 rounded-xl border bg-white text-sm" />
+              </div>
+            </div>
+          }
+          <!-- TAB 2: LESSONS OUTLINE -->
+          @if (activePreviewTab === 'LESSONS') {
+            <div class="space-y-4">
+              @for (lesson of preview.lessons; track lesson; let i = $index) {
+                <div class="glass-card p-6">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                      <span class="px-2.5 py-1 rounded-md text-xs font-bold uppercase flex items-center gap-1.5"
+                        [style.background]="lesson.type === 'QUIZ' ? 'rgba(59,130,246,0.1)' : 'rgba(139,92,246,0.1)'"
+                        [style.color]="lesson.type === 'QUIZ' ? '#2563eb' : '#7c3aed'">
+                        <span class="material-symbols-outlined text-[14px]">
+                          {{ lesson.type === 'QUIZ' ? 'quiz' : 'style' }}
+                        </span>
+                        {{ lesson.type || (lesson.quizQuestions && lesson.quizQuestions.length > 0 ? 'QUIZ' : 'FLASHCARDS') }}
+                      </span>
+                      <span class="px-2.5 py-1 rounded-md bg-[#004343]/10 text-[#004343] text-xs font-black">
+                        Lesson {{ lesson.lessonOrder || (i + 1) }}
+                      </span>
+                    </div>
+                    <span class="text-xs text-gray-500 font-medium">
+                      @if (lesson.type === 'FLASHCARDS' || (!lesson.type && (lesson.flashcards?.length || 0) > 0)) {
+                        {{ lesson.flashcards?.length || 0 }} flashcards
+                      }
+                      @if (lesson.type === 'QUIZ' || (!lesson.type && (lesson.quizQuestions?.length || 0) > 0)) {
+                        {{ lesson.quizQuestions?.length || 0 }} quiz items
+                      }
+                    </span>
+                  </div>
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-xs font-bold text-gray-600 mb-1">Title</label>
+                      <input type="text" [(ngModel)]="lesson.title" class="input-control w-full p-2.5 rounded-lg border bg-white text-sm font-semibold" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-gray-600 mb-1">Summary</label>
+                      <textarea [(ngModel)]="lesson.description" rows="2" class="input-control w-full p-2.5 rounded-lg border bg-white text-xs"></textarea>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+          <!-- TAB 3: FLASHCARDS -->
+          @if (activePreviewTab === 'FLASHCARDS') {
+            <div class="space-y-4">
+              @for (lesson of preview.lessons; track lesson) {
+                <div class="space-y-3" [hidden]="!lesson.flashcards || lesson.flashcards.length === 0">
+                  <h3 class="text-sm font-bold text-[#004343] flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px] text-[#8b5cf6]">style</span>
+                    {{ lesson.title }}
+                  </h3>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    @for (card of lesson.flashcards; track card; let fcIndex = $index) {
+                      <div class="glass-card p-4 relative group">
+                        <button (click)="removeFlashcard(lesson, fcIndex)"
+                          title="Remove Card"
+                          class="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition-colors">
+                          <span class="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                        <div class="space-y-2 pr-6">
+                          <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Dialect / Heritage Word</label>
+                            <input type="text" [(ngModel)]="card.word" class="input-control w-full p-2 rounded-lg border bg-white text-sm font-bold text-[#004343]" />
+                          </div>
+                          <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Meaning / Definition</label>
+                            <input type="text" [(ngModel)]="card.meaning" class="input-control w-full p-2 rounded-lg border bg-white text-xs" />
+                          </div>
+                          <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Cultural Context</label>
+                            <input type="text" [(ngModel)]="card.culturalNote" class="input-control w-full p-2 rounded-lg border bg-white text-xs" />
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+          <!-- TAB 4: QUIZ QUESTIONS -->
+          @if (activePreviewTab === 'QUIZ') {
+            <div class="space-y-6">
+              @for (lesson of preview.lessons; track lesson) {
+                <div class="space-y-4" [hidden]="!lesson.quizQuestions || lesson.quizQuestions.length === 0">
+                  <h3 class="text-sm font-bold text-[#004343] flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px] text-[#3b82f6]">quiz</span>
+                    {{ lesson.title }}
+                  </h3>
+                  <div class="space-y-4">
+                    @for (q of lesson.quizQuestions; track q; let qIndex = $index) {
+                      <div class="glass-card p-5 relative">
+                        <button (click)="removeQuizQuestion(lesson, qIndex)"
+                          title="Remove Question"
+                          class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors">
+                          <span class="material-symbols-outlined text-[18px]">delete</span>
+                        </button>
+                        <div class="space-y-3 pr-8">
+                          <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-1">Question #{{ qIndex + 1 }}</label>
+                            <input type="text" [(ngModel)]="q.question" class="input-control w-full p-2.5 rounded-lg border bg-white text-sm font-medium" />
+                          </div>
+                          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div [class.correct-option-box]="q.correctOption === 'A'">
+                              <label class="block text-[11px] font-bold text-gray-600 mb-1">Option A</label>
+                              <input type="text" [(ngModel)]="q.optionA" class="input-control w-full p-2 rounded-lg border bg-white text-xs" />
+                            </div>
+                            <div [class.correct-option-box]="q.correctOption === 'B'">
+                              <label class="block text-[11px] font-bold text-gray-600 mb-1">Option B</label>
+                              <input type="text" [(ngModel)]="q.optionB" class="input-control w-full p-2 rounded-lg border bg-white text-xs" />
+                            </div>
+                            <div [class.correct-option-box]="q.correctOption === 'C'">
+                              <label class="block text-[11px] font-bold text-gray-600 mb-1">Option C</label>
+                              <input type="text" [(ngModel)]="q.optionC" class="input-control w-full p-2 rounded-lg border bg-white text-xs" />
+                            </div>
+                            <div [class.correct-option-box]="q.correctOption === 'D'">
+                              <label class="block text-[11px] font-bold text-gray-600 mb-1">Option D</label>
+                              <input type="text" [(ngModel)]="q.optionD" class="input-control w-full p-2 rounded-lg border bg-white text-xs" />
+                            </div>
+                          </div>
+                          <div class="flex items-center gap-3 pt-1">
+                            <label class="text-xs font-bold text-gray-700">Correct Answer:</label>
+                            <select [(ngModel)]="q.correctOption" class="input-control p-1.5 px-3 rounded-lg border bg-white text-xs font-bold text-emerald-700">
+                              <option value="A">Option A</option>
+                              <option value="B">Option B</option>
+                              <option value="C">Option C</option>
+                              <option value="D">Option D</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+          <!-- Bottom Publish Action Bar -->
+          <div class="flex justify-between items-center pt-4 border-t border-gray-200">
+            <button (click)="backToInput()" class="px-5 py-3 rounded-xl border border-gray-300 font-bold text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+              ← Back to Input
+            </button>
+            <button (click)="publishCurriculum()"
+              [disabled]="isPublishing"
+              class="btn-generate-main flex items-center gap-3 px-8 py-4 rounded-xl text-white font-bold shadow-lg transition-all">
+              @if (!isPublishing) {
+                <span class="material-symbols-outlined">publish</span>
+              }
+              @if (isPublishing) {
+                <div class="spinner-small-white"></div>
+              }
+              <span>{{ isPublishing ? 'Publishing Track to Database...' : 'Approve & Publish to Mobile Learners' }}</span>
+            </button>
+          </div>
+        </div>
+      }
+
+    </main>
+  </div>
+</div>

@@ -16,11 +16,13 @@ import {
   Animated,
   Alert,
   Share,
-StyleSheet,} from 'react-native';
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode, Audio } from 'expo-av';
+
 import * as Haptics from 'expo-haptics';
 import { VoiceSearchModal } from '../../components/common/VoiceSearchModal';
 import { CommentModal } from '../../components/common/CommentModal';
@@ -36,6 +38,7 @@ import { VideoCard } from '../../components/home/VideoCard';
 import { BlogCard } from '../../components/home/BlogCard';
 import { AudioCard } from '../../components/home/AudioCard';
 import { homeApi, CategoryResponse } from '../../services/api/homeApi';
+import { discoveryApi, mapDiscoveryToFeedItem } from '../../services/api/discoveryApi';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH - Spacing.md * 2;
@@ -46,9 +49,9 @@ const CARD_WIDTH = SCREEN_WIDTH - Spacing.md * 2;
 const DEFAULT_CATEGORIES: Array<{
   id: string; label: string; icon: string; color: string; tags: string[];
 }> = [
-  { id: "c1", label: "Traditional Food", icon: "restaurant", color: "#e05d1a", tags: ["food"] },
-  { id: "c2", label: "Performing Arts", icon: "music-note", color: "#0f7c6b", tags: ["dance"] },
-];
+    { id: "c1", label: "Traditional Food", icon: "restaurant", color: "#e05d1a", tags: ["food"] },
+    { id: "c2", label: "Performing Arts", icon: "music-note", color: "#0f7c6b", tags: ["dance"] },
+  ];
 
 const MEDIA_TABS = ['Explore all', 'Videos', 'Blogs', 'Audio'];
 
@@ -122,6 +125,8 @@ export interface VItem {
   duration: string;
   tags: string[];
   type: 'video';
+  likesCount?: number;
+  commentsCount?: number;
 }
 
 export interface BItem {
@@ -133,6 +138,8 @@ export interface BItem {
   readTime: string;
   tags: string[];
   type: 'blog';
+  likesCount?: number;
+  commentsCount?: number;
 }
 
 export interface AItem {
@@ -145,24 +152,28 @@ export interface AItem {
   avatar: string;
   bars: number[];
   type: 'audio';
+  likesCount?: number;
+  commentsCount?: number;
 }
 
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Component Definition
 // ─────────────────────────────────────────────────────────────────────────────
-export const HomeScreen: React.FC<{ 
-  onNavigate?: (tab: string, item?: any) => void, 
+export const HomeScreen: React.FC<{
+  onNavigate?: (tab: string, item?: any) => void,
   isOverlayActive?: boolean,
-  initialSearchQuery?: string 
+  initialSearchQuery?: string
 }> = ({ onNavigate, isOverlayActive, initialSearchQuery }) => {
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery || '');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [categories, setCategories] = useState<Array<{ id: string; label: string; tags: string[] }>>([]);
   const [activeTab, setActiveTab] = useState('Explore all');
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingFeed, setLoadingFeed] = useState(true);
   const [allFeedItems, setAllFeedItems] = useState<(VItem | BItem | AItem)[]>([]);
   const [featuredKeeper, setFeaturedKeeper] = useState<any>(null);
+  const [discoverySearchResults, setDiscoverySearchResults] = useState<(VItem | BItem | AItem)[] | null>(null);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -179,20 +190,33 @@ export const HomeScreen: React.FC<{
       }
     } catch (error) {
       console.log('Error fetching categories from DB, fallback to default:', error);
-      setCategories(DEFAULT_CATEGORIES.map(c => ({ id: c.id, label: c.label, tags: c.tags })));
+      setCategories(DEFAULT_CATEGORIES.map(c => ({ id: c.label, label: c.label, tags: c.tags } as any)));
     }
   }, []);
 
-  const fetchFeedItems = useCallback(async () => {
+  const fetchFeedItems = useCallback(async (tabToFetch?: string) => {
+    const currentTab = tabToFetch !== undefined ? tabToFetch : activeTab;
+    const tabType = currentTab !== 'Explore all' ? currentTab : undefined;
+    setLoadingFeed(true);
     try {
+      // 1. Try personalized cultural recommendations based on story_views history & active tab
+      const recommended = await discoveryApi.getHomeRecommendations(15, tabType);
+      if (recommended && recommended.length > 0) {
+        setAllFeedItems(recommended.map(mapDiscoveryToFeedItem));
+        return;
+      }
+
+      // 2. Fallback to default community feed
       const response = await homeApi.getFeedItems();
       if (response && response.length > 0) {
         setAllFeedItems(response as any);
       }
     } catch (error) {
-      console.log('Error fetching feed items from DB:', error);
+      console.log('Error fetching feed items:', error);
+    } finally {
+      setLoadingFeed(false);
     }
-  }, []);
+  }, [activeTab]);
 
   const fetchFeaturedKeeper = useCallback(async () => {
     try {
@@ -207,14 +231,51 @@ export const HomeScreen: React.FC<{
 
   useEffect(() => {
     fetchCategories();
-    fetchFeedItems();
     fetchFeaturedKeeper();
-  }, [fetchCategories, fetchFeedItems, fetchFeaturedKeeper]);
+  }, [fetchCategories, fetchFeaturedKeeper]);
+
+  useEffect(() => {
+    fetchFeedItems(activeTab);
+  }, [activeTab, fetchFeedItems]);
+
+  // AI Cultural Discovery Search Effect for HomeScreen
+  useEffect(() => {
+    if (!searchQuery || !searchQuery.trim()) {
+      setDiscoverySearchResults(null);
+      return;
+    }
+
+    let isCurrent = true;
+    const timer = setTimeout(async () => {
+      try {
+        const results = await discoveryApi.searchStories({
+          query: searchQuery,
+          type: activeTab !== 'Explore all' ? activeTab : undefined,
+          includeRelated: true,
+        });
+        if (isCurrent) {
+          if (results && results.length > 0) {
+            setDiscoverySearchResults(results.map(mapDiscoveryToFeedItem));
+          } else {
+            setDiscoverySearchResults([]);
+          }
+        }
+      } catch (err) {
+        console.log('Discovery search fallback to local in-memory:', err);
+        if (isCurrent) setDiscoverySearchResults(null);
+      }
+    }, 250);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [searchQuery, activeTab]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchFeedItems();
-    }, [fetchFeedItems])
+      fetchFeedItems(activeTab);
+    }, [fetchFeedItems, activeTab])
   );
 
   useEffect(() => {
@@ -289,9 +350,9 @@ export const HomeScreen: React.FC<{
   // 🎙️ Filtering logic 🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️🎙️
   const filterMatches = (keywords: string[]) => {
     if (!searchQuery && !selectedCategoryId) return true;
-    
+
     const lower = keywords.map(k => k.toLowerCase());
-    
+
     // 1. Search bar filter
     if (searchQuery) {
       const queryParts = searchQuery.toLowerCase().split(' ').map(p => p.replace(/^#/, '')).filter(p => p.trim() !== '');
@@ -313,6 +374,9 @@ export const HomeScreen: React.FC<{
 
   // Derive final feed based on tab, then search/category filters
   const feed = useMemo(() => {
+    if (discoverySearchResults !== null) {
+      return discoverySearchResults;
+    }
     let pool = allFeedItems;
     if (activeTab === 'Videos') {
       pool = allFeedItems.filter(i => i.type === 'video');
@@ -324,16 +388,16 @@ export const HomeScreen: React.FC<{
 
     return pool.filter(item => {
       const kw = [
-        (item as any).title  || (item as any).name  || '',
-        (item as any).author || (item as any).name  || '',
+        (item as any).title || (item as any).name || '',
+        (item as any).author || (item as any).name || '',
         (item as any).location || '',
-        (item as any).topic    || '',
-        (item as any).excerpt  || '',
+        (item as any).topic || '',
+        (item as any).excerpt || '',
         ...((item as any).tags || []),
       ];
       return filterMatches(kw);
     });
-  }, [allFeedItems, activeTab, searchQuery, selectedCategoryId]);
+  }, [allFeedItems, discoverySearchResults, activeTab, searchQuery, selectedCategoryId]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -376,50 +440,81 @@ export const HomeScreen: React.FC<{
     extrapolate: 'clamp',
   });
 
+  const handleCommentCountChange = useCallback((postId: string, newCount: number) => {
+    setAllFeedItems((prev) =>
+      prev.map((item) =>
+        String(item.id) === String(postId) ? ({ ...item, commentsCount: newCount } as any) : item
+      )
+    );
+    setDiscoverySearchResults((prev) =>
+      prev
+        ? prev.map((item) =>
+            String(item.id) === String(postId) ? ({ ...item, commentsCount: newCount } as any) : item
+          )
+        : null
+    );
+  }, []);
+
+  const handleLikeCountChange = useCallback((postId: string, newCount: number) => {
+    setAllFeedItems((prev) =>
+      prev.map((item) =>
+        String(item.id) === String(postId) ? ({ ...item, likesCount: newCount } as any) : item
+      )
+    );
+    setDiscoverySearchResults((prev) =>
+      prev
+        ? prev.map((item) =>
+            String(item.id) === String(postId) ? ({ ...item, likesCount: newCount } as any) : item
+          )
+        : null
+    );
+  }, []);
+
   return (
     <View style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#0f5c5c" />
 
-      <CommentModal 
-        visible={commentModalVisible} 
-        onClose={() => setCommentModalVisible(false)} 
-        postId={activePostId} 
+      <CommentModal
+        visible={commentModalVisible}
+        onClose={() => setCommentModalVisible(false)}
+        postId={activePostId}
+        onCommentCountChange={handleCommentCountChange}
       />
 
       <View style={{ flex: 1, overflow: 'hidden' }}>
         <Animated.View style={[styles.stickyHeader, { transform: [{ translateY: headerTranslateY }] }]}>
-        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.accent, opacity: headerOrangeOpacity }]} />
-        
-        <Header onNavigate={onNavigate} />
+          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.accent, opacity: headerOrangeOpacity }]} />
 
-        <View style={styles.searchBarSection}>
-          <View style={styles.searchContainer}>
-            <MaterialIcons
-              name="search"
-              size={26}
-              color={Colors.textMuted}
-              style={styles.searchIcon}
-            />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search stories, words, places, traditions..."
-              placeholderTextColor="#6F7978"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            <TouchableOpacity
-              style={styles.micButton}
-              activeOpacity={0.8}
-              accessibilityLabel="Voice search"
-              onPress={() => setIsVoiceModalVisible(true)}
-            >
-              <MaterialIcons name="mic" size={26} color={Colors.white} />
-            </TouchableOpacity>
+          <Header onNavigate={onNavigate} />
+
+          <View style={styles.searchBarSection}>
+            <View style={styles.searchContainer}>
+              <MaterialIcons
+                name="search"
+                size={26}
+                color={Colors.textMuted}
+                style={styles.searchIcon}
+              />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search stories, words, places, traditions..."
+                placeholderTextColor="#6F7978"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              <TouchableOpacity
+                style={styles.micButton}
+                activeOpacity={0.8}
+                accessibilityLabel="Voice search"
+                onPress={() => setIsVoiceModalVisible(true)}
+              >
+                <MaterialIcons name="mic" size={26} color={Colors.white} />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
 
-        {/* SECTION 2: Category Pills + Explore Filter Tabs (Stays fixed at top on scroll down) */}
-        <Animated.View style={[styles.pillsAndFilterSection, { paddingTop: pillsTopPadding }]}>
+          {/* SECTION 2: Category Pills + Explore Filter Tabs (Stays fixed at top on scroll down) */}
+          <Animated.View style={[styles.pillsAndFilterSection, { paddingTop: pillsTopPadding }]}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -509,102 +604,113 @@ export const HomeScreen: React.FC<{
               </ScrollView>
             </View>
           </Animated.View>
-      </Animated.View>
+        </Animated.View>
 
-      <Animated.FlatList
-        data={feed}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: 275 }]}
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[Colors.secondary, Colors.accent]}
-            tintColor={Colors.secondary}
-            progressViewOffset={190}
-          />
-        }
-        ListHeaderComponent={
-          <>
-            {activeTab === 'Explore all' && !searchQuery && !selectedCategoryId && (
-              <>
-                <WordOfTheDay />
-                {featuredKeeper && (
-                  <KnowledgeKeeper 
-                    name={featuredKeeper.name}
-                    title={featuredKeeper.title}
-                    tag={featuredKeeper.tag}
-                    quote={featuredKeeper.quote}
-                    avatarUrl={featuredKeeper.avatarUrl}
-                    likesCount={featuredKeeper.likesCount}
-                  />
-                )}
-              </>
-            )}
-          </>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <MaterialIcons name="search-off" size={48} color={Colors.textMuted} />
-            <Text style={styles.emptyStateText}>No results found</Text>
-            <Text style={styles.emptyStateSubtext}>Try a different keyword or category</Text>
-          </View>
-        }
-        renderItem={({ item }: any) => {
-                /* ── VIDEO CARD ──────────────────────────────────────── */
-                if (item.type === 'video') {
-                  const v = item as VItem;
-                  const isPlaying = visibleVideoId === v.id && !isOverlayActive;
-                  return (
-                    <VideoCard 
-                      v={v} 
-                      isPlaying={isPlaying} 
-                      item={item} 
-                      setActivePostId={setActivePostId} 
-                      setCommentModalVisible={setCommentModalVisible} 
-                      onNavigate={onNavigate}
+        <Animated.FlatList
+          data={feed}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: 275 }]}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors.secondary, Colors.accent]}
+              tintColor={Colors.secondary}
+              progressViewOffset={190}
+            />
+          }
+          ListHeaderComponent={
+            <>
+              {activeTab === 'Explore all' && !searchQuery && !selectedCategoryId && (
+                <>
+                  <WordOfTheDay />
+                  {featuredKeeper && (
+                    <KnowledgeKeeper
+                      name={featuredKeeper.name}
+                      title={featuredKeeper.title}
+                      tag={featuredKeeper.tag}
+                      quote={featuredKeeper.quote}
+                      avatarUrl={featuredKeeper.avatarUrl}
+                      likesCount={featuredKeeper.likesCount}
                     />
-                  );
-                }
+                  )}
+                </>
+              )}
+            </>
+          }
+          ListEmptyComponent={
+            loadingFeed ? (
+              <View style={[styles.emptyState, { paddingVertical: 60, alignItems: 'center', justifyContent: 'center' }]}>
+                <ActivityIndicator size="large" color={Colors.secondary} />
+                <Text style={[styles.emptyStateSubtext, { marginTop: 14, color: Colors.textMuted }]}>
+                  Loading cultural stories...
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <MaterialIcons name="search-off" size={48} color={Colors.textMuted} />
+                <Text style={styles.emptyStateText}>No results found</Text>
+                <Text style={styles.emptyStateSubtext}>Try a different keyword or category</Text>
+              </View>
+            )
+          }
+          renderItem={({ item }: any) => {
+            /* ── VIDEO CARD ──────────────────────────────────────── */
+            if (item.type === 'video') {
+              const v = item as VItem;
+              const isPlaying = visibleVideoId === v.id && !isOverlayActive;
+              return (
+                <VideoCard
+                  v={v}
+                  isPlaying={isPlaying}
+                  item={item}
+                  setActivePostId={setActivePostId}
+                  setCommentModalVisible={setCommentModalVisible}
+                  onNavigate={onNavigate}
+                  onLikeChange={handleLikeCountChange}
+                />
+              );
+            }
 
-                /* ── BLOG / STORY CARD ───────────────────────────────── */
-                if (item.type === 'blog') {
-                  const b = item as BItem;
-                  return (
-                    <BlogCard 
-                      b={b} 
-                      item={item} 
-                      setActivePostId={setActivePostId} 
-                      setCommentModalVisible={setCommentModalVisible} 
-                      onNavigate={onNavigate} 
-                    />
-                  );
-                }
+            /* ── BLOG / STORY CARD ───────────────────────────────── */
+            if (item.type === 'blog') {
+              const b = item as BItem;
+              return (
+                <BlogCard
+                  b={b}
+                  item={item}
+                  setActivePostId={setActivePostId}
+                  setCommentModalVisible={setCommentModalVisible}
+                  onNavigate={onNavigate}
+                  onLikeChange={handleLikeCountChange}
+                />
+              );
+            }
 
-                /* ── AUDIO CARD ──────────────────────────────────────── */
-                const a = item as AItem;
-                return (
-                  <AudioCard
-                    a={a}
-                    item={item}
-                    setActivePostId={setActivePostId}
-                    setCommentModalVisible={setCommentModalVisible}
-                    onNavigate={onNavigate}
-                  />
-                );
-        }}
-        ListFooterComponent={<View style={styles.bottomSpacer} />}
-      />
+            /* ── AUDIO CARD ──────────────────────────────────────── */
+            const a = item as AItem;
+            return (
+              <AudioCard
+                a={a}
+                item={item}
+                setActivePostId={setActivePostId}
+                setCommentModalVisible={setCommentModalVisible}
+                onLikeChange={handleLikeCountChange}
+              />
+            );
+          }}
+          ListFooterComponent={<View style={styles.bottomSpacer} />}
+        />
 
-      {/* ── Voice Search ─────────────────────────────────────────────────── */}
+        {/* ── Voice Search ─────────────────────────────────────────────────── */}
       </View>
       <VoiceSearchModal
         visible={isVoiceModalVisible}

@@ -5,6 +5,7 @@ import lk.ac.sliit.legacylens.auth.security.CustomUserDetails;
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.UpdateChecklistItemRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.UpdateWorkNoteRequest;
+import lk.ac.sliit.legacylens.marketplace.dto.UpdateWorkSeoRequest;
 import lk.ac.sliit.legacylens.marketplace.dto.WorkProgressResponse;
 import lk.ac.sliit.legacylens.marketplace.service.JobWorkProgressService;
 import org.springframework.http.ResponseEntity;
@@ -73,6 +74,18 @@ public class JobWorkProgressController {
                         principal.getUser().getId(), jobId, request.getIntroduction(), request.getStory())));
     }
 
+    /** "Search Context (SEO)" — search summary + keywords so beneficiaries can find the published content. */
+    @PutMapping("/seo")
+    public ResponseEntity<ApiResponse<WorkProgressResponse>> updateSeo(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID jobId,
+            @Valid @RequestBody UpdateWorkSeoRequest request) {
+
+        return ResponseEntity.ok(ApiResponse.ok(
+                jobWorkProgressService.updateSeo(
+                        principal.getUser().getId(), jobId, request.getSummary(), request.getKeywords())));
+    }
+
     @PostMapping(value = "/materials", consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<WorkProgressResponse>> addMaterial(
             @AuthenticationPrincipal CustomUserDetails principal,
@@ -114,6 +127,16 @@ public class JobWorkProgressController {
     }
 
     /** Discards all progress, materials, notes and checklist completion for this job. */
+    /** The creator opened this job - the "New" tag on My Work goes away. */
+    @PostMapping("/opened")
+    public ResponseEntity<ApiResponse<Void>> markOpened(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID jobId) {
+
+        jobWorkProgressService.markOpened(principal.getUser().getId(), jobId);
+        return ResponseEntity.ok(ApiResponse.ok("Job marked as opened", null));
+    }
+
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> resetProgress(
             @AuthenticationPrincipal CustomUserDetails principal,

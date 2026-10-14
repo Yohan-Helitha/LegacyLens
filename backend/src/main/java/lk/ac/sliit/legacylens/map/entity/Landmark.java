@@ -39,6 +39,8 @@ public class Landmark {
 
     private String type;
 
+    private String modelUrl;
+
     @OneToOne(mappedBy = "landmark", cascade = CascadeType.ALL)
     private Badge badge;
 

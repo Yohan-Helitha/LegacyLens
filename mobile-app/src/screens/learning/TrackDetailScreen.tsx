@@ -1,158 +1,524 @@
 // src/screens/learning/TrackDetailScreen.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
-import { mockTracks, mockLessons } from '../../constants/mockLearningData';
-import { Lesson } from '../../types/learning';
+import Svg, { Defs, LinearGradient, Stop, Rect, Circle, Line } from 'react-native-svg';
+import Animated, { 
+  FadeInDown, 
+  FadeInUp,
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat, 
+  withSequence, 
+  withTiming,
+  withSpring
+} from 'react-native-reanimated';
+import { BookOpen, Headphones, HelpCircle, Check, Lock, Play, MapPin, Briefcase, Zap, ArrowLeft, GraduationCap } from 'lucide-react-native';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LearningStackParamList } from '../../navigation/LearningNavigator';
-
-const CURRENT_TRACK_ID = 'track-1';
+import { apiGet } from '../../services/api/client';
+import { Track, Lesson } from '../../types/learning';
+import { mockTracks, mockLessons } from '../../constants/mockLearningData';
 
 type NavigationProp = NativeStackNavigationProp<LearningStackParamList, 'TrackDetail'>;
 
+function PulsingNode({ color, isCompleted }: { color: string; isCompleted: boolean }) {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(0.4);
+
+  useEffect(() => {
+    if (!isCompleted) {
+      scale.value = withRepeat(
+        withSequence(withTiming(1.3, { duration: 1000 }), withTiming(1, { duration: 1000 })),
+        -1,
+        true
+      );
+      opacity.value = withRepeat(
+        withSequence(withTiming(0, { duration: 1000 }), withTiming(0.4, { duration: 1000 })),
+        -1,
+        true
+      );
+    }
+  }, [isCompleted]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <View style={styles.pulseContainer}>
+      {!isCompleted && <Animated.View style={[styles.pulseRing, { backgroundColor: color }, animatedStyle]} />}
+      <View style={[styles.coreNode, { backgroundColor: color }]}>
+        {isCompleted ? <Check size={16} color={Colors.white} strokeWidth={3} /> : <Play size={14} color={Colors.white} fill={Colors.white} />}
+      </View>
+    </View>
+  );
+}
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function LessonNode({ item, index, activeLessonIndex, totalLessons, navigation }: any) {
+  const isCompleted = Boolean(item.completed || item.status === 'completed');
+  const isActive = index === activeLessonIndex;
+  const isLocked = index > activeLessonIndex;
+
+  const isQuiz = (item.type || '').toLowerCase() === 'quiz';
+  const IconComponent = isQuiz ? HelpCircle : BookOpen;
+  
+  const nodeColor = isCompleted ? Colors.accent : isActive ? Colors.secondary : Colors.surface;
+  const cardScale = useSharedValue(1);
+
+  const onPressIn = () => { if (!isLocked) cardScale.value = withSpring(0.95); };
+  const onPressOut = () => { cardScale.value = withSpring(1); };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: cardScale.value }],
+  }));
+
+  const lessonTargetId = item.lessonId ?? item.id;
+
+  return (
+    <Animated.View entering={FadeInDown.delay(index * 150).springify()}>
+      <View style={styles.lessonRow}>
+        {/* Journey Path Line */}
+        <View style={styles.pathLineContainer}>
+          {index !== totalLessons - 1 && (
+            <Svg height="100%" width="4" style={styles.pathLine}>
+              <Line x1="2" y1="0" x2="2" y2="100%" stroke={isCompleted ? Colors.accent : Colors.surface} strokeWidth="4" strokeDasharray={isCompleted ? "0" : "8, 6"} />
+            </Svg>
+          )}
+          {isLocked ? (
+            <View style={[styles.coreNode, { backgroundColor: Colors.surface }]}>
+              <Lock size={14} color={Colors.textMuted} />
+            </View>
+          ) : (
+            <PulsingNode color={nodeColor} isCompleted={isCompleted} />
+          )}
+        </View>
+
+        {/* Lesson Card */}
+        <AnimatedPressable
+          onPressIn={onPressIn}
+          onPressOut={onPressOut}
+          disabled={isLocked}
+          style={[
+            styles.lessonCard,
+            isLocked && styles.lessonCardLocked,
+            isActive && styles.lessonCardActive,
+            animatedStyle
+          ]}
+          onPress={() => {
+            navigation.navigate(isQuiz ? 'Quiz' : 'Flashcard', { lessonId: lessonTargetId });
+          }}
+        >
+          <View style={[styles.lessonBadge, { backgroundColor: isLocked ? Colors.surface : Colors.secondarySubtle }]}>
+            <IconComponent size={20} color={isLocked ? Colors.textMuted : Colors.secondary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.lessonTitle, isLocked && { color: Colors.textMuted }]}>{item.title}</Text>
+            <Text style={styles.lessonType}>{item.type}</Text>
+          </View>
+          {isActive && <Text style={styles.activeTag}>Up Next</Text>}
+        </AnimatedPressable>
+      </View>
+    </Animated.View>
+  );
+}
+
 export default function TrackDetailScreen() {
+  const route = useRoute<RouteProp<LearningStackParamList, 'TrackDetail'>>();
   const navigation = useNavigation<NavigationProp>();
 
-  const track = mockTracks.find((t) => t.id === CURRENT_TRACK_ID);
-  const lessons = mockLessons.filter((l) => l.trackId === CURRENT_TRACK_ID);
+  const [track, setTrack] = useState<Track | null>(null);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!track) {
+  useEffect(() => {
+    const loadTrack = async () => {
+      try {
+        const trackId = route.params.trackId;
+        const trackDashboardData = await apiGet<any>(`/learning/dashboard/me/tracks/${trackId}`);
+
+        setTrack({
+          ...trackDashboardData,
+          id: trackDashboardData.trackId,
+          title: trackDashboardData.trackTitle,
+        });
+        setLessons(trackDashboardData.lessons || []);
+      } catch (error: any) {
+        console.log('Failed to load track from API, using mock fallback:', error?.message ?? error);
+        const fallbackTrack = mockTracks.find(t => String(t.id) === String(route.params.trackId)) || mockTracks[0];
+        setTrack(fallbackTrack);
+        const trackLessons = mockLessons.filter(l => String(l.trackId) === String(fallbackTrack.id));
+        setLessons(trackLessons.length > 0 ? trackLessons : mockLessons);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTrack();
+  }, [route.params.trackId]);
+
+  if (loading) {
     return (
       <View style={styles.container}>
-        <Text style={{ color: Colors.text }}>Track not found.</Text>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <ArrowLeft size={20} color={Colors.text} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+        <Text style={{ color: Colors.text, marginTop: 40, textAlign: 'center' }}>Loading track...</Text>
       </View>
     );
   }
 
-  const progressPercent = Math.round((track.completedLessons / track.totalLessons) * 100);
-
-  const statusLabel = (status: Lesson['status']) => {
-    if (status === 'completed') return '✓ Completed';
-    if (status === 'in_progress') return '▶ In Progress';
-    return '🔒 Locked';
-  };
-
-  const renderLesson = ({ item }: { item: Lesson }) => (
-    <Pressable
-      style={styles.lessonRow}
-      onPress={() =>
-        item.type === 'quiz'
-          ? navigation.navigate('Quiz', { lessonId: item.id })
-          : navigation.navigate('Flashcard', { lessonId: item.id })
-      }
-    >
-      <View style={{ flex: 1 }} >
-        <Text style={styles.lessonTitle}>{item.title}</Text>
-        <Text style={styles.lessonType}>{item.type}</Text>
+  if (!track) {
+    return (
+      <View style={styles.container}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <ArrowLeft size={20} color={Colors.text} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+        <Text style={{ color: Colors.text, marginTop: 40, textAlign: 'center' }}>Track not found.</Text>
       </View>
-      <Text style={styles.lessonStatus}>{statusLabel(item.status)}</Text>
-    </Pressable>
-  );
+    );
+  }
+
+  const completedLessons = track.completedLessons ?? 0;
+  const progressPercent =
+    track.totalLessons === 0
+      ? 0
+      : Math.round((completedLessons / track.totalLessons) * 100);
+
+  // Determine the next active lesson
+  const firstIncompleteIndex = lessons.findIndex((l: any) => !l.completed && l.status !== 'completed');
+  const activeLessonIndex = firstIncompleteIndex === -1 ? lessons.length : firstIncompleteIndex;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>{track.title}</Text>
-      <View style={styles.tagsRow}>
-        <Text style={styles.tag}>{track.region}</Text>
-        <Text style={styles.tag}>{track.occupation}</Text>
-        <Text style={[styles.tag, styles.difficultyTag]}>{track.difficulty}</Text>
-      </View>
-
-      <Text style={styles.description}>{track.description}</Text>
-
-      <View style={styles.progressBarBackground}>
-        <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
-      </View>
-      <Text style={styles.progressText}>
-        {track.completedLessons} of {track.totalLessons} lessons completed · {progressPercent}%
-      </Text>
-
-      <Text style={styles.sectionTitle}>Lessons</Text>
-      <FlatList
+      <Animated.FlatList
         data={lessons}
-        keyExtractor={(item) => item.id}
-        renderItem={renderLesson}
+        keyExtractor={(item: any, i) => String(item.lessonId ?? item.id ?? i)}
+        renderItem={({ item, index }) => (
+          <LessonNode 
+            item={item} 
+            index={index} 
+            activeLessonIndex={activeLessonIndex} 
+            totalLessons={lessons.length} 
+            navigation={navigation} 
+          />
+        )}
         contentContainerStyle={styles.list}
-      />
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <Animated.View entering={FadeInDown.duration(600)}>
+            <View style={styles.topNavRow}>
+              <Pressable
+                onPress={() => navigation.goBack()}
+                style={styles.backButton}
+                accessibilityRole="button"
+                accessibilityLabel="Back to Discover Tracks"
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <ArrowLeft size={20} color={Colors.text} />
+                <Text style={styles.backButtonText}>Discover Tracks</Text>
+              </Pressable>
+            </View>
 
-      <Pressable
-        style={styles.continueButton}
-        onPress={() => navigation.navigate('Flashcard', { lessonId: lessons[0]?.id ?? '' })}
-      >
-        <Text style={styles.continueButtonText}>Continue Learning</Text>
-      </Pressable>
+            <View style={styles.heroCard}>
+              <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 60" preserveAspectRatio="xMidYMid slice">
+                <Defs>
+                  <LinearGradient id="heroGrad" x1="0" y1="0" x2="1" y2="1">
+                    <Stop offset="0" stopColor={Colors.secondary} />
+                    <Stop offset="1" stopColor={Colors.secondaryDark} />
+                  </LinearGradient>
+                </Defs>
+                <Rect x="0" y="0" width="100" height="60" fill="url(#heroGrad)" />
+                <Circle cx="94" cy="4" r="24" fill={Colors.accent} opacity={0.18} />
+              </Svg>
+
+              <Text style={styles.heroTitle}>{track.title}</Text>
+              <View style={styles.tagsRow}>
+                <View style={styles.tagWrapper}>
+                  <MapPin size={12} color={Colors.white} />
+                  <Text style={styles.tag}>{track.region}</Text>
+                </View>
+                <View style={styles.tagWrapper}>
+                  <Briefcase size={12} color={Colors.white} />
+                  <Text style={styles.tag}>{track.occupation}</Text>
+                </View>
+                <View style={[styles.tagWrapper, styles.difficultyTagWrapper]}>
+                  <Zap size={12} color={Colors.white} />
+                  <Text style={styles.tag}>{track.difficulty}</Text>
+                </View>
+              </View>
+              <Text style={styles.description}>{track.description}</Text>
+
+              <View style={styles.progressBarBackground}>
+                <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+              </View>
+              <Text style={styles.progressText}>
+                {completedLessons} of {track.totalLessons} lessons completed · {progressPercent}%
+              </Text>
+            </View>
+            
+            <Text style={styles.sectionTitle}>Your Journey</Text>
+          </Animated.View>
+        }
+        ListFooterComponent={
+          <Animated.View entering={FadeInUp.delay(300).duration(500)}>
+            {progressPercent >= 100 ? (
+              <Pressable
+                style={({ pressed }) => [styles.certificateButton, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
+                onPress={() => navigation.navigate('Certificate', { trackId: track.id.toString() })}
+              >
+                <GraduationCap size={18} color={Colors.white} />
+                <Text style={styles.certificateButtonText}>View Certificate</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              style={({ pressed }) => [styles.continueButton, pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }]}
+              onPress={() => {
+                const nextLesson: any = lessons.find((l: any) => !l.completed) || lessons[0];
+                if (!nextLesson) return;
+                
+                const targetLessonId = nextLesson.lessonId ?? nextLesson.id;
+                navigation.navigate(
+                  nextLesson.type.toLowerCase() === 'quiz' ? 'Quiz' : 'Flashcard',
+                  { lessonId: targetLessonId },
+                );
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={completedLessons > 0 && completedLessons < track.totalLessons ? "Resume Learning" : "Start Learning"}
+            >
+              <Text style={styles.continueButtonText}>
+                {completedLessons > 0 && completedLessons < track.totalLessons ? 'Resume Learning' : 'Start Learning'}
+              </Text>
+            </Pressable>
+          </Animated.View>
+        }
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dominant, paddingTop: 50, paddingHorizontal: Spacing.md },
-  header: {
-    fontFamily: Typography.fontDisplay,
-    fontSize: Typography.sizeXL - 2,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
+  list: { paddingBottom: 100 },
+  topNavRow: {
+    marginBottom: Spacing.md,
   },
-  tagsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm + 4 },
-  tag: {
-    backgroundColor: Colors.secondarySubtle,
-    color: Colors.secondary,
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    borderRadius: Radii.full,
+    shadowColor: Colors.secondaryDark,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  backButtonText: {
     fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeXS - 1,
+    fontSize: Typography.sizeSM,
+    color: Colors.text,
+  },
+
+  heroCard: {
+    overflow: 'hidden',
+    borderRadius: Radii.xl + 4,
+    padding: Spacing.lg,
+    marginBottom: Spacing.xl,
+    shadowColor: Colors.secondaryDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  heroTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeXL,
+    color: Colors.white,
+    marginBottom: Spacing.md,
+    lineHeight: 32,
+  },
+  tagsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md, flexWrap: 'wrap' },
+  tagWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.16)',
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: Radii.md,
-    overflow: 'hidden',
   },
-  difficultyTag: { backgroundColor: Colors.accentSubtle, color: Colors.accent },
+  tag: {
+    color: Colors.white,
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeXS,
+  },
+  difficultyTagWrapper: { backgroundColor: Colors.accent },
   description: {
     fontFamily: Typography.fontBody,
-    fontSize: Typography.sizeXS + 1,
-    color: Colors.textMuted,
-    marginBottom: Spacing.sm + 6,
+    fontSize: Typography.sizeSM,
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: Spacing.lg,
+    lineHeight: 20,
   },
-  progressBarBackground: { height: 8, backgroundColor: Colors.surface, borderRadius: Radii.sm, overflow: 'hidden' },
+  progressBarBackground: { height: 8, backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: Radii.sm, overflow: 'hidden' },
   progressBarFill: { height: '100%', backgroundColor: Colors.accent, borderRadius: Radii.sm },
   progressText: {
-    fontFamily: Typography.fontBody,
+    fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeXS,
-    color: Colors.textMuted,
-    marginTop: Spacing.xs + 2,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: Spacing.sm,
+  },
+
+  sectionTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeLG + 2,
+    color: Colors.text,
     marginBottom: Spacing.md,
   },
-  sectionTitle: {
-    fontFamily: Typography.fontBodySemi,
-    fontSize: Typography.sizeMD,
-    color: Colors.text,
+  
+  lessonRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
     marginBottom: Spacing.sm,
   },
-  list: { paddingBottom: Spacing.sm + 4 },
-  lessonRow: {
+  pathLineContainer: {
+    width: 40,
+    alignItems: 'center',
+    marginRight: Spacing.sm,
+  },
+  pathLine: {
+    position: 'absolute',
+    top: 24,
+    left: 18,
+    bottom: -10,
+    zIndex: -1,
+  },
+  pulseContainer: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 18,
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  coreNode: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 18,
+  },
+
+  lessonCard: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.white,
     borderRadius: Radii.lg,
-    padding: Spacing.sm + 4,
-    marginBottom: Spacing.sm + 2,
+    padding: Spacing.md,
+    marginBottom: Spacing.xs,
+    gap: Spacing.md,
+    shadowColor: Colors.secondaryDark,
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  lessonTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: Colors.text },
+  lessonCardActive: {
+    borderColor: Colors.secondarySubtle,
+    backgroundColor: Colors.white,
+    shadowOpacity: 0.1,
+  },
+  lessonCardLocked: {
+    backgroundColor: Colors.dominant,
+    borderWidth: 1,
+    borderColor: Colors.surface,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  lessonBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lessonTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM + 1, color: Colors.text, marginBottom: 2 },
   lessonType: {
     fontFamily: Typography.fontBody,
     fontSize: Typography.sizeXS,
-    color: Colors.secondary,
-    marginTop: 2,
+    color: Colors.textMuted,
     textTransform: 'capitalize',
   },
-  lessonStatus: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: Colors.textMuted },
+  activeTag: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeXS - 1,
+    color: Colors.secondary,
+    backgroundColor: Colors.secondarySubtle,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radii.md,
+  },
+
+  certificateButton: {
+    backgroundColor: Colors.secondary,
+    borderRadius: Radii.lg + 2,
+    paddingVertical: Spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    alignItems: 'center',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+    shadowColor: Colors.secondaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  certificateButtonText: { color: Colors.white, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM + 1 },
+
   continueButton: {
     backgroundColor: Colors.accent,
     borderRadius: Radii.lg + 2,
-    paddingVertical: Spacing.sm + 6,
+    paddingVertical: Spacing.md,
     alignItems: 'center',
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.lg - 4,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.lg,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   continueButtonText: { color: Colors.white, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM + 1 },
 });

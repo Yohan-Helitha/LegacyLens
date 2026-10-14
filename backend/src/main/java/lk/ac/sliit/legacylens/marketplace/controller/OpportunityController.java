@@ -57,19 +57,22 @@ public class OpportunityController {
                 opportunityService.getRecent(limit, principal.getUser().getId())));
     }
 
-    /** Backs the filter chips (Photography/Writing/Documentation/Nearby) — real DB search, not a client-side slice of an already-fetched list. */
+    /** Backs the filter chips (Photography/Writing/Documentation/Nearby) and the search box — real DB search, not a client-side slice of an already-fetched list. */
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<List<OpportunityCardResponse>>> search(
             @AuthenticationPrincipal CustomUserDetails principal,
             @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "false") boolean nearby,
+            @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "20") int limit) {
         return ResponseEntity.ok(ApiResponse.ok(
-                opportunityService.search(limit, principal.getUser().getId(), category, nearby)));
+                opportunityService.search(limit, principal.getUser().getId(), category, nearby, q)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<OpportunityDetailResponse>> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.ok(opportunityService.getById(id)));
+    public ResponseEntity<ApiResponse<OpportunityDetailResponse>> getById(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(opportunityService.getById(id, principal.getUser().getId())));
     }
 }

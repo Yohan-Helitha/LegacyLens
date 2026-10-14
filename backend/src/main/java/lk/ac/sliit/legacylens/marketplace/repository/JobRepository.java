@@ -21,10 +21,43 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
      * caller supplies sort order and page size via Pageable. */
     List<Job> findByCreatorIdAndStatus(UUID creatorId, JobStatus status, Pageable pageable);
 
+    /** Every job of one creator in any of the given statuses - no page limit, so nothing is silently left out. */
+    List<Job> findByCreatorIdAndStatusIn(UUID creatorId, java.util.Collection<JobStatus> statuses);
+
     /** Ownership-scoped lookup for logging a payment against a job — a creator may only pick their own jobs. */
     Optional<Job> findByIdAndCreatorId(UUID id, UUID creatorId);
 
     long countByCreatorIdAndStatus(UUID creatorId, JobStatus status);
+
+    /** Jobs in one status for a whole set of creators at once - what the creator recommendations score on. */
+    List<Job> findByCreatorIdInAndStatus(java.util.Collection<UUID> creatorIds, JobStatus status);
+
+    long countByCreatorIdAndStatusIn(UUID creatorId, java.util.Collection<JobStatus> statuses);
+
+    /** The creator's booking for an opportunity, if any — its date/time feed the chat's context card. */
+    Optional<Job> findFirstByOpportunityIdAndCreatorIdOrderByCreatedAtDesc(UUID opportunityId, UUID creatorId);
+
+    /** Bookings for a whole inbox at once, newest first - the caller keeps the first one per opportunity and creator. */
+    List<Job> findByOpportunityIdInAndCreatorIdInOrderByCreatedAtDesc(
+            java.util.Collection<UUID> opportunityIds, java.util.Collection<UUID> creatorIds);
+
+    boolean existsByOpportunityIdAndCreatorId(UUID opportunityId, UUID creatorId);
+
+    /** Booked or in-progress jobs scheduled inside a window whose "work today" reminder has not gone out yet. */
+    List<Job> findByStatusInAndScheduledAtBetweenAndReminderSentAtIsNullOrderByScheduledAtAsc(
+            java.util.Collection<JobStatus> statuses, LocalDateTime from, LocalDateTime to);
+
+    /** One creator's booked or in-progress jobs scheduled inside a window, soonest first. */
+    List<Job> findByCreatorIdAndStatusInAndScheduledAtBetweenOrderByScheduledAtAsc(
+            UUID creatorId, java.util.Collection<JobStatus> statuses, LocalDateTime from, LocalDateTime to);
+
+    /**
+     * Job counts in one status for every creator at once, as [creatorId, count]
+     * rows — lets creator recommendations score all candidates in one query
+     * instead of one count per creator.
+     */
+    @Query("SELECT j.creator.id, COUNT(j) FROM Job j WHERE j.status = :status GROUP BY j.creator.id")
+    List<Object[]> countByStatusGroupedByCreator(@Param("status") JobStatus status);
 
     /** Available balance: total earned from completed jobs. See JobStatus's
      * javadoc — nothing here yet excludes jobs already settled in cash,
