@@ -57,8 +57,10 @@ public class Story {
     @Column(nullable = false, length = 20)
     private StoryMethod method;
 
-    /** Null when the story has no media clip (e.g. a WRITTEN story). */
-    @Enumerated(EnumType.STRING)
+    /**
+     * Null when the story has no media clip (e.g. a WRITTEN story). Mapped by MediaTypeConverter (autoApply), which
+     * tolerates values this enum doesn't know - do not add @Enumerated here, it would disable that.
+     */
     @Column(name = "media_type", length = 10)
     private MediaType mediaType;
 

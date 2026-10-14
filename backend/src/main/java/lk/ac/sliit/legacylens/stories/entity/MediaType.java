@@ -7,5 +7,15 @@ package lk.ac.sliit.legacylens.stories.entity;
  */
 public enum MediaType {
     AUDIO,
-    VIDEO
+    VIDEO,
+    /**
+     * Not a clip: written content stored with type BLOG by the admin / content side (the column is shared). Listed so
+     * such rows load and round-trip; to a storyteller this is simply a written story.
+     */
+    BLOG;
+
+    /** True for a playable audio/video clip; false for BLOG. */
+    public boolean isClip() {
+        return this == AUDIO || this == VIDEO;
+    }
 }

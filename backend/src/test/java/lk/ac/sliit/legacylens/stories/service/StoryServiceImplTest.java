@@ -347,26 +347,26 @@ class StoryServiceImplTest {
         Story story = buildStory(buildUser(USER_ID));
         when(storyRepository.findById(STORY_ID)).thenReturn(Optional.of(story));
         MockMultipartFile file = image();
-        when(mediaStorageService.store(file, "story-thumbnails")).thenReturn("https://cdn.test/story-thumbnails/a.jpg");
+        when(mediaStorageService.store(file, "story-thumbnail", "covers")).thenReturn("https://cdn.test/story-thumbnail/a.jpg");
 
         StoryResponse response = storyService.setThumbnail(USER_ID, STORY_ID, file);
 
-        assertThat(story.getImageUrl()).isEqualTo("https://cdn.test/story-thumbnails/a.jpg");
-        assertThat(response.getImageUrl()).isEqualTo("https://cdn.test/story-thumbnails/a.jpg");
+        assertThat(story.getImageUrl()).isEqualTo("https://cdn.test/story-thumbnail/a.jpg");
+        assertThat(response.getImageUrl()).isEqualTo("https://cdn.test/story-thumbnail/a.jpg");
         verify(storyRepository).save(story);
     }
 
     @Test
     void setThumbnail_replacingOneWeStoredDeletesTheOldFile() {
         Story story = buildStory(buildUser(USER_ID));
-        story.setImageUrl("https://cdn.test/story-thumbnails/old.jpg");
+        story.setImageUrl("https://cdn.test/story-thumbnail/old.jpg");
         when(storyRepository.findById(STORY_ID)).thenReturn(Optional.of(story));
         MockMultipartFile file = image();
-        when(mediaStorageService.store(file, "story-thumbnails")).thenReturn("https://cdn.test/story-thumbnails/new.jpg");
+        when(mediaStorageService.store(file, "story-thumbnail", "covers")).thenReturn("https://cdn.test/story-thumbnail/new.jpg");
 
         storyService.setThumbnail(USER_ID, STORY_ID, file);
 
-        verify(mediaStorageService).delete("https://cdn.test/story-thumbnails/old.jpg");
+        verify(mediaStorageService).delete("https://cdn.test/story-thumbnail/old.jpg");
     }
 
     @Test
@@ -375,7 +375,7 @@ class StoryServiceImplTest {
         story.setImageUrl("https://admin-assets.test/covers/curated.jpg");
         when(storyRepository.findById(STORY_ID)).thenReturn(Optional.of(story));
         MockMultipartFile file = image();
-        when(mediaStorageService.store(file, "story-thumbnails")).thenReturn("https://cdn.test/story-thumbnails/new.jpg");
+        when(mediaStorageService.store(file, "story-thumbnail", "covers")).thenReturn("https://cdn.test/story-thumbnail/new.jpg");
 
         storyService.setThumbnail(USER_ID, STORY_ID, file);
 
@@ -394,7 +394,7 @@ class StoryServiceImplTest {
         assertThrows(InvalidRequestException.class, () -> storyService.setThumbnail(USER_ID, STORY_ID, pdf));
         assertThrows(InvalidRequestException.class, () -> storyService.setThumbnail(USER_ID, STORY_ID, empty));
         assertThrows(InvalidRequestException.class, () -> storyService.setThumbnail(USER_ID, STORY_ID, huge));
-        verify(mediaStorageService, never()).store(any(), anyString());
+        verify(mediaStorageService, never()).store(any(), anyString(), anyString());
         verify(storyRepository, never()).save(any());
     }
 
@@ -416,6 +416,18 @@ class StoryServiceImplTest {
 
         assertThrows(ResourceNotFoundException.class, () -> storyService.setThumbnail(OTHER_USER_ID, STORY_ID, image()));
 
-        verify(mediaStorageService, never()).store(any(), anyString());
+        verify(mediaStorageService, never()).store(any(), anyString(), anyString());
+    }
+
+    @Test
+    void getById_aBlogRowIsReportedToTheStorytellerAsAWrittenStory() {
+        Story story = buildStory(buildUser(USER_ID));
+        story.setMediaType(MediaType.BLOG);
+        story.setMediaFilePath(null);
+        when(storyRepository.findById(STORY_ID)).thenReturn(Optional.of(story));
+
+        StoryResponse response = storyService.getById(USER_ID, STORY_ID);
+
+        assertThat(response.getMediaType()).isNull();
     }
 }

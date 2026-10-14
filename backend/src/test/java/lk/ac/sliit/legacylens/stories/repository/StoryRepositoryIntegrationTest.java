@@ -153,4 +153,39 @@ class StoryRepositoryIntegrationTest {
 
         assertThrows(DataIntegrityViolationException.class, () -> storyRepository.saveAndFlush(story));
     }
+
+    // ---------------------------------------------------------------- shared media_type column
+
+    private UUID persistStoryWithRawMediaType(String rawMediaType) {
+        User author = persistAuthor("+9477000" + (1000 + Math.abs(rawMediaType.hashCode() % 8999)));
+        Story story = new Story();
+        story.setAuthor(author);
+        story.setTitle("Written elsewhere");
+        story.setMethod(StoryMethod.WRITTEN);
+        story = storyRepository.saveAndFlush(story);
+        // media_type is shared with the admin side, which writes free text - write it the way that side would.
+        entityManager.getEntityManager()
+                .createNativeQuery("UPDATE stories SET media_type = :type WHERE id = :id")
+                .setParameter("type", rawMediaType)
+                .setParameter("id", story.getId())
+                .executeUpdate();
+        entityManager.clear();
+        return story.getId();
+    }
+
+    @Test
+    void aBlogRowInTheSharedMediaTypeColumnLoadsInsteadOfBreakingTheList() {
+        UUID id = persistStoryWithRawMediaType("BLOG");
+
+        assertThat(storyRepository.findAll()).extracting(Story::getId).contains(id);
+        assertThat(storyRepository.findById(id).orElseThrow().getMediaType()).isEqualTo(MediaType.BLOG);
+    }
+
+    @Test
+    void anUnknownMediaTypeValueIsReadAsNoClipInsteadOfFailingTheWholeQuery() {
+        UUID id = persistStoryWithRawMediaType("SOMETHING_NEW");
+
+        assertThat(storyRepository.findById(id).orElseThrow().getMediaType()).isNull();
+        assertThat(storyRepository.findAll()).isNotEmpty();
+    }
 }

@@ -37,8 +37,12 @@ public class StoryServiceImpl implements StoryService {
     /** Subfolder under the storage root that story clips are saved into. */
     private static final String MEDIA_SUBFOLDER = "stories";
 
-    /** Subfolder for cover images. Only images saved here are ever deleted when replaced - never an admin's. */
-    private static final String THUMBNAIL_SUBFOLDER = "story-thumbnails";
+    /**
+     * Supabase bucket for story cover images (must exist and be public). Only images stored in this bucket are ever
+     * deleted when replaced - never an image an admin set elsewhere.
+     */
+    private static final String THUMBNAIL_BUCKET = "story-thumbnail";
+    private static final String THUMBNAIL_SUBFOLDER = "covers";
     private static final long MAX_THUMBNAIL_BYTES = 5L * 1024 * 1024;
 
     private final StoryRepository storyRepository;
@@ -145,10 +149,10 @@ public class StoryServiceImpl implements StoryService {
         }
 
         String previous = story.getImageUrl();
-        story.setImageUrl(mediaStorageService.store(thumbnail, THUMBNAIL_SUBFOLDER));
+        story.setImageUrl(mediaStorageService.store(thumbnail, THUMBNAIL_BUCKET, THUMBNAIL_SUBFOLDER));
         storyRepository.save(story);
 
-        if (previous != null && previous.contains("/" + THUMBNAIL_SUBFOLDER + "/")) {
+        if (previous != null && previous.contains("/" + THUMBNAIL_BUCKET + "/")) {
             mediaStorageService.delete(previous);
         }
         return toResponse(story);
@@ -213,7 +217,7 @@ public class StoryServiceImpl implements StoryService {
                 .description(story.getDescription())
                 .status(story.getStatus().name())
                 .method(story.getMethod().name())
-                .mediaType(story.getMediaType() != null ? story.getMediaType().name() : null)
+                .mediaType(story.getMediaType() != null && story.getMediaType().isClip() ? story.getMediaType().name() : null)
                 .mediaUrl(mediaUrl)
                 .mediaDurationMillis(story.getMediaDurationMillis())
                 .imageUrl(story.getImageUrl())
