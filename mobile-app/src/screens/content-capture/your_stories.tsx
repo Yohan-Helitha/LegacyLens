@@ -49,7 +49,9 @@ const TabButton: React.FC<{ label: string; count: number; selected: boolean; onP
     accessibilityState={{ selected }}
     accessibilityLabel={t('stories.tabAria', { label, count })}
   >
-    <Text style={[s.tabText, selected && s.tabTextSelected]}>{label}</Text>
+    <Text style={[s.tabText, selected && s.tabTextSelected]} numberOfLines={2}>
+      {label}
+    </Text>
     <View style={[s.tabCount, selected && s.tabCountSelected]}>
       <Text style={[s.tabCountText, selected && s.tabCountTextSelected]}>{count}</Text>
     </View>
@@ -260,13 +262,25 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    minWidth: 0,
     minHeight: 44,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: Radii.full,
   },
   tabSelected: { backgroundColor: D.primaryContainer },
-  tabText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurfaceVariant },
+  // flexShrink: text in a row never shrinks by default in React Native, so long labels overflowed and hid under the other tab.
+  tabText: {
+    flexShrink: 1,
+    textAlign: 'center',
+    lineHeight: 20,
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeSM,
+    color: D.onSurfaceVariant,
+  },
   tabTextSelected: { color: D.onPrimary },
   tabCount: {
+    flexShrink: 0,
     minWidth: 24,
     paddingHorizontal: 7,
     paddingVertical: 2,

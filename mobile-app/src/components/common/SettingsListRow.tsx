@@ -58,11 +58,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   left: {
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
   right: {
+    flexShrink: 0,
+    marginLeft: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -73,6 +76,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   label: {
+    flexShrink: 1,
     fontFamily: Typography.fontBodyMed,
     fontSize: Typography.sizeMD,
     color: Colors.text,

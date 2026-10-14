@@ -21,7 +21,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
   if (status === 'DRAFT') {
     return (
       <View style={[s.pill, s.draft]}>
-        <Text style={[s.text, s.draftText]}>{label}</Text>
+        <Text style={[s.text, s.draftText]} numberOfLines={2}>{label}</Text>
       </View>
     );
   }
@@ -30,7 +30,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
     return (
       <View style={[s.pill, s.published]}>
         <Check size={12} color={D.onPrimary} strokeWidth={3} />
-        <Text style={[s.text, s.publishedText]}>{label}</Text>
+        <Text style={[s.text, s.publishedText]} numberOfLines={2}>{label}</Text>
       </View>
     );
   }
@@ -38,7 +38,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
   if (status === 'REJECTED') {
     return (
       <View style={[s.pill, s.needsChanges]}>
-        <Text style={[s.text, s.needsChangesText]}>{label}</Text>
+        <Text style={[s.text, s.needsChangesText]} numberOfLines={2}>{label}</Text>
       </View>
     );
   }
@@ -47,7 +47,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
     return (
       <View style={[s.pill, s.archived]}>
         <Archive size={12} color={D.onSurfaceVariant} strokeWidth={2.5} />
-        <Text style={[s.text, s.archivedText]}>{label}</Text>
+        <Text style={[s.text, s.archivedText]} numberOfLines={2}>{label}</Text>
       </View>
     );
   }
@@ -55,7 +55,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
   // PENDING
   return (
     <View style={[s.pill, s.pending]}>
-      <Text style={[s.text, s.pendingText]}>{label}</Text>
+      <Text style={[s.text, s.pendingText]} numberOfLines={2}>{label}</Text>
     </View>
   );
 };
@@ -69,8 +69,12 @@ const s = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
     alignSelf: 'flex-start',
+    maxWidth: '100%',
+    flexShrink: 1,
   },
   text: {
+    flexShrink: 1,
+    lineHeight: 16,
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeXS,
     letterSpacing: 0.2,

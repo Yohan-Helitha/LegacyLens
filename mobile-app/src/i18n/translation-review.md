@@ -45,7 +45,7 @@ Rows: 318, needing attention: 0
 | contentCapture:drawer.defaultLevel | Level 4 | 4 වන මට්ටම | நிலை 4 |
 | contentCapture:status.draft | Draft | කෙටුම්පත | வரைவு |
 | contentCapture:status.pending | Pending Review | සමාලෝචනය පොරොත්තුයි | மதிப்பாய்வு நிலுவையில் உள்ளது |
-| contentCapture:status.published | Published | ප්‍රකාශයට පත් කරන ලදී | வெளியிடப்பட்டது |
+| contentCapture:status.published | Published | ප්‍රකාශිත | வெளியிடப்பட்டது |
 | contentCapture:status.rejected | Needs changes | වෙනස්කම් අවශ්‍යයි | மாற்றங்கள் தேவை |
 | contentCapture:status.archived | Archived | සංරක්ෂණය කරන ලදී | காப்பகப்படுத்தப்பட்டது |
 | contentCapture:transcript.placeholder | Taking notes… | සටහන් ගනිමින්... | குறிப்புகள் எடுக்கிறேன்… |
@@ -79,7 +79,7 @@ Rows: 318, needing attention: 0
 | contentCapture:storyCard.openVoice | Open voice story | විවෘත හඬ කතාව | திறந்த வாய் கதை |
 | contentCapture:storyCard.video | Video story | වීඩියෝ කතාව | வீடியோ கதை |
 | contentCapture:storyCard.voice | Voice recording | කටහඬ පටිගත කිරීම | குரல் பதிவு |
-| contentCapture:storyCard.published | Published | ප්‍රකාශයට පත් කරන ලදී | வெளியிடப்பட்டது |
+| contentCapture:storyCard.published | Published | ප්‍රකාශිත | வெளியிடப்பட்டது |
 | contentCapture:storyCard.pending | Pending | පොරොත්තුයි | நிலுவையில் உள்ளது |
 | contentCapture:storyCard.review | Review Content | අන්තර්ගතය සමාලෝචනය කරන්න | மதிப்பாய்வு உள்ளடக்கம் |
 | contentCapture:storyCard.delete | Delete Content | අන්තර්ගතය මකන්න | உள்ளடக்கத்தை நீக்கு |
@@ -97,7 +97,7 @@ Rows: 318, needing attention: 0
 | contentCapture:analyticsCard.totalViews | Total views | මුළු නැරඹුම් | மொத்த பார்வைகள் |
 | contentCapture:analyticsCard.likes | Likes | කැමති | விருப்பங்கள் |
 | contentCapture:analyticsCard.comments | Comments | අදහස් | கருத்துகள் |
-| contentCapture:analyticsCard.published | Published | ප්‍රකාශයට පත් කරන ලදී | வெளியிடப்பட்டது |
+| contentCapture:analyticsCard.published | Published | ප්‍රකාශිත | வெளியிடப்பட்டது |
 | contentCapture:preview.typeVideo | Video story | වීඩියෝ කතාව | வீடியோ கதை |
 | contentCapture:preview.typeAudio | Audio story | ශ්‍රව්‍ය කතාව | ஆடியோ கதை |
 | contentCapture:preview.typeWritten | Written story | ලිඛිත කතාව | எழுதப்பட்ட கதை |
@@ -144,7 +144,7 @@ Rows: 318, needing attention: 0
 | contentCapture:stories.greetingSubtitle_one | {{count}} story shared · loved by your family and community | ඔබේ පවුලේ අය සහ ප්‍රජාව විසින් බෙදාගත් · ප්‍රිය කරන ලද කථා {{count}}ක් | பகிரப்பட்ட {{count}} கதை · உங்கள் குடும்பத்தினராலும் சமூகத்தினராலும் விரும்பப்பட்டது |
 | contentCapture:stories.greetingSubtitle_other | {{count}} stories shared · loved by your family and community | ඔබේ පවුලේ අය සහ ප්‍රජාව විසින් බෙදාගත් · ආදරය කරන ලද කථා {{count}}ක් | பகிரப்பட்ட {{count}} கதைகள் · உங்கள் குடும்பத்தினராலும் சமூகத்தினராலும் விரும்பப்பட்டவை |
 | contentCapture:stories.inProgress | In progress | ප්රගතියේ | செயல்பாட்டில் உள்ளது |
-| contentCapture:stories.published | Published | ප්‍රකාශයට පත් කරන ලදී | வெளியிடப்பட்டது |
+| contentCapture:stories.published | Published | ප්‍රකාශිත | வெளியிடப்பட்டது |
 | contentCapture:stories.tabAria_one | {{label}}, {{count}} story | {{label}}, {{count}} කතාවක් | {{label}}, {{count}} கதை |
 | contentCapture:stories.tabAria_other | {{label}}, {{count}} stories | {{label}}, කතා {{count}}ක් | {{label}}, {{count}} கதைகள் |
 | contentCapture:stories.loadError | Couldn't load your stories | ඔබේ කතා පූරණය කළ නොහැකි විය. | உங்கள் கதைகளை ஏற்ற முடியவில்லை |
