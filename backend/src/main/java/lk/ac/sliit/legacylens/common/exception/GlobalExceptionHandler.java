@@ -133,6 +133,16 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("That file is too large to upload. Please choose a smaller file."));
     }
 
+    @ExceptionHandler(TranslationUnavailableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTranslationUnavailable(TranslationUnavailableException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTooManyRequests(TooManyRequestsException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(FileStorageException.class)
     public ResponseEntity<ApiResponse<Void>> handleFileStorage(FileStorageException ex) {
         // Handled exceptions don't reach Spring's own unhandled-exception
