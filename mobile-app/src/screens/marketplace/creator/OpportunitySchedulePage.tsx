@@ -368,11 +368,11 @@ const ScheduledJobCard: React.FC<{
 export const OpportunitySchedulePage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
-  /** Opens the real opportunity for an application-sourced item — Job-sourced items have no detail page yet, so they fall back to onBack. */
-  onViewOpportunity?: (opportunityId: string) => void;
+  /** "View" on a booked job opens it in My Work, where its progress and details live. */
+  onOpenMyWork: () => void;
   /** "YYYY-MM-DD" - the day just booked; the calendar opens on its month with that day selected. */
   focusDate?: string | null;
-}> = ({ onNavigate, onBack, onViewOpportunity, focusDate }) => {
+}> = ({ onNavigate, onBack, onOpenMyWork, focusDate }) => {
   const [jobs, setJobs] = useState<JobResponse[]>([]);
   // Nothing is drawn until the bookings arrive, so the calendar opens straight on the first booking's month
   // instead of flashing today's date first.
@@ -444,14 +444,7 @@ export const OpportunitySchedulePage: React.FC<{
     );
   };
 
-  const handleView = (item: ScheduleItem) => {
-    if (item.opportunityId && onViewOpportunity) {
-      onViewOpportunity(item.opportunityId);
-    } else {
-      // No per-job detail page exists yet — same stopgap used elsewhere.
-      onBack();
-    }
-  };
+  const handleView = () => onOpenMyWork();
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
@@ -520,7 +513,7 @@ export const OpportunitySchedulePage: React.FC<{
         ) : (
           <View style={{ gap: Spacing.sm }}>
             {selectedItems.map((item) => (
-              <ScheduledJobCard key={item.id} item={item} onView={() => handleView(item)} onRemove={() => handleRemove(item.id)} />
+              <ScheduledJobCard key={item.id} item={item} onView={handleView} onRemove={() => handleRemove(item.id)} />
             ))}
           </View>
         )}

@@ -280,7 +280,7 @@ export default RejectedWorkPage;
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
 
-  statusRow: { flexDirection: 'row', alignItems: 'center' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm },
 
   headerSection: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: Spacing.xs, gap: 4 },
   pageHeading: {

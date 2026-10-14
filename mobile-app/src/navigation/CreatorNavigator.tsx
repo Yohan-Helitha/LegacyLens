@@ -365,7 +365,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           focusDate={scheduleFocusDate}
           onNavigate={handleNavigate}
           onBack={handleBackToDashboard}
-          onViewOpportunity={handleViewOpportunityFromApplication}
+          onOpenMyWork={handleOpenMyWork}
         />
       )}
       {screen === 'my-work' && (
