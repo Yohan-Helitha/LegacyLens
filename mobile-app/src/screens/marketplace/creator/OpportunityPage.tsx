@@ -57,7 +57,7 @@ const D = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-type FilterKey  = 'all' | 'nearby' | 'photography' | 'writing' | 'documentation';
+type FilterKey  = 'all' | 'nearby' | 'photography' | 'writing' | 'documentation' | 'craft' | 'video';
 
 /** Shown for an elder with no uploaded profile photo. */
 const PLACEHOLDER_AVATAR =
@@ -131,6 +131,8 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'photography', label: 'Photography' },
   { key: 'writing',     label: 'Writing'     },
   { key: 'documentation', label: 'Documentation' },
+  { key: 'craft',       label: 'Craft'       },
+  { key: 'video',       label: 'Video'       },
 ];
 
 const FilterBar: React.FC<{
