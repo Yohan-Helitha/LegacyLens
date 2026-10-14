@@ -11,7 +11,6 @@ import lk.ac.sliit.legacylens.users.entity.RoleType;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.entity.UserRole;
 import lk.ac.sliit.legacylens.users.entity.VerificationStatus;
-import lk.ac.sliit.legacylens.users.repository.CityRepository;
 import lk.ac.sliit.legacylens.users.repository.CreatorProfileRepository;
 import lk.ac.sliit.legacylens.users.repository.KnowledgeHolderProfileRepository;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
@@ -37,9 +36,6 @@ class UserProfileServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
-
-    @Mock
-    private CityRepository cityRepository;
 
     @Mock
     private KnowledgeHolderProfileRepository knowledgeHolderProfileRepository;

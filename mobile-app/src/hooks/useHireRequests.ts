@@ -35,8 +35,6 @@ export function useHireRequests() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState(false);
   const requestIdRef = useRef(0);
 
   const load = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
@@ -92,23 +90,7 @@ export function useHireRequests() {
   const refresh = useCallback(() => load('refresh'), [load]);
   const reload = useCallback(() => load('initial'), [load]);
 
-  /** Resolves true once the request is gone; false on failure (see `deleteError`) — the card stays put either way until this settles. */
-  const removeRequest = useCallback(async (jobRequestId: string): Promise<boolean> => {
-    setDeletingId(jobRequestId);
-    setDeleteError(false);
-    try {
-      await hireRequestApi.remove(jobRequestId);
-      setRequests((prev) => prev.filter((item) => item.id !== jobRequestId));
-      return true;
-    } catch {
-      setDeleteError(true);
-      return false;
-    } finally {
-      setDeletingId(null);
-    }
-  }, []);
-
-  return { requests, loading, refreshing, loadError, deletingId, deleteError, refresh, reload, removeRequest };
+  return { requests, loading, refreshing, loadError, refresh, reload };
 }
 
 export default useHireRequests;

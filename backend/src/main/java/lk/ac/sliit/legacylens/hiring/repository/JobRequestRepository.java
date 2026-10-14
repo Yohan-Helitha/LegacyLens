@@ -23,10 +23,10 @@ public interface JobRequestRepository extends JpaRepository<JobRequest, UUID> {
      * optional — pass null to return every status.
      */
     @Query("SELECT new lk.ac.sliit.legacylens.hiring.dto.JobRequestSummaryDto("
-            + "jr.id, jr.title, jr.status, COUNT(ja), jr.createdAt, jr.voiceNoteUrl) "
+            + "jr.id, jr.title, jr.status, COUNT(ja), jr.createdAt) "
             + "FROM JobRequest jr LEFT JOIN JobApplication ja ON ja.jobRequest = jr "
             + "WHERE jr.elder.id = :elderId AND (:status IS NULL OR jr.status = :status) "
-            + "GROUP BY jr.id, jr.title, jr.status, jr.createdAt, jr.voiceNoteUrl "
+            + "GROUP BY jr.id, jr.title, jr.status, jr.createdAt "
             + "ORDER BY jr.createdAt DESC")
     List<JobRequestSummaryDto> findSummariesByElderId(@Param("elderId") UUID elderId, @Param("status") JobRequestStatus status);
 }

@@ -16,7 +16,6 @@ import { YourStories } from '../screens/content-capture/your_stories';
 import { TrustScoreDetail } from '../screens/content-capture/trust_score_detail';
 import { ReviewsRatingsScreen } from '../screens/content-capture/ReviewsRatingsScreen';
 import { useStoryDraft } from '../hooks/useStoryDraft';
-import type { HireRequestVoiceNote } from '../hooks/usePostHireRequest';
 import { useAuthStore } from '../store/authStore';
 import type { ElderDrawerItem } from '../components/module-specific/content-capture';
 import type { HireRequestItem } from '../hooks/useHireRequests';
@@ -34,7 +33,6 @@ type Step =
   | 'trustScore'
   | 'reviews'
   | 'hirePost'
-  | 'hirePostRecording'
   | 'hireRequests'
   | 'hireApplicants'
   | 'hireRecommendations'
@@ -70,28 +68,8 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
 
   /** Hire flow: shows the "we're reviewing it" banner on My Requests right after posting. */
   const [hireJustPosted, setHireJustPosted] = useState(false);
-  /**
-   * Screen 8's in-progress title and voice note both live here, not inside
-   * PostHireRequestScreen itself — recording the Details clip means leaving
-   * that screen entirely (for AudioRecordingScreen) and coming back, which
-   * unmounts it and would reset any state kept locally there. (The title
-   * field used to live in local state and lost whatever the elder had
-   * typed/dictated on that exact round trip — this is the fix.)
-   */
-  const [hirePostTitle, setHirePostTitle] = useState('');
-  const [hirePostVoiceNote, setHirePostVoiceNote] = useState<HireRequestVoiceNote | null>(null);
-  /** The "I understand the 1-hour deletion window" checkbox — lifted for the same reason as title/voiceNote above. */
-  const [hirePostAcknowledged, setHirePostAcknowledged] = useState(false);
   const [applicantsRequest, setApplicantsRequest] = useState<{ id: string; title: string } | null>(null);
   const [conversation, setConversation] = useState<{ creatorName: string; jobTitle: string } | null>(null);
-
-  /** A fresh visit to Screen 8 starts a clean request — a title/clip left over from an abandoned one shouldn't silently reappear. */
-  const startFreshHireRequest = () => {
-    setHirePostTitle('');
-    setHirePostVoiceNote(null);
-    setHirePostAcknowledged(false);
-    setStep('hirePost');
-  };
 
   const { startNewDraft, setMediaUri, setTranscript } = useStoryDraft();
 
@@ -99,7 +77,6 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
   useEffect(() => {
     const target: Partial<Record<Step, Step>> = {
       hirePost: 'dashboard',
-      hirePostRecording: 'hirePost',
       hireRequests: 'dashboard',
       hireApplicants: 'hireRequests',
       hireRecommendations: 'dashboard',
@@ -263,16 +240,7 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
 
       {step === 'hirePost' && (
         <PostHireRequestScreen
-          title={hirePostTitle}
-          onTitleChange={setHirePostTitle}
-          voiceNote={hirePostVoiceNote}
-          onRecordVoiceNote={() => setStep('hirePostRecording')}
-          acknowledged={hirePostAcknowledged}
-          onAcknowledgedChange={setHirePostAcknowledged}
           onSubmitted={() => {
-            setHirePostTitle('');
-            setHirePostVoiceNote(null);
-            setHirePostAcknowledged(false);
             setHireJustPosted(true);
             setStep('hireRequests');
           }}
@@ -282,20 +250,10 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
         />
       )}
 
-      {step === 'hirePostRecording' && (
-        <AudioRecordingScreen
-          onClose={() => setStep('hirePost')}
-          onFinish={({ uri, durationMillis }) => {
-            setHirePostVoiceNote({ uri, durationMillis });
-            setStep('hirePost');
-          }}
-        />
-      )}
-
       {step === 'hireRequests' && (
         <MyHireRequestsScreen
           justPosted={hireJustPosted}
-          onPostRequest={startFreshHireRequest}
+          onPostRequest={() => setStep('hirePost')}
           onViewApplicants={(request: HireRequestItem) => {
             setApplicantsRequest({ id: request.id, title: request.title });
             setStep('hireApplicants');

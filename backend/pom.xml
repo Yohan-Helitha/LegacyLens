@@ -34,14 +34,6 @@
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
 
-    <!-- Used by RestClient (speech/provider/AzureFastTranscriptionProvider) to write a multipart
-         body via the JDK HTTP client factory — spring-boot-starter-web alone doesn't pull this in,
-         since this project has no webflux/reactor dependency otherwise; version comes from Boot's BOM. -->
-    <dependency>
-      <groupId>org.reactivestreams</groupId>
-      <artifactId>reactive-streams</artifactId>
-    </dependency>
-
     <!-- Spring Data JPA (ORM / Repository layer) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

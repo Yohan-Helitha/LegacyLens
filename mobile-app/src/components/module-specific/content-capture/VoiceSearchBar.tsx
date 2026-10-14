@@ -1,70 +1,31 @@
-import React, { useEffect, useRef } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Mic, Search } from 'lucide-react-native';
 import { Radii, Spacing, Typography } from '../../../theme';
-import { useVoiceInput } from '../../../hooks/useVoiceInput';
+import { useVoiceSearch } from '../../../hooks/useVoiceSearch';
 import { ContentCaptureColors as D } from './tokens';
 
 interface VoiceSearchBarProps {
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
-  /** BCP-47 tag sent to the backend for transcription; defaults to the backend's own default (si-LK). */
-  voiceLang?: string;
 }
 
 /**
  * Search field with a mango-orange microphone inside it — the elder can
  * type, or tap the mic and speak a title or topic instead. Both paths just
  * call onChangeText, so a spoken search behaves exactly like a typed one.
- *
- * Backed by useVoiceInput (record up to 30s, then transcribe via the
- * backend's Azure-based endpoint) — the search box fills in once
- * transcription completes, not live while speaking.
  */
 export const VoiceSearchBar: React.FC<VoiceSearchBarProps> = ({
   value,
   onChangeText,
   placeholder = 'Search your stories…',
-  voiceLang,
 }) => {
-  const { state, result, errorKind, errorMessage, start, stop, retry } = useVoiceInput({ language: voiceLang });
-
-  const insertedForResultRef = useRef<typeof result>(null);
-  useEffect(() => {
-    if (!result || insertedForResultRef.current === result) return;
-    insertedForResultRef.current = result;
-
-    if (result.qualityHint !== 'NO_SPEECH_DETECTED') {
-      onChangeText(result.text);
-    }
-    retry();
-    // onChangeText/retry intentionally excluded — this must run only when `result` itself changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result]);
-
-  const busy = state === 'requestingPermission' || state === 'preparing' || state === 'uploading';
-  const isRecording = state === 'recording';
-
-  const handleMicPress = () => {
-    if (state === 'idle' || state === 'error') start();
-    else if (state === 'recording') stop();
-  };
-
-  const hint =
-    isRecording
-      ? 'Listening…'
-      : state === 'uploading'
-        ? 'Writing it down…'
-        : state === 'error'
-          ? errorKind === 'permission'
-            ? 'Microphone access is needed to search by voice.'
-            : errorMessage ?? "Couldn't hear that — please try again."
-          : null;
+  const { isListening, error, start, stop } = useVoiceSearch({ onResult: onChangeText });
 
   return (
     <View>
-      <View style={[s.wrap, isRecording && s.wrapListening]}>
+      <View style={[s.wrap, isListening && s.wrapListening]}>
         <Search size={18} color={D.onSurfaceVariant} strokeWidth={2} />
         <TextInput
           value={value}
@@ -74,23 +35,18 @@ export const VoiceSearchBar: React.FC<VoiceSearchBarProps> = ({
           style={s.input}
           returnKeyType="search"
         />
-        {busy ? (
-          <View style={s.micBtn}>
-            <ActivityIndicator size="small" color={D.onSecondaryContainer} />
-          </View>
-        ) : (
-          <Pressable
-            onPress={handleMicPress}
-            style={({ pressed }) => [s.micBtn, isRecording && s.micBtnActive, pressed && s.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={isRecording ? 'Stop voice search' : 'Search by speaking'}
-          >
-            <Mic size={18} color={isRecording ? '#ffffff' : D.onSecondaryContainer} strokeWidth={2} />
-          </Pressable>
-        )}
+        <Pressable
+          onPress={isListening ? stop : start}
+          style={({ pressed }) => [s.micBtn, isListening && s.micBtnActive, pressed && s.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={isListening ? 'Stop voice search' : 'Search by speaking'}
+        >
+          <Mic size={18} color={isListening ? '#ffffff' : D.onSecondaryContainer} strokeWidth={2} />
+        </Pressable>
       </View>
 
-      {!!hint && <Text style={state === 'error' ? s.hintError : s.hint}>{hint}</Text>}
+      {isListening && <Text style={s.hint}>Listening…</Text>}
+      {!isListening && error && <Text style={s.hintError}>{error}</Text>}
     </View>
   );
 };

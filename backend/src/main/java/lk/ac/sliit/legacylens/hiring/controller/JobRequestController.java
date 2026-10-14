@@ -73,26 +73,4 @@ public class JobRequestController {
 
         return ResponseEntity.ok(ApiResponse.ok(requests));
     }
-
-    /** Full detail of one of the elder's own requests — "My Requests" (Screen 9) only has each row's summary. */
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<JobRequestResponse>> getById(
-            @AuthenticationPrincipal CustomUserDetails principal,
-            @PathVariable UUID id) {
-
-        JobRequestResponse response = jobRequestQueryService.getById(principal.getUser().getId(), id);
-
-        return ResponseEntity.ok(ApiResponse.ok(response));
-    }
-
-    /** Only within the first hour of posting, and only before an admin has acted on it — see JobRequestServiceImpl.delete. */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> delete(
-            @AuthenticationPrincipal CustomUserDetails principal,
-            @PathVariable UUID id) {
-
-        jobRequestService.delete(principal.getUser().getId(), id);
-
-        return ResponseEntity.ok(ApiResponse.ok("Job request deleted", null));
-    }
 }
