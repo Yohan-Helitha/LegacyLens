@@ -370,7 +370,9 @@ export const OpportunitySchedulePage: React.FC<{
   onBack: () => void;
   /** Opens the real opportunity for an application-sourced item — Job-sourced items have no detail page yet, so they fall back to onBack. */
   onViewOpportunity?: (opportunityId: string) => void;
-}> = ({ onNavigate, onBack, onViewOpportunity }) => {
+  /** "YYYY-MM-DD" - the day just booked; the calendar opens on its month with that day selected. */
+  focusDate?: string | null;
+}> = ({ onNavigate, onBack, onViewOpportunity, focusDate }) => {
   const [jobs, setJobs] = useState<JobResponse[]>([]);
   // Nothing is drawn until the bookings arrive, so the calendar opens straight on the first booking's month
   // instead of flashing today's date first.
@@ -385,15 +387,23 @@ export const OpportunitySchedulePage: React.FC<{
       .then((data) => {
         setJobs(data);
         const scheduled = data.filter((j) => j.scheduledAt).sort((a, b) => a.scheduledAt!.localeCompare(b.scheduledAt!));
-        if (scheduled.length > 0) {
-          const first = parseDateOnly(scheduled[0].scheduledAt!);
-          setVisibleMonth(startOfMonth(first));
-          setSelectedKey(dateKey(first));
+        // Open on the day just booked. Otherwise on the next booking from today (not the oldest one ever made,
+        // which would pin the calendar to an old month), or the latest one when everything is already past.
+        const todayKey = dateKey(new Date());
+        const upcoming = scheduled.find((j) => j.scheduledAt!.slice(0, 10) >= todayKey);
+        const start = focusDate
+          ? parseDateOnly(focusDate)
+          : scheduled.length > 0
+            ? parseDateOnly((upcoming ?? scheduled[scheduled.length - 1]).scheduledAt!)
+            : null;
+        if (start) {
+          setVisibleMonth(startOfMonth(start));
+          setSelectedKey(dateKey(start));
         }
       })
       .catch(() => {})
       .finally(() => setLoaded(true));
-  }, []);
+  }, [focusDate]);
 
   const scheduleItems = useMemo(() => {
     const jobItems = jobs.map(jobToScheduleItem).filter((x): x is ScheduleItem => x !== null);

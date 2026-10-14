@@ -168,7 +168,11 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handlePaymentSaved = () => setScreen('dashboard');
 
   /** Called when the "Schedule" tab is pressed on CreatorDashboard */
-  const handleOpenSchedule = () => setScreen('schedule');
+  const [scheduleFocusDate, setScheduleFocusDate] = useState<string | null>(null);
+  const handleOpenSchedule = (focusDateKey?: string) => {
+    setScheduleFocusDate(focusDateKey ?? null);
+    setScreen('schedule');
+  };
 
   /** Called when a job card is pressed on CreatorDashboard */
   const handleOpenMyWork = () => {
@@ -358,6 +362,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
       )}
       {screen === 'schedule' && (
         <OpportunitySchedulePage
+          focusDate={scheduleFocusDate}
           onNavigate={handleNavigate}
           onBack={handleBackToDashboard}
           onViewOpportunity={handleViewOpportunityFromApplication}
