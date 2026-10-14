@@ -7,6 +7,13 @@ export type AppLocale = 'en' | 'si' | 'ta';
 
 export const SUPPORTED_LOCALES: readonly AppLocale[] = ['en', 'si', 'ta'];
 
+/** Each language written in its own script — the standard way to list languages, so people can find theirs. */
+export const LOCALE_NATIVE_NAMES: Record<AppLocale, string> = {
+  en: 'English',
+  si: 'සිංහල',
+  ta: 'தமிழ்',
+};
+
 /** Maps whatever the Language screen hands over (or a device locale tag) onto a supported locale. */
 export const toAppLocale = (code: string | undefined | null): AppLocale => {
   const base = (code ?? '').toLowerCase().split(/[-_]/)[0];

@@ -11,6 +11,9 @@ import {
 } from '../../components/common';
 import { profileApi } from '../../services/api/profileApi';
 import { useAuthStore } from '../../store/authStore';
+import { LOCALE_NATIVE_NAMES, useLocaleStore } from '../../store/localeStore';
+import { LanguagePickerSheet } from '../../components/common/LanguagePickerSheet';
+import { useTranslation } from 'react-i18next';
 import { UserProfile } from '../../types/profile';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 import {
@@ -68,6 +71,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [storytellerConfirmVisible, setStorytellerConfirmVisible] = useState(false);
+  const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
+  const { t } = useTranslation('common');
+  const locale = useLocaleStore((state) => state.locale);
 
   useEffect(() => {
     let cancelled = false;
@@ -177,13 +183,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
         {/* ── Settings list ─────────────────────────────────────────────── */}
         <View style={styles.settingsCard}>
-          <SettingsListRow icon={Globe} label="Language preference" />
+          <SettingsListRow
+            icon={Globe}
+            label={t('profile.languagePreference')}
+            value={LOCALE_NATIVE_NAMES[locale]}
+            onPress={() => setLanguageSheetVisible(true)}
+          />
           <SettingsListRow icon={Bell} label="Notification settings" />
           <SettingsListRow icon={Lock} label="Privacy & data" onPress={onOpenPrivacyData} />
           <SettingsListRow icon={HelpCircle} label="Help & support" />
           <SettingsListRow icon={LogOut} label="Log out" variant="danger" onPress={onLogout} />
         </View>
       </ScrollView>
+
+      <LanguagePickerSheet visible={languageSheetVisible} onClose={() => setLanguageSheetVisible(false)} />
 
       <ConfirmDialog
         visible={storytellerConfirmVisible}

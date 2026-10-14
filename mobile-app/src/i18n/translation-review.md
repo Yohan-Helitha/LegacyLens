@@ -4,7 +4,7 @@ Machine-translated (Google Cloud Translation) first drafts. A native speaker sho
 then edit the JSON files in `src/i18n/locales/{si,ta}` directly - reviewed text is kept when the script is re-run.
 `(!)` = still identical to English (left untranslated, or the machine output could not be verified).
 
-Rows: 268, needing attention: 0
+Rows: 270, needing attention: 0
 
 | Key | English | Sinhala | Tamil |
 | --- | --- | --- | --- |
@@ -25,12 +25,14 @@ Rows: 268, needing attention: 0
 | common:tryAgain | Try again | නැවත උත්සාහ කරන්න | மீண்டும் முயற்சிக்கவும் |
 | common:translation.showOriginal | Translated · Show original | පරිවර්තනය කරන ලදී · මුල් පිටපත පෙන්වන්න | மொழிபெயர்க்கப்பட்டது · மூலத்தைக் காட்டு |
 | common:translation.showTranslation | Original · Show translation | මුල් · පරිවර්තනය පෙන්වන්න | அசல் · மொழிபெயர்ப்பைக் காட்டு |
+| common:profile.languagePreference | Language preference | භාෂා මනාපය | மொழி விருப்பம் |
+| common:language.title | Choose your language | ඔබේ භාෂාව තෝරන්න | உங்கள் மொழியைத் தேர்ந்தெடுக்கவும் |
 | contentCapture:drawer.home | Home | මුල් පිටුව | வீடு |
 | contentCapture:drawer.stories | My Stories | මගේ කතා | என் கதைகள் |
 | contentCapture:drawer.requests | Requests | ඉල්ලීම් | கோரிக்கைகள் |
 | contentCapture:drawer.trust | Trust Score | විශ්වාස ලකුණු | நம்பகத்தன்மை மதிப்பெண் |
 | contentCapture:drawer.reviews | Reviews & Ratings | සමාලෝචන සහ ශ්‍රේණිගත කිරීම් | விமர்சனங்கள் மற்றும் மதிப்பீடுகள் |
-| contentCapture:drawer.hire | Hire a Creator | නිර්මාණකරුවෙකු කුලියට ගන්න | ஒரு படைப்பாளியை பணியமர்த்துங்கள் |
+| contentCapture:drawer.hire | Hire a Creator | නිර්මාණකරුවෙකු සහයට ගන්න | ஒரு படைப்பாளியை பணியமர்த்துங்கள் |
 | contentCapture:drawer.myRequests | My Requests | මගේ ඉල්ලීම් | எனது கோரிக்கைகள் |
 | contentCapture:drawer.voiceHelp | Voice Help | හඬ උදව් | குரல் உதவி |
 | contentCapture:drawer.settings | Settings | සැකසුම් | அமைப்புகள் |

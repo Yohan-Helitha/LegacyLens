@@ -19,5 +19,11 @@
   "translation": {
     "showOriginal": "Translated · Show original",
     "showTranslation": "Original · Show translation"
+  },
+  "profile": {
+    "languagePreference": "Language preference"
+  },
+  "language": {
+    "title": "Choose your language"
   }
 }

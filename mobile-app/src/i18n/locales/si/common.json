@@ -19,5 +19,11 @@
   "translation": {
     "showOriginal": "පරිවර්තනය කරන ලදී · මුල් පිටපත පෙන්වන්න",
     "showTranslation": "මුල් · පරිවර්තනය පෙන්වන්න"
+  },
+  "profile": {
+    "languagePreference": "භාෂා මනාපය"
+  },
+  "language": {
+    "title": "ඔබේ භාෂාව තෝරන්න"
   }
 }
