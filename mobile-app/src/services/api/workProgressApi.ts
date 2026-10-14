@@ -43,6 +43,9 @@ export const workProgressApi = {
   testReview: (jobId: string, by: 'elder' | 'admin', action: 'approve' | 'reject') =>
     apiPost<unknown, undefined>(`/jobs/${jobId}/work-progress/test/${by}/${action}`, undefined),
 
+  /** The progress of every job the creator has, in one call - what My Work and Rejected Submissions list. */
+  listMine: () => apiGet<WorkProgressResponse[]>('/creator/work-progress'),
+
   /** How many rejected submissions the creator has not opened Rejected Submissions to see yet. */
   unseenRejectedCount: async () => (await apiGet<{ count: number }>('/creator/rejected-work/unseen-count')).count,
 

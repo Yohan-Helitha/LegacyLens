@@ -171,10 +171,10 @@ export const RejectedWorkPage: React.FC<{
     setLoading(true);
     setLoadError(null);
 
-    Promise.all([creatorDashboardApi.getJobs('UPCOMING'), creatorDashboardApi.getJobs('ACTIVE')])
-      .then(async ([upcoming, active]) => {
+    // The jobs and all their progress side by side - not one request per job in a queue.
+    Promise.all([creatorDashboardApi.getJobs('UPCOMING'), creatorDashboardApi.getJobs('ACTIVE'), workProgressApi.listMine()])
+      .then(([upcoming, active, progressList]) => {
         const candidates = [...upcoming, ...active];
-        const progressList = await Promise.all(candidates.map((job) => workProgressApi.getProgress(job.id)));
         if (cancelled) return;
 
         const progressMap: Record<string, WorkProgressResponse> = {};

@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.marketplace.repository;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import lk.ac.sliit.legacylens.marketplace.entity.Review;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,6 +16,7 @@ import java.util.UUID;
 public interface ReviewRepository extends JpaRepository<Review, UUID> {
 
     /** Reviews belonging to one creator only — CreatorDashboard never sees anyone else's. */
+    @EntityGraph(attributePaths = {"elder", "job"})
     List<Review> findByCreatorIdOrderByCreatedAtDesc(UUID creatorId, Pageable pageable);
 
     Optional<Review> findByJobId(UUID jobId);

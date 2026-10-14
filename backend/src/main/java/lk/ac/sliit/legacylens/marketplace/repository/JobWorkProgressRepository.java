@@ -13,6 +13,8 @@ public interface JobWorkProgressRepository extends JpaRepository<JobWorkProgress
 
     Optional<JobWorkProgress> findByJobId(UUID jobId);
 
+    List<JobWorkProgress> findByJobIdIn(java.util.Collection<UUID> jobIds);
+
     /** Rejected submissions the creator has not looked at yet - the number on the menu. */
     long countByJobCreatorIdAndRejectedTrueAndRejectionSeenAtIsNull(UUID creatorId);
 

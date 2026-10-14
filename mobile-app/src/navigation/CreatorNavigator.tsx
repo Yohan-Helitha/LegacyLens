@@ -83,8 +83,10 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const { applications: myApplications, reload: reloadApplications } = useMyApplications();
   // Only rejections the creator has not looked at yet - opening Rejected Applications clears them.
   const rejectedApplicationsCount = groupApplications(myApplications).unseenRejected.length;
+  // Refreshed a moment after the screen opens, so the screen's own data gets the connection first.
   useEffect(() => {
-    reloadApplications();
+    const timer = setTimeout(reloadApplications, 1200);
+    return () => clearTimeout(timer);
   }, [screen, reloadApplications]);
 
   // Phone notifications. The phone itself is registered once for everyone at the top of the app;
@@ -100,7 +102,8 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
     workProgressApi.unseenRejectedCount().then(setRejectedWorkCount).catch(() => {});
   }, []);
   useEffect(() => {
-    reloadRejectedWork();
+    const timer = setTimeout(reloadRejectedWork, 1200);
+    return () => clearTimeout(timer);
   }, [screen, reloadRejectedWork]);
   const reloadOnArrival = useCallback(() => {
     reloadApplications();

@@ -13,6 +13,9 @@ public interface JobWorkMaterialRepository extends JpaRepository<JobWorkMaterial
 
     List<JobWorkMaterial> findByJobIdOrderByUploadedAtAsc(UUID jobId);
 
+    /** The materials of many jobs in one query. */
+    List<JobWorkMaterial> findByJobIdInOrderByUploadedAtAsc(java.util.Collection<UUID> jobIds);
+
     /** Ownership is enforced by callers going through the owning Job first — this just scopes deletion to the expected job. */
     Optional<JobWorkMaterial> findByIdAndJobId(UUID id, UUID jobId);
 

@@ -11,6 +11,9 @@ public interface JobWorkProgressService {
 
     WorkProgressResponse getProgress(UUID creatorId, UUID jobId);
 
+    /** The progress of every job the creator has (upcoming, active and completed) in one call - what My Work and Rejected Submissions list. */
+    List<WorkProgressResponse> listMyProgress(UUID creatorId);
+
     /** How many rejected submissions the creator has not opened Rejected Submissions to see yet. */
     long countUnseenRejected(UUID creatorId);
 
