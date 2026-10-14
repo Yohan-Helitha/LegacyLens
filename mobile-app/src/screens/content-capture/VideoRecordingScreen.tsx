@@ -11,6 +11,7 @@ import {
 } from '../../components/module-specific/content-capture';
 import { useVideoRecorder } from '../../hooks/useVideoRecorder';
 import { Typography, Spacing, Radii } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 interface VideoRecordingScreenProps {
   onClose?: () => void;
@@ -29,6 +30,7 @@ function formatDuration(ms: number): string {
  * audio mode toggle (that lives on AudioRecordingScreen instead).
  */
 export const VideoRecordingScreen: React.FC<VideoRecordingScreenProps> = ({ onClose, onFinish }) => {
+  const { t } = useTranslation('contentCapture');
   const {
     cameraRef,
     state,
@@ -57,25 +59,21 @@ export const VideoRecordingScreen: React.FC<VideoRecordingScreenProps> = ({ onCl
 
       <View style={s.content}>
         <Text style={s.instructionText}>
-          {isRecording
-            ? "Tell your story on camera — tap Finish when you're done."
-            : 'Frame your shot, then tap the button to start recording.'}
+          {isRecording ? t('recording.videoInstructionRecording') : t('recording.videoInstructionIdle')}
         </Text>
 
         <View style={s.stage}>
           {!isReady ? (
             <View style={s.permissionBox}>
               <VideoIcon size={32} color={D.onSurfaceVariant} strokeWidth={2} />
-              <Text style={s.permissionText}>
-                Legacy Lens needs camera and microphone access to record a video story.
-              </Text>
+              <Text style={s.permissionText}>{t('recording.cameraPermission')}</Text>
               <Pressable
                 onPress={requestPermissions}
                 style={({ pressed }) => [s.permissionBtn, pressed && s.pressed]}
                 accessibilityRole="button"
-                accessibilityLabel="Grant camera and microphone access"
+                accessibilityLabel={t('recording.grantAria')}
               >
-                <Text style={s.permissionBtnText}>Grant access</Text>
+                <Text style={s.permissionBtnText}>{t('recording.grant')}</Text>
               </Pressable>
             </View>
           ) : (
@@ -108,7 +106,7 @@ export const VideoRecordingScreen: React.FC<VideoRecordingScreenProps> = ({ onCl
                 onPress={start}
                 style={({ pressed }) => [s.recordBtn, pressed && s.pressed]}
                 accessibilityRole="button"
-                accessibilityLabel="Start recording video"
+                accessibilityLabel={t('recording.startVideoAria')}
               >
                 <View style={s.recordBtnInner} />
               </Pressable>
@@ -117,8 +115,8 @@ export const VideoRecordingScreen: React.FC<VideoRecordingScreenProps> = ({ onCl
         </View>
 
         <RecordingActionButtons
-          startOverLabel="Start Over"
-          finishLabel="Use this recording"
+          startOverLabel={t('recording.startOver')}
+          finishLabel={t('recording.useThis')}
           onStartOverPress={restart}
           onFinishPress={handleFinish}
         />

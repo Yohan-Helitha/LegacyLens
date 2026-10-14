@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Colors, Typography } from '../../theme';
 
 export type UserTabKey = 'home' | 'learn' | 'market' | 'map' | 'profile';
@@ -12,12 +13,13 @@ interface UserFooterProps {
 }
 
 export const UserFooter: React.FC<UserFooterProps> = ({ activeTab, onTabSelect }) => {
+  const { t } = useTranslation('common');
   const tabs = [
-    { key: 'home', label: 'Home', icon: 'home-outline', IconComponent: MaterialCommunityIcons },
-    { key: 'learn', label: 'Learn', icon: 'marker', IconComponent: MaterialCommunityIcons },
-    { key: 'market', label: 'Market', icon: 'storefront-outline', IconComponent: MaterialCommunityIcons },
-    { key: 'map', label: 'Map', icon: 'map-outline', IconComponent: MaterialCommunityIcons },
-    { key: 'profile', label: 'Profile', icon: 'account-circle-outline', IconComponent: MaterialCommunityIcons },
+    { key: 'home', label: t('tabs.home'), icon: 'home-outline', IconComponent: MaterialCommunityIcons },
+    { key: 'learn', label: t('tabs.learn'), icon: 'marker', IconComponent: MaterialCommunityIcons },
+    { key: 'market', label: t('tabs.market'), icon: 'storefront-outline', IconComponent: MaterialCommunityIcons },
+    { key: 'map', label: t('tabs.map'), icon: 'map-outline', IconComponent: MaterialCommunityIcons },
+    { key: 'profile', label: t('tabs.profile'), icon: 'account-circle-outline', IconComponent: MaterialCommunityIcons },
   ] as const;
 
   return (

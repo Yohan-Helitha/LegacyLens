@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useVoiceInput } from '../../../hooks/useVoiceInput';
-import { speechStrings } from '../../../constants/speechStrings';
+import { useSpeechStrings } from '../../../hooks/useSpeechStrings';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { MicOrb } from './MicOrb';
 import { ContentCaptureColors as D } from './tokens';
@@ -28,6 +28,7 @@ interface VoiceCaptureFieldProps {
  * slower-but-more-accurate Azure path should actually surface.
  */
 export const VoiceCaptureField: React.FC<VoiceCaptureFieldProps> = ({ label, onInsertText, language }) => {
+  const speechStrings = useSpeechStrings();
   const { state, secondsLeft, showCountdownWarning, result, errorKind, errorMessage, start, stop, retry, retryUpload } =
     useVoiceInput({ language });
 

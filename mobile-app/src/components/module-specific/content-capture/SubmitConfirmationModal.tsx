@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Trans } from 'react-i18next';
 import { Typography, Spacing, Radii, Colors } from '../../../theme';
 import { Checkbox } from './Checkbox';
 import { ContentCaptureColors as D } from './tokens';
+import { useTranslation } from 'react-i18next';
 
 interface SubmitConfirmationModalProps {
   visible: boolean;
@@ -23,6 +25,7 @@ export const SubmitConfirmationModal: React.FC<SubmitConfirmationModalProps> = (
   onCancel,
   onConfirm,
 }) => {
+  const { t } = useTranslation('contentCapture');
   const [accuracyChecked, setAccuracyChecked] = useState(false);
   const [termsChecked, setTermsChecked] = useState(false);
 
@@ -40,29 +43,31 @@ export const SubmitConfirmationModal: React.FC<SubmitConfirmationModalProps> = (
         <Pressable style={StyleSheet.absoluteFill} onPress={handleCancel} />
         <View style={s.card} accessibilityViewIsModal accessibilityLiveRegion="polite">
           <Text style={s.title} accessibilityRole="header">
-            Submit this story?
+            {t('submit.title')}
           </Text>
           <Text style={s.body}>
-            Are you sure you want to submit this? Once submitted, you won't be able to edit it.
+            {t('submit.body')}
           </Text>
 
           <View style={{ gap: Spacing.sm, marginBottom: Spacing.lg }}>
             <Checkbox checked={accuracyChecked} onToggle={() => setAccuracyChecked((v) => !v)}>
-              I confirm this story is accurate to the best of my knowledge.
+              {t('submit.confirmAccurate')}
             </Checkbox>
 
             <Checkbox checked={termsChecked} onToggle={() => setTermsChecked((v) => !v)}>
-              I accept the{' '}
-              <Text
-                style={s.link}
-                onPress={() =>
-                  Alert.alert('Terms & Conditions', 'Terms & Conditions coming soon.')
-                }
-                accessibilityRole="link"
-              >
-                Terms & Conditions
-              </Text>
-              .
+              <Trans
+                i18nKey="submit.acceptTerms"
+                ns="contentCapture"
+                components={{
+                  terms: (
+                    <Text
+                      style={s.link}
+                      onPress={() => Alert.alert(t('submit.termsTitle'), t('submit.termsSoon'))}
+                      accessibilityRole="link"
+                    />
+                  ),
+                }}
+              />
             </Checkbox>
           </View>
 
@@ -70,21 +75,21 @@ export const SubmitConfirmationModal: React.FC<SubmitConfirmationModalProps> = (
             <Pressable
               onPress={handleCancel}
               accessibilityRole="button"
-              accessibilityLabel="Cancel"
+              accessibilityLabel={t('cancel', { ns: 'common' })}
               style={({ pressed }) => [s.cancelBtn, pressed && s.pressed]}
             >
-              <Text style={s.cancelText}>Cancel</Text>
+              <Text style={s.cancelText}>{t('cancel', { ns: 'common' })}</Text>
             </Pressable>
             <Pressable
               onPress={onConfirm}
               disabled={!canSubmit}
               accessibilityRole="button"
-              accessibilityLabel="Submit"
+              accessibilityLabel={t('submit.submit')}
               accessibilityState={{ disabled: !canSubmit }}
               style={({ pressed }) => [s.submitBtn, !canSubmit && s.submitBtnDisabled, pressed && canSubmit && s.pressed]}
             >
               <Text style={[s.submitText, !canSubmit && s.submitTextDisabled]}>
-                {submitting ? 'Submitting…' : 'Submit'}
+                {submitting ? t('submit.submitting') : t('submit.submit')}
               </Text>
             </Pressable>
           </View>

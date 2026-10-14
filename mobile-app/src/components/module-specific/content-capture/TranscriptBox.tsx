@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, TextInput } from 'react-native';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
+import { useTranslation } from 'react-i18next';
 
 interface TranscriptBoxProps {
   value: string;
@@ -14,21 +15,24 @@ interface TranscriptBoxProps {
 export const TranscriptBox: React.FC<TranscriptBoxProps> = ({
   value,
   onChangeText,
-  placeholder = 'Taking notes…',
+  placeholder,
   editable = true,
-}) => (
+}) => {
+  const { t } = useTranslation('contentCapture');
+  return (
   <TextInput
     style={s.box}
     value={value}
     onChangeText={onChangeText}
-    placeholder={placeholder}
+    placeholder={placeholder ?? t('transcript.placeholder')}
     placeholderTextColor={D.onSurfaceVariant}
     multiline
     editable={editable}
     textAlignVertical="top"
-    accessibilityLabel="Live story transcript"
+    accessibilityLabel={t('transcript.label')}
   />
-);
+  );
+};
 
 const s = StyleSheet.create({
   box: {

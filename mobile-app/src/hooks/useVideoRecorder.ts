@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Alert } from 'react-native';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
+import i18n from '../i18n';
 
 export type VideoRecorderState = 'idle' | 'recording' | 'stopped';
 
@@ -55,9 +56,9 @@ export function useVideoRecorder() {
 
   const handleMountError = useCallback((event: { message?: string }) => {
     setCameraReady(false);
-    const message = event?.message || 'The camera failed to start.';
+    const message = event?.message || i18n.t('contentCapture:recorder.cameraFailed');
     setMountError(message);
-    Alert.alert('Camera error', message);
+    Alert.alert(i18n.t('contentCapture:recorder.cameraErrorTitle'), message);
   }, []);
 
   const start = useCallback(async () => {
@@ -65,7 +66,7 @@ export function useVideoRecorder() {
     setElapsedMs(0);
     elapsedMsRef.current = 0;
     setState('recording');
-    AccessibilityInfo.announceForAccessibility('Recording started');
+    AccessibilityInfo.announceForAccessibility(i18n.t('contentCapture:recorder.started'));
     try {
       recordingPromiseRef.current = cameraRef.current.recordAsync();
       const result = await recordingPromiseRef.current;
@@ -73,14 +74,14 @@ export function useVideoRecorder() {
         // recordAsync resolved with nothing — a silent native failure, or
         // it was stopped from outside without going through stop() below.
         // Surface it rather than leaving the elder stuck on a dead screen.
-        Alert.alert('Recording problem', "The recording didn't save properly. Please try again.");
+        Alert.alert(i18n.t('contentCapture:recorder.problemTitle'), i18n.t('contentCapture:recorder.notSaved'));
         setState('idle');
       }
     } catch (err) {
       setState('idle');
       Alert.alert(
-        'Recording failed',
-        err instanceof Error ? err.message : 'Something went wrong starting the recording.',
+        i18n.t('contentCapture:recorder.failedTitle'),
+        err instanceof Error ? err.message : i18n.t('contentCapture:recorder.startFailed'),
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,12 +92,12 @@ export function useVideoRecorder() {
     if (state !== 'recording' || !cameraRef.current) return null;
     cameraRef.current.stopRecording();
     const video = await recordingPromiseRef.current?.catch((err) => {
-      Alert.alert('Recording failed', err instanceof Error ? err.message : 'Something went wrong.');
+      Alert.alert(i18n.t('contentCapture:recorder.failedTitle'), err instanceof Error ? err.message : i18n.t('contentCapture:recorder.genericFailed'));
       return undefined;
     });
     recordingPromiseRef.current = null;
     setState('stopped');
-    AccessibilityInfo.announceForAccessibility('Recording stopped');
+    AccessibilityInfo.announceForAccessibility(i18n.t('contentCapture:recorder.stopped'));
     return video?.uri ? { uri: video.uri, durationMillis: elapsedMsRef.current } : null;
   }, [state]);
 

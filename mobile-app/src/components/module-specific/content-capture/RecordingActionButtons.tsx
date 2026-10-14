@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
 
@@ -14,26 +15,29 @@ interface RecordingActionButtonsProps {
 export const RecordingActionButtons: React.FC<RecordingActionButtonsProps> = ({
   onStartOverPress,
   onFinishPress,
-  startOverLabel = 'Start Over',
-  finishLabel = 'Finish',
-}) => (
+  startOverLabel,
+  finishLabel,
+}) => {
+  const { t } = useTranslation('contentCapture');
+  return (
   <View style={s.row}>
     <Pressable
       onPress={onStartOverPress}
       style={({ pressed }) => [s.outlineBtn, pressed && s.pressed]}
       accessibilityRole="button"
     >
-      <Text style={s.outlineBtnText}>{startOverLabel}</Text>
+      <Text style={s.outlineBtnText}>{startOverLabel ?? t('recording.startOver')}</Text>
     </Pressable>
     <Pressable
       onPress={onFinishPress}
       style={({ pressed }) => [s.fillBtn, pressed && s.pressed]}
       accessibilityRole="button"
     >
-      <Text style={s.fillBtnText}>{finishLabel}</Text>
+      <Text style={s.fillBtnText}>{finishLabel ?? t('recording.finish')}</Text>
     </Pressable>
   </View>
-);
+  );
+};
 
 const s = StyleSheet.create({
   row: { flexDirection: 'row', gap: Spacing.sm },

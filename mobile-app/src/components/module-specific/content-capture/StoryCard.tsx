@@ -5,6 +5,7 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { formatRelativeTime } from '../../../utils/dateFormat';
 import type { StoryResponse } from '../../../types/story';
 import { ContentCaptureColors as D } from './tokens';
+import { useTranslation } from 'react-i18next';
 
 export type StoryCardStatus = 'published' | 'pending';
 
@@ -56,6 +57,7 @@ interface StoryCardProps {
  * intentionally no like/comment/share, this list isn't a public feed.
  */
 export const StoryCard: React.FC<StoryCardProps> = ({ story, onReview, onDelete }) => {
+  const { t } = useTranslation('contentCapture');
   const isPublished = story.status === 'published';
   const duration = formatDuration(story.mediaDurationMillis);
   const MediaIcon = story.mediaKind === 'video' ? Video : Mic;
@@ -67,13 +69,13 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onReview, onDelete 
           onPress={onReview}
           style={({ pressed }) => [s.mediaHero, pressed && s.pressed]}
           accessibilityRole="button"
-          accessibilityLabel={`Open ${story.mediaKind === 'video' ? 'video' : 'voice'} story`}
+          accessibilityLabel={story.mediaKind === 'video' ? t('storyCard.openVideo') : t('storyCard.openVoice')}
         >
           <View style={s.mediaIconWrap}>
             <MediaIcon size={26} color={D.onPrimary} strokeWidth={2} />
           </View>
           <Text style={s.mediaLabel}>
-            {story.mediaKind === 'video' ? 'Video story' : 'Voice recording'}
+            {story.mediaKind === 'video' ? t('storyCard.video') : t('storyCard.voice')}
             {duration ? ` · ${duration}` : ''}
           </Text>
         </Pressable>
@@ -97,7 +99,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onReview, onDelete 
               <Clock size={13} color={D.onSecondaryContainer} strokeWidth={2} />
             )}
             <Text style={[s.statusBadgeText, isPublished ? s.statusBadgeTextPublished : s.statusBadgeTextPending]}>
-              {isPublished ? 'Published' : 'Pending'}
+              {isPublished ? t('storyCard.published') : t('storyCard.pending')}
             </Text>
           </View>
         </View>
@@ -113,7 +115,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onReview, onDelete 
               style={({ pressed }) => [s.reviewBtn, pressed && s.pressedLight]}
               accessibilityRole="button"
             >
-              <Text style={s.reviewBtnText}>Review Content</Text>
+              <Text style={s.reviewBtnText}>{t('storyCard.review')}</Text>
             </Pressable>
             <Pressable
               onPress={onDelete}
@@ -121,7 +123,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onReview, onDelete 
               accessibilityRole="button"
             >
               <Trash2 size={15} color="#ba1a1a" strokeWidth={2} />
-              <Text style={s.deleteBtnText}>Delete Content</Text>
+              <Text style={s.deleteBtnText}>{t('storyCard.delete')}</Text>
             </Pressable>
           </View>
         )}

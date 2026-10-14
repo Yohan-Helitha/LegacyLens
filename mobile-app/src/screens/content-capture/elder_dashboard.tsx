@@ -23,6 +23,7 @@ import type { ElderDrawerItem } from '../../components/module-specific/content-c
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
 import { useRecentStories } from '../../hooks/useRecentStories';
 import type { StoryStatus, StorySummary } from '../../types/story';
+import { useTranslation } from 'react-i18next';
 
 /** How many recent stories the dashboard preview shows before "View All". */
 const DASHBOARD_STORY_PREVIEW_COUNT = 2;
@@ -30,47 +31,55 @@ const DASHBOARD_STORY_PREVIEW_COUNT = 2;
 // ─────────────────────────────────────────────────────────────────────────────
 // TrustBadgeSection — tapping it opens the full Trust Score Detail screen
 // ─────────────────────────────────────────────────────────────────────────────
-const TrustBadgeSection: React.FC<{ onPress?: () => void }> = ({ onPress }) => (
+const TrustBadgeSection: React.FC<{ onPress?: () => void }> = ({ onPress }) => {
+  const { t } = useTranslation('contentCapture');
+  return (
   <Pressable
     onPress={onPress}
     style={({ pressed }) => [s.trustCard, pressed && s.pressedLight]}
     accessibilityRole="button"
-    accessibilityLabel="Open your Knowledge Keeper progress"
+    accessibilityLabel={t('dashboard.trustAria')}
   >
     <View style={s.trustIconWrap}>
       <Award size={32} color={D.onSecondaryContainer} strokeWidth={2} />
     </View>
     <View style={{ flex: 1 }}>
-      <Text style={s.trustTitle}>Knowledge Keeper</Text>
-      <Text style={s.trustSubtitle}>Level 4 • 12 Stories shared</Text>
+      <Text style={s.trustTitle}>{t('dashboard.trustTitle')}</Text>
+      <Text style={s.trustSubtitle}>{t('dashboard.trustSubtitle', { level: 4, count: 12 })}</Text>
     </View>
   </Pressable>
-);
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PrimaryActionSection — "Record a new story"
 // ─────────────────────────────────────────────────────────────────────────────
-const PrimaryActionSection: React.FC<{ onPress?: () => void }> = ({ onPress }) => (
+const PrimaryActionSection: React.FC<{ onPress?: () => void }> = ({ onPress }) => {
+  const { t } = useTranslation('contentCapture');
+  return (
   <Pressable
     onPress={onPress}
     style={({ pressed }) => [s.recordBtn, pressed && s.pressedLight]}
     accessibilityRole="button"
-    accessibilityLabel="Record a new story"
+    accessibilityLabel={t('dashboard.recordTitle')}
   >
     <View style={s.recordIconWrap}>
       <Mic size={40} color={D.onSecondaryContainer} strokeWidth={2} />
     </View>
-    <Text style={s.recordTitle}>Record a new story</Text>
-    <Text style={s.recordSubtitle}>Share your memories clearly</Text>
+    <Text style={s.recordTitle}>{t('dashboard.recordTitle')}</Text>
+    <Text style={s.recordSubtitle}>{t('dashboard.recordSubtitle')}</Text>
   </Pressable>
-);
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RequestsSection — "Requests for you"
 // ─────────────────────────────────────────────────────────────────────────────
-const RequestsSection: React.FC<{ onReplyPress?: () => void }> = ({ onReplyPress }) => (
+const RequestsSection: React.FC<{ onReplyPress?: () => void }> = ({ onReplyPress }) => {
+  const { t } = useTranslation('contentCapture');
+  return (
   <View style={s.section}>
-    <Text style={s.sectionTitle}>Requests for you</Text>
+    <Text style={s.sectionTitle}>{t('dashboard.requestsTitle')}</Text>
 
     <View style={s.requestCard}>
       <View style={s.requestHeader}>
@@ -79,11 +88,11 @@ const RequestsSection: React.FC<{ onReplyPress?: () => void }> = ({ onReplyPress
             uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAItitEXnnv_2DgR2DwDVvYzkRdZv9-QSxy4hMdVrlpwl6huv6zdhPonX7oPm0NhibhZFbpMTIhY8_GkuOd31zmS_nqz0Ia7-zroTgbyI1inmxrx25UqKbSmFVDhYyN9ZiczHDRsij2vY6gPjHZEOvMZncArHmdtLpFDx6w3CYmYnrzzbB1MpRh3hqtnAGlj94hDY9PaoukZrL6ruFN02jFNH4sRDyhR8XHbFzyVTuEVMXEAbKcdwWwLA',
           }}
           style={s.requestAvatar}
-          accessibilityLabel="Sarah Jenkins' profile photo"
+          accessibilityLabel={t('dashboard.requestAvatarAria', { name: 'Sarah Jenkins' })}
         />
         <View style={{ flex: 1 }}>
           <Text style={s.requestName}>Sarah Jenkins</Text>
-          <Text style={s.requestDesc}>Asked about: Early life in Colombo</Text>
+          <Text style={s.requestDesc}>{t('dashboard.requestAsked', { topic: t('dashboard.requestTopic') })}</Text>
         </View>
       </View>
 
@@ -92,11 +101,12 @@ const RequestsSection: React.FC<{ onReplyPress?: () => void }> = ({ onReplyPress
         style={({ pressed }) => [s.replyBtn, pressed && s.pressedLight]}
         accessibilityRole="button"
       >
-        <Text style={s.replyBtnText}>Reply with voice</Text>
+        <Text style={s.replyBtnText}>{t('dashboard.reply')}</Text>
       </Pressable>
     </View>
   </View>
-);
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // YourStoriesSection — "Your Stories"
@@ -121,13 +131,14 @@ const YourStoriesSection: React.FC<YourStoriesSectionProps> = ({
   onViewAllPress,
   onOpenStory,
 }) => {
+  const { t } = useTranslation('contentCapture');
   const [hero, ...rest] = stories.slice(0, DASHBOARD_STORY_PREVIEW_COUNT);
 
   return (
     <View style={s.section}>
-      <Text style={s.sectionTitle}>Your Stories</Text>
+      <Text style={s.sectionTitle}>{t('dashboard.yourStories')}</Text>
 
-      {!loading && !hero && <Text style={s.emptyStoriesText}>You haven't recorded any stories yet.</Text>}
+      {!loading && !hero && <Text style={s.emptyStoriesText}>{t('dashboard.noStories')}</Text>}
 
       <View style={{ gap: Spacing.sm }}>
         {!!hero && <StoryHeroCard story={hero} onPress={() => onOpenStory?.(hero)} />}
@@ -142,7 +153,7 @@ const YourStoriesSection: React.FC<YourStoriesSectionProps> = ({
           style={({ pressed }) => [s.viewAllBtn, pressed && s.pressed]}
           accessibilityRole="button"
         >
-          <Text style={s.viewAllText}>View All</Text>
+          <Text style={s.viewAllText}>{t('dashboard.viewAll')}</Text>
           <ChevronDown size={16} color={D.onSurfaceVariant} strokeWidth={2} />
         </Pressable>
       )}

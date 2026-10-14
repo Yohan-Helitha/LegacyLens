@@ -8,7 +8,7 @@ export { ElderNavDrawer } from './ElderNavDrawer';
 export type { ElderDrawerItem } from './ElderNavDrawer';
 export { StoryCard, toStoryCardItem } from './StoryCard';
 export type { StoryCardItem, StoryCardStatus } from './StoryCard';
-export { StatusPill, STORY_STATUS_LABELS } from './StatusPill';
+export { StatusPill, storyStatusKey } from './StatusPill';
 export { StoryMediaThumb } from './StoryMediaThumb';
 export { StoryHeroCard } from './StoryHeroCard';
 export { StoryListCard } from './StoryListCard';

@@ -9,9 +9,11 @@ import { homeApi } from '../../../services/api/homeApi';
 import type { FeedItemResponse } from '../../../services/api/homeApi';
 import { storiesApi } from '../../../services/api/storiesApi';
 import type { StoryResponse } from '../../../types/story';
+import type { TFunction } from 'i18next';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { StoryMediaThumb } from './StoryMediaThumb';
 import { ContentCaptureColors as D } from './tokens';
+import { useTranslation } from 'react-i18next';
 
 interface StoryListenerPreviewProps {
   storyId: string;
@@ -25,10 +27,10 @@ function formatDuration(millis: number | null): string | null {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function typeLabel(story: StoryResponse): string {
-  if (story.mediaType === 'VIDEO') return 'Video story';
-  if (story.mediaType === 'AUDIO') return 'Audio story';
-  return 'Written story';
+function typeLabel(story: StoryResponse, t: TFunction): string {
+  if (story.mediaType === 'VIDEO') return t('preview.typeVideo');
+  if (story.mediaType === 'AUDIO') return t('preview.typeAudio');
+  return t('preview.typeWritten');
 }
 
 /**
@@ -38,6 +40,7 @@ function typeLabel(story: StoryResponse): string {
  * which only contains published stories.
  */
 export const StoryListenerPreview: React.FC<StoryListenerPreviewProps> = ({ storyId }) => {
+  const { t } = useTranslation('contentCapture');
   const [story, setStory] = useState<StoryResponse | null>(null);
   const [opening, setOpening] = useState(false);
   const [notInFeed, setNotInFeed] = useState(false);
@@ -81,7 +84,7 @@ export const StoryListenerPreview: React.FC<StoryListenerPreviewProps> = ({ stor
 
   return (
     <View style={s.card}>
-      <Text style={s.sectionTitle}>Story preview</Text>
+      <Text style={s.sectionTitle}>{t('preview.title')}</Text>
 
       {story && (
         <>
@@ -91,7 +94,7 @@ export const StoryListenerPreview: React.FC<StoryListenerPreviewProps> = ({ stor
 
           <View style={s.metaRow}>
             <View style={s.chip}>
-              <Text style={s.chipText}>{typeLabel(story)}</Text>
+              <Text style={s.chipText}>{typeLabel(story, t)}</Text>
             </View>
             {!!duration && (
               <View style={s.chip}>
@@ -113,20 +116,20 @@ export const StoryListenerPreview: React.FC<StoryListenerPreviewProps> = ({ stor
         disabled={opening}
         style={({ pressed }) => [s.button, pressed && s.pressed, opening && s.buttonBusy]}
         accessibilityRole="button"
-        accessibilityLabel="View this story as listeners see it"
+        accessibilityLabel={t('preview.viewAsAria')}
       >
         {opening ? (
           <ActivityIndicator color={D.onPrimary} />
         ) : (
           <>
             <Eye size={18} color={D.onPrimary} strokeWidth={2.2} />
-            <Text style={s.buttonText}>View as listeners see it</Text>
+            <Text style={s.buttonText}>{t('preview.viewAs')}</Text>
           </>
         )}
       </Pressable>
 
       {notInFeed && (
-        <Text style={s.note}>This story isn't showing in the Home feed yet. Please try again in a moment.</Text>
+        <Text style={s.note}>{t('preview.notInFeed')}</Text>
       )}
 
       <Modal visible={!!post} animationType="slide" onRequestClose={close}>
@@ -148,10 +151,10 @@ export const StoryListenerPreview: React.FC<StoryListenerPreviewProps> = ({ stor
               onPress={close}
               style={s.audioBack}
               accessibilityRole="button"
-              accessibilityLabel="Back to story analytics"
+              accessibilityLabel={t('preview.backAria')}
             >
               <ArrowLeft size={22} color={D.onSurface} />
-              <Text style={s.audioBackText}>Back</Text>
+              <Text style={s.audioBackText}>{t('back', { ns: 'common' })}</Text>
             </Pressable>
             <View style={{ padding: Spacing.md }}>
               <AudioCard

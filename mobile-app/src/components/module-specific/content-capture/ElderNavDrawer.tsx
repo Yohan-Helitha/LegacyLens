@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
 
@@ -60,21 +61,21 @@ interface ElderNavDrawerProps {
 
 const DRAWER_WIDTH = Math.min(Dimensions.get('window').width * 0.85, 360);
 
-const NAV_ITEMS: { key: ElderDrawerItem; label: string; icon: LucideIcon }[] = [
-  { key: 'home', label: 'Home', icon: Home },
-  { key: 'stories', label: 'My Stories', icon: BookOpen },
-  { key: 'requests', label: 'Requests', icon: Handshake },
-  { key: 'trust', label: 'Trust Score', icon: BadgeCheck },
-  { key: 'reviews', label: 'Reviews & Ratings', icon: Star },
+const NAV_ITEMS: { key: ElderDrawerItem; labelKey: string; icon: LucideIcon }[] = [
+  { key: 'home', labelKey: 'drawer.home', icon: Home },
+  { key: 'stories', labelKey: 'drawer.stories', icon: BookOpen },
+  { key: 'requests', labelKey: 'drawer.requests', icon: Handshake },
+  { key: 'trust', labelKey: 'drawer.trust', icon: BadgeCheck },
+  { key: 'reviews', labelKey: 'drawer.reviews', icon: Star },
   // Opens the creators recommended for each of the elder's open opportunities; posting a new request
   // lives under My Requests (or the floating "Ask for help" button).
-  { key: 'hire', label: 'Hire a Creator', icon: UserSearch },
-  { key: 'myRequests', label: 'My Requests', icon: ClipboardList },
+  { key: 'hire', labelKey: 'drawer.hire', icon: UserSearch },
+  { key: 'myRequests', labelKey: 'drawer.myRequests', icon: ClipboardList },
 ];
 
-const HELP_ITEMS: { key: ElderDrawerItem; label: string; icon: LucideIcon }[] = [
-  { key: 'voiceHelp', label: 'Voice Help', icon: Mic },
-  { key: 'settings', label: 'Settings', icon: Settings },
+const HELP_ITEMS: { key: ElderDrawerItem; labelKey: string; icon: LucideIcon }[] = [
+  { key: 'voiceHelp', labelKey: 'drawer.voiceHelp', icon: Mic },
+  { key: 'settings', labelKey: 'drawer.settings', icon: Settings },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,13 +89,14 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
   onClose,
   activeItem = 'home',
   userName = 'Anura Bandara',
-  userRole = 'Knowledge Keeper',
-  userLevel = 'Level 4',
+  userRole,
+  userLevel,
   avatarUri,
   requestsCount,
   onNavigate,
   onLogout,
 }) => {
+  const { t } = useTranslation('contentCapture');
   const insets = useSafeAreaInsets();
   const progress = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
@@ -136,7 +138,7 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
             style={StyleSheet.absoluteFill}
             onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel="Close navigation"
+            accessibilityLabel={t('drawer.closeNavigation')}
           />
         </Animated.View>
 
@@ -150,7 +152,7 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
             <Pressable
               onPress={onClose}
               accessibilityRole="button"
-              accessibilityLabel="Close navigation"
+              accessibilityLabel={t('drawer.closeNavigation')}
               style={s.closeBtn}
               hitSlop={8}
             >
@@ -167,14 +169,15 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
 
             <Text style={s.userName}>{userName}</Text>
             <View style={s.userMetaRow}>
-              <Text style={s.userMetaText}>{userRole}</Text>
+              <Text style={s.userMetaText}>{userRole ?? t('drawer.defaultRole')}</Text>
               <View style={s.metaDot} />
-              <Text style={s.userMetaText}>{userLevel}</Text>
+              <Text style={s.userMetaText}>{userLevel ?? t('drawer.defaultLevel')}</Text>
             </View>
           </View>
 
           <View style={s.navList}>
-            {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
+            {NAV_ITEMS.map(({ key, labelKey, icon: Icon }) => {
+              const label = t(labelKey);
               const isActive = key === activeItem;
               return (
                 <Pressable
@@ -206,7 +209,9 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
 
             <View style={s.divider} />
 
-            {HELP_ITEMS.map(({ key, label, icon: Icon }) => (
+            {HELP_ITEMS.map(({ key, labelKey, icon: Icon }) => {
+              const label = t(labelKey);
+              return (
               <Pressable
                 key={key}
                 onPress={() => handleItemPress(key)}
@@ -217,17 +222,18 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
                 <Icon size={24} color={D.onPrimaryContainer} strokeWidth={2} />
                 <Text style={s.navLabel}>{label}</Text>
               </Pressable>
-            ))}
+              );
+            })}
           </View>
 
           <Pressable
             onPress={onLogout}
             accessibilityRole="button"
-            accessibilityLabel="Log out"
+            accessibilityLabel={t('drawer.logOut')}
             style={({ pressed }) => [s.logoutBtn, { paddingBottom: insets.bottom + Spacing.sm }, pressed && s.navItemPressed]}
           >
             <LogOut size={22} color="rgba(144,210,209,0.6)" strokeWidth={2} />
-            <Text style={s.logoutText}>Log out</Text>
+            <Text style={s.logoutText}>{t('drawer.logOut')}</Text>
           </Pressable>
         </Animated.View>
       </View>

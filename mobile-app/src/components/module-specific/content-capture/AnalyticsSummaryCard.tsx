@@ -5,6 +5,7 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { formatCount } from '../../../utils/formatCount';
 import type { AnalyticsSummary } from '../../../types/story';
 import { ContentCaptureColors as D } from './tokens';
+import { useTranslation } from 'react-i18next';
 
 interface AnalyticsSummaryCardProps {
   summary: AnalyticsSummary | null;
@@ -29,11 +30,11 @@ export const AnalyticsSummaryCard: React.FC<AnalyticsSummaryCardProps> = ({
   loadError,
   onPress,
 }) => {
+  const { t } = useTranslation('contentCapture');
   const hasPublished = !!summary && summary.publishedStories > 0;
   const tone = summary?.trending ? UP : DOWN;
   const Arrow = summary?.trending ? ArrowUp : ArrowDown;
   const percent = summary ? Math.abs(summary.trendPercent) : 0;
-  const trendWord = summary?.trending ? 'up' : 'down';
 
   return (
     <Pressable
@@ -42,13 +43,16 @@ export const AnalyticsSummaryCard: React.FC<AnalyticsSummaryCardProps> = ({
       accessibilityRole="button"
       accessibilityLabel={
         hasPublished
-          ? `Story analytics. ${summary.viewsLast7Days} views in the last 7 days, ${trendWord} ${percent} percent. Opens My Stories.`
-          : 'Story analytics. Publish a story to see how it is doing. Opens My Stories.'
+          ? t(summary.trending ? 'analyticsCard.ariaUp' : 'analyticsCard.ariaDown', {
+              views: summary.viewsLast7Days,
+              percent,
+            })
+          : t('analyticsCard.ariaEmpty')
       }
     >
       <View style={s.headerRow}>
-        <Text style={s.title}>Story analytics</Text>
-        <Text style={s.period}>Last 7 days</Text>
+        <Text style={s.title}>{t('analyticsCard.title')}</Text>
+        <Text style={s.period}>{t('analyticsCard.period')}</Text>
       </View>
 
       {loading && (
@@ -57,12 +61,10 @@ export const AnalyticsSummaryCard: React.FC<AnalyticsSummaryCardProps> = ({
         </View>
       )}
 
-      {!loading && loadError && <Text style={s.mutedText}>Couldn't load your analytics right now.</Text>}
+      {!loading && loadError && <Text style={s.mutedText}>{t('analyticsCard.loadError')}</Text>}
 
       {!loading && !loadError && !hasPublished && (
-        <Text style={s.mutedText}>
-          Once a story of yours is published, you'll see how many people watched and loved it here.
-        </Text>
+        <Text style={s.mutedText}>{t('analyticsCard.empty')}</Text>
       )}
 
       {!loading && !loadError && hasPublished && summary && (
@@ -70,7 +72,7 @@ export const AnalyticsSummaryCard: React.FC<AnalyticsSummaryCardProps> = ({
           <View style={s.trendRow}>
             <View style={{ flex: 1 }}>
               <Text style={s.bigNumber}>{formatCount(summary.viewsLast7Days)}</Text>
-              <Text style={s.bigNumberLabel}>views</Text>
+              <Text style={s.bigNumberLabel}>{t('analyticsCard.views')}</Text>
             </View>
             <View style={[s.trendPill, { backgroundColor: tone.tint }]}>
               <Arrow size={20} color={tone.icon} strokeWidth={3} />
@@ -78,24 +80,25 @@ export const AnalyticsSummaryCard: React.FC<AnalyticsSummaryCardProps> = ({
             </View>
           </View>
           <Text style={s.comparison}>
-            {summary.trending ? 'More than' : 'Fewer than'} the {formatCount(summary.viewsPrevious7Days)} views in the
-            7 days before
+            {t(summary.trending ? 'analyticsCard.comparisonUp' : 'analyticsCard.comparisonDown', {
+              number: formatCount(summary.viewsPrevious7Days),
+            })}
           </Text>
 
           <View style={s.divider} />
 
           <View style={s.statsRow}>
-            <Stat icon={<Eye size={16} color={D.onSurfaceVariant} />} value={summary.totalViews} label="Total views" />
-            <Stat icon={<Heart size={16} color={D.onSurfaceVariant} />} value={summary.totalLikes} label="Likes" />
+            <Stat icon={<Eye size={16} color={D.onSurfaceVariant} />} value={summary.totalViews} label={t('analyticsCard.totalViews')} />
+            <Stat icon={<Heart size={16} color={D.onSurfaceVariant} />} value={summary.totalLikes} label={t('analyticsCard.likes')} />
             <Stat
               icon={<MessageCircle size={16} color={D.onSurfaceVariant} />}
               value={summary.totalComments}
-              label="Comments"
+              label={t('analyticsCard.comments')}
             />
             <Stat
               icon={<BookOpen size={16} color={D.onSurfaceVariant} />}
               value={summary.publishedStories}
-              label="Published"
+              label={t('analyticsCard.published')}
             />
           </View>
         </>

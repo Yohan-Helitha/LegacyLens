@@ -6,6 +6,7 @@ import {
   useAudioRecorder as useExpoAudioRecorder,
   useAudioRecorderState,
 } from 'expo-audio';
+import i18n from '../i18n';
 
 export type AudioRecorderState = 'idle' | 'recording' | 'paused' | 'stopped';
 
@@ -26,13 +27,13 @@ export function useAudioRecorder() {
   const start = useCallback(async () => {
     const permission = await requestRecordingPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Microphone access needed', 'Legacy Lens needs microphone access to record your story.');
+      Alert.alert(i18n.t('contentCapture:recorder.micNeededTitle'), i18n.t('contentCapture:recorder.micNeededBody'));
       return;
     }
     await recorder.prepareToRecordAsync();
     recorder.record();
     setState('recording');
-    AccessibilityInfo.announceForAccessibility('Recording started');
+    AccessibilityInfo.announceForAccessibility(i18n.t('contentCapture:recorder.started'));
   }, [recorder]);
 
   const pause = useCallback(() => {
@@ -53,7 +54,7 @@ export function useAudioRecorder() {
     const durationMillis = recorderState.durationMillis;
     await recorder.stop();
     setState('stopped');
-    AccessibilityInfo.announceForAccessibility('Recording stopped');
+    AccessibilityInfo.announceForAccessibility(i18n.t('contentCapture:recorder.stopped'));
     return recorder.uri ? { uri: recorder.uri, durationMillis } : null;
   }, [state, recorder, recorderState.durationMillis]);
 

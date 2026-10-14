@@ -1,12 +1,13 @@
 import React from 'react';
 import { Animated, Pressable, StyleSheet } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { usePressScale } from '../../hooks/usePressScale';
 import { Colors, Radii } from '../../theme';
 
 interface BackButtonProps {
   onPress?: () => void;
-  /** Screen-reader label — defaults to "Go back" */
+  /** Screen-reader label — defaults to the translated "Go back" */
   accessibilityLabel?: string;
 }
 
@@ -20,8 +21,9 @@ const SIZE = 48;
  */
 export const BackButton: React.FC<BackButtonProps> = ({
   onPress,
-  accessibilityLabel = 'Go back',
+  accessibilityLabel,
 }) => {
+  const { t } = useTranslation('common');
   const { scale, onPressIn, onPressOut } = usePressScale({ pressedScale: 0.92 });
 
   return (
@@ -31,7 +33,7 @@ export const BackButton: React.FC<BackButtonProps> = ({
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel}
+        accessibilityLabel={accessibilityLabel ?? t('goBack')}
         hitSlop={8}
         style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
       >

@@ -2,7 +2,7 @@ import React from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowDown, ArrowUp, Eye, Heart, MessageCircle } from 'lucide-react-native';
-import { Header, UserFooter } from '../../components/common';
+import { Header, TranslatedText, UserFooter } from '../../components/common';
 import type { UserTabKey } from '../../components/common';
 import {
   RatingStars,
@@ -14,6 +14,9 @@ import { formatCount } from '../../utils/formatCount';
 import { resolveUploadUrl } from '../../constants/api';
 import type { DailyViews, StoryReview } from '../../types/story';
 import { Typography, Spacing, Radii } from '../../theme';
+import { useTranslation } from 'react-i18next';
+import { LOCALE_DATE_TAG } from '../../constants/hireStrings';
+import { useLocaleStore } from '../../store/localeStore';
 
 interface StoryAnalyticsProps {
   storyId: string;
@@ -26,13 +29,18 @@ const DOWN = { icon: D.secondaryContainer, tint: 'rgba(254,137,62,0.2)', text: D
 
 const CHART_HEIGHT = 110;
 
-function formatDate(iso: string | null): string {
-  if (!iso) return '';
-  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+/** BCP-47 tag for formatting dates in the elder's chosen language (not the phone's). */
+function useDateTag(): string {
+  return LOCALE_DATE_TAG[useLocaleStore((state) => state.locale)];
 }
 
-function weekdayLabel(isoDate: string): string {
-  return new Date(`${isoDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' });
+function formatDate(iso: string | null, tag: string): string {
+  if (!iso) return '';
+  return new Date(iso).toLocaleDateString(tag, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function weekdayLabel(isoDate: string, tag: string): string {
+  return new Date(`${isoDate}T00:00:00`).toLocaleDateString(tag, { weekday: 'short' });
 }
 
 /**
@@ -40,6 +48,8 @@ function weekdayLabel(isoDate: string): string {
  * and what listeners said. Reached by tapping a story on My Stories' "Published" tab.
  */
 export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({ storyId, onBack, onTabPress }) => {
+  const { t } = useTranslation('contentCapture');
+  const dateTag = useDateTag();
   const { analytics, loading, loadError } = useStoryAnalytics(storyId);
 
   const tone = analytics?.trending ? UP : DOWN;
@@ -49,7 +59,7 @@ export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({ storyId, onBack,
     <View style={s.safeArea}>
       <StatusBar style="dark" />
 
-      <Header title="Story analytics" showBack onBackPress={onBack} />
+      <Header title={t('analytics.title')} showBack onBackPress={onBack} />
 
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
         {loading && (
@@ -60,7 +70,7 @@ export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({ storyId, onBack,
 
         {!loading && loadError && (
           <View style={s.centerState}>
-            <Text style={s.mutedText}>Couldn't load this story's analytics. Check your connection and try again.</Text>
+            <Text style={s.mutedText}>{t('analytics.loadError')}</Text>
           </View>
         )}
 
@@ -68,7 +78,9 @@ export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({ storyId, onBack,
           <>
             <View style={{ gap: 4 }}>
               <Text style={s.storyTitle}>{analytics.title}</Text>
-              {!!analytics.publishedAt && <Text style={s.mutedText}>Published {formatDate(analytics.publishedAt)}</Text>}
+              {!!analytics.publishedAt && (
+                <Text style={s.mutedText}>{t('analytics.publishedOn', { date: formatDate(analytics.publishedAt, dateTag) })}</Text>
+              )}
             </View>
 
             <StoryListenerPreview storyId={analytics.storyId} />
@@ -77,7 +89,7 @@ export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({ storyId, onBack,
               <View style={s.trendRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.bigNumber}>{formatCount(analytics.viewCount)}</Text>
-                  <Text style={s.mutedText}>total views</Text>
+                  <Text style={s.mutedText}>{t('analytics.totalViews')}</Text>
                 </View>
                 <View style={[s.trendPill, { backgroundColor: tone.tint }]}>
                   <Arrow size={20} color={tone.icon} strokeWidth={3} />
@@ -85,54 +97,52 @@ export const StoryAnalytics: React.FC<StoryAnalyticsProps> = ({ storyId, onBack,
                 </View>
               </View>
               <Text style={s.mutedText}>
-                {formatCount(analytics.viewsLast7Days)} views in the last 7 days
-                {analytics.trending ? ', more than' : ', fewer than'} the {formatCount(analytics.viewsPrevious7Days)}{' '}
-                before
+                {t(analytics.trending ? 'analytics.summaryUp' : 'analytics.summaryDown', {
+                  views: formatCount(analytics.viewsLast7Days),
+                  previous: formatCount(analytics.viewsPrevious7Days),
+                })}
               </Text>
             </View>
 
             <View style={s.statsRow}>
-              <StatCard icon={<Eye size={20} color={D.primaryContainer} />} value={analytics.viewCount} label="Views" />
-              <StatCard icon={<Heart size={20} color={D.primaryContainer} />} value={analytics.likesCount} label="Likes" />
+              <StatCard icon={<Eye size={20} color={D.primaryContainer} />} value={analytics.viewCount} label={t('analytics.views')} />
+              <StatCard icon={<Heart size={20} color={D.primaryContainer} />} value={analytics.likesCount} label={t('analytics.likes')} />
               <StatCard
                 icon={<MessageCircle size={20} color={D.primaryContainer} />}
                 value={analytics.commentsCount}
-                label="Comments"
+                label={t('analytics.comments')}
               />
             </View>
 
             <View style={s.card}>
-              <Text style={s.sectionTitle}>Views in the last 7 days</Text>
+              <Text style={s.sectionTitle}>{t('analytics.last7Days')}</Text>
               <ViewsChart days={analytics.dailyViews} />
             </View>
 
             <View style={s.card}>
-              <Text style={s.sectionTitle}>Reviews & ratings</Text>
+              <Text style={s.sectionTitle}>{t('analytics.reviewsTitle')}</Text>
 
               <View style={s.ratingBlock}>
                 <RatingStars
                   rating={analytics.averageRating}
                   ratingText={analytics.averageRating != null ? analytics.averageRating.toFixed(1) : ''}
-                  emptyText="No ratings yet"
+                  emptyText={t('analytics.noRatings')}
                   accessibilityLabel={
                     analytics.averageRating != null
-                      ? `Rated ${analytics.averageRating.toFixed(1)} out of 5`
-                      : 'No ratings yet'
+                      ? t('analytics.ratedAria', { rating: analytics.averageRating.toFixed(1) })
+                      : t('analytics.noRatings')
                   }
                   size={22}
                 />
                 {analytics.averageRating != null && (
-                  <Text style={s.mutedText}>
-                    Your overall rating from {analytics.ratingCount} {analytics.ratingCount === 1 ? 'person' : 'people'}
-                    {' '}you've worked with
-                  </Text>
+                  <Text style={s.mutedText}>{t('analytics.overallRating', { count: analytics.ratingCount })}</Text>
                 )}
               </View>
 
               <View style={s.divider} />
 
               {analytics.reviews.length === 0 ? (
-                <Text style={s.mutedText}>No comments on this story yet.</Text>
+                <Text style={s.mutedText}>{t('analytics.noComments')}</Text>
               ) : (
                 <View style={{ gap: Spacing.md }}>
                   {analytics.reviews.map((review, index) => (
@@ -159,9 +169,11 @@ const StatCard: React.FC<{ icon: React.ReactNode; value: number; label: string }
 );
 
 const ViewsChart: React.FC<{ days: DailyViews[] }> = ({ days }) => {
+  const { t } = useTranslation('contentCapture');
+  const dateTag = useDateTag();
   const max = Math.max(1, ...days.map((d) => d.views));
   return (
-    <View style={s.chart} accessible accessibilityLabel={`Daily views: ${days.map((d) => d.views).join(', ')}`}>
+    <View style={s.chart} accessible accessibilityLabel={t('analytics.dailyViewsAria', { values: days.map((d) => d.views).join(', ') })}>
       {days.map((day) => (
         <View key={day.date} style={s.chartColumn}>
           <Text style={s.chartValue}>{day.views > 0 ? day.views : ''}</Text>
@@ -174,7 +186,7 @@ const ViewsChart: React.FC<{ days: DailyViews[] }> = ({ days }) => {
               ]}
             />
           </View>
-          <Text style={s.chartLabel}>{weekdayLabel(day.date)}</Text>
+          <Text style={s.chartLabel}>{weekdayLabel(day.date, dateTag)}</Text>
         </View>
       ))}
     </View>
@@ -182,12 +194,14 @@ const ViewsChart: React.FC<{ days: DailyViews[] }> = ({ days }) => {
 };
 
 const ReviewRow: React.FC<{ review: StoryReview }> = ({ review }) => {
+  const { t } = useTranslation('contentCapture');
+  const dateTag = useDateTag();
   const avatar = resolveUploadUrl(review.reviewerAvatarUrl);
   const initial = review.reviewerName?.trim().charAt(0).toUpperCase() || '?';
   return (
     <View style={s.reviewRow}>
       {avatar ? (
-        <Image source={{ uri: avatar }} style={s.avatar} accessibilityLabel={`${review.reviewerName}'s photo`} />
+        <Image source={{ uri: avatar }} style={s.avatar} accessibilityLabel={t('analytics.reviewerPhoto', { name: review.reviewerName })} />
       ) : (
         <View style={[s.avatar, s.avatarFallback]}>
           <Text style={s.avatarInitial}>{initial}</Text>
@@ -198,9 +212,9 @@ const ReviewRow: React.FC<{ review: StoryReview }> = ({ review }) => {
           <Text style={s.reviewerName} numberOfLines={1}>
             {review.reviewerName}
           </Text>
-          <Text style={s.reviewDate}>{formatDate(review.createdAt)}</Text>
+          <Text style={s.reviewDate}>{formatDate(review.createdAt, dateTag)}</Text>
         </View>
-        <Text style={s.reviewText}>{review.text}</Text>
+        <TranslatedText text={review.text} style={s.reviewText} />
       </View>
     </View>
   );

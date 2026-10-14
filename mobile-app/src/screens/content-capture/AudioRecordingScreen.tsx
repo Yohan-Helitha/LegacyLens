@@ -12,6 +12,7 @@ import {
 } from '../../components/module-specific/content-capture';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
 import { Typography, Spacing, Radii } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 interface AudioRecordingScreenProps {
   onClose?: () => void;
@@ -34,6 +35,7 @@ const BAR_COUNT = 5;
  * that brought the elder here from ChooseCaptureMethodScreen.
  */
 export const AudioRecordingScreen: React.FC<AudioRecordingScreenProps> = ({ onClose, onFinish }) => {
+  const { t } = useTranslation('contentCapture');
   const { state, elapsedMs, start, pause, resume, stop, restart } = useAudioRecorder();
   const isPaused = state === 'paused';
   const isRecording = state === 'recording';
@@ -70,7 +72,7 @@ export const AudioRecordingScreen: React.FC<AudioRecordingScreenProps> = ({ onCl
     if (result) onFinish?.(result);
   };
 
-  const pauseLabel = isPaused ? 'Paused, tap to resume' : 'Recording, tap to pause';
+  const pauseLabel = isPaused ? t('recording.pausedAria') : t('recording.recordingAria');
 
   return (
     <SafeAreaView style={s.safeArea} edges={['top', 'bottom']}>
@@ -79,9 +81,7 @@ export const AudioRecordingScreen: React.FC<AudioRecordingScreenProps> = ({ onCl
       <ContentCaptureTopBar left="close" onLeftPress={onClose} />
 
       <View style={s.content}>
-        <Text style={s.instructionText}>
-          Speak naturally — we're recording your story, just as you tell it.
-        </Text>
+        <Text style={s.instructionText}>{t('recording.audioInstruction')}</Text>
 
         <View style={s.stage}>
           <Text style={s.timer}>{formatDuration(elapsedMs)}</Text>
@@ -101,7 +101,7 @@ export const AudioRecordingScreen: React.FC<AudioRecordingScreenProps> = ({ onCl
             ))}
           </View>
 
-          <Text style={s.statusLabel}>{isPaused ? 'Paused' : 'Recording…'}</Text>
+          <Text style={s.statusLabel}>{isPaused ? t('recording.paused') : t('recording.recording')}</Text>
         </View>
 
         <View style={s.controlsRow}>
@@ -111,15 +111,15 @@ export const AudioRecordingScreen: React.FC<AudioRecordingScreenProps> = ({ onCl
             color={D.onSurfaceVariant}
             backgroundColor={D.surfaceContainer}
             onPress={handlePauseToggle}
-            accessibilityLabel={isPaused ? 'Resume recording' : 'Pause recording'}
+            accessibilityLabel={isPaused ? t('recording.resume') : t('recording.pause')}
           />
           <MicOrb active={!isPaused} accessibilityLabel={pauseLabel} />
           <View style={{ width: 48 }} />
         </View>
 
         <RecordingActionButtons
-          startOverLabel="Start Over"
-          finishLabel="Use this recording"
+          startOverLabel={t('recording.startOver')}
+          finishLabel={t('recording.useThis')}
           onStartOverPress={restart}
           onFinishPress={handleFinish}
         />

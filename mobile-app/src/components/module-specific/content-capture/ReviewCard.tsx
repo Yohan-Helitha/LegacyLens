@@ -1,12 +1,13 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Avatar } from '../../common';
+import { Avatar, TranslatedText } from '../../common';
 import { getMediaUrl } from '../../../constants/api';
 import type { Review } from '../../../types/review';
 import { formatShortDate } from '../../../utils/dateFormat';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { RatingStars } from './RatingStars';
 import { ContentCaptureColors as D } from './tokens';
+import { useTranslation } from 'react-i18next';
 
 interface ReviewCardProps {
   review: Review;
@@ -24,6 +25,7 @@ function resolveAvatar(url: string | null): string | null {
  * without leaving a gap where the comment would be.
  */
 export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
+  const { t } = useTranslation('contentCapture');
   const comment = review.comment?.trim();
   const date = formatShortDate(review.createdAt);
 
@@ -39,14 +41,14 @@ export const ReviewCard: React.FC<ReviewCardProps> = ({ review }) => {
             rating={review.score}
             ratingText=""
             emptyText=""
-            accessibilityLabel={`Rated ${review.score} out of 5`}
+            accessibilityLabel={t('reviews.rated', { score: review.score })}
             size={16}
           />
         </View>
         {!!date && <Text style={s.date}>{date}</Text>}
       </View>
 
-      {!!comment && <Text style={s.comment}>{comment}</Text>}
+      {!!comment && <TranslatedText text={comment} style={s.comment} />}
     </View>
   );
 };

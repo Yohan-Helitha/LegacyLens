@@ -17,6 +17,7 @@ import { useStorySearch } from '../../hooks/useStorySearch';
 import { useAuthStore } from '../../store/authStore';
 import type { StoryStatus, StorySummary } from '../../types/story';
 import { Typography, Spacing, Radii } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 interface YourStoriesProps {
   onTabPress?: (tab: UserTabKey) => void;
@@ -38,20 +39,23 @@ const TabButton: React.FC<{ label: string; count: number; selected: boolean; onP
   count,
   selected,
   onPress,
-}) => (
+}) => {
+  const { t } = useTranslation('contentCapture');
+  return (
   <Pressable
     onPress={onPress}
     style={({ pressed }) => [s.tab, selected && s.tabSelected, pressed && s.pressedLight]}
     accessibilityRole="tab"
     accessibilityState={{ selected }}
-    accessibilityLabel={`${label}, ${count} ${count === 1 ? 'story' : 'stories'}`}
+    accessibilityLabel={t('stories.tabAria', { label, count })}
   >
     <Text style={[s.tabText, selected && s.tabTextSelected]}>{label}</Text>
     <View style={[s.tabCount, selected && s.tabCountSelected]}>
       <Text style={[s.tabCountText, selected && s.tabCountTextSelected]}>{count}</Text>
     </View>
   </Pressable>
-);
+  );
+};
 
 /**
  * The full personal record of everything the storyteller has saved — a
@@ -72,6 +76,7 @@ export const YourStories: React.FC<YourStoriesProps> = ({
   onDrawerNavigate,
   onLogout,
 }) => {
+  const { t } = useTranslation('contentCapture');
   const [drawerVisible, setDrawerVisible] = React.useState(false);
   const [tab, setTab] = React.useState<StoriesTab>(initialTab);
   const selectTab = (next: StoriesTab) => {
@@ -80,7 +85,7 @@ export const YourStories: React.FC<YourStoriesProps> = ({
   };
   const insets = useSafeAreaInsets();
   const { query, setQuery, stories, loading, loadError, totalCount } = useStorySearch();
-  const firstName = useAuthStore((state) => state.user?.fullName.split(' ')[0]) ?? 'there';
+  const firstName = useAuthStore((state) => state.user?.fullName.split(' ')[0]) ?? t('stories.fallbackName');
 
   const isSearching = query.trim().length > 0;
   // A story moves to the Published tab the moment its status becomes PUBLISHED.
@@ -99,7 +104,7 @@ export const YourStories: React.FC<YourStoriesProps> = ({
     <View style={s.safeArea}>
       <StatusBar style="dark" />
 
-      <Header title="My Stories" onMenuPress={() => setDrawerVisible(true)} />
+      <Header title={t('stories.headerTitle')} onMenuPress={() => setDrawerVisible(true)} />
 
       <ScrollView
         style={s.scroll}
@@ -108,11 +113,9 @@ export const YourStories: React.FC<YourStoriesProps> = ({
         keyboardShouldPersistTaps="handled"
       >
         <View style={s.greeting}>
-          <Text style={s.greetingTitle}>Your Stories, {firstName}</Text>
+          <Text style={s.greetingTitle}>{t('stories.greetingTitle', { name: firstName })}</Text>
           {totalCount > 0 && (
-            <Text style={s.greetingSubtitle}>
-              {totalCount} {totalCount === 1 ? 'story' : 'stories'} shared · loved by your family and community
-            </Text>
+            <Text style={s.greetingSubtitle}>{t('stories.greetingSubtitle', { count: totalCount })}</Text>
           )}
         </View>
 
@@ -120,13 +123,13 @@ export const YourStories: React.FC<YourStoriesProps> = ({
 
         <View style={s.tabBar} accessibilityRole="tablist">
           <TabButton
-            label="In progress"
+            label={t('stories.inProgress')}
             count={inProgressStories.length}
             selected={tab === 'inProgress'}
             onPress={() => selectTab('inProgress')}
           />
           <TabButton
-            label="Published"
+            label={t('stories.published')}
             count={publishedStories.length}
             selected={tab === 'published'}
             onPress={() => selectTab('published')}
@@ -138,14 +141,14 @@ export const YourStories: React.FC<YourStoriesProps> = ({
             <View style={s.emptyIconWrap}>
               <BookOpen size={32} color={D.onSecondaryContainer} strokeWidth={2} />
             </View>
-            <Text style={s.emptyTitle}>Couldn't load your stories</Text>
-            <Text style={s.emptyText}>Check your connection and try again.</Text>
+            <Text style={s.emptyTitle}>{t('stories.loadError')}</Text>
+            <Text style={s.emptyText}>{t('stories.loadErrorHint')}</Text>
           </View>
         )}
 
         {showNoSearchResults && (
           <View style={s.noResults}>
-            <Text style={s.noResultsText}>No stories match "{query.trim()}".</Text>
+            <Text style={s.noResultsText}>{t('stories.noMatch', { query: query.trim() })}</Text>
           </View>
         )}
 
@@ -154,17 +157,15 @@ export const YourStories: React.FC<YourStoriesProps> = ({
             <View style={s.emptyIconWrap}>
               <BookOpen size={32} color={D.onSecondaryContainer} strokeWidth={2} />
             </View>
-            <Text style={s.emptyTitle}>Your stories will appear here once you share one</Text>
-            <Text style={s.emptyText}>
-              Every memory you record or write becomes part of your family's story.
-            </Text>
+            <Text style={s.emptyTitle}>{t('stories.emptyTitle')}</Text>
+            <Text style={s.emptyText}>{t('stories.emptyText')}</Text>
             <Pressable
               onPress={onNewStory}
               style={({ pressed }) => [s.emptyStateBtn, pressed && s.pressedLight]}
               accessibilityRole="button"
             >
               <Plus size={18} color={D.onPrimary} strokeWidth={2.5} />
-              <Text style={s.emptyStateBtnText}>New Story</Text>
+              <Text style={s.emptyStateBtnText}>{t('stories.newStory')}</Text>
             </Pressable>
           </View>
         )}
@@ -172,9 +173,7 @@ export const YourStories: React.FC<YourStoriesProps> = ({
         {showEmptyTab && (
           <View style={s.noResults}>
             <Text style={s.noResultsText}>
-              {tab === 'published'
-                ? 'No published stories yet. Once a story is approved, it will appear here with its views, likes and reviews.'
-                : 'Nothing in progress right now.'}
+              {tab === 'published' ? t('stories.emptyPublished') : t('stories.emptyInProgress')}
             </Text>
           </View>
         )}
@@ -202,10 +201,10 @@ export const YourStories: React.FC<YourStoriesProps> = ({
             pressed && s.pressedLight,
           ]}
           accessibilityRole="button"
-          accessibilityLabel="New Story"
+          accessibilityLabel={t('stories.newStory')}
         >
           <Plus size={22} color={D.onPrimary} strokeWidth={2.5} />
-          <Text style={s.fabText}>New Story</Text>
+          <Text style={s.fabText}>{t('stories.newStory')}</Text>
         </Pressable>
       )}
 

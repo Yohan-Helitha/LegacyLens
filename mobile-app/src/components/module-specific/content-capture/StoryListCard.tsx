@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Radii, Spacing, Typography } from '../../../theme';
 import { formatShortDate } from '../../../utils/dateFormat';
 import type { StorySummary } from '../../../types/story';
@@ -18,12 +19,14 @@ interface StoryListCardProps {
  * screen's design (search + tap + "+ New Story" is the entire interaction
  * surface).
  */
-export const StoryListCard: React.FC<StoryListCardProps> = ({ story, onPress }) => (
+export const StoryListCard: React.FC<StoryListCardProps> = ({ story, onPress }) => {
+  const { t } = useTranslation('contentCapture');
+  return (
   <Pressable
     onPress={onPress}
     style={({ pressed }) => [s.card, pressed && s.pressed]}
     accessibilityRole="button"
-    accessibilityLabel={`Open story: ${story.title}`}
+    accessibilityLabel={t('storyCards.open', { title: story.title })}
   >
     <StoryMediaThumb mediaType={story.mediaType} variant="list" />
 
@@ -33,7 +36,8 @@ export const StoryListCard: React.FC<StoryListCardProps> = ({ story, onPress }) 
       <StatusPill status={story.status} />
     </View>
   </Pressable>
-);
+  );
+};
 
 const s = StyleSheet.create({
   card: {
