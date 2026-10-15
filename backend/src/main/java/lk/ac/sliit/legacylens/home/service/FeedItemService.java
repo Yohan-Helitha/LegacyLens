@@ -102,7 +102,7 @@ public class FeedItemService {
             res.setTitle(story.getTitle());
             res.setThumbnail(story.getImageUrl() != null && !story.getImageUrl().isBlank()
                     ? story.getImageUrl()
-                    : "https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=600");
+                    : null);
             res.setVideoUrl(mediaPath != null && !mediaPath.isBlank() ? mediaPath : null);
             res.setDuration(story.getMediaDurationMillis() != null && story.getMediaDurationMillis() > 0
                     ? String.format("%d:%02d", story.getMediaDurationMillis() / 60000, (story.getMediaDurationMillis() % 60000) / 1000)

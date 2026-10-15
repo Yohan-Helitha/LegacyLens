@@ -17,7 +17,7 @@ export const styles = StyleSheet.create({
   premiumHeroBox: {
     width: '100%',
     height: 220,
-    backgroundColor: '#E4E7E6',
+    backgroundColor: Colors.secondaryDark,
     position: 'relative',
   },
   premiumHeroImg: {

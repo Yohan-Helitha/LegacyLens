@@ -32,9 +32,6 @@ export interface VideoDetailScreenProps {
   onSelectRelatedPost?: (post: any) => void;
 }
 
-const DEFAULT_THUMBNAIL =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuC3_7Gy9V7Y2pFoWnM9ULHdHgWArTQoArPOynphh9T30ARMNnoyeJpe5ejMxpZWkmgnoLPfa_iL0K5H4HfAMK0cpA3l9pUqfqXLhgz7AiHwx_vsfYgKAbHdOPj7DRwR2UoeA-o1CQx_AGm2iUn3YWGbW_azg69lTjQW6TnUU1tMaHaCVN2w0CBlw1o42aLuBAQbhbkvmUA0nHY9aTdX-LbjXfCIduBMpVY44eQvNr5bDCwNIEmFq7-p';
-
 const DEFAULT_AVATAR =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuAJddldj0j2P6Ei0-tjnizjoCg7UTQFEOj4JzzD3cvcqYCb7ul1d5DrS0zO1zyjB5y9jdTionnboDXp7R44OHbb4poEDIFU0_DHc00FL36ET12sA8xJvgcvmn9XNlzwt8Tzl4nqmg2bbCJYN8r14KgUz5-qqwwsVp8tvfwz8R2p3nm0ZLUwmMeOpKvrEmT_c4YtcStotEn_RBNFEeOICkyjYB7gxWbvOENUwBu0BzHUOfKW5IXhZKJv';
 
@@ -179,7 +176,7 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
               author: s.authorName || 'Elder Storyteller',
               location: s.district ? `${s.district}, ${s.region || 'Sri Lanka'}` : (s.region || 'Sri Lanka'),
               tags: s.tags || [],
-              thumbnail: s.imageUrl || DEFAULT_THUMBNAIL,
+              thumbnail: s.imageUrl || undefined,
               likesCount: s.likesCount || 0,
               commentsCount: s.commentsCount || 0,
               description: s.description || '',
@@ -241,7 +238,7 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
   const rawThumb = currentPost?.thumbnail || currentPost?.imageUrl;
   const thumbnail = rawThumb && !rawThumb.startsWith('http')
     ? getMediaUrl(rawThumb.startsWith('/uploads/') ? rawThumb : (rawThumb.startsWith('uploads/') ? `/${rawThumb}` : `/uploads/${rawThumb.replace(/^\/+/, '')}`))
-    : (rawThumb || DEFAULT_THUMBNAIL);
+    : (rawThumb || null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTimeSec, setCurrentTimeSec] = useState(0);
@@ -254,7 +251,20 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
   const player = useVideoPlayer(source, (p: any) => {
     p.loop = false;
     p.timeUpdateEventInterval = 0.5;
+    if (hasVideo) {
+      p.play();
+    }
   });
+
+  // Auto-play video as soon as the screen is opened and video source is ready
+  useEffect(() => {
+    if (!player || !hasVideo) return;
+    try {
+      player.play();
+    } catch (e) {
+      // Ignored
+    }
+  }, [player, hasVideo, resolvedVideoUri]);
 
   useEffect(() => {
     if (!player || !hasVideo) return;
@@ -409,15 +419,17 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
         >
           {/* Hero Media Player */}
           <View style={styles.heroVideo}>
-            {/* Cultural thumbnail rendered underneath */}
-            <Image
-              source={{ uri: thumbnail }}
-              style={[
-                StyleSheet.absoluteFill,
-                { opacity: isPlaying ? 0 : 0.85 }
-              ]}
-              resizeMode="cover"
-            />
+            {/* Cultural thumbnail rendered underneath only if provided */}
+            {thumbnail ? (
+              <Image
+                source={{ uri: thumbnail }}
+                style={[
+                  StyleSheet.absoluteFill,
+                  { opacity: isPlaying ? 0 : 0.85 }
+                ]}
+                resizeMode="cover"
+              />
+            ) : null}
 
             {/* Real video player when video exists in DB */}
             {hasVideo && (
