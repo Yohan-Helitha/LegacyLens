@@ -20,6 +20,7 @@ import type { OpportunityCardResponse } from '../../../types/opportunity';
 import { resolveOpportunityImage, resolveAvatarImage } from '../../../utils/opportunityImages';
 import { showsMatchBadge } from '../../../utils/matchLevel';
 import { useAuthStore } from '../../../store/authStore';
+import { PersonPhoto } from '../../../components/module-specific/marketplace/PersonPhoto';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -58,10 +59,6 @@ const D = {
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 type FilterKey  = 'all' | 'nearby' | 'photography' | 'writing' | 'documentation' | 'craft' | 'video';
-
-/** Shown for an elder with no uploaded profile photo. */
-const PLACEHOLDER_AVATAR =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuBdukQOb20lmYsNjgSC79bwk6nR11u86Bj87jNIlc_ZQzQ97BxLNMhydins5gSF08W2CSQyNGsh4guyGBVX0htKvkNTzRAY76Yfv8jK-W-9Z-cW30fTc-tVqTE_3MXVnOr3daWdokTEReYQUt-ciXqQB8LF7qkH10d4SgSRvnxi4hdlzLG5RUNcZvLxKkHwfHK5wXsfSfaNkQJdZelcgow41KGgsq77Fkd9zgLSrunJwEJsg3U5ZQcTdg';
 
 /** Google Maps-style location pin, in the requested #336574 tone. */
 const LocationPinIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
@@ -300,11 +297,7 @@ const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: (
         {/* 1. who it is from, and where the work is */}
         {!!item.elderName && (
           <View style={s.authorRow}>
-            <Image
-              source={resolveAvatarImage(item.elderAvatarUrl) ?? { uri: PLACEHOLDER_AVATAR }}
-              style={s.recommendedAvatar}
-              accessibilityLabel={`${item.elderName} profile photo`}
-            />
+            <PersonPhoto name={item.elderName} source={resolveAvatarImage(item.elderAvatarUrl)} size={28} />
             <View style={s.authorText}>
               <Text style={s.holderName} numberOfLines={1}>{item.elderName}</Text>
               <PlaceLine item={item} showDate={false} />
@@ -407,11 +400,7 @@ const RecentOpportunityCard: React.FC<{
   >
     <View style={s.recentHeader}>
       <View style={[s.authorRow, s.authorRowFit]}>
-        <Image
-          source={resolveAvatarImage(item.elderAvatarUrl) ?? { uri: PLACEHOLDER_AVATAR }}
-          style={s.authorAvatar}
-          accessibilityLabel={`${item.elderName} profile photo`}
-        />
+        <PersonPhoto name={item.elderName} source={resolveAvatarImage(item.elderAvatarUrl)} size={40} />
         <View style={s.authorText}>
           <Text style={s.authorName} numberOfLines={1}>{item.elderName}</Text>
           <PlaceLine item={item} />
