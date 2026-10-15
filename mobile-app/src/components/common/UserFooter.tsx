@@ -17,7 +17,6 @@ export const UserFooter: React.FC<UserFooterProps> = ({ activeTab, onTabSelect }
   const tabs = [
     { key: 'home', label: t('tabs.home'), icon: 'home-outline', IconComponent: MaterialCommunityIcons },
     { key: 'learn', label: t('tabs.learn'), icon: 'marker', IconComponent: MaterialCommunityIcons },
-    { key: 'market', label: t('tabs.market'), icon: 'storefront-outline', IconComponent: MaterialCommunityIcons },
     { key: 'map', label: t('tabs.map'), icon: 'map-outline', IconComponent: MaterialCommunityIcons },
     { key: 'profile', label: t('tabs.profile'), icon: 'account-circle-outline', IconComponent: MaterialCommunityIcons },
   ] as const;
