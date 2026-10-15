@@ -183,6 +183,16 @@ public class AzureFastTranscriptionProvider implements SpeechToTextProvider {
                 ? phrases.get(0).locale
                 : options.getLanguageCode();
 
+        List<lk.ac.sliit.legacylens.speech.dto.TranscriptionPhrase> mappedPhrases = phrases.stream()
+                .filter(p -> p.text != null && !p.text.isBlank())
+                .map(p -> lk.ac.sliit.legacylens.speech.dto.TranscriptionPhrase.builder()
+                        .offsetMs(p.offsetMilliseconds)
+                        .durationMs(p.durationMilliseconds)
+                        .text(p.text.trim())
+                        .confidence(p.confidence)
+                        .build())
+                .toList();
+
         return TranscriptionResult.builder()
                 .providerName(PROVIDER_NAME)
                 .text(text)
@@ -192,6 +202,7 @@ public class AzureFastTranscriptionProvider implements SpeechToTextProvider {
                 .audioDurationMs(response.durationMilliseconds)
                 .firstPhraseOffsetMs(firstPhraseOffsetMs)
                 .phraseCount(phrases.size())
+                .phrases(mappedPhrases)
                 .build();
     }
 
