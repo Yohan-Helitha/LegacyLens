@@ -20,6 +20,8 @@ public class StoryResponse {
     private String mediaType;
     /** Root-relative URL the client can play directly, e.g. "/uploads/stories/xxx.m4a". Null with no clip. */
     private String mediaUrl;
+    /** Root-relative or absolute URL to the cover image, e.g. "/uploads/thumbnails/xxx.jpg". Null with no image. */
+    private String imageUrl;
     private Long mediaDurationMillis;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
