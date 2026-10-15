@@ -20,7 +20,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -48,14 +50,35 @@ public class TagController {
             @RequestParam(defaultValue = "50") int size) {
 
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("canonicalName").ascending());
-        Page<Tag> tagPage = tagRepository.searchTags(
-                (search != null && !search.isBlank()) ? search.trim() : null,
-                (category != null && !category.isBlank()) ? category.trim() : null,
-                isApproved,
-                pageRequest
-        );
+        Page<Tag> tagPage;
 
-        Page<TagDTO> dtoPage = tagPage.map(this::mapToSummaryDTO);
+        String trimmedSearch = (search != null && !search.isBlank()) ? search.trim().toLowerCase() : null;
+        String trimmedCategory = (category != null && !category.isBlank()) ? category.trim() : null;
+
+        if (trimmedSearch != null) {
+            String pattern = "%" + trimmedSearch + "%";
+            tagPage = tagRepository.searchWithPattern(pattern, trimmedCategory, isApproved, pageRequest);
+        } else if (trimmedCategory != null && isApproved != null) {
+            tagPage = tagRepository.findByCategoryAndIsApproved(trimmedCategory, isApproved, pageRequest);
+        } else if (trimmedCategory != null) {
+            tagPage = tagRepository.findByCategory(trimmedCategory, pageRequest);
+        } else if (isApproved != null) {
+            tagPage = tagRepository.findByIsApproved(isApproved, pageRequest);
+        } else {
+            tagPage = tagRepository.findAll(pageRequest);
+        }
+
+        Map<UUID, Long> storyCountMap = new HashMap<>();
+        if (!tagPage.isEmpty()) {
+            List<Object[]> counts = storyTagRepository.countStoriesGroupedByTag();
+            for (Object[] row : counts) {
+                if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                    storyCountMap.put((UUID) row[0], ((Number) row[1]).longValue());
+                }
+            }
+        }
+
+        Page<TagDTO> dtoPage = tagPage.map(tag -> mapToSummaryDTO(tag, storyCountMap.getOrDefault(tag.getId(), 0L)));
         return ResponseEntity.ok(ApiResponse.ok(dtoPage));
     }
 
@@ -81,13 +104,15 @@ public class TagController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<TagDTO>> updateTag(
             @PathVariable UUID id,
-            @Valid @RequestBody CreateTagRequest request) {
+            @RequestBody UpdateTagRequest request) {
 
         Tag tag = tagRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tag not found: " + id));
 
-        tag.setCanonicalName(request.getCanonicalName().trim());
-        tag.setNormalizedName(tagNormalizationService.normalizeTagName(request.getCanonicalName()));
+        if (request.getCanonicalName() != null && !request.getCanonicalName().isBlank()) {
+            tag.setCanonicalName(request.getCanonicalName().trim());
+            tag.setNormalizedName(tagNormalizationService.normalizeTagName(request.getCanonicalName()));
+        }
         if (request.getDescription() != null) tag.setDescription(request.getDescription().trim());
         if (request.getLanguageCode() != null) tag.setLanguageCode(request.getLanguageCode().trim());
         if (request.getCategory() != null) tag.setCategory(request.getCategory().trim());
@@ -95,6 +120,15 @@ public class TagController {
 
         Tag saved = tagRepository.save(tag);
         return ResponseEntity.ok(ApiResponse.ok("Tag updated", mapToDetailDTO(saved)));
+    }
+
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<ApiResponse<TagDTO>> approveTag(@PathVariable UUID id) {
+        Tag tag = tagRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tag not found: " + id));
+        tag.setApproved(true);
+        Tag saved = tagRepository.save(tag);
+        return ResponseEntity.ok(ApiResponse.ok("Tag approved", mapToDetailDTO(saved)));
     }
 
     @DeleteMapping("/{id}")
@@ -199,7 +233,7 @@ public class TagController {
         return ResponseEntity.ok(ApiResponse.ok("Legacy tags backfilled", report));
     }
 
-    private TagDTO mapToSummaryDTO(Tag tag) {
+    private TagDTO mapToSummaryDTO(Tag tag, long storyCount) {
         return TagDTO.builder()
                 .id(tag.getId())
                 .canonicalName(tag.getCanonicalName())
@@ -208,12 +242,15 @@ public class TagController {
                 .languageCode(tag.getLanguageCode())
                 .category(tag.getCategory())
                 .isApproved(tag.isApproved())
+                .storyCount(storyCount)
                 .createdAt(tag.getCreatedAt() != null ? tag.getCreatedAt().format(DATE_FORMATTER) : null)
                 .updatedAt(tag.getUpdatedAt() != null ? tag.getUpdatedAt().format(DATE_FORMATTER) : null)
                 .build();
     }
 
     private TagDTO mapToDetailDTO(Tag tag) {
+        long storyCount = storyTagRepository.countByTagId(tag.getId());
+
         List<TagAliasDTO> aliasDTOs = tagAliasRepository.findByTagId(tag.getId()).stream()
                 .map(a -> TagAliasDTO.builder()
                         .id(a.getId())
@@ -247,6 +284,7 @@ public class TagController {
                 .languageCode(tag.getLanguageCode())
                 .category(tag.getCategory())
                 .isApproved(tag.isApproved())
+                .storyCount(storyCount)
                 .aliases(aliasDTOs)
                 .relationships(relDTOs)
                 .createdAt(tag.getCreatedAt() != null ? tag.getCreatedAt().format(DATE_FORMATTER) : null)
