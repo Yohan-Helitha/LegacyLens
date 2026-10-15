@@ -5,7 +5,7 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 jest.mock('lucide-react-native', () => {
   const Icon = () => null;
   return {
-    Home: Icon, BookOpen: Icon, Handshake: Icon, BadgeCheck: Icon, UserSearch: Icon, ClipboardList: Icon,
+    Home: Icon, BookOpen: Icon, Handshake: Icon, BadgeCheck: Icon, UserSearch: Icon, ClipboardList: Icon, ClipboardCheck: Icon,
     Star: Icon, Mic: Icon, Settings: Icon, LogOut: Icon, X: Icon,
   };
 });
@@ -37,7 +37,7 @@ describe('ElderNavDrawer', () => {
     const screen = renderDrawer();
     const scroll = screen.UNSAFE_getByType(ScrollView);
 
-    for (const label of ['Home', 'My Stories', 'Hire a Creator', 'My Requests', 'Voice Help', 'Settings', 'Log out']) {
+    for (const label of ['Home', 'My Stories', 'Hire a Creator', 'My Requests', 'Submitted Work', 'Voice Help', 'Settings', 'Log out']) {
       expect(within(scroll).getByLabelText(label)).toBeTruthy();
     }
   });

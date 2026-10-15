@@ -84,6 +84,7 @@ public class WorkReviewServiceImpl implements WorkReviewService {
                 .jobId(job.getId())
                 .title(job.getTitle())
                 .creatorId(job.getCreator().getId())
+                .opportunityId(job.getOpportunityId())
                 .creatorName(job.getCreator().getFullName())
                 .elderName(job.getElder() != null ? job.getElder().getFullName() : null)
                 .category(opportunity != null ? opportunity.getCategory() : null)

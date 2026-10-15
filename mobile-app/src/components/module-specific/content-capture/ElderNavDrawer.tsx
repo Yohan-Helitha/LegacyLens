@@ -19,6 +19,7 @@ import {
   BadgeCheck,
   UserSearch,
   ClipboardList,
+  ClipboardCheck,
   Star,
   Mic,
   Settings,
@@ -30,7 +31,7 @@ import { useTranslation } from 'react-i18next';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
 import { useAuthStore } from '../../../store/authStore';
-import { messagingApi } from '../../../services/api/messagingApi';
+import { useInboxUnread } from '../../../store/inboxUnreadStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -43,6 +44,7 @@ export type ElderDrawerItem =
   | 'reviews'
   | 'hire'
   | 'myRequests'
+  | 'submittedWork'
   | 'voiceHelp'
   | 'settings';
 
@@ -74,6 +76,8 @@ const NAV_ITEMS: { key: ElderDrawerItem; labelKey: string; icon: LucideIcon }[] 
   // lives under My Requests (or the floating "Ask for help" button).
   { key: 'hire', labelKey: 'drawer.hire', icon: UserSearch },
   { key: 'myRequests', labelKey: 'drawer.myRequests', icon: ClipboardList },
+  // Work creators have finished for the elder - approve it or send it back with a reason.
+  { key: 'submittedWork', labelKey: 'drawer.submittedWork', icon: ClipboardCheck },
 ];
 
 const HELP_ITEMS: { key: ElderDrawerItem; labelKey: string; icon: LucideIcon }[] = [
@@ -102,7 +106,8 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
   const { t } = useTranslation('contentCapture');
   const signedInName = useAuthStore((state) => state.user?.fullName);
   const userName = userNameProp ?? signedInName ?? '';
-  const [unreadCount, setUnreadCount] = useState(0);
+  // The red number on "Requests": unread chat messages, from the one shared copy the whole app uses.
+  const unreadCount = useInboxUnread();
   const requestsCount = requestsCountProp ?? unreadCount;
   const insets = useSafeAreaInsets();
   const progress = useRef(new Animated.Value(0)).current;
@@ -118,21 +123,6 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
       );
     }
   }, [visible]);
-
-  // Refresh the "Requests" badge each time the drawer opens (the number of unread chat messages).
-  useEffect(() => {
-    if (!visible || requestsCountProp !== undefined) return;
-    let cancelled = false;
-    messagingApi
-      .list('UNREAD')
-      .then((unread) => {
-        if (!cancelled) setUnreadCount((unread ?? []).reduce((sum, item) => sum + item.unreadCount, 0));
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [visible, requestsCountProp]);
 
   useEffect(() => {
     if (!visible) return;

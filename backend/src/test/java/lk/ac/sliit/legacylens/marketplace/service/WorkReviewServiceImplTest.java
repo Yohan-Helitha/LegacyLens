@@ -78,6 +78,17 @@ class WorkReviewServiceImplTest {
     }
 
     @Test
+    void theSummaryNamesTheOpportunityAndTheCreatorSoTheKnowledgeHolderCanMessageThem() {
+        UUID opportunityId = UUID.randomUUID();
+        job.setOpportunityId(opportunityId);
+
+        var summary = service.viewForElder(elder.getId(), job.getId()).getSummary();
+
+        assertThat(summary.getOpportunityId()).isEqualTo(opportunityId);
+        assertThat(summary.getCreatorId()).isEqualTo(job.getCreator().getId());
+    }
+
+    @Test
     void theAdminReadsBothNotes() {
         assertThat(service.viewForAdmin(job.getId()).getAdminFeedback()).isEqualTo("Admin wants a clearer photo");
     }

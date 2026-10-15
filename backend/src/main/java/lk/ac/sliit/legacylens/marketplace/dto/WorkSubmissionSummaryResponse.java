@@ -16,6 +16,8 @@ public class WorkSubmissionSummaryResponse {
     private UUID jobId;
     private String title;
     private UUID creatorId;
+    /** The opportunity the job came from; lets the knowledge holder open a chat with the creator about it. Null if it was deleted. */
+    private UUID opportunityId;
     private String creatorName;
     private String elderName;
     private String category;
