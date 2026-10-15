@@ -18,6 +18,7 @@ import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { opportunityApi } from '../../../services/api/opportunityApi';
 import type { OpportunityDetailResponse } from '../../../types/opportunity';
 import { resolveOpportunityImage, resolveAvatarImage } from '../../../utils/opportunityImages';
+import { PersonPhoto } from '../../../components/module-specific/marketplace/PersonPhoto';
 import { matchLevelLabel, showsMatchBadge } from '../../../utils/matchLevel';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -53,10 +54,6 @@ const D = {
 
 /** Shown when an opportunity has no picture of its own, or its picture cannot be loaded (same one My Work uses). */
 const GENERIC_HERO_IMAGE = require('../../../../assets/images/work/traditional-rice-menu.jpg');
-
-/** Shown for an elder with no uploaded profile photo. */
-const PLACEHOLDER_AVATAR =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuBdukQOb20lmYsNjgSC79bwk6nR11u86Bj87jNIlc_ZQzQ97BxLNMhydins5gSF08W2CSQyNGsh4guyGBVX0htKvkNTzRAY76Yfv8jK-W-9Z-cW30fTc-tVqTE_3MXVnOr3daWdokTEReYQUt-ciXqQB8LF7qkH10d4SgSRvnxi4hdlzLG5RUNcZvLxKkHwfHK5wXsfSfaNkQJdZelcgow41KGgsq77Fkd9zgLSrunJwEJsg3U5ZQcTdg';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Icons — outline-style, always drawn in the orange accent so their colour
@@ -100,35 +97,6 @@ const LanguageIcon: React.FC<IconProps> = ({ size = 14, color = '#E8792E' }) => 
   </Svg>
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Fallback data — shown while opportunityId is unset or the
-// /api/opportunities/{id} call fails, so the screen never renders blank.
-// ─────────────────────────────────────────────────────────────────────────────
-const FALLBACK_DETAIL: OpportunityDetailResponse = {
-  id: '',
-  title: 'Opportunity Details',
-  description: '',
-  heroImageUrl: 'local:fisheries',
-  elderName: 'Mrs. Kamala Wijesinghe',
-  elderAvatarUrl: null,
-  elderVerified: true,
-  location: 'Matara',
-  scheduledDate: null,
-  durationText: '3 - 4 h',
-  offeredAmount: 3500,
-  timeWindowText: '10.00 AM – 1.00 PM',
-  language: 'Sinhala',
-  preservationGoal:
-    'I would like to preserve how my family prepare this traditional recipe. I want someone to record this preparation including all the instruction and create a video that can be shared with younger generation.',
-  tasks: [
-    'Visit the knowledge holder in Matara.',
-    'Record the preparation process comprehensively.',
-    'Capture high-quality photos and video clip.',
-    'Document step-by-step instructions clearly.',
-    'Edit and submit the final video',
-  ],
-};
-
 function formatScheduledDate(iso: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -162,25 +130,34 @@ export const OpportunityDetailPage: React.FC<{
   onApply: () => void;
   opportunityId: string | null;
 }> = ({ onNavigate, onBack, onApply, opportunityId }) => {
-  const [detail, setDetail] = useState<OpportunityDetailResponse | null>(
-    opportunityId ? null : FALLBACK_DETAIL,
-  );
+  // Only ever what the backend says about this opportunity - never sample content. While it loads there is a
+  // spinner, and if it cannot be loaded there is an honest error with Try again.
+  const [detail, setDetail] = useState<OpportunityDetailResponse | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [heroFailed, setHeroFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     setHeroFailed(false);
-    if (!opportunityId) {
-      setDetail(FALLBACK_DETAIL);
-      return;
-    }
     setDetail(null);
+    if (!opportunityId) {
+      setLoadFailed(true);
+      return undefined;
+    }
+    setLoadFailed(false);
+    let cancelled = false;
     opportunityApi
       .getById(opportunityId)
-      .then(setDetail)
-      // Only fall back to placeholder content if the real fetch actually fails —
-      // never show it while a real opportunity is still loading.
-      .catch(() => setDetail(FALLBACK_DETAIL));
-  }, [opportunityId]);
+      .then((data) => {
+        if (!cancelled) setDetail(data);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [opportunityId, attempt]);
 
   if (!detail) {
     return (
@@ -188,7 +165,22 @@ export const OpportunityDetailPage: React.FC<{
         <StatusBar style="dark" />
         <CreatorTopAppBar variant="back" onBack={onBack} />
         <View style={s.loadingContainer}>
-          <ActivityIndicator size="large" color={D.primary} />
+          {loadFailed ? (
+            <View style={s.errorBox}>
+              <Text style={s.errorTitle}>{"Couldn't load this opportunity"}</Text>
+              <Text style={s.errorText}>Check your connection and try again.</Text>
+              <Pressable
+                onPress={() => setAttempt((n) => n + 1)}
+                style={({ pressed }) => [s.errorBtn, pressed && { opacity: 0.75 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Try loading this opportunity again"
+              >
+                <Text style={s.errorBtnText}>Try again</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <ActivityIndicator size="large" color={D.primary} />
+          )}
         </View>
         <BottomNavBar activeTab="market" onNavigate={onNavigate} />
       </SafeAreaView>
@@ -296,11 +288,7 @@ export const OpportunityDetailPage: React.FC<{
           accessibilityLabel={`View ${detail.elderName}'s profile`}
         >
           <View style={s.holderLeft}>
-            <Image
-              source={resolveAvatarImage(detail.elderAvatarUrl) ?? { uri: PLACEHOLDER_AVATAR }}
-              style={s.holderAvatar}
-              accessibilityLabel={`${detail.elderName} portrait`}
-            />
+            <PersonPhoto name={detail.elderName} source={resolveAvatarImage(detail.elderAvatarUrl)} size={56} />
             <View style={s.holderInfo}>
               <Text style={s.holderName}>{detail.elderName}</Text>
               {detail.elderVerified && (
@@ -415,6 +403,14 @@ const s = StyleSheet.create({
 
   // ── Scroll ─────────────────────────────────────────────────────────────────
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  errorBox: { alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.lg },
+  errorTitle: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeMD, color: D.onSurface, textAlign: 'center' },
+  errorText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, textAlign: 'center' },
+  errorBtn: {
+    marginTop: Spacing.sm, backgroundColor: D.primary, borderRadius: Radii.xl,
+    paddingHorizontal: Spacing.lg, minHeight: 44, justifyContent: 'center',
+  },
+  errorBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: '#ffffff' },
 
   scroll:        { flex: 1 },
   scrollContent: {

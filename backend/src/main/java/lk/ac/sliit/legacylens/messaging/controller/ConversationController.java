@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -51,6 +52,15 @@ public class ConversationController {
 
         return ResponseEntity.ok(ApiResponse.ok(
                 messagingService.listConversations(principal.getUser().getId(), filter, search)));
+    }
+
+    /** Total unread messages across every chat - the red number on the Inbox tab. */
+    @GetMapping("/unread-count")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> unreadCount(
+            @AuthenticationPrincipal CustomUserDetails principal) {
+
+        return ResponseEntity.ok(ApiResponse.ok(
+                Map.of("count", messagingService.countUnread(principal.getUser().getId()))));
     }
 
     /** Start (or reopen) the chat about an opportunity the two are connected through. */

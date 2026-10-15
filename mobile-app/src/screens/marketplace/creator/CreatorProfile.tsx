@@ -30,6 +30,7 @@ import { EditProfileSheet } from './EditProfileSheet';
 import { appAlert } from '../../../components/common/AppDialog';
 import { ApiError } from '../../../services/api/client';
 import { profileApi } from '../../../services/api/profileApi';
+import { useProfilePhotoStore } from '../../../store/profilePhotoStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — same "Monsoon Coast" system used across every creator screen
@@ -143,11 +144,13 @@ export const CreatorProfile: React.FC<{
     const asset = result.assets[0];
     setUploadingPhoto(true);
     try {
-      await profileApi.uploadPhoto({
+      const updated = await profileApi.uploadPhoto({
         uri: asset.uri,
         name: asset.fileName ?? `profile-${Date.now()}.jpg`,
         type: asset.mimeType ?? 'image/jpeg',
       });
+      // The dashboard and the bottom bar show this same picture, so they change at once too.
+      useProfilePhotoStore.getState().setPhotoUrl(updated.profilePhotoUrl ?? null);
       reload();
     } catch (err) {
       appAlert('Photo not saved', err instanceof ApiError ? err.message : "Couldn't save your photo. Please try again.");
@@ -433,7 +436,7 @@ export const CreatorProfile: React.FC<{
         />
       )}
 
-      <BottomNavBar activeTab="profile" onNavigate={onNavigate} profileAvatarUri={avatarUri} />
+      <BottomNavBar activeTab="profile" onNavigate={onNavigate} />
     </SafeAreaView>
   );
 };

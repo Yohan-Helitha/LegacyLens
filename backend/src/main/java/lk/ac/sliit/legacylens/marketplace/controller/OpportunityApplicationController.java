@@ -87,39 +87,6 @@ public class OpportunityApplicationController {
     }
 
     /**
-     * TEMPORARY: lets the creator self-approve their own submitted
-     * application. Normally this is the knowledge holder's decision, but
-     * there's no elder-facing review UI yet — remove this endpoint once one
-     * exists and route approval through that instead.
-     */
-    @PostMapping("/{id}/approve")
-    public ResponseEntity<ApiResponse<OpportunityApplicationResponse>> approve(
-            @AuthenticationPrincipal CustomUserDetails principal,
-            @PathVariable UUID id) {
-
-        OpportunityApplicationResponse response = opportunityApplicationService.approveApplication(
-                principal.getUser().getId(), id);
-
-        return ResponseEntity.ok(ApiResponse.ok("Application approved", response));
-    }
-
-    /**
-     * TEMPORARY: lets the creator self-reject their own submitted
-     * application, standing in for the knowledge holder's decision the same
-     * way #approve does. Remove once a real elder-facing review UI exists.
-     */
-    @PostMapping("/{id}/reject")
-    public ResponseEntity<ApiResponse<OpportunityApplicationResponse>> reject(
-            @AuthenticationPrincipal CustomUserDetails principal,
-            @PathVariable UUID id) {
-
-        OpportunityApplicationResponse response = opportunityApplicationService.rejectApplication(
-                principal.getUser().getId(), id);
-
-        return ResponseEntity.ok(ApiResponse.ok("Application rejected", response));
-    }
-
-    /**
      * Moves an approved application to BOOKED and creates the real Job
      * behind it — the "Confirm Booking" form on the dashboard's Upcoming
      * Booking tab.

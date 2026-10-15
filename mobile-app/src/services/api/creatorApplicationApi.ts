@@ -25,10 +25,6 @@ interface ApiEnvelope<T> {
 export const creatorApplicationApi = {
   getMe: () => apiGet<CreatorApplicationResponse>('/creator-applications/me'),
 
-  /** TEMPORARY - stands in for the admin until their screen exists. See TemporaryCreatorApplicationTestController. */
-  testDecide: (action: 'approve' | 'reject') =>
-    apiPost<CreatorApplicationResponse, undefined>(`/creator-applications/me/test/${action}`, undefined),
-
   /** Replaces the languages on the creator's own application - no new review needed. */
   updateLanguages: (languages: LanguageChoice[]) =>
     apiPut<CreatorApplicationResponse, { languages: string[] }>('/creator-applications/me/languages', {

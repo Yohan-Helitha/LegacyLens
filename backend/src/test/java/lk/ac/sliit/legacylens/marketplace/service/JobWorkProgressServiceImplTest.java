@@ -1,7 +1,7 @@
 package lk.ac.sliit.legacylens.marketplace.service;
 
 import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
-import lk.ac.sliit.legacylens.common.storage.FileStorageService;
+import lk.ac.sliit.legacylens.common.storage.MediaStorageService;
 import lk.ac.sliit.legacylens.marketplace.dto.WorkProgressResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.ChecklistStage;
 import lk.ac.sliit.legacylens.marketplace.entity.Job;
@@ -47,7 +47,7 @@ class JobWorkProgressServiceImplTest {
     @Mock private OpportunityChecklistItemRepository checklistItemRepository;
     @Mock private WorkChecklistProgressRepository checklistProgressRepository;
     @Mock private OpportunityRepository opportunityRepository;
-    @Mock private FileStorageService fileStorageService;
+    @Mock private MediaStorageService mediaStorageService;
     @Mock private org.springframework.context.ApplicationEventPublisher events;
 
     private JobWorkProgressServiceImpl service;
@@ -60,7 +60,7 @@ class JobWorkProgressServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new JobWorkProgressServiceImpl(jobRepository, workProgressRepository, workMaterialRepository,
-                checklistItemRepository, checklistProgressRepository, opportunityRepository, fileStorageService, events);
+                checklistItemRepository, checklistProgressRepository, opportunityRepository, mediaStorageService, events);
 
         job = new Job();
         job.setId(UUID.randomUUID());

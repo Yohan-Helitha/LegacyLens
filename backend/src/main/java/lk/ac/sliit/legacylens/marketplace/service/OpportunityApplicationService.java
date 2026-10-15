@@ -23,22 +23,6 @@ public interface OpportunityApplicationService {
     OpportunityApplicationResponse submitApplication(UUID creatorId, UUID applicationId);
 
     /**
-     * TEMPORARY: moves a PENDING application to APPROVED. This is normally
-     * the knowledge holder's decision, but no review UI exists for them yet,
-     * so the creator can self-approve their own submitted application here to
-     * keep testing the rest of the booking flow. Remove once a real
-     * elder-facing approval flow exists.
-     */
-    OpportunityApplicationResponse approveApplication(UUID creatorId, UUID applicationId);
-
-    /**
-     * TEMPORARY: moves a PENDING application to REJECTED, standing in for
-     * the knowledge holder's decision the same way approveApplication does.
-     * Remove once a real elder-facing approval flow exists.
-     */
-    OpportunityApplicationResponse rejectApplication(UUID creatorId, UUID applicationId);
-
-    /**
      * Moves an APPROVED application to BOOKED and creates the real Job that
      * backs it — the "Confirm Booking" form on the dashboard's Upcoming
      * Booking tab. The creator's agreed date/time in the request becomes the

@@ -1,11 +1,15 @@
 package lk.ac.sliit.legacylens.common.storage;
 
+import lk.ac.sliit.legacylens.common.exception.InvalidFileUploadException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import lk.ac.sliit.legacylens.common.exception.FileStorageException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.Locale;
 
 /**
  * Where media files are actually stored, switched by app.storage.provider
@@ -25,9 +29,10 @@ import org.springframework.web.multipart.MultipartFile;
  * constant in that feature's own service (same pattern as MEDIA_SUBFOLDER in
  * StoryServiceImpl), not as a new property here — just create the bucket in
  * Supabase (public, so uploaded URLs are directly playable) and pass its
- * name in. Creator-proof documents, payment proofs, work materials and
- * voice replies are the one exception: those stay on local disk only,
- * regardless of provider — they were never folded into this class.
+ * name in. Creator-proof documents and payment proofs are the exception:
+ * those stay on local disk only, regardless of provider. Work materials and
+ * chat voice replies use this class, so the other person - on any phone or
+ * backend - can open what was sent.
  */
 @Service
 public class MediaStorageService {
@@ -100,6 +105,26 @@ public class MediaStorageService {
             }
         }
         return "/uploads/" + fileStorageService.store(file, bucket + "/" + subfolder);
+    }
+
+    /**
+     * Like {@link #store(MultipartFile, String, String)}, but first checks the file's type and size and rejects
+     * what is not allowed ({@link InvalidFileUploadException}) - for uploads whose type matters, such as the photos,
+     * recordings and documents a creator attaches to their work.
+     */
+    public String store(MultipartFile file, String bucket, String subfolder,
+                        List<String> allowedContentTypes, long maxFileSizeBytes) {
+        if (file == null || file.isEmpty()) {
+            throw new InvalidFileUploadException("A file is required");
+        }
+        if (file.getSize() > maxFileSizeBytes) {
+            throw new InvalidFileUploadException("File must not exceed " + (maxFileSizeBytes / (1024 * 1024)) + "MB");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !allowedContentTypes.contains(contentType.toLowerCase(Locale.ROOT))) {
+            throw new InvalidFileUploadException("Only " + String.join(", ", allowedContentTypes) + " files are allowed");
+        }
+        return store(file, bucket, subfolder);
     }
 
     /**

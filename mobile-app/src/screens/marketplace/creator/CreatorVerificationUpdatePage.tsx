@@ -90,7 +90,6 @@ export const CreatorVerificationUpdatePage: React.FC<{
 }> = ({ onBackToHome, onReapply, onOpenMyWork, onOpenSavedApplications, onOpenRejectedWork }) => {
   const [state, setState] = useState<ViewState>('LOADING');
   const [reviewNote, setReviewNote] = useState<string | null>(null);
-  const [deciding, setDeciding] = useState(false);
 
   const applyApplication = useCallback((application: { status: CreatorApplicationStatus; reviewNote?: string | null }) => {
     setReviewNote(application.reviewNote ?? null);
@@ -125,16 +124,6 @@ export const CreatorVerificationUpdatePage: React.FC<{
     creatorApplicationApi.getMe().then(applyApplication).catch(() => {});
   }, [applyApplication]);
   usePushNotificationEvents({ onReceived: refreshQuietly });
-
-  /** TEMPORARY - stands in for the admin until their screen exists. */
-  const testDecide = (action: 'approve' | 'reject') => {
-    setDeciding(true);
-    creatorApplicationApi
-      .testDecide(action)
-      .then(applyApplication)
-      .catch(() => {})
-      .finally(() => setDeciding(false));
-  };
 
   if (state === 'LOADING') {
     return (
@@ -208,17 +197,6 @@ export const CreatorVerificationUpdatePage: React.FC<{
         </View>
 
         {/* ── Actions ───────────────────────────────────────────────────── */}
-        {state === 'PENDING' && (
-          <View style={s.testRow}>
-            <Pressable onPress={() => testDecide('approve')} disabled={deciding} style={({ pressed }) => [s.testBtn, pressed && s.secondaryBtnPressed, deciding && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel="Approve (test)">
-              <Text style={s.testBtnText}>Approve (Test)</Text>
-            </Pressable>
-            <Pressable onPress={() => testDecide('reject')} disabled={deciding} style={({ pressed }) => [s.testBtn, pressed && s.secondaryBtnPressed, deciding && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel="Decline (test)">
-              <Text style={s.testBtnText}>Decline (Test)</Text>
-            </Pressable>
-          </View>
-        )}
-
         {state === 'REJECTED' && (
           <Pressable
             onPress={onReapply}
@@ -254,9 +232,6 @@ const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
 
   reasonText: { marginTop: 8, color: D.error },
-  testRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
-  testBtn: { flex: 1, minHeight: 44, borderRadius: Radii.full, borderWidth: 1, borderColor: D.primary, alignItems: 'center', justifyContent: 'center' },
-  testBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.primary },
 
   // ── App Bar ────────────────────────────────────────────────────────────────
   appBar: {

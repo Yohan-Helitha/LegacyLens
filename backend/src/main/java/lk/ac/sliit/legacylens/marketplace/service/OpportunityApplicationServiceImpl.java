@@ -11,7 +11,6 @@ import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
-import lk.ac.sliit.legacylens.marketplace.event.ApplicationDecidedEvent;
 import lk.ac.sliit.legacylens.marketplace.event.ApplicationSubmittedEvent;
 import lk.ac.sliit.legacylens.marketplace.matching.LanguageSkills;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
@@ -149,44 +148,6 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
 
     @Override
     @Transactional
-    public OpportunityApplicationResponse approveApplication(UUID creatorId, UUID applicationId) {
-        OpportunityApplication application = opportunityApplicationRepository
-                .findByIdAndCreatorId(applicationId, creatorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
-
-        if (application.getStatus() != OpportunityApplicationStatus.PENDING) {
-            throw new InvalidApplicationStateException("Only a submitted (pending) application can be approved.");
-        }
-
-        application.setStatus(OpportunityApplicationStatus.APPROVED);
-        application.setDecidedAt(LocalDateTime.now());
-
-        OpportunityApplicationResponse response = responseMapper.toResponse(opportunityApplicationRepository.save(application));
-        announceDecision(application, OpportunityApplicationStatus.APPROVED);
-        return response;
-    }
-
-    @Override
-    @Transactional
-    public OpportunityApplicationResponse rejectApplication(UUID creatorId, UUID applicationId) {
-        OpportunityApplication application = opportunityApplicationRepository
-                .findByIdAndCreatorId(applicationId, creatorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
-
-        if (application.getStatus() != OpportunityApplicationStatus.PENDING) {
-            throw new InvalidApplicationStateException("Only a submitted (pending) application can be rejected.");
-        }
-
-        application.setStatus(OpportunityApplicationStatus.REJECTED);
-        application.setDecidedAt(LocalDateTime.now());
-
-        OpportunityApplicationResponse response = responseMapper.toResponse(opportunityApplicationRepository.save(application));
-        announceDecision(application, OpportunityApplicationStatus.REJECTED);
-        return response;
-    }
-
-    @Override
-    @Transactional
     public OpportunityApplicationResponse bookApplication(
             UUID creatorId, UUID applicationId, BookApplicationRequest request) {
 
@@ -222,13 +183,6 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         application.setStatus(OpportunityApplicationStatus.BOOKED);
 
         return responseMapper.toResponse(opportunityApplicationRepository.save(application));
-    }
-
-    /** Same phone notification the knowledge holder's real decision sends, so the temporary test buttons exercise it too. */
-    private void announceDecision(OpportunityApplication application, OpportunityApplicationStatus decision) {
-        events.publishEvent(new ApplicationDecidedEvent(
-                application.getCreator().getId(), application.getId(), application.getOpportunity().getTitle(),
-                application.getOpportunity().getElder().getFullName(), application.getOpportunity().isUrgent(), decision));
     }
 
     private static String formatTimeWindow(LocalTime start, LocalTime end) {

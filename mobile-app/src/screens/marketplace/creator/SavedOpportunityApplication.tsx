@@ -109,29 +109,6 @@ export const SavedOpportunityApplication: React.FC<{
     onViewOpportunity(record.opportunityId);
   };
 
-  // TEMPORARY: self-approve until a real knowledge-holder review UI exists —
-  // see OpportunityApplicationController#approve's javadoc on the backend.
-  const handleApprove = async (record: OpportunityApplicationResponse) => {
-    try {
-      await opportunityApplicationApi.approve(record.id);
-      reload();
-    } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Could not approve this application.';
-      appAlert('Approve failed', message);
-    }
-  };
-
-  // TEMPORARY: self-reject, standing in for the knowledge holder the same way handleApprove does.
-  const handleReject = async (record: OpportunityApplicationResponse) => {
-    try {
-      await opportunityApplicationApi.reject(record.id);
-      reload();
-    } catch (err) {
-      const message = err instanceof ApiError ? err.message : 'Could not reject this application.';
-      appAlert('Reject failed', message);
-    }
-  };
-
   return (
     <SafeAreaView style={s.safeArea} edges={['top'] as const}>
       <StatusBar style="dark" />
@@ -252,25 +229,6 @@ export const SavedOpportunityApplication: React.FC<{
                   >
                     <Text style={s.outlineBtnText}>View Opportunity</Text>
                   </Pressable>
-                  {/* TEMPORARY: both stand in for the knowledge holder's own decision until that review UI exists. */}
-                  <View style={s.actionsRow}>
-                    <Pressable
-                      onPress={() => handleReject(record)}
-                      style={({ pressed }) => [s.dangerBtn, pressed && s.pressed]}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Reject ${record.title}`}
-                    >
-                      <Text style={s.dangerBtnText}>Reject (Test)</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => handleApprove(record)}
-                      style={({ pressed }) => [s.fillBtn, pressed && s.pressed]}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Approve ${record.title}`}
-                    >
-                      <Text style={s.fillBtnText}>Approve (Test)</Text>
-                    </Pressable>
-                  </View>
                 </View>
               </ApplicationSummary>
             ))
@@ -350,12 +308,6 @@ const s = StyleSheet.create({
   },
   fillBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS + 1, color: '#ffffff' },
   viewBtnFull: { flex: 0, alignSelf: 'stretch' },
-  // TEMPORARY (see handleReject) — a distinct destructive tone, not otherwise used in this palette.
-  dangerBtn: {
-    flex: 1, paddingVertical: 9, borderRadius: Radii.full,
-    borderWidth: 1.5, borderColor: '#C0392B', alignItems: 'center', justifyContent: 'center', minHeight: 44,
-  },
-  dangerBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS + 1, color: '#C0392B' },
 
   // ── Load error ───────────────────────────────────────────────────────────
   errorBox: {

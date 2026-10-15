@@ -30,6 +30,10 @@ describe('creatorScreenForNotification', () => {
     expect(creatorScreenForNotification({ type: 'creator-application-rejected' })).toBe('pending');
   });
 
+  it('opens the inbox for a new message', () => {
+    expect(creatorScreenForNotification({ type: 'new-message', conversationId: 'abc' })).toBe('inbox');
+  });
+
   it('just opens the app for anything else', () => {
     expect(creatorScreenForNotification({ type: 'something-new' })).toBeNull();
     expect(creatorScreenForNotification({})).toBeNull();

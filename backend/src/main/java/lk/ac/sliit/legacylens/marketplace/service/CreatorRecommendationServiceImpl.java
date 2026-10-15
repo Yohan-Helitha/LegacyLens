@@ -159,7 +159,7 @@ public class CreatorRecommendationServiceImpl implements CreatorRecommendationSe
 
         if (existing != null && existing.getStatus() == OpportunityApplicationStatus.PENDING) {
             // The creator already applied — the elder choosing them IS the approval
-            // (replaces the creator's temporary self-approve for this path). They then
+            // They then
             // book it from their dashboard exactly as before.
             existing.setStatus(OpportunityApplicationStatus.APPROVED);
             opportunityApplicationRepository.save(existing);

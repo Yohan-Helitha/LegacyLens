@@ -24,6 +24,9 @@ public interface MessagingService extends ConversationOpener {
 
     List<ConversationSummaryResponse> listConversations(UUID userId, ConversationFilter filter, String search);
 
+    /** How many messages from other people the user has not read yet, across all their chats - the Inbox tab's badge. */
+    long countUnread(UUID userId);
+
     ConversationDetailResponse getConversation(UUID userId, UUID conversationId);
 
     /**

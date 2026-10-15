@@ -42,6 +42,9 @@ export const messagingApi = {
     return apiPostForm<void>(`/conversations/${conversationId}/reply-voice`, form);
   },
 
+  /** How many messages from other people are unread across every chat - the number on the Inbox tab. */
+  unreadCount: async () => (await apiGet<{ count: number }>('/conversations/unread-count')).count,
+
   markRead: (conversationId: string) =>
     apiPost<void, Record<string, never>>(`/conversations/${conversationId}/read`, {}),
 

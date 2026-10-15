@@ -15,6 +15,8 @@ import lk.ac.sliit.legacylens.messaging.repository.ConversationRepository;
 import lk.ac.sliit.legacylens.messaging.repository.MessageRepository;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
+import lk.ac.sliit.legacylens.messaging.event.MessageSentEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,19 +44,22 @@ public class MessagingServiceImpl implements MessagingService {
     private final UserRepository userRepository;
     private final OpportunityAccess opportunityAccess;
     private final ConversationMapper mapper;
+    private final ApplicationEventPublisher events;
 
     public MessagingServiceImpl(
             ConversationRepository conversationRepository,
             MessageRepository messageRepository,
             UserRepository userRepository,
             OpportunityAccess opportunityAccess,
-            ConversationMapper mapper) {
+            ConversationMapper mapper,
+            ApplicationEventPublisher events) {
 
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.opportunityAccess = opportunityAccess;
         this.mapper = mapper;
+        this.events = events;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -87,6 +92,21 @@ public class MessagingServiceImpl implements MessagingService {
             shown.add(conversation);
         }
         return mapper.toSummaries(shown, userId, unread);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countUnread(UUID userId) {
+        List<Conversation> conversations = conversationRepository.findAllForUser(userId);
+        if (conversations.isEmpty()) {
+            return 0;
+        }
+        long total = 0;
+        for (Object[] row : messageRepository.countUnreadByConversation(
+                conversations.stream().map(Conversation::getId).toList(), userId, EPOCH)) {
+            total += ((Number) row[1]).longValue();
+        }
+        return total;
     }
 
     @Override
@@ -225,8 +245,13 @@ public class MessagingServiceImpl implements MessagingService {
         // Flushed so createdAt is populated before it's copied onto the conversation.
         Message saved = messageRepository.saveAndFlush(message);
 
-        conversation.recordMessage(type, MessagePreview.of(type, body), senderId, saved.getCreatedAt());
+        String preview = MessagePreview.of(type, body);
+        conversation.recordMessage(type, preview, senderId, saved.getCreatedAt());
         conversationRepository.save(conversation);
+
+        // The other person's phone is told once the message is safely saved.
+        events.publishEvent(new MessageSentEvent(
+                conversation.otherParticipant(senderId).getId(), conversation.getId(), sender.getFullName(), preview));
 
         return saved;
     }

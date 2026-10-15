@@ -147,6 +147,11 @@ class OpportunityServiceImplTest {
                 .thenReturn(List.of(opportunities));
     }
 
+    private void urgentOnes(Opportunity... opportunities) {
+        lenient().when(opportunityRepository.findUrgent(eq(OpportunityStatus.PUBLISHED), any(), any(), any(), any(), any()))
+                .thenReturn(List.of(opportunities));
+    }
+
     // ── Ranking ─────────────────────────────────────────────────────────────
 
     @Test
@@ -345,8 +350,7 @@ class OpportunityServiceImplTest {
         sent.setStatus(OpportunityApplicationStatus.PENDING);
         lenient().when(applicationRepository.findByCreatorIdOrderBySavedAtDesc(nimal.getId())).thenReturn(List.of(sent));
         published(recipe, dance);
-        lenient().when(opportunityRepository.findByStatusAndUrgentTrueOrderByDueAtAsc(eq(OpportunityStatus.PUBLISHED), any()))
-                .thenReturn(List.of(recipe, dance));
+        urgentOnes(recipe, dance);
 
         var page = service.browse(nimal.getId());
 
@@ -361,8 +365,7 @@ class OpportunityServiceImplTest {
         Opportunity recipe = opportunity("Traditional recipe documentation", "Food", "Matara");
         Opportunity words = opportunity("Old village words and proverbs", "Language", "Matara");
         published(recipe, words);
-        lenient().when(opportunityRepository.findByStatusAndUrgentTrueOrderByDueAtAsc(eq(OpportunityStatus.PUBLISHED), any()))
-                .thenReturn(List.of(recipe));
+        urgentOnes(recipe);
 
         var page = service.browse(nimal.getId());
 

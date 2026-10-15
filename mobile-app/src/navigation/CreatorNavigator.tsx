@@ -93,6 +93,12 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   // here the creator side decides what a tap opens, and refreshes the red number when one arrives
   // while the app is open. On a build without notification support this does nothing.
   const openFromNotification = useCallback((data: Record<string, unknown>) => {
+    // A new-message notification opens that very chat.
+    if (data.type === 'new-message' && typeof data.conversationId === 'string') {
+      setSelectedConversationId(data.conversationId);
+      setScreen('conversation');
+      return;
+    }
     const target = creatorScreenForNotification(data);
     if (target) setScreen(target);
   }, []);
@@ -234,7 +240,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
 
   /**
    * Called when the creator application is submitted: the admin decides next, so the creator waits on
-   * the status page (which has temporary test buttons for the admin's decision until their screen exists).
+   * the status page, which updates when the admin's decision arrives.
    */
   const handleApplicationSubmit = () => setScreen('pending');
 

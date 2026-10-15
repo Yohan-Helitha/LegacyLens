@@ -127,8 +127,10 @@ const MessageBubble: React.FC<{ message: ChatMessage; avatarUri: string | null }
  * New messages arrive by polling every few seconds (see useConversation).
  */
 export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBack, header, footer, insetTop = false }) => {
-  const { detail, messages, loading, loadError, sending, sendError, send, sendVoice, clearSendError, reload } =
-    useConversation(conversationId);
+  const {
+    detail, messages, loading, loadError, sending, sendError, failed,
+    send, retryFailed, discardFailed, sendVoice, clearSendError, reload,
+  } = useConversation(conversationId);
   const [draft, setDraft] = useState('');
   const [recordingVoice, setRecordingVoice] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -178,7 +180,7 @@ export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBa
   useEffect(() => {
     const timer = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
     return () => clearTimeout(timer);
-  }, [messages.length]);
+  }, [messages.length, failed.length]);
 
   const handleSend = async () => {
     const text = draft.trim();
@@ -186,7 +188,8 @@ export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBa
     if (voice.isListening) voice.stop();
     setDraft('');
     clearSendError();
-    if (!(await send(text))) setDraft(text); // keep what they wrote if it didn't go through
+    // If it cannot be sent it stays in the chat as a "not sent" message with Retry, so nothing they wrote is lost.
+    await send(text);
   };
 
   /** The clip was recorded in the shared voice sheet - close it and send the clip as a voice message. */
@@ -291,7 +294,7 @@ export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBa
               </View>
             )}
 
-            {messages.length === 0 ? (
+            {messages.length === 0 && failed.length === 0 ? (
               <Text style={s.emptyChat}>No messages yet — say hello to {other?.name ?? 'them'}.</Text>
             ) : (
               <View style={{ gap: Spacing.sm }}>
@@ -308,6 +311,42 @@ export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBa
                     </React.Fragment>
                   );
                 })}
+
+                {/* Messages that could not be sent - kept here so they can be sent again or removed. */}
+                {failed.map((item) => (
+                  <View key={item.key} style={s.outgoingRow}>
+                    <View style={s.failedWrap}>
+                      <View style={s.failedBubble}>
+                        <Text style={s.outgoingText}>{item.text}</Text>
+                      </View>
+                      <Text style={s.failedNote} accessibilityRole="alert">Not sent</Text>
+                      <View style={s.failedActions}>
+                        <Pressable
+                          onPress={() => retryFailed(item.key)}
+                          disabled={item.retrying}
+                          style={({ pressed }) => [s.failedBtn, pressed && s.pressed, item.retrying && { opacity: 0.6 }]}
+                          accessibilityRole="button"
+                          accessibilityLabel="Send this message again"
+                        >
+                          {item.retrying ? (
+                            <ActivityIndicator size="small" color={D.primary} />
+                          ) : (
+                            <Text style={s.failedBtnText}>Try again</Text>
+                          )}
+                        </Pressable>
+                        <Pressable
+                          onPress={() => discardFailed(item.key)}
+                          disabled={item.retrying}
+                          style={({ pressed }) => [s.failedBtn, pressed && s.pressed]}
+                          accessibilityRole="button"
+                          accessibilityLabel="Remove this message"
+                        >
+                          <Text style={s.failedBtnTextMuted}>Remove</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  </View>
+                ))}
               </View>
             )}
           </ScrollView>
@@ -315,7 +354,7 @@ export const InboxMessage: React.FC<InboxMessageProps> = ({ conversationId, onBa
 
         {(sendError || !!voice.error) && (
           <Text style={s.errorLine} accessibilityRole="alert">
-            {sendError ? "Your message didn't send. Please try again." : voice.error}
+            {sendError ? "Your voice message didn't send. Please try again." : voice.error}
           </Text>
         )}
 
@@ -485,6 +524,23 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 10,
   },
   outgoingText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: '#ffffff' },
+
+  // A message that could not be sent: the same bubble, paler, with a red "Not sent" and Try again / Remove.
+  failedWrap: { alignItems: 'flex-end', gap: 4 },
+  failedBubble: {
+    backgroundColor: D.primary,
+    opacity: 0.55,
+    borderRadius: Radii.xl,
+    borderBottomRightRadius: 4,
+    borderWidth: 1.5,
+    borderColor: D.danger,
+    paddingHorizontal: 14, paddingVertical: 10,
+  },
+  failedNote: { fontFamily: Typography.fontBodySemi, fontSize: 11, color: D.danger },
+  failedActions: { flexDirection: 'row', gap: Spacing.sm },
+  failedBtn: { minHeight: 36, minWidth: 64, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
+  failedBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.primary },
+  failedBtnTextMuted: { fontFamily: Typography.fontBodyMed, fontSize: Typography.sizeXS, color: D.onSurfaceVariant },
   outgoingTime: { fontFamily: Typography.fontBody, fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 4, textAlign: 'right' },
 
   emptyChat: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, textAlign: 'center', marginTop: Spacing.lg },
