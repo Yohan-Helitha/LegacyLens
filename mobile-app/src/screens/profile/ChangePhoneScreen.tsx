@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { BackButton } from '../../components/common';
 import { ApiError } from '../../services/api/client';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -39,6 +40,7 @@ export const ChangePhoneScreen: React.FC<ChangePhoneScreenProps> = ({
   onComplete,
   onBack,
 }) => {
+  const { t } = useTranslation('profile');
   const [newPhone, setNewPhone] = useState('');
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -49,11 +51,11 @@ export const ChangePhoneScreen: React.FC<ChangePhoneScreenProps> = ({
     setFormError(null);
 
     if (!trimmed) {
-      setFieldError('New phone number is required');
+      setFieldError(t('changePhone.required'));
       return;
     }
     if (!PHONE_REGEX.test(trimmed)) {
-      setFieldError('Enter a valid phone number');
+      setFieldError(t('changePhone.invalid'));
       return;
     }
     setFieldError(null);
@@ -67,7 +69,7 @@ export const ChangePhoneScreen: React.FC<ChangePhoneScreenProps> = ({
     } catch (err) {
       setSubmitting(false);
       setFormError(
-        err instanceof ApiError ? err.message : 'Something went wrong. Please try again.',
+        err instanceof ApiError ? err.message : t('errors.generic'),
       );
     }
   };
@@ -88,26 +90,24 @@ export const ChangePhoneScreen: React.FC<ChangePhoneScreenProps> = ({
         >
           <View style={styles.headingBlock}>
             <Text style={styles.headline} accessibilityRole="header">
-              Change mobile number
+              {t('changePhone.headline')}
             </Text>
             <Text style={styles.subheadline}>
-              {currentPhone
-                ? `Currently ${currentPhone}. We'll text a code to your new number to confirm it.`
-                : "We'll text a code to your new number to confirm it."}
+              {currentPhone ? t('changePhone.subheadlineWithPhone', { phone: currentPhone }) : t('changePhone.subheadline')}
             </Text>
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>New phone number</Text>
+            <Text style={styles.fieldLabel}>{t('changePhone.fieldLabel')}</Text>
             <View style={[styles.inputBox, !!fieldError && styles.inputBoxError]}>
               <TextInput
                 style={styles.textInput}
                 value={newPhone}
-                onChangeText={(t) => {
-                  setNewPhone(t);
+                onChangeText={(text) => {
+                  setNewPhone(text);
                   if (fieldError) setFieldError(null);
                 }}
-                placeholder="Enter your new phone number"
+                placeholder={t('changePhone.placeholder')}
                 placeholderTextColor={Colors.textMuted}
                 keyboardType="phone-pad"
                 autoComplete="tel"
@@ -125,10 +125,10 @@ export const ChangePhoneScreen: React.FC<ChangePhoneScreenProps> = ({
             onPress={handleContinue}
             disabled={submitting}
             accessibilityRole="button"
-            accessibilityLabel="Continue"
+            accessibilityLabel={t('continue', { ns: 'common' })}
             style={({ pressed }) => [styles.primaryBtn, pressed && styles.primaryBtnPressed]}
           >
-            <Text style={styles.primaryBtnText}>{submitting ? 'Sending code…' : 'Continue'}</Text>
+            <Text style={styles.primaryBtnText}>{submitting ? t('sendingCode') : t('continue', { ns: 'common' })}</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>

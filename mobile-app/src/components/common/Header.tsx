@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Colors, Typography, Spacing } from '../../theme';
+import { useAuthStore } from '../../store/authStore';
 
 interface HeaderProps {
   title?: string;
@@ -11,7 +13,7 @@ interface HeaderProps {
   showBack?: boolean;
   onBackPress?: () => void;
   onNavigate?: (tab: string) => void;
-  /** Screen-reader labels — English defaults, override on localized screens. */
+  /** Screen-reader labels — default to the translated common strings; override for custom wording. */
   menuLabel?: string;
   backLabel?: string;
   notificationLabel?: string;
@@ -24,11 +26,18 @@ export const Header: React.FC<HeaderProps> = ({
   showBack = false,
   onBackPress,
   onNavigate,
-  menuLabel = 'Open menu',
-  backLabel = 'Go back',
-  notificationLabel = 'Notifications',
+  menuLabel,
+  backLabel,
+  notificationLabel,
 }) => {
+  const { t } = useTranslation('common');
+  const menuLabelText = menuLabel ?? t('openMenu');
+  const backLabelText = backLabel ?? t('goBack');
+  const notificationLabelText = notificationLabel ?? t('notifications');
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const user = useAuthStore((state) => state.user);
+  const roles = user?.roles ?? [];
+  const isAdmin = roles.some((r) => String(r).toUpperCase() === 'ADMIN');
 
   const handleMenuPress = () => {
     if (onMenuPress) {
@@ -44,11 +53,11 @@ export const Header: React.FC<HeaderProps> = ({
         <View style={styles.container}>
           <View style={styles.leftSection}>
             {showBack ? (
-              <TouchableOpacity onPress={onBackPress} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={backLabel}>
+              <TouchableOpacity onPress={onBackPress} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={backLabelText}>
                 <MaterialIcons name="arrow-back" size={28} color={Colors.white} />
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity onPress={handleMenuPress} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={menuLabel}>
+              <TouchableOpacity onPress={handleMenuPress} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={menuLabelText}>
                 <MaterialIcons name="menu" size={28} color={Colors.white} />
               </TouchableOpacity>
             )}
@@ -59,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({
           </View>
 
           <View style={styles.rightSection}>
-            <TouchableOpacity onPress={onNotificationPress} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={notificationLabel}>
+            <TouchableOpacity onPress={onNotificationPress} style={styles.iconBtn} accessibilityRole="button" accessibilityLabel={notificationLabelText}>
               <MaterialIcons name="notifications-none" size={28} color={Colors.white} />
             </TouchableOpacity>
           </View>
@@ -77,10 +86,19 @@ export const Header: React.FC<HeaderProps> = ({
             </View>
             
             <View style={styles.sidebarMenu}>
-              <TouchableOpacity style={styles.sidebarLink} onPress={() => { setSidebarVisible(false); onNavigate?.('admin_home'); }}>
-                <MaterialIcons name="admin-panel-settings" size={20} color={Colors.secondary} />
-                <Text style={styles.sidebarLinkText}>Admin Dashboard</Text>
-              </TouchableOpacity>
+              {isAdmin && (
+                <TouchableOpacity
+                  style={styles.sidebarLink}
+                  onPress={() => {
+                    setSidebarVisible(false);
+                    onNavigate?.('admin_home');
+                  }}
+                  testID="admin-dashboard-link"
+                >
+                  <MaterialIcons name="admin-panel-settings" size={20} color={Colors.secondary} />
+                  <Text style={styles.sidebarLinkText}>Admin Dashboard</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
           <TouchableOpacity style={styles.sidebarCloseArea} onPress={() => setSidebarVisible(false)} />

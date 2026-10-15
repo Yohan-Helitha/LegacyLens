@@ -32,6 +32,7 @@ export interface UpdateUserVerificationRequest {
   status: string;
   roleType?: string;
   notes?: string;
+  phoneVerified?: boolean;
 }
 
 export interface VerificationProfile {

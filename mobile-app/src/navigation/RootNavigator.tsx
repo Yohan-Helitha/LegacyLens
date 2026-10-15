@@ -71,6 +71,23 @@ const isFingerprintAvailable = async (): Promise<boolean> => {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+/**
+ * After the Loading screen: first-time users pick a language; returning users go straight on to Login. The
+ * saved language choice loads asynchronously, so wait for it first — deciding too early would show the
+ * Language screen to people who already chose.
+ */
+const leaveLoadingScreen = (navigation: { replace: (route: 'Language' | 'Login') => void }) => {
+  const go = () => navigation.replace(useLocaleStore.getState().hasChosenLanguage ? 'Login' : 'Language');
+  if (useLocaleStore.persist.hasHydrated()) {
+    go();
+  } else {
+    const unsubscribe = useLocaleStore.persist.onFinishHydration(() => {
+      unsubscribe();
+      go();
+    });
+  }
+};
+
 export const RootNavigator: React.FC = () => {
   return (
     <Stack.Navigator
@@ -82,7 +99,7 @@ export const RootNavigator: React.FC = () => {
     >
       <Stack.Screen name="Loading">
         {({ navigation }) => (
-          <LoadingScreen onFinish={() => navigation.replace('Language')} />
+          <LoadingScreen onFinish={() => leaveLoadingScreen(navigation)} />
         )}
       </Stack.Screen>
 

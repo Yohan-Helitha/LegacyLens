@@ -17,10 +17,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/cultural-map")
-@RequiredArgsConstructor
 public class AdminCulturalMapController {
 
     private final AdminCulturalMapService culturalMapService;
+
+    public AdminCulturalMapController(AdminCulturalMapService culturalMapService) {
+        this.culturalMapService = culturalMapService;
+    }
 
     @GetMapping("/landmarks")
     public ResponseEntity<ApiResponse<List<MapLandmarkResponse>>> getAllLandmarks() {
@@ -66,14 +69,20 @@ public class AdminCulturalMapController {
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadBadgeImage(
             @RequestParam("file") MultipartFile file) {
         String url = culturalMapService.uploadBadgeImage(file);
-        return ResponseEntity.ok(ApiResponse.ok("Badge image uploaded successfully", Map.of("imageUrl", "/uploads/" + url)));
+        String finalUrl = (url != null && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/uploads/")))
+                ? url
+                : "/uploads/" + url;
+        return ResponseEntity.ok(ApiResponse.ok("Badge image uploaded successfully", Map.of("imageUrl", finalUrl)));
     }
 
     @PostMapping("/models/upload")
     public ResponseEntity<ApiResponse<Map<String, String>>> uploadModelFile(
             @RequestParam("file") MultipartFile file) {
         String url = culturalMapService.uploadModelFile(file);
-        return ResponseEntity.ok(ApiResponse.ok("Model uploaded successfully", Map.of("modelUrl", url)));
+        String finalUrl = (url != null && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/uploads/")))
+                ? url
+                : "/uploads/" + url;
+        return ResponseEntity.ok(ApiResponse.ok("Model uploaded successfully", Map.of("modelUrl", finalUrl)));
     }
 
     @PostMapping("/badges")

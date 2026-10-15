@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.tags.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
@@ -10,6 +11,14 @@ public class CreateTagRequest {
     private String description;
     private String languageCode;
     private String category;
-    private Boolean isApproved;
-}
 
+    @JsonProperty("isApproved")
+    private Boolean isApproved;
+
+    @JsonProperty("approved")
+    public void setApproved(Boolean approved) {
+        if (this.isApproved == null) {
+            this.isApproved = approved;
+        }
+    }
+}

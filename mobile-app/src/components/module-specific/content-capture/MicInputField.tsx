@@ -5,6 +5,8 @@ import { Mic } from 'lucide-react-native';
 import { RoundIconButton } from '../../common';
 import { useVoiceInput } from '../../../hooks/useVoiceInput';
 import type { SpeechQualityHint } from '../../../types/speech';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
 
@@ -41,18 +43,18 @@ interface MicInputFieldProps {
   minInputHeight?: number;
 }
 
-const DEFAULT_VOICE_LABELS = (label: string): MicInputFieldVoiceLabels => ({
-  start: `Voice input for ${label}`,
-  stop: `Stop voice input for ${label}`,
-  listening: 'Listening…',
-  permissionError: 'Microphone access is needed for voice typing.',
-  recognitionError: "Couldn't hear that — please try again.",
+const defaultVoiceLabels = (label: string, t: TFunction): MicInputFieldVoiceLabels => ({
+  start: t('mic.start', { label }),
+  stop: t('mic.stop', { label }),
+  listening: t('mic.listening'),
+  permissionError: t('mic.permissionError'),
+  recognitionError: t('mic.recognitionError'),
 });
 
 /** One line of helper text for a just-finished turn that doesn't warrant a full notice card in a compact field. */
-function qualityHintMessage(hint: SpeechQualityHint): string | null {
-  if (hint === 'LOW_CONFIDENCE') return "Please check this — we might not have heard you right.";
-  if (hint === 'NO_SPEECH_DETECTED') return "Didn't catch that — tap the mic to try again.";
+function qualityHintMessage(hint: SpeechQualityHint, t: TFunction): string | null {
+  if (hint === 'LOW_CONFIDENCE') return t('mic.lowConfidence');
+  if (hint === 'NO_SPEECH_DETECTED') return t('mic.noSpeech');
   return null;
 }
 
@@ -85,7 +87,8 @@ export const MicInputField: React.FC<MicInputFieldProps> = ({
   onSubmitEditing,
   minInputHeight,
 }) => {
-  const labels = voiceLabels ?? DEFAULT_VOICE_LABELS(label);
+  const { t } = useTranslation('contentCapture');
+  const labels = voiceLabels ?? defaultVoiceLabels(label, t);
   const valueRef = useRef(value);
   valueRef.current = value;
 
@@ -119,7 +122,7 @@ export const MicInputField: React.FC<MicInputFieldProps> = ({
     else if (state === 'recording') stop();
   };
 
-  const fieldAccessibilityLabel = errorText ? `${label}, required, ${errorText}` : label;
+  const fieldAccessibilityLabel = errorText ? t('mic.fieldRequired', { label, error: errorText }) : label;
 
   const helperMessage =
     state === 'error'
@@ -127,7 +130,7 @@ export const MicInputField: React.FC<MicInputFieldProps> = ({
         ? labels.permissionError
         : errorMessage ?? labels.recognitionError
       : lastQualityHint
-        ? qualityHintMessage(lastQualityHint)
+        ? qualityHintMessage(lastQualityHint, t)
         : null;
 
   return (
@@ -183,7 +186,7 @@ export const MicInputField: React.FC<MicInputFieldProps> = ({
       )}
       {state === 'uploading' && (
         <Text style={s.listeningText} accessibilityLiveRegion="polite">
-          Writing it down…
+          {t('speech.uploading.label')}
         </Text>
       )}
       {!!errorText && <Text style={s.errorText}>{errorText}</Text>}

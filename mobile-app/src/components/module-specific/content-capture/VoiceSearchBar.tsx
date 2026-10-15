@@ -4,6 +4,7 @@ import { Mic, Search } from 'lucide-react-native';
 import { Radii, Spacing, Typography } from '../../../theme';
 import { useVoiceInput } from '../../../hooks/useVoiceInput';
 import { ContentCaptureColors as D } from './tokens';
+import { useTranslation } from 'react-i18next';
 
 interface VoiceSearchBarProps {
   value: string;
@@ -25,9 +26,10 @@ interface VoiceSearchBarProps {
 export const VoiceSearchBar: React.FC<VoiceSearchBarProps> = ({
   value,
   onChangeText,
-  placeholder = 'Search your stories…',
+  placeholder,
   voiceLang,
 }) => {
+  const { t } = useTranslation('contentCapture');
   const { state, result, errorKind, errorMessage, start, stop, retry } = useVoiceInput({ language: voiceLang });
 
   const insertedForResultRef = useRef<typeof result>(null);
@@ -69,7 +71,7 @@ export const VoiceSearchBar: React.FC<VoiceSearchBarProps> = ({
         <TextInput
           value={value}
           onChangeText={onChangeText}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t('search.placeholder')}
           placeholderTextColor={D.onSurfaceVariant}
           style={s.input}
           returnKeyType="search"
@@ -83,7 +85,7 @@ export const VoiceSearchBar: React.FC<VoiceSearchBarProps> = ({
             onPress={handleMicPress}
             style={({ pressed }) => [s.micBtn, isRecording && s.micBtnActive, pressed && s.pressed]}
             accessibilityRole="button"
-            accessibilityLabel={isRecording ? 'Stop voice search' : 'Search by speaking'}
+            accessibilityLabel={isRecording ? t('search.stopVoice') : t('search.speak')}
           >
             <Mic size={18} color={isRecording ? '#ffffff' : D.onSecondaryContainer} strokeWidth={2} />
           </Pressable>

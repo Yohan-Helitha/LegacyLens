@@ -5,6 +5,7 @@ import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { styles } from './KnowledgeKeeper.styles';
 import { getMediaUrl } from '../../constants/api';
+import { AvatarPlaceholder } from '../common/AvatarPlaceholder';
 
 export interface KnowledgeKeeperProps {
   name: string;
@@ -23,10 +24,6 @@ export const KnowledgeKeeper: React.FC<KnowledgeKeeperProps> = ({
   avatarUrl,
   likesCount: initialLikesCount = 0,
 }) => {
-  const resolvedAvatar = avatarUrl && !avatarUrl.startsWith('http')
-    ? getMediaUrl(avatarUrl.startsWith('/uploads/') ? avatarUrl : (avatarUrl.startsWith('uploads/') ? `/${avatarUrl}` : `/uploads/${avatarUrl.replace(/^\/+/, '')}`))
-    : (avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200');
-
   const [liked, setLiked] = useState(false);
   const [saved, setSaved] = useState(false);
   const [following, setFollowing] = useState(false);
@@ -106,9 +103,13 @@ export const KnowledgeKeeper: React.FC<KnowledgeKeeperProps> = ({
         </View>
 
         <View style={styles.knowledgeProfileRow}>
-          <Image 
-            source={{ uri: resolvedAvatar }} 
-            style={styles.knowledgeAvatar} 
+          <AvatarPlaceholder 
+            name={name}
+            avatarUrl={avatarUrl}
+            size={64}
+            theme="dark"
+            borderWidth={2}
+            borderColor="#ACEEEE"
           />
           <View style={styles.knowledgeInfo}>
             <Text style={styles.knowledgeName}>{name}</Text>

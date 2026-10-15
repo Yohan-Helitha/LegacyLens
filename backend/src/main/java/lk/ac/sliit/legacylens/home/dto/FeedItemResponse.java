@@ -14,6 +14,7 @@ public class FeedItemResponse {
     private List<String> tags;
     private Integer likesCount;
     private Integer commentsCount;
+    private Boolean liked;
     
     // Video/Blog specific
     private String thumbnail;

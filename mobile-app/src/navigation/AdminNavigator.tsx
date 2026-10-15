@@ -18,7 +18,7 @@ import { useOpportunity } from '../context/OpportunityContext';
 export type AdminScreen = AdminTabKey | 'add_opp' | 'opp_review' | 'drafts' | 'video' | 'blog' | 'notifications';
 
 interface AdminNavigatorProps {
-  /** Root stack navigation â€” used only to leave this flow ("Return to User View"). */
+  /** Root stack navigation used only to leave this flow ("Return to User View"). */
   navigation: NativeStackNavigationProp<RootStackParamList>;
 }
 
@@ -157,6 +157,3 @@ const s = StyleSheet.create({
 });
 
 export default AdminNavigator;
-
-
-

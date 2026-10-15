@@ -30,4 +30,10 @@ public class CreateStoryRequest {
     private Long mediaDurationMillis;
 
     private MultipartFile media;
+
+    /** Optional cover/thumbnail image file uploaded with the story. */
+    private MultipartFile thumbnail;
+
+    /** Optional direct image URL if already hosted or entered as URL. */
+    private String imageUrl;
 }

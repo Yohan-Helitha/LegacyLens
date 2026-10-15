@@ -6,6 +6,7 @@ import { RoundIconButton } from '../../common';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
 import type { StoryMediaType } from '../../../types/story';
+import { useTranslation } from 'react-i18next';
 
 interface MediaPreviewCardProps {
   mediaType: StoryMediaType;
@@ -29,6 +30,7 @@ export const MediaPreviewCard: React.FC<MediaPreviewCardProps> = ({
   durationMillis = 0,
   onRerecord,
 }) => {
+  const { t } = useTranslation('contentCapture');
   const [isPlaying, setIsPlaying] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
 
@@ -76,7 +78,7 @@ export const MediaPreviewCard: React.FC<MediaPreviewCardProps> = ({
               style={({ pressed }) => [s.rerecordBtn, pressed && s.pressed]}
               accessibilityRole="button"
             >
-              <Text style={s.rerecordText}>Re-record</Text>
+              <Text style={s.rerecordText}>{t('media.rerecord')}</Text>
             </Pressable>
           )}
         </View>
@@ -92,10 +94,10 @@ export const MediaPreviewCard: React.FC<MediaPreviewCardProps> = ({
         color={D.onSecondaryContainer}
         backgroundColor={D.secondaryContainer}
         onPress={toggleAudioPlayback}
-        accessibilityLabel={isPlaying ? 'Pause playback' : 'Play recording'}
+        accessibilityLabel={isPlaying ? t('media.pause') : t('media.play')}
       />
       <View style={{ flex: 1 }}>
-        <Text style={s.clipTitle}>Your voice recording</Text>
+        <Text style={s.clipTitle}>{t('media.clipTitle')}</Text>
         <Text style={s.metaText}>{formatDuration(durationMillis)}</Text>
       </View>
       {!!onRerecord && (
@@ -103,9 +105,9 @@ export const MediaPreviewCard: React.FC<MediaPreviewCardProps> = ({
           onPress={onRerecord}
           style={({ pressed }) => [s.rerecordBtnCircle, pressed && s.pressed]}
           accessibilityRole="button"
-          accessibilityLabel="Re-record"
+          accessibilityLabel={t('media.rerecord')}
         >
-          <Text style={s.rerecordText}>Re-record</Text>
+          <Text style={s.rerecordText}>{t('media.rerecord')}</Text>
         </Pressable>
       )}
     </View>

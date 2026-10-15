@@ -354,9 +354,15 @@ export interface CommunityMember {
                           <!-- Identity -->
                           <td class="py-3.5 px-4">
                             <div class="flex items-center gap-3">
-                              <img [src]="member.photoUrl" 
-                                   [alt]="member.name" 
-                                   class="w-10 h-10 rounded-xl object-cover shadow-sm ring-1 ring-black/5" />
+                              @if (isRealAvatar(member.photoUrl)) {
+                                <img [src]="member.photoUrl" 
+                                     [alt]="member.name" 
+                                     class="w-10 h-10 rounded-xl object-cover shadow-sm ring-1 ring-black/5" />
+                              } @else {
+                                <div class="w-10 h-10 rounded-xl bg-[#004343] text-white flex items-center justify-center font-bold text-xs shadow-sm ring-1 ring-black/5 shrink-0">
+                                  {{ getInitials(member.name) }}
+                                </div>
+                              }
                               <div class="min-w-0">
                                 <div class="font-bold text-[#191c1c] truncate flex items-center gap-1">
                                   {{ member.name }}
@@ -505,9 +511,15 @@ export interface CommunityMember {
 
                   <!-- Member Profile Card -->
                   <div class="flex items-start gap-3.5 p-3.5 rounded-xl bg-[#f8faf9] border border-[#dde3eb]">
-                    <img [src]="member.photoUrl" 
-                         [alt]="member.name" 
-                         class="w-16 h-16 rounded-xl object-cover shadow-sm shrink-0" />
+                    @if (isRealAvatar(member.photoUrl)) {
+                      <img [src]="member.photoUrl" 
+                           [alt]="member.name" 
+                           class="w-16 h-16 rounded-xl object-cover shadow-sm shrink-0" />
+                    } @else {
+                      <div class="w-16 h-16 rounded-xl bg-[#004343] text-white flex items-center justify-center font-bold text-xl shadow-sm shrink-0">
+                        {{ getInitials(member.name) }}
+                      </div>
+                    }
                     <div class="min-w-0 flex-1">
                       <div class="text-base font-serif font-bold text-[#191c1c] leading-snug truncate">
                         {{ member.name }}
@@ -999,6 +1011,19 @@ export class ProfileManagementComponent {
     const member = this.selectedMember();
     if (!member) return;
     this.toastMessage.set(`Access status for ${member.name} flagged for review.`);
+  }
+
+  isRealAvatar(url?: string | null): boolean {
+    if (!url) return false;
+    return !url.includes('unsplash.com') && !url.includes('pravatar.cc') && (url.startsWith('http') || url.startsWith('/uploads'));
+  }
+
+  getInitials(name?: string | null): string {
+    if (!name) return 'M';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'M';
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 }
 

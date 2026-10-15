@@ -6,7 +6,8 @@ import {
   AdminOpportunityResponse,
   OpportunityAudioResponse,
   CreateOpportunityRequest,
-  UpdateOpportunityStatusRequest
+  UpdateOpportunityStatusRequest,
+  OpportunityTranscriptionResponse
 } from '../models/opportunity.model';
 import { AuthService } from './auth.service';
 
@@ -95,6 +96,24 @@ export class OpportunityService {
   }
 
   /**
+   * Update opportunity fields and status
+   * Endpoint: PUT /api/admin/opportunities/{id}
+   */
+  updateOpportunity(id: string, request: CreateOpportunityRequest): Observable<AdminOpportunityResponse> {
+    return this.http.put<any>(
+      `${environment.apiUrl}/admin/opportunities/${id}`,
+      request,
+      { headers: this.getHeaders() }
+    ).pipe(
+      map(res => (res && res.data ? res.data : res)),
+      catchError(err => {
+        console.warn(`[OpportunityService] Failed to update opportunity ${id}:`, err);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  /**
    * Update opportunity status (e.g. DRAFT -> PUBLISHED, CLOSED)
    * Endpoint: PATCH /api/admin/opportunities/{id}/status
    */
@@ -150,6 +169,43 @@ export class OpportunityService {
       map(res => (res && res.data ? res.data : res)),
       catchError(err => {
         console.warn(`[OpportunityService] Could not fetch audio submission ${id}:`, err);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  /**
+   * Update audio submission status (UNLISTENED | PARTIALLY_LISTENED | FULLY_LISTENED | NEEDS_REVIEW)
+   * Endpoint: PATCH /api/admin/opportunities/audios/{id}/status?status={status}
+   */
+  updateAudioStatus(id: string, status: string): Observable<OpportunityAudioResponse> {
+    const params = new HttpParams().set('status', status);
+    return this.http.patch<any>(
+      `${environment.apiUrl}/admin/opportunities/audios/${id}/status`,
+      {},
+      { headers: this.getHeaders(), params }
+    ).pipe(
+      map(res => (res && res.data ? res.data : res)),
+      catchError(err => {
+        console.warn(`[OpportunityService] Failed to update audio status for ${id}:`, err);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  /**
+   * Auto-transcribe audio submission using Azure Speech STT + Groq AI translation
+   * Endpoint: POST /api/admin/opportunities/audios/{audioId}/transcribe
+   */
+  autoTranscribeAudio(audioId: string): Observable<OpportunityTranscriptionResponse> {
+    return this.http.post<any>(
+      `${environment.apiUrl}/admin/opportunities/audios/${audioId}/transcribe`,
+      {},
+      { headers: this.getHeaders() }
+    ).pipe(
+      map(res => (res && res.data ? res.data : res)),
+      catchError(err => {
+        console.warn(`[OpportunityService] Failed to auto-transcribe audio ${audioId}:`, err);
         return throwError(() => err);
       })
     );

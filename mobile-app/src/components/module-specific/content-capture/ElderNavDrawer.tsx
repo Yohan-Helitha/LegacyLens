@@ -6,6 +6,7 @@ import {
   Image,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -25,6 +26,7 @@ import {
   X,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
 
@@ -60,21 +62,21 @@ interface ElderNavDrawerProps {
 
 const DRAWER_WIDTH = Math.min(Dimensions.get('window').width * 0.85, 360);
 
-const NAV_ITEMS: { key: ElderDrawerItem; label: string; icon: LucideIcon }[] = [
-  { key: 'home', label: 'Home', icon: Home },
-  { key: 'stories', label: 'My Stories', icon: BookOpen },
-  { key: 'requests', label: 'Requests', icon: Handshake },
-  { key: 'trust', label: 'Trust Score', icon: BadgeCheck },
-  { key: 'reviews', label: 'Reviews & Ratings', icon: Star },
+const NAV_ITEMS: { key: ElderDrawerItem; labelKey: string; icon: LucideIcon }[] = [
+  { key: 'home', labelKey: 'drawer.home', icon: Home },
+  { key: 'stories', labelKey: 'drawer.stories', icon: BookOpen },
+  { key: 'requests', labelKey: 'drawer.requests', icon: Handshake },
+  { key: 'trust', labelKey: 'drawer.trust', icon: BadgeCheck },
+  { key: 'reviews', labelKey: 'drawer.reviews', icon: Star },
   // Opens the creators recommended for each of the elder's open opportunities; posting a new request
   // lives under My Requests (or the floating "Ask for help" button).
-  { key: 'hire', label: 'Hire a Creator', icon: UserSearch },
-  { key: 'myRequests', label: 'My Requests', icon: ClipboardList },
+  { key: 'hire', labelKey: 'drawer.hire', icon: UserSearch },
+  { key: 'myRequests', labelKey: 'drawer.myRequests', icon: ClipboardList },
 ];
 
-const HELP_ITEMS: { key: ElderDrawerItem; label: string; icon: LucideIcon }[] = [
-  { key: 'voiceHelp', label: 'Voice Help', icon: Mic },
-  { key: 'settings', label: 'Settings', icon: Settings },
+const HELP_ITEMS: { key: ElderDrawerItem; labelKey: string; icon: LucideIcon }[] = [
+  { key: 'voiceHelp', labelKey: 'drawer.voiceHelp', icon: Mic },
+  { key: 'settings', labelKey: 'drawer.settings', icon: Settings },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,13 +90,14 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
   onClose,
   activeItem = 'home',
   userName = 'Anura Bandara',
-  userRole = 'Knowledge Keeper',
-  userLevel = 'Level 4',
+  userRole,
+  userLevel,
   avatarUri,
   requestsCount,
   onNavigate,
   onLogout,
 }) => {
+  const { t } = useTranslation('contentCapture');
   const insets = useSafeAreaInsets();
   const progress = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
@@ -136,27 +139,28 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
             style={StyleSheet.absoluteFill}
             onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel="Close navigation"
+            accessibilityLabel={t('drawer.closeNavigation')}
           />
         </Animated.View>
 
         <Animated.View
           style={[
             s.drawer,
-            { width: DRAWER_WIDTH, paddingTop: insets.top + Spacing.md, transform: [{ translateX }] },
+            { width: DRAWER_WIDTH, transform: [{ translateX }] },
           ]}
         >
+          {/* Everything scrolls together, so nothing gets squeezed or overlaps when labels wrap (long Sinhala/Tamil
+              text) or the screen is short; Log out is the last row and sits at the bottom when there is room. */}
+          <ScrollView
+            style={s.scroll}
+            contentContainerStyle={[
+              s.scrollContent,
+              { paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + Spacing.md },
+            ]}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
           <View style={s.header}>
-            <Pressable
-              onPress={onClose}
-              accessibilityRole="button"
-              accessibilityLabel="Close navigation"
-              style={s.closeBtn}
-              hitSlop={8}
-            >
-              <X size={26} color={D.onPrimaryContainer} strokeWidth={2} />
-            </Pressable>
-
             <View style={s.avatarCircle}>
               {avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={s.avatarImage} />
@@ -167,14 +171,15 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
 
             <Text style={s.userName}>{userName}</Text>
             <View style={s.userMetaRow}>
-              <Text style={s.userMetaText}>{userRole}</Text>
+              <Text style={s.userMetaText}>{userRole ?? t('drawer.defaultRole')}</Text>
               <View style={s.metaDot} />
-              <Text style={s.userMetaText}>{userLevel}</Text>
+              <Text style={s.userMetaText}>{userLevel ?? t('drawer.defaultLevel')}</Text>
             </View>
           </View>
 
           <View style={s.navList}>
-            {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
+            {NAV_ITEMS.map(({ key, labelKey, icon: Icon }) => {
+              const label = t(labelKey);
               const isActive = key === activeItem;
               return (
                 <Pressable
@@ -206,7 +211,9 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
 
             <View style={s.divider} />
 
-            {HELP_ITEMS.map(({ key, label, icon: Icon }) => (
+            {HELP_ITEMS.map(({ key, labelKey, icon: Icon }) => {
+              const label = t(labelKey);
+              return (
               <Pressable
                 key={key}
                 onPress={() => handleItemPress(key)}
@@ -217,17 +224,32 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
                 <Icon size={24} color={D.onPrimaryContainer} strokeWidth={2} />
                 <Text style={s.navLabel}>{label}</Text>
               </Pressable>
-            ))}
+              );
+            })}
           </View>
 
+          <View style={s.footer}>
+            <Pressable
+              onPress={onLogout}
+              accessibilityRole="button"
+              accessibilityLabel={t('drawer.logOut')}
+              style={({ pressed }) => [s.navItem, pressed && s.navItemPressed]}
+            >
+              <LogOut size={24} color={D.onPrimaryContainer} strokeWidth={2} />
+              <Text style={s.navLabel}>{t('drawer.logOut')}</Text>
+            </Pressable>
+          </View>
+          </ScrollView>
+
+          {/* Fixed so it stays reachable however far the list is scrolled. */}
           <Pressable
-            onPress={onLogout}
+            onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel="Log out"
-            style={({ pressed }) => [s.logoutBtn, { paddingBottom: insets.bottom + Spacing.sm }, pressed && s.navItemPressed]}
+            accessibilityLabel={t('drawer.closeNavigation')}
+            style={[s.closeBtn, { top: insets.top + Spacing.sm }]}
+            hitSlop={8}
           >
-            <LogOut size={22} color="rgba(144,210,209,0.6)" strokeWidth={2} />
-            <Text style={s.logoutText}>Log out</Text>
+            <X size={26} color={D.onPrimaryContainer} strokeWidth={2} />
           </Pressable>
         </Animated.View>
       </View>
@@ -254,6 +276,9 @@ const s = StyleSheet.create({
     elevation: 16,
   },
 
+  scroll: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
+
   header: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
@@ -262,8 +287,8 @@ const s = StyleSheet.create({
   },
   closeBtn: {
     position: 'absolute',
-    top: 0,
     right: Spacing.sm,
+    zIndex: 2,
     width: 40,
     height: 40,
     alignItems: 'center',
@@ -294,7 +319,7 @@ const s = StyleSheet.create({
   userMetaText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, color: D.onPrimaryContainer },
   metaDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: D.onPrimaryContainer, opacity: 0.5 },
 
-  navList: { flex: 1, paddingHorizontal: Spacing.sm, paddingTop: Spacing.md, gap: 2 },
+  navList: { flexGrow: 1, paddingHorizontal: Spacing.sm, paddingTop: Spacing.md, gap: 2 },
   navItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -332,17 +357,14 @@ const s = StyleSheet.create({
     marginHorizontal: Spacing.sm,
   },
 
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
+  // Log out is a normal row (same size and look as the others) below a divider, so it can never collide with Settings.
+  footer: {
+    marginTop: Spacing.sm,
     marginHorizontal: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.lg,
+    paddingTop: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(144,210,209,0.2)',
   },
-  logoutText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeMD, color: 'rgba(144,210,209,0.7)' },
 });
 
 export default ElderNavDrawer;

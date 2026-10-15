@@ -15,15 +15,17 @@ import { StatusBar } from 'expo-status-bar';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Typography } from '../../../theme';
 import { styles } from './BlogDetailScreen.styles';
+import { AvatarPlaceholder } from '../../../components/common/AvatarPlaceholder';
+import { getMediaUrl } from '../../../constants/api';
+import { useRecordStoryView } from '../../../hooks/useRecordStoryView';
+import { useTranslatedTexts } from '../../../hooks/useTranslatedTexts';
+import { TranslationToggle } from '../../../components/common/TranslationToggle';
 
 export interface BlogDetailScreenProps {
   post?: any;
   onBack?: () => void;
   onNavigateSearch?: (query: string) => void;
 }
-
-const DEFAULT_HERO =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCWWJlYXpewMIZpZG7wy2BTuR--kPcTGAYt_FpeSIlJC925IkFiCTzSTcMO3FuW2hyXPougXy5xZzqL7wosDMVm1I0dazWP4IByRSPIIOep_BmfB9aBz-LCbTFNySven1gHh5HQO6LWElMn26vNjgBUPMa5d5ZuddDiXkmL5O7ImnFCFzVetzI0q32q1ES6aLGDH9Vifgf6D7LsIm6rfRVpy47b6NnmR78suD8VaTCd5s_Ux-IfD-Pm';
 
 const DEFAULT_AVATAR =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuBwEVG3n4_qVeLpvR0JQTwY1F_K-fZEglPFRI9_t9HPn_IMdB39xj6QA5jv16VZ0Ha7h0rYrfI70Iy5p5dyXD1nWvlU-3H-4D_wdeDG2btOJcdiITai86vvb9s0DZu6TiGSZy0jtkLFFMilyFmm4HznJ9K7ry5FhvUUNoun0LzVFzpfF0eTHz6nSMJIL7xvT85vUVaTPd9aOQNH6HdrEHxSsRkTBKQ-34yxrrYGgYKZ4fDT44A3Ous5';
@@ -35,6 +37,8 @@ export const BlogDetailScreen: React.FC<BlogDetailScreenProps> = ({
   onBack,
   onNavigateSearch,
 }) => {
+  // Counts a view when a listener opens this story.
+  useRecordStoryView(post?.id);
   const [vocabOpen, setVocabOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [fontScale, setFontScale] = useState(1); // 1, 1.15, 1.3
@@ -54,8 +58,11 @@ export const BlogDetailScreen: React.FC<BlogDetailScreenProps> = ({
     setFontScale(prev => (prev === 1 ? 1.15 : prev === 1.15 ? 1.3 : 1));
   };
 
-  const thumbnail = post?.thumbnail || post?.imageUrl || DEFAULT_HERO;
-  const title = post?.title || 'The Last Hands That Still Remember';
+  const rawThumb = post?.thumbnail || post?.imageUrl;
+  const thumbnail = rawThumb && !rawThumb.startsWith('http')
+    ? getMediaUrl(rawThumb.startsWith('/uploads/') ? rawThumb : (rawThumb.startsWith('uploads/') ? `/${rawThumb}` : `/uploads/${rawThumb.replace(/^\/+/, '')}`))
+    : (rawThumb || null);
+  const originalTitle = post?.title || 'The Last Hands That Still Remember';
   const location = post?.location || 'Matara, Sri Lanka';
   const category = post?.category || (post?.tags && post.tags[0]) || 'Craft Tradition';
   const author = post?.author || 'Nadeesha Perera';
@@ -63,11 +70,15 @@ export const BlogDetailScreen: React.FC<BlogDetailScreenProps> = ({
   const readTime = post?.readTime || '8 min read';
   const tags: string[] = post?.tags && post.tags.length > 0 ? post.tags : DEFAULT_TAGS;
 
-  const contentText =
+  const originalContent =
     post?.content ||
     post?.description ||
     post?.excerpt ||
     "The scent of dried rush grass hangs heavy in the humid afternoon air of Matara. Here, in the shaded veranda of a colonial-era home, Somawathi's hands move with a rhythm born of seventy years of repetition. They are hands that map a fading history, tracing patterns in reed that were once the lifeblood of southern coastal villages.";
+
+  // Story text and title are user-written: show them in the reader's language (original one tap away).
+  const { texts: shownTexts, translated, showOriginal, toggleOriginal } = useTranslatedTexts([originalTitle, originalContent]);
+  const [title, contentText] = shownTexts;
 
   const firstChar = contentText.charAt(0) || 'T';
   const restOfFirstSentence = contentText.slice(1);
@@ -92,37 +103,82 @@ export const BlogDetailScreen: React.FC<BlogDetailScreenProps> = ({
       >
         {/* Editorial Hero */}
         <View style={styles.heroSection}>
-          <ImageBackground source={{ uri: thumbnail }} style={styles.heroImg}>
-            <View style={styles.heroGradient}>
-              <View style={styles.heroContent}>
-                <View style={styles.heroTags}>
-                  <View style={styles.heroTagBorder}>
-                    <Text style={styles.heroTagText}>{location}</Text>
+          {thumbnail ? (
+            <ImageBackground source={{ uri: thumbnail }} style={styles.heroImg}>
+              <View style={styles.heroGradient}>
+                <View style={styles.heroContent}>
+                  <View style={styles.heroTags}>
+                    <View style={styles.heroTagBorder}>
+                      <Text style={styles.heroTagText}>{location}</Text>
+                    </View>
+                    <View style={styles.heroTagSolid}>
+                      <Text style={styles.heroTagTextSolid}>{category}</Text>
+                    </View>
                   </View>
-                  <View style={styles.heroTagSolid}>
-                    <Text style={styles.heroTagTextSolid}>{category}</Text>
+                  <Text style={styles.heroTitle}>{title}</Text>
+
+                  <View style={styles.authorRow}>
+                    <View style={styles.authorGroup}>
+                      <AvatarPlaceholder
+                        name={author}
+                        avatarUrl={post?.avatar}
+                        size={32}
+                        theme="dark"
+                      />
+                      <Text style={styles.authorName}>{author}</Text>
+                    </View>
+                    <View style={styles.dotSeparator} />
+                    <View style={styles.timeGroup}>
+                      <MaterialIcons name="schedule" size={14} color="rgba(255,255,255,0.8)" />
+                      <Text style={styles.timeText}>{readTime}</Text>
+                    </View>
                   </View>
                 </View>
-                <Text style={styles.heroTitle}>{title}</Text>
-
-                <View style={styles.authorRow}>
-                  <View style={styles.authorGroup}>
-                    <Image source={{ uri: avatar }} style={styles.authorImg} />
-                    <Text style={styles.authorName}>{author}</Text>
+              </View>
+            </ImageBackground>
+          ) : (
+            <View style={[styles.heroImg, { backgroundColor: '#182b2b' }]}>
+              <View style={[styles.heroGradient, { backgroundColor: 'transparent' }]}>
+                <View style={styles.heroContent}>
+                  <View style={styles.heroTags}>
+                    <View style={styles.heroTagBorder}>
+                      <Text style={styles.heroTagText}>{location}</Text>
+                    </View>
+                    <View style={styles.heroTagSolid}>
+                      <Text style={styles.heroTagTextSolid}>{category}</Text>
+                    </View>
                   </View>
-                  <View style={styles.dotSeparator} />
-                  <View style={styles.timeGroup}>
-                    <MaterialIcons name="schedule" size={14} color="rgba(255,255,255,0.8)" />
-                    <Text style={styles.timeText}>{readTime}</Text>
+                  <Text style={styles.heroTitle}>{title}</Text>
+
+                  <View style={styles.authorRow}>
+                    <View style={styles.authorGroup}>
+                      <AvatarPlaceholder
+                        name={author}
+                        avatarUrl={post?.avatar}
+                        size={32}
+                        theme="dark"
+                      />
+                      <Text style={styles.authorName}>{author}</Text>
+                    </View>
+                    <View style={styles.dotSeparator} />
+                    <View style={styles.timeGroup}>
+                      <MaterialIcons name="schedule" size={14} color="rgba(255,255,255,0.8)" />
+                      <Text style={styles.timeText}>{readTime}</Text>
+                    </View>
                   </View>
                 </View>
               </View>
             </View>
-          </ImageBackground>
+          )}
         </View>
 
         {/* Content Area */}
         <View style={styles.bodyContent}>
+          {translated && (
+            <View style={{ marginBottom: 12 }}>
+              <TranslationToggle showOriginal={showOriginal} onPress={toggleOriginal} />
+            </View>
+          )}
           <View style={[styles.paragraph, { marginBottom: 4 }]}>
             <Text style={styles.dropCap}>{firstChar}</Text>
             <Text
@@ -135,14 +191,7 @@ export const BlogDetailScreen: React.FC<BlogDetailScreenProps> = ({
             </Text>
           </View>
 
-          <Text
-            style={[
-              styles.bodyText,
-              { fontSize: 19 * fontScale, lineHeight: 32 * fontScale, marginBottom: 8 },
-            ]}
-          >
-            Weaving and traditional preservation are not merely crafts; they are an unspoken language passed down through generations. Turning raw local materials into sacred items carries a melodic memory that guides the community.
-          </Text>
+          
 
           {/* Cultural Context Aside */}
           <View style={styles.asideBox}>
@@ -164,90 +213,8 @@ export const BlogDetailScreen: React.FC<BlogDetailScreenProps> = ({
               Historically native to Sri Lanka's cultural heartlands. These patterns and knowledge frameworks indicated identity, regional origin, and spiritual kinship. Today, master practitioners are vital custodians of this endangered memory.
             </Text>
           </View>
-
-          <Text
-            style={[
-              styles.bodyText,
-              { fontSize: 19 * fontScale, lineHeight: 32 * fontScale, marginBottom: 8 },
-            ]}
-          >
-            The process begins long before the physical form is made. It starts with ancestral knowledge of seasons, natural harmony, and specific sacred materials like{' '}
-            <Text
-              style={[styles.vocabWord, { fontSize: 19 * fontScale }]}
-              onPress={() => setVocabOpen(!vocabOpen)}
-            >
-              Parampara
-            </Text>
-            {' '}(inherited lineage).
-          </Text>
-
-          {/* Pull Quote */}
-          <View style={styles.quoteBlock}>
-            <MaterialIcons
-              name="format-quote"
-              size={40}
-              color="rgba(254, 137, 62, 0.5)"
-              style={{ marginBottom: 8 }}
-            />
-            <Text
-              style={[
-                styles.quoteText,
-                { fontSize: 24 * fontScale, lineHeight: 34 * fontScale },
-              ]}
-            >
-              "When we preserve a story, we are not just looking back. We are holding hands with our ancestors and passing the flame forward."
-            </Text>
-            <View style={styles.quoteFooter}>
-              <View style={styles.quoteLine} />
-              <Text style={[styles.quoteAuthor, { fontSize: 14 * fontScale }]}>
-                {author}, Master Keeper
-              </Text>
-            </View>
-          </View>
-
-          {/* Image Section */}
-          <View style={styles.lookCloserSection}>
-            <Image
-              source={{ uri: thumbnail }}
-              style={[styles.fullImg, { borderRadius: 16, height: 240 }]}
-            />
-            <Text
-              style={{
-                fontFamily: Typography.fontBodyMed,
-                fontSize: 13 * fontScale,
-                color: Colors.textMuted,
-                textAlign: 'center',
-                marginTop: 8,
-              }}
-            >
-              Artifacts and traditions passed down through generations.
-            </Text>
-          </View>
-
-          {/* Vocab Popover */}
-          {vocabOpen && (
-            <View style={styles.vocabPopover}>
-              <TouchableOpacity
-                style={styles.vocabCloseBtn}
-                onPress={() => setVocabOpen(false)}
-              >
-                <MaterialIcons name="close" size={16} color={Colors.textMuted} />
-              </TouchableOpacity>
-              <View style={styles.vocabHeaderRow}>
-                <Text style={styles.vocabTitle}>Parampara</Text>
-                <View style={styles.vocabAudioBtn}>
-                  <MaterialIcons name="volume-up" size={14} color={Colors.secondary} />
-                </View>
-              </View>
-              <Text style={[styles.vocabPhonetic, { fontSize: 12 * fontScale }]}>
-                පරම්පරාව • /puh-ruhm-puh-rah-vuh/
-              </Text>
-              <Text style={[styles.vocabDesc, { fontSize: 14 * fontScale }]}>
-                The unbroken chain of ancestral lineage, wisdom, oral history, and traditional artistic transmission.
-              </Text>
-            </View>
-          )}
-
+            
+          
           {/* Preservation Section */}
           <View style={styles.preservationBox}>
             <View style={styles.preservationHeader}>

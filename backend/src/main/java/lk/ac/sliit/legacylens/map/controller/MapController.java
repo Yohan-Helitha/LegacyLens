@@ -16,10 +16,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/map")
-@RequiredArgsConstructor
 public class MapController {
 
     private final MapService mapService;
+
+    public MapController(MapService mapService) {
+        this.mapService = mapService;
+    }
 
     @Value("${app.mapbox.token:${EXPO_PUBLIC_MAPBOX_TOKEN:}}")
     private String mapboxToken;

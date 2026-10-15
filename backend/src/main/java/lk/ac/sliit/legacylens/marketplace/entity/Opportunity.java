@@ -53,13 +53,13 @@ public class Opportunity {
     @JoinColumn(name = "elder_id")
     private User elder;
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = 500)
     private String title;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "hero_image_url", length = 500)
+    @Column(name = "hero_image_url", columnDefinition = "TEXT")
     private String heroImageUrl;
 
     @Column(length = 150)

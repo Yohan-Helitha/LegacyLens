@@ -16,6 +16,9 @@ export interface ModerationQueueItemResponse {
   rejectionNotes?: string;
   createdAt?: string;
   updatedAt?: string;
+  mediaUrl?: string;
+  videoUrl?: string;
+  mediaDurationMillis?: number;
 }
 
 export interface UpdateModerationStatusRequest {
@@ -27,6 +30,7 @@ export interface UpdateModerationStatusRequest {
   reason?: string;
   notes?: string;
   tags?: string[];
+  imageUrl?: string;
 }
 
 export interface TagAliasDTO {

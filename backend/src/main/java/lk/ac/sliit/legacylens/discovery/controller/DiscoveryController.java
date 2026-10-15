@@ -15,10 +15,13 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/discovery")
-@RequiredArgsConstructor
 public class DiscoveryController {
 
     private final CulturalDiscoveryService discoveryService;
+
+    public DiscoveryController(CulturalDiscoveryService discoveryService) {
+        this.discoveryService = discoveryService;
+    }
 
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<Page<DiscoveryStoryResponse>>> searchStories(

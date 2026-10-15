@@ -129,3 +129,17 @@ export interface OpportunityDraft {
   selectedDeliverables: string[];
   preservationDescription: string;
 }
+
+export interface OpportunityTranscriptSegment {
+  time: string;
+  text: string;
+  active?: boolean;
+}
+
+export interface OpportunityTranscriptionResponse {
+  audioId: string;
+  fullSinhalaText?: string;
+  fullEnglishText?: string;
+  transcriptOriginal: OpportunityTranscriptSegment[];
+  transcriptTranslation?: OpportunityTranscriptSegment[];
+}

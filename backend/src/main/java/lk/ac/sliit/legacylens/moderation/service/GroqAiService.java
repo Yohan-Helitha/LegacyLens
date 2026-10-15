@@ -28,7 +28,7 @@ public class GroqAiService {
     @Value("${groq.api.url:https://api.groq.com/openai/v1/chat/completions}")
     private String apiUrl;
 
-    @Value("${groq.api.model:llama-3.3-70b-versatile}")
+    @Value("${groq.api.model:openai/gpt-oss-20b}")
     private String model;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -130,6 +130,90 @@ public class GroqAiService {
                 + "Always respond ONLY with a valid JSON object matching the requested schema — no markdown, no explanation outside the JSON.";
 
         return callGroq(systemPrompt, userPrompt, 500);
+    }
+
+    /**
+     * Translates verbatim Sinhala transcript segments into English without summarizing or omitting anything.
+     */
+    public java.util.List<String> translateLiteralSegments(java.util.List<String> sinhalaPhrases) {
+        if (!isConfigured() || sinhalaPhrases == null || sinhalaPhrases.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        try {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Translate each of the following spoken Sinhala phrases into natural English.\n");
+            sb.append("CRITICAL: Do NOT summarize. Do NOT omit any phrases. Translate phrase-by-phrase verbatim.\n");
+            sb.append("Return ONLY a valid JSON object: {\"translations\": [\"phrase 1 in english\", \"phrase 2 in english\", ...]}\n\n");
+            sb.append("Sinhala Phrases:\n");
+            sb.append(objectMapper.writeValueAsString(sinhalaPhrases));
+
+            String systemPrompt = "You are a precise bilingual translator. Translate each phrase directly without summarizing. Respond ONLY with valid JSON.";
+            String json = callGroq(systemPrompt, sb.toString(), 1500);
+
+            if (json != null && !json.isBlank()) {
+                JsonNode root = objectMapper.readTree(json);
+                JsonNode arr = root.path("translations");
+                if (arr.isArray()) {
+                    java.util.List<String> list = new java.util.ArrayList<>();
+                    for (JsonNode n : arr) {
+                        list.add(n.asText(""));
+                    }
+                    return list;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[GroqAiService] Literal translation failed: {}", e.getMessage());
+        }
+
+        return java.util.Collections.emptyList();
+    }
+
+    /**
+     * Generates structured bilingual (Sinhala & English) transcript segments with timestamps.
+     */
+    public String generateBilingualTranscript(String topic, String description, String rawSinhalaText, String duration) {
+        if (!isConfigured()) {
+            log.warn("[GroqAiService] GROQ_API_KEY not set — skipping bilingual transcript generation");
+            return null;
+        }
+
+        String userPrompt = buildBilingualTranscriptPrompt(topic, description, rawSinhalaText, duration);
+        String systemPrompt = "You are an expert bilingual transcriber and Sri Lankan cultural linguist for LegacyLens. "
+                + "Your task is to produce accurate timestamped Sinhala speech segments and contextual English translations. "
+                + "Always respond ONLY with a valid JSON object matching the requested schema — no markdown, no explanation outside the JSON.";
+
+        return callGroq(systemPrompt, userPrompt, 1200);
+    }
+
+    private String buildBilingualTranscriptPrompt(String topic, String description, String rawSinhalaText, String duration) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Generate timestamped Sinhala transcript segments and accurate contextual English translations for this Sri Lankan cultural audio recording:\n\n");
+        sb.append("Topic: ").append(nullSafe(topic, "Sri Lankan Traditional Knowledge")).append("\n");
+        if (isNotBlank(description)) {
+            sb.append("Context / Description: ").append(description.trim()).append("\n");
+        }
+        if (isNotBlank(duration)) {
+            sb.append("Audio Duration: ").append(duration.trim()).append("\n");
+        }
+        if (isNotBlank(rawSinhalaText)) {
+            sb.append("Transcribed Sinhala Audio Speech: ").append(rawSinhalaText.trim()).append("\n\n");
+        }
+        sb.append("Instructions:\n");
+        sb.append("1. Produce 3 to 6 chronological segments spanning the audio duration (e.g., timestamps like '00:08', '00:35', '01:20', '02:05').\n");
+        sb.append("2. Each segment must have authentic Sinhala text ('sinhala') and a natural English translation ('english').\n");
+        sb.append("3. If transcribed Sinhala audio speech was provided, segment and refine it accurately. If not, synthesize authentic elder testimony on the topic.\n\n");
+        sb.append("Respond ONLY with this valid JSON format:\n");
+        sb.append("{\n");
+        sb.append("  \"segments\": [\n");
+        sb.append("    {\n");
+        sb.append("      \"time\": \"00:08\",\n");
+        sb.append("      \"sinhala\": \"...\",\n");
+        sb.append("      \"english\": \"...\"\n");
+        sb.append("    }\n");
+        sb.append("  ]\n");
+        sb.append("}");
+        return sb.toString();
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -17,6 +17,9 @@ import { Colors } from '../../theme';
 import { styles } from './CommentModal.styles';
 import { homeApi, CommentResponse } from '../../services/api/homeApi';
 import { useAuthStore } from '../../store/authStore';
+import { AvatarPlaceholder } from './AvatarPlaceholder';
+import { useTranslatedTexts } from '../../hooks/useTranslatedTexts';
+import { TranslationToggle } from './TranslationToggle';
 
 interface CommentModalProps {
   visible: boolean;
@@ -44,6 +47,14 @@ export const CommentModal: React.FC<CommentModalProps> = ({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
   const [updating, setUpdating] = useState(false);
+  // Comments are user-written: show them in the reader's language in one batched request (originals one tap away).
+  const {
+    texts: shownCommentTexts,
+    translated: commentsTranslated,
+    showOriginal: showOriginalComments,
+    toggleOriginal: toggleOriginalComments,
+  } = useTranslatedTexts(comments.map((comment) => comment.text));
+  const shownTextById = new Map(comments.map((comment, index) => [comment.id, shownCommentTexts[index]]));
 
   const currentUser = useAuthStore((state) => state.user);
 
@@ -91,7 +102,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
       setSubmitting(true);
 
       const authorName = currentUser?.fullName || 'You (Community Learner)';
-      const avatarUrl = 'https://i.pravatar.cc/150?img=1';
+      const avatarUrl = (currentUser as any)?.profilePhotoUrl || (currentUser as any)?.avatar || '';
       const userId = currentUser?.userId;
 
       const newComment = await homeApi.addComment(postId, trimmed, authorName, avatarUrl, userId);
@@ -197,9 +208,11 @@ export const CommentModal: React.FC<CommentModalProps> = ({
 
     return (
       <View style={styles.commentRow}>
-        <Image
-          source={{ uri: item.avatar || 'https://i.pravatar.cc/150?img=1' }}
-          style={styles.commentAvatar}
+        <AvatarPlaceholder
+          name={item.author}
+          avatarUrl={item.avatar}
+          size={38}
+          theme="light"
         />
         <View style={styles.commentBubble}>
           <View style={styles.commentHeader}>
@@ -240,7 +253,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
             </View>
           ) : (
             <>
-              <Text style={styles.commentText}>{item.text}</Text>
+              <Text style={styles.commentText}>{shownTextById.get(item.id) ?? item.text}</Text>
               {isAuthor && (
                 <View style={styles.commentFooterActions}>
                   <TouchableOpacity
@@ -291,9 +304,11 @@ export const CommentModal: React.FC<CommentModalProps> = ({
 
           {/* Comment Typing Area at TOP (Never obscured by keyboard) */}
           <View style={styles.inputSection}>
-            <Image
-              source={{ uri: (currentUser as any)?.avatar || 'https://i.pravatar.cc/150?img=1' }}
-              style={styles.currentUserAvatar}
+            <AvatarPlaceholder
+              name={currentUser?.fullName || 'You'}
+              avatarUrl={(currentUser as any)?.profilePhotoUrl || (currentUser as any)?.avatar}
+              size={36}
+              theme="light"
             />
             <View style={styles.inputWrapper}>
               <TextInput
@@ -336,6 +351,13 @@ export const CommentModal: React.FC<CommentModalProps> = ({
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
+              ListHeaderComponent={
+                commentsTranslated ? (
+                  <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+                    <TranslationToggle showOriginal={showOriginalComments} onPress={toggleOriginalComments} />
+                  </View>
+                ) : null
+              }
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <MaterialIcons name="chat-bubble-outline" size={44} color={Colors.textMuted} />

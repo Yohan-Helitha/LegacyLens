@@ -1,6 +1,6 @@
 import React from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Home, GraduationCap, Store, User, LucideIcon } from 'lucide-react-native';
+import { Home, GraduationCap, User, LucideIcon } from 'lucide-react-native';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
 
 export type NavTab = 'home' | 'learn' | 'market' | 'profile';
@@ -13,7 +13,6 @@ interface BottomNavBarProps {
 const TABS: { key: NavTab; label: string; icon: LucideIcon }[] = [
   { key: 'home', label: 'Home', icon: Home },
   { key: 'learn', label: 'Learn', icon: GraduationCap },
-  { key: 'market', label: 'Market', icon: Store },
   { key: 'profile', label: 'Profile', icon: User },
 ];
 

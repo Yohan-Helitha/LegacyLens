@@ -26,6 +26,7 @@ export interface FeedItemResponse {
   tags: string[];
   likesCount?: number;
   commentsCount?: number;
+  liked?: boolean;
   thumbnail?: string;
   videoUrl?: string;
   duration?: string;
@@ -37,6 +38,7 @@ export interface FeedItemResponse {
   topic?: string;
   avatar?: string;
   bars?: number[];
+  mediaUrl?: string;
 }
 
 export interface FeaturedKeeperResponse {
