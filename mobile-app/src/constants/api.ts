@@ -62,10 +62,12 @@ export function getMediaUrl(relativePath: string | undefined | null): string | u
 /**
  * Turns a backend-relative "/uploads/..." path (see FileStorageService,
  * which serves them outside the /api prefix via WebConfig's resource
- * handler) into an absolute URL an <Image> can load.
+ * handler) into an absolute URL an <Image> can load. Same external-URL
+ * pass-through as getMediaUrl — see its doc comment.
  */
 export function resolveUploadUrl(relativePath: string | null | undefined): string | null {
   if (!relativePath) return null;
+  if (isAbsoluteUrl(relativePath)) return relativePath;
   const base = getApiBaseUrl().replace(/\/api\/?$/, '');
   return `${base}${relativePath}`;
 }
