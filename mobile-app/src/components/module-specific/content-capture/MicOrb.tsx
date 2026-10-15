@@ -3,6 +3,7 @@ import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { Mic } from 'lucide-react-native';
 import { usePressScale } from '../../../hooks/usePressScale';
 import { ContentCaptureColors as D } from './tokens';
+import { useTranslation } from 'react-i18next';
 
 interface MicOrbProps {
   /** Diameter of the tappable circle */
@@ -22,8 +23,9 @@ export const MicOrb: React.FC<MicOrbProps> = ({
   size = 88,
   active = false,
   onPress,
-  accessibilityLabel = 'Start recording',
+  accessibilityLabel,
 }) => {
+  const { t } = useTranslation('contentCapture');
   const { scale, onPressIn, onPressOut } = usePressScale({ pressedScale: 0.94 });
   const haloSize = size + 24;
 
@@ -43,7 +45,7 @@ export const MicOrb: React.FC<MicOrbProps> = ({
           onPressIn={onPressIn}
           onPressOut={onPressOut}
           accessibilityRole="button"
-          accessibilityLabel={accessibilityLabel}
+          accessibilityLabel={accessibilityLabel ?? t('micOrb.start')}
           style={[
             s.orb,
             {

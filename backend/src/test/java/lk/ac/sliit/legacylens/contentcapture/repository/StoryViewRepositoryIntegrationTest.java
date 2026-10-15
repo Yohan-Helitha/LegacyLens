@@ -3,6 +3,7 @@ package lk.ac.sliit.legacylens.contentcapture.repository;
 import lk.ac.sliit.legacylens.contentcapture.entity.StoryView;
 import lk.ac.sliit.legacylens.stories.entity.Story;
 import lk.ac.sliit.legacylens.stories.entity.StoryMethod;
+import lk.ac.sliit.legacylens.stories.entity.StoryStatus;
 import lk.ac.sliit.legacylens.stories.repository.StoryRepository;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
@@ -13,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -103,5 +105,46 @@ class StoryViewRepositoryIntegrationTest {
         boolean exists = storyViewRepository.existsRecentView(story.getId(), UUID.randomUUID(), LocalDateTime.now().minusHours(24));
 
         assertThat(exists).isFalse();
+    }
+
+    @Test
+    void findViewTimesSince_returnsOnlyThatStorysViewsInsideTheWindow() {
+        User author = persistUser("+94770002004");
+        Story story = persistStory(author);
+        Story otherStory = persistStory(author);
+        persistView(story, UUID.randomUUID(), LocalDateTime.now().minusDays(1));
+        persistView(story, UUID.randomUUID(), LocalDateTime.now().minusDays(3));
+        persistView(story, UUID.randomUUID(), LocalDateTime.now().minusDays(20));
+        persistView(otherStory, UUID.randomUUID(), LocalDateTime.now().minusDays(1));
+        entityManager.flush();
+        entityManager.clear();
+
+        List<LocalDateTime> times = storyViewRepository.findViewTimesSince(story.getId(), LocalDateTime.now().minusDays(14));
+
+        assertThat(times).hasSize(2);
+    }
+
+    @Test
+    void findAuthorViewTimesSince_countsOnlyThatAuthorsStoriesWithTheGivenStatus() {
+        User author = persistUser("+94770002005");
+        User otherAuthor = persistUser("+94770002006");
+        Story published = persistStory(author);
+        published.setStatus(StoryStatus.PUBLISHED);
+        storyRepository.save(published);
+        Story stillPending = persistStory(author);
+        Story othersPublished = persistStory(otherAuthor);
+        othersPublished.setStatus(StoryStatus.PUBLISHED);
+        storyRepository.save(othersPublished);
+        persistView(published, UUID.randomUUID(), LocalDateTime.now().minusDays(2));
+        persistView(published, UUID.randomUUID(), LocalDateTime.now().minusDays(5));
+        persistView(stillPending, UUID.randomUUID(), LocalDateTime.now().minusDays(2));
+        persistView(othersPublished, UUID.randomUUID(), LocalDateTime.now().minusDays(2));
+        entityManager.flush();
+        entityManager.clear();
+
+        List<LocalDateTime> times = storyViewRepository.findAuthorViewTimesSince(
+                author.getId(), StoryStatus.PUBLISHED, LocalDateTime.now().minusDays(14));
+
+        assertThat(times).hasSize(2);
     }
 }

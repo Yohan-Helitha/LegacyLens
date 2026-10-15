@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { ImagePlus, X } from 'lucide-react-native';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
+import { useTranslation } from 'react-i18next';
 
 interface ThumbnailPickerProps {
   uri: string | undefined;
@@ -25,6 +26,7 @@ interface ThumbnailPickerProps {
  * this up for real needs a backend field addition first.
  */
 export const ThumbnailPicker: React.FC<ThumbnailPickerProps> = ({ uri, onChange, editable = true }) => {
+  const { t } = useTranslation('contentCapture');
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -40,13 +42,13 @@ export const ThumbnailPicker: React.FC<ThumbnailPickerProps> = ({ uri, onChange,
   if (uri) {
     return (
       <View style={s.filledWrap}>
-        <Image source={{ uri }} style={s.image} accessibilityLabel="Selected thumbnail" />
+        <Image source={{ uri }} style={s.image} accessibilityLabel={t('thumbnail.selected')} />
         {editable && (
           <Pressable
             onPress={() => onChange(undefined)}
             style={({ pressed }) => [s.removeBtn, pressed && s.pressed]}
             accessibilityRole="button"
-            accessibilityLabel="Remove thumbnail"
+            accessibilityLabel={t('thumbnail.remove')}
             hitSlop={8}
           >
             <X size={16} color="#ffffff" strokeWidth={2.5} />
@@ -65,11 +67,11 @@ export const ThumbnailPicker: React.FC<ThumbnailPickerProps> = ({ uri, onChange,
       onPress={pickImage}
       style={({ pressed }) => [s.emptyWrap, pressed && s.pressed]}
       accessibilityRole="button"
-      accessibilityLabel="Add thumbnail, optional"
+      accessibilityLabel={t('thumbnail.addAria')}
     >
       <ImagePlus size={26} color={D.onSurfaceVariant} strokeWidth={2} />
-      <Text style={s.emptyText}>Add thumbnail</Text>
-      <Text style={s.emptyHint}>Optional</Text>
+      <Text style={s.emptyText}>{t('thumbnail.add')}</Text>
+      <Text style={s.emptyHint}>{t('thumbnail.optional')}</Text>
     </Pressable>
   );
 };

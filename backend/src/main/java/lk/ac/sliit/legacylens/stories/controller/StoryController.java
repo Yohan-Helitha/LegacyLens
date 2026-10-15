@@ -71,6 +71,17 @@ public class StoryController {
         return ResponseEntity.ok(ApiResponse.ok("Story updated", response));
     }
 
+    @PostMapping(value = "/{storyId}/thumbnail", consumes = "multipart/form-data")
+    public ResponseEntity<ApiResponse<StoryResponse>> uploadThumbnail(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID storyId,
+            @RequestPart("thumbnail") org.springframework.web.multipart.MultipartFile thumbnail) {
+
+        StoryResponse response = storyService.setThumbnail(principal.getUser().getId(), storyId, thumbnail);
+
+        return ResponseEntity.ok(ApiResponse.ok("Thumbnail saved", response));
+    }
+
     @DeleteMapping("/{storyId}")
     public ResponseEntity<ApiResponse<Void>> delete(
             @AuthenticationPrincipal CustomUserDetails principal,

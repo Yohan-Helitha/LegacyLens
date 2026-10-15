@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { FileText, Mic, Play } from 'lucide-react-native';
 import { Radii } from '../../../theme';
+import { resolveUploadUrl } from '../../../constants/api';
 import type { StoryMediaType } from '../../../types/story';
 import { ContentCaptureColors as D } from './tokens';
 
@@ -10,6 +11,8 @@ interface StoryMediaThumbProps {
   /** null means a written/text story — there's no media to preview. */
   mediaType: StoryMediaType | null;
   variant: 'hero' | 'list';
+  /** Cover image set by the storyteller or an admin. When present (and it loads) it replaces the placeholder. */
+  imageUrl?: string | null;
 }
 
 /**
@@ -22,9 +25,36 @@ interface StoryMediaThumbProps {
  * softly tinted card — teal for audio, mango for text — so the list still
  * reads with gentle color variation instead of a flat repeating pattern.
  */
-export const StoryMediaThumb: React.FC<StoryMediaThumbProps> = ({ mediaType, variant }) => {
+export const StoryMediaThumb: React.FC<StoryMediaThumbProps> = ({ mediaType, variant, imageUrl }) => {
   const isHero = variant === 'hero';
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const [imageFailed, setImageFailed] = useState(false);
+
+  // A real cover image wins over the placeholder; if it can't be loaded the placeholder below is shown instead.
+  const coverUri = imageFailed ? null : resolveUploadUrl(imageUrl);
+  if (coverUri) {
+    return (
+      <View style={[s.base, isHero ? s.heroBase : s.listBase]}>
+        <Image
+          source={{ uri: coverUri }}
+          style={StyleSheet.absoluteFillObject}
+          resizeMode="cover"
+          onError={() => setImageFailed(true)}
+          accessibilityIgnoresInvertColors
+        />
+        {mediaType === 'VIDEO' && (
+          <View style={[s.playWrap, s.coverPlay, isHero ? s.playWrapHero : s.playWrapList]}>
+            <Play size={isHero ? 26 : 16} color="#ffffff" fill="#ffffff" strokeWidth={0} style={{ marginLeft: 2 }} />
+          </View>
+        )}
+        {mediaType === 'AUDIO' && (
+          <View style={s.coverBadge}>
+            <Mic size={isHero ? 16 : 12} color="#ffffff" strokeWidth={2.2} />
+          </View>
+        )}
+      </View>
+    );
+  }
 
   if (mediaType === 'VIDEO') {
     return (
@@ -92,6 +122,18 @@ const s = StyleSheet.create({
   playWrap: {
     borderRadius: Radii.full,
     backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverPlay: { backgroundColor: 'rgba(0,0,0,0.45)' },
+  coverBadge: {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
   },

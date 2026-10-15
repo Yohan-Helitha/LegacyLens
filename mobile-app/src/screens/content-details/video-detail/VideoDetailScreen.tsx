@@ -16,6 +16,9 @@ import { CommentModal } from '../../../components/common/CommentModal';
 import { homeApi, FeedItemResponse } from '../../../services/api/homeApi';
 import { discoveryApi } from '../../../services/api/discoveryApi';
 import { styles } from './VideoDetailScreen.styles';
+import { useRecordStoryView } from '../../../hooks/useRecordStoryView';
+import { useTranslatedTexts } from '../../../hooks/useTranslatedTexts';
+import { TranslationToggle } from '../../../components/common/TranslationToggle';
 
 export interface VideoDetailScreenProps {
   post?: any;
@@ -68,6 +71,8 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
   onSelectRelatedPost,
 }) => {
   const [currentPost, setCurrentPost] = useState<any>(post);
+  // Counts a view for the story being watched (re-runs when a related video is selected).
+  useRecordStoryView(currentPost?.id);
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [saved, setSaved] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -207,7 +212,7 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
     }
   };
 
-  const title = currentPost?.title || currentPost?.name || 'The Last Traditional Mask Maker of Ambalangoda';
+  const originalTitle = currentPost?.title || currentPost?.name || 'The Last Traditional Mask Maker of Ambalangoda';
   const location = currentPost?.location || 'Ambalangoda, Southern Sri Lanka';
   const duration = currentPost?.duration || '14m 32s';
   const author = currentPost?.author || currentPost?.name || 'Somapala Perera';
@@ -215,11 +220,14 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
   const thumbnail = currentPost?.thumbnail || DEFAULT_THUMBNAIL;
   const tags: string[] =
     currentPost?.tags && currentPost.tags.length > 0 ? currentPost.tags : DEFAULT_TAGS;
-  const description =
+  const originalDescription =
     currentPost?.description ||
     currentPost?.excerpt ||
     currentPost?.content ||
     "Ambalangoda is the historic heartland of Sri Lankan traditional mask making. These aren't merely decorative items; they are essential ritual implements used in Sanni Yakuma (healing rituals) and Kolam (comedic folk plays). The craft relies on specific timber (Kaduru wood) and strict proportional guidelines passed down orally across generations.";
+  // Title and description are user-written: show them in the reader's language (original one tap away).
+  const { texts: shownTexts, translated, showOriginal, toggleOriginal } = useTranslatedTexts([originalTitle, originalDescription]);
+  const [title, description] = shownTexts;
   const keeperRole = currentPost?.elder ? 'Knowledge Keeper & Elder' : 'Traditional Master Craftsman';
 
   return (
@@ -293,6 +301,7 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
             {/* Title & Meta */}
             <View style={styles.titleSection}>
               <Text style={styles.mainTitle}>{title}</Text>
+              {translated && <TranslationToggle showOriginal={showOriginal} onPress={toggleOriginal} />}
 
               <View style={styles.metaRow}>
                 <View style={styles.metaItem}>

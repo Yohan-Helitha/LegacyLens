@@ -57,8 +57,10 @@ public class Story {
     @Column(nullable = false, length = 20)
     private StoryMethod method;
 
-    /** Null when the story has no media clip (e.g. a WRITTEN story). */
-    @Enumerated(EnumType.STRING)
+    /**
+     * Null when the story has no media clip (e.g. a WRITTEN story). Mapped by MediaTypeConverter (autoApply), which
+     * tolerates values this enum doesn't know - do not add @Enumerated here, it would disable that.
+     */
     @Column(name = "media_type", length = 10)
     private MediaType mediaType;
 
@@ -74,6 +76,13 @@ public class Story {
 
     @Column(name = "media_file_size_bytes")
     private Long mediaFileSizeBytes;
+
+    /**
+     * Cover image shown on story cards. Maps the same stories.image_url column as ModerationQueueItem.imageUrl,
+     * so an image set by an admin during moderation and one the storyteller uploads are the same thing.
+     */
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

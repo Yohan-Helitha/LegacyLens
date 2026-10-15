@@ -12,9 +12,10 @@ import {
   ContentCaptureColors as D,
 } from '../../components/module-specific/content-capture';
 import { useVoiceInput } from '../../hooks/useVoiceInput';
-import { speechStrings } from '../../constants/speechStrings';
+import { useSpeechStrings } from '../../hooks/useSpeechStrings';
 import type { SpeechQualityHint } from '../../types/speech';
 import { Typography, Spacing, Radii } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 interface VoiceTypingScreenProps {
   onClose?: () => void;
@@ -31,6 +32,8 @@ interface VoiceTypingScreenProps {
  * elder is still speaking, only once a turn finishes uploading.
  */
 export const VoiceTypingScreen: React.FC<VoiceTypingScreenProps> = ({ onClose, onFinish }) => {
+  const { t } = useTranslation('contentCapture');
+  const speechStrings = useSpeechStrings();
   const [transcript, setTranscript] = useState('');
   /** Survives the hook's own auto-reset to idle after a turn — cleared on the next tap. */
   const [lastQualityHint, setLastQualityHint] = useState<SpeechQualityHint | null>(null);
@@ -107,9 +110,7 @@ export const VoiceTypingScreen: React.FC<VoiceTypingScreenProps> = ({ onClose, o
       <ContentCaptureTopBar left="close" onLeftPress={onClose} />
 
       <View style={s.content}>
-        <Text style={s.instructionText}>
-          Press the mic. Say a bit of your story, then pause — we'll write it down and you can keep going.
-        </Text>
+        <Text style={s.instructionText}>{t('voiceTyping.instruction')}</Text>
 
         <TranscriptBox value={transcript} onChangeText={setTranscript} />
 
@@ -121,7 +122,7 @@ export const VoiceTypingScreen: React.FC<VoiceTypingScreenProps> = ({ onClose, o
               color={D.onSurfaceVariant}
               backgroundColor={D.surfaceContainer}
               onPress={handleCancelTurn}
-              accessibilityLabel="Cancel this recording"
+              accessibilityLabel={t('voiceTyping.cancelAria')}
             />
           ) : (
             <View style={{ width: 48 }} />
@@ -129,7 +130,7 @@ export const VoiceTypingScreen: React.FC<VoiceTypingScreenProps> = ({ onClose, o
           <MicOrb
             active={state === 'recording'}
             onPress={handleOrbPress}
-            accessibilityLabel={state === 'recording' ? 'Listening, tap to finish' : 'Tap to speak'}
+            accessibilityLabel={state === 'recording' ? speechStrings.recording.accessibilityLabel : speechStrings.idle.accessibilityLabel}
           />
           <View style={{ width: 48 }} />
         </View>
@@ -204,8 +205,8 @@ export const VoiceTypingScreen: React.FC<VoiceTypingScreenProps> = ({ onClose, o
         )}
 
         <RecordingActionButtons
-          startOverLabel="Start Over"
-          finishLabel="Done"
+          startOverLabel={t('recording.startOver')}
+          finishLabel={t('recording.done')}
           onStartOverPress={handleStartOver}
           onFinishPress={handleFinish}
         />
