@@ -25,6 +25,8 @@ export interface StoryResponse {
   /** Root-relative — prefix with the API host to get a playable URL. */
   mediaUrl: string | null;
   mediaDurationMillis: number | null;
+  /** Cover image (complete URL), set by the storyteller or an admin. */
+  imageUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
@@ -60,6 +62,8 @@ export interface StorySummary {
   /** Root-relative — prefix with the API host to get a playable URL. */
   mediaUrl: string | null;
   viewCount: number;
+  /** Cover image (complete URL), set by the storyteller or an admin. */
+  imageUrl?: string | null;
   createdAt: string;
 }
 
@@ -70,4 +74,54 @@ export interface PagedResponse<T> {
   size: number;
   totalElements: number;
   totalPages: number;
+}
+
+/** Mirrors AnalyticsSummaryDto — GET /api/stories/mine/analytics/summary (the dashboard analytics card). */
+export interface AnalyticsSummary {
+  publishedStories: number;
+  totalViews: number;
+  viewsLast7Days: number;
+  viewsPrevious7Days: number;
+  /** Signed percent change of the last 7 days vs the 7 before. */
+  trendPercent: number;
+  /** True when the last 7 days beat the previous 7 — green up arrow; otherwise orange down arrow. */
+  trending: boolean;
+  totalLikes: number;
+  totalComments: number;
+  topStoryTitle: string | null;
+}
+
+export interface DailyViews {
+  /** ISO date (yyyy-MM-dd). */
+  date: string;
+  views: number;
+}
+
+/** A listener's comment on the story, shown to its author as a review. */
+export interface StoryReview {
+  reviewerName: string;
+  reviewerAvatarUrl: string | null;
+  text: string;
+  createdAt: string;
+}
+
+/** Mirrors StoryAnalyticsDto — GET /api/stories/{id}/analytics (one of the elder's own stories). */
+export interface StoryAnalytics {
+  storyId: string;
+  title: string;
+  status: StoryStatus;
+  publishedAt: string | null;
+  viewCount: number;
+  likesCount: number;
+  commentsCount: number;
+  viewsLast7Days: number;
+  viewsPrevious7Days: number;
+  trendPercent: number;
+  trending: boolean;
+  /** Oldest first, always 7 entries ending today. */
+  dailyViews: DailyViews[];
+  reviews: StoryReview[];
+  /** The elder's overall rating from creators — not specific to this story. Null when unrated. */
+  averageRating: number | null;
+  ratingCount: number;
 }

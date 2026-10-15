@@ -240,7 +240,7 @@ public class CreatorDashboardServiceImpl implements CreatorDashboardService {
                 .location(job.getLocation())
                 .offeredAmount(job.getOfferedAmount())
                 .status(job.getStatus().name())
-                .urgent(job.isUrgent())
+                .urgent(job.isUrgent() || (opportunity != null && opportunity.isUrgent()))
                 .scheduledAt(job.getScheduledAt())
                 .timeWindowText(job.getTimeWindowText())
                 .completedAt(job.getCompletedAt())

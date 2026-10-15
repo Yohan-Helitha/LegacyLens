@@ -12,6 +12,7 @@ import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplication;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityApplicationStatus;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
 import lk.ac.sliit.legacylens.marketplace.event.ApplicationDecidedEvent;
+import lk.ac.sliit.legacylens.marketplace.event.ApplicationSubmittedEvent;
 import lk.ac.sliit.legacylens.marketplace.matching.LanguageSkills;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
@@ -135,7 +136,15 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         application.setStatus(OpportunityApplicationStatus.PENDING);
         application.setSubmittedAt(LocalDateTime.now());
 
-        return responseMapper.toResponse(opportunityApplicationRepository.save(application));
+        OpportunityApplication saved = opportunityApplicationRepository.save(application);
+
+        // The knowledge holder is told once this is committed; an opportunity with no owner has nobody to tell.
+        if (saved.getOpportunity().getElder() != null) {
+            events.publishEvent(new ApplicationSubmittedEvent(
+                    saved.getOpportunity().getElder().getId(), saved.getId(),
+                    saved.getOpportunity().getTitle(), saved.getCreator().getFullName()));
+        }
+        return responseMapper.toResponse(saved);
     }
 
     @Override
@@ -150,6 +159,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         }
 
         application.setStatus(OpportunityApplicationStatus.APPROVED);
+        application.setDecidedAt(LocalDateTime.now());
 
         OpportunityApplicationResponse response = responseMapper.toResponse(opportunityApplicationRepository.save(application));
         announceDecision(application, OpportunityApplicationStatus.APPROVED);
@@ -168,6 +178,7 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         }
 
         application.setStatus(OpportunityApplicationStatus.REJECTED);
+        application.setDecidedAt(LocalDateTime.now());
 
         OpportunityApplicationResponse response = responseMapper.toResponse(opportunityApplicationRepository.save(application));
         announceDecision(application, OpportunityApplicationStatus.REJECTED);
@@ -196,6 +207,8 @@ public class OpportunityApplicationServiceImpl implements OpportunityApplication
         job.setDescription(opportunity.getDescription());
         job.setLocation(opportunity.getLocation());
         job.setOfferedAmount(opportunity.getOfferedAmount());
+        // The red edge and the Urgent mark follow the opportunity, so they show on the schedule, My Work and Completed.
+        job.setUrgent(opportunity.isUrgent());
         job.setStatus(JobStatus.UPCOMING);
         job.setScheduledAt(LocalDateTime.of(request.getConfirmedDate(), request.getStartTime()));
         job.setTimeWindowText(formatTimeWindow(request.getStartTime(), request.getEndTime()));

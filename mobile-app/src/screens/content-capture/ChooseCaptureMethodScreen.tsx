@@ -7,6 +7,7 @@ import { BackButton } from '../../components/common';
 import { MethodChoiceCard, ContentCaptureColors as D } from '../../components/module-specific/content-capture';
 import { Typography, Spacing, Radii } from '../../theme';
 import type { StoryMediaType } from '../../types/story';
+import { useTranslation } from 'react-i18next';
 
 interface ChooseCaptureMethodScreenProps {
   onBack?: () => void;
@@ -28,6 +29,7 @@ export const ChooseCaptureMethodScreen: React.FC<ChooseCaptureMethodScreenProps>
   onBack,
   onSelectMethod,
 }) => {
+  const { t } = useTranslation('contentCapture');
   return (
     <SafeAreaView style={s.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
@@ -38,8 +40,8 @@ export const ChooseCaptureMethodScreen: React.FC<ChooseCaptureMethodScreenProps>
 
       <View style={s.content}>
         <View style={s.heading}>
-          <Text style={s.headline}>Share your story</Text>
-          <Text style={s.subheadline}>Choose how you'd like to tell it</Text>
+          <Text style={s.headline}>{t('method.headline')}</Text>
+          <Text style={s.subheadline}>{t('method.subheadline')}</Text>
         </View>
 
         <View style={{ gap: Spacing.md }}>
@@ -49,8 +51,8 @@ export const ChooseCaptureMethodScreen: React.FC<ChooseCaptureMethodScreenProps>
                 <Mic size={26} color={D.primary} strokeWidth={2} />
               </IconBubble>
             }
-            label="Audio"
-            description="Speak and we'll record your voice"
+            label={t('method.audio')}
+            description={t('method.audioDesc')}
             onPress={() => onSelectMethod?.('AUDIO')}
           />
 
@@ -60,8 +62,8 @@ export const ChooseCaptureMethodScreen: React.FC<ChooseCaptureMethodScreenProps>
                 <Video size={26} color={D.primary} strokeWidth={2} />
               </IconBubble>
             }
-            label="Video"
-            description="Record yourself on camera"
+            label={t('method.video')}
+            description={t('method.videoDesc')}
             onPress={() => onSelectMethod?.('VIDEO')}
           />
 
@@ -71,8 +73,8 @@ export const ChooseCaptureMethodScreen: React.FC<ChooseCaptureMethodScreenProps>
                 <BookOpen size={26} color={D.secondary} strokeWidth={2} />
               </IconBubble>
             }
-            label="Written"
-            description="Speak and we'll write it down for you"
+            label={t('method.written')}
+            description={t('method.writtenDesc')}
             onPress={() => onSelectMethod?.(null)}
           />
         </View>

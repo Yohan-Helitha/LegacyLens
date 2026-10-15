@@ -11,6 +11,8 @@ import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { Header, UserFooter } from '../components/common';
 import type { UserTabKey } from '../components/common';
 import { useAuthStore } from '../store/authStore';
+import { usePushNotificationEvents } from '../hooks/usePushNotifications';
+import { creatorScreenForNotification } from './creatorNotificationRouting';
 import type { RootStackParamList } from './RootNavigator';
 
 export type UserScreen = UserTabKey | 'hunt' | 'badges' | 'video' | 'blog';
@@ -34,6 +36,14 @@ export const UserNavigator: React.FC<UserNavigatorProps> = ({ navigation, route 
       setScreen(target);
     }
   }, [route?.params?.initialTab]);
+
+  // The admin's decision on "Become a Content Creator" reaches a person who is not a creator yet,
+  // so it is handled here: a tap opens the application's status page.
+  usePushNotificationEvents({
+    onTapped: (data) => {
+      if (creatorScreenForNotification(data) === 'pending') navigation.navigate('Creator', { initialScreen: 'pending' });
+    },
+  });
 
   const handleNavigate = (tab: string, item?: any) => {
     if (item) {

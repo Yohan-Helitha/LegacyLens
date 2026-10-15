@@ -12,6 +12,7 @@ import {
 import type { ElderDrawerItem } from '../../components/module-specific/content-capture';
 import { useTrustScore } from '../../hooks/useTrustScore';
 import { Typography, Spacing, Radii } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 /**
  * The 3-stories-per-level milestone ladder — mirrors the backend's
@@ -48,6 +49,7 @@ export const TrustScoreDetail: React.FC<TrustScoreDetailProps> = ({
   onDrawerNavigate,
   onLogout,
 }) => {
+  const { t } = useTranslation('contentCapture');
   const [drawerVisible, setDrawerVisible] = useState(false);
   const { detail, loading, loadError } = useTrustScore();
 
@@ -62,7 +64,7 @@ export const TrustScoreDetail: React.FC<TrustScoreDetailProps> = ({
     <View style={s.safeArea}>
       <StatusBar style="dark" />
 
-      <Header title="Trust Score" onMenuPress={() => setDrawerVisible(true)} />
+      <Header title={t('trust.title')} onMenuPress={() => setDrawerVisible(true)} />
 
       <ScrollView
         style={s.scroll}
@@ -77,7 +79,7 @@ export const TrustScoreDetail: React.FC<TrustScoreDetailProps> = ({
 
         {!loading && loadError && (
           <View style={s.centerState}>
-            <Text style={s.errorText}>Couldn't load your Knowledge Keeper progress.</Text>
+            <Text style={s.errorText}>{t('trust.loadError')}</Text>
           </View>
         )}
 
@@ -85,13 +87,10 @@ export const TrustScoreDetail: React.FC<TrustScoreDetailProps> = ({
           <>
             <View style={s.knowledgeKeeperPill}>
               <Award size={16} color={D.onSecondaryContainer} strokeWidth={2.5} />
-              <Text style={s.knowledgeKeeperPillText}>Knowledge Keeper</Text>
+              <Text style={s.knowledgeKeeperPillText}>{t('trust.pill')}</Text>
             </View>
 
-            <Text style={s.supportingCopy}>
-              Your Knowledge Keeper level grows every time you share a story or someone learns from
-              your words.
-            </Text>
+            <Text style={s.supportingCopy}>{t('trust.supporting')}</Text>
 
             <View style={s.ringSection}>
               <TrustProgressRing level={detail.level} progress={progress} />
@@ -102,12 +101,8 @@ export const TrustScoreDetail: React.FC<TrustScoreDetailProps> = ({
                 <BookOpen size={22} color={D.onPrimary} strokeWidth={2} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.statTitle}>
-                  {detail.storiesShared} {detail.storiesShared === 1 ? 'Story Shared' : 'Stories Shared'}
-                </Text>
-                <Text style={s.statSubtitle}>
-                  You are actively preserving knowledge for future generations.
-                </Text>
+                <Text style={s.statTitle}>{t('trust.storiesShared', { count: detail.storiesShared })}</Text>
+                <Text style={s.statSubtitle}>{t('trust.preserving')}</Text>
               </View>
             </View>
 
@@ -127,25 +122,20 @@ export const TrustScoreDetail: React.FC<TrustScoreDetailProps> = ({
                     </View>
 
                     <View style={{ flex: 1 }}>
-                      <Text style={s.milestoneTitle}>Level {milestone.level}</Text>
+                      <Text style={s.milestoneTitle}>{t('trust.level', { level: milestone.level })}</Text>
                       {isNext && (
                         <Text style={s.milestoneNextText}>
-                          {detail.nextMilestoneStoriesNeeded} more{' '}
-                          {detail.nextMilestoneStoriesNeeded === 1 ? 'story' : 'stories'} to reach Level{' '}
-                          {milestone.level}
+                          {t('trust.nextMilestone', { count: detail.nextMilestoneStoriesNeeded, level: milestone.level })}
                         </Text>
                       )}
-                      {achieved && <Text style={s.milestoneAchievedText}>Reached</Text>}
+                      {achieved && <Text style={s.milestoneAchievedText}>{t('trust.reached')}</Text>}
                     </View>
                   </View>
                 );
               })}
 
               {isMaxLevel && (
-                <Text style={s.maxLevelText}>
-                  You've reached the highest Knowledge Keeper level — thank you for sharing so much
-                  with your family and community.
-                </Text>
+                <Text style={s.maxLevelText}>{t('trust.maxLevel')}</Text>
               )}
             </View>
 
@@ -154,14 +144,14 @@ export const TrustScoreDetail: React.FC<TrustScoreDetailProps> = ({
                 onPress={onOpenReviews}
                 style={({ pressed }) => [s.reviewsLink, pressed && s.reviewsLinkPressed]}
                 accessibilityRole="button"
-                accessibilityLabel="Reviews and ratings. See what people have said about you."
+                accessibilityLabel={t('trust.reviewsAria')}
               >
                 <View style={s.reviewsIcon}>
                   <Star size={20} color={D.secondary} fill={D.secondaryContainer} strokeWidth={2} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.reviewsTitle}>Reviews & Ratings</Text>
-                  <Text style={s.reviewsSubtitle}>See what people have said about you</Text>
+                  <Text style={s.reviewsTitle}>{t('trust.reviewsTitle')}</Text>
+                  <Text style={s.reviewsSubtitle}>{t('trust.reviewsSubtitle')}</Text>
                 </View>
                 <ChevronRight size={20} color={D.onSurfaceVariant} strokeWidth={2} />
               </Pressable>
@@ -176,7 +166,6 @@ export const TrustScoreDetail: React.FC<TrustScoreDetailProps> = ({
         visible={drawerVisible}
         onClose={() => setDrawerVisible(false)}
         activeItem="trust"
-        requestsCount={1}
         onNavigate={onDrawerNavigate}
         onLogout={onLogout}
       />

@@ -18,6 +18,7 @@ import type { JobResponse } from '../../../types/creatorDashboard';
 import { ApiError } from '../../../services/api/client';
 import { WorkProgressResponse, stepFlags } from '../../../types/workProgress';
 import { resolveOpportunityImage } from '../../../utils/opportunityImages';
+import { useAuthStore } from '../../../store/authStore';
 import { groupCompletedByMonth } from '../../../utils/completedWork';
 
 // Only for jobs with no photo of their own and no linked opportunity either
@@ -200,10 +201,11 @@ const WorkCard: React.FC<{
   const scheduledOn = formatScheduleDate(job.scheduledAt);
 
   return (
-    <View style={s.card}>
-      {(dueText || variant === 'continue' || variant === 'submitted') && (
+    <View style={[s.card, job.urgent && s.cardUrgent]}>
+      {(dueText || job.urgent || variant === 'continue' || variant === 'submitted') && (
         <View style={s.chipsRow}>
           <View style={s.chipsLeft}>
+            {job.urgent && <UrgentPill />}
             {variant === 'continue' && <WorkStatusChip status={progress?.workStatus ?? 'IN_PROGRESS'} />}
             {variant === 'submitted' && <WorkStatusChip status={progress?.workStatus ?? 'SUBMITTED'} />}
             {!!dueText && (
@@ -334,6 +336,13 @@ const ReviewerStatus: React.FC<{ who: string; approved: boolean }> = ({ who, app
   </View>
 );
 
+/** Marks urgent work wherever it is listed; ordinary work carries no mark. */
+const UrgentPill: React.FC = () => (
+  <View style={s.urgentPill}>
+    <Text style={s.urgentPillText}>{'\u{1F525} Urgent'}</Text>
+  </View>
+);
+
 const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; published: boolean; onView: () => void; onTestRate: (stars: number) => void }> = ({ job, heroImageUrl, published, onView, onTestRate }) => {
   const doneOn = formatDoneDate(job.completedAt);
 
@@ -346,6 +355,7 @@ const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; p
           </View>
           <Text style={s.donePillText}>{published ? 'Published' : 'Completed'}</Text>
         </View>
+        {job.urgent && <UrgentPill />}
       </View>
 
       <View style={s.doneBody}>
@@ -418,6 +428,24 @@ const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; p
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * What My Work showed last time. Opening the page again paints this straight away and refreshes it in the
+ * background, instead of making the creator wait on a blank screen for the server every visit. It belongs to
+ * one account, so another login never sees it.
+ */
+interface WorkSnapshot {
+  userId: string | null;
+  workJobs: JobResponse[];
+  completedJobs: JobResponse[];
+  progressByJobId: Record<string, WorkProgressResponse>;
+  completedPictures: Record<string, string | null>;
+  completedPublished: Record<string, boolean>;
+}
+let lastWork: WorkSnapshot | null = null;
+const signedInUserId = () => useAuthStore.getState().user?.userId ?? null;
+const remembered = (): WorkSnapshot | null => (lastWork && lastWork.userId === signedInUserId() ? lastWork : null);
+
 export const MyWorkList: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
@@ -428,57 +456,58 @@ export const MyWorkList: React.FC<{
   /** Told when the creator switches tab, so coming back from Continue Work lands on the same one. */
   onTabChange?: (tab: WorkTab) => void;
 }> = ({ onNavigate, onBack, onContinueWork, onViewPublication, initialTab = 'active', onTabChange }) => {
-  const [workJobs, setWorkJobs] = useState<JobResponse[]>([]);
-  const [completedJobs, setCompletedJobs] = useState<JobResponse[]>([]);
-  const [progressByJobId, setProgressByJobId] = useState<Record<string, WorkProgressResponse>>({});
-  const [completedPictures, setCompletedPictures] = useState<Record<string, string | null>>({});
-  const [completedPublished, setCompletedPublished] = useState<Record<string, boolean>>({});
+  const [seen] = useState(remembered);
+  const [workJobs, setWorkJobs] = useState<JobResponse[]>(seen?.workJobs ?? []);
+  const [completedJobs, setCompletedJobs] = useState<JobResponse[]>(seen?.completedJobs ?? []);
+  const [progressByJobId, setProgressByJobId] = useState<Record<string, WorkProgressResponse>>(seen?.progressByJobId ?? {});
+  const [completedPictures, setCompletedPictures] = useState<Record<string, string | null>>(seen?.completedPictures ?? {});
+  const [completedPublished, setCompletedPublished] = useState<Record<string, boolean>>(seen?.completedPublished ?? {});
   const [activeTab, setActiveTab] = useState<WorkTab>(initialTab);
   const selectTab = (tab: WorkTab) => {
     setActiveTab(tab);
     onTabChange?.(tab);
   };
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!seen);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadWork = useCallback((isCancelled: () => boolean = () => false) => {
-    setLoading(true);
+    // Nothing to show yet means a spinner; a refresh behind what is already on screen stays quiet.
+    if (!remembered()) setLoading(true);
     setLoadError(null);
 
+    // The jobs and ALL their progress at once - four requests side by side, not one request per job in a queue.
     return Promise.all([
       creatorDashboardApi.getJobs('UPCOMING'),
       creatorDashboardApi.getJobs('ACTIVE'),
       creatorDashboardApi.getJobs('COMPLETED'),
+      workProgressApi.listMine(),
     ])
-      .then(async ([upcoming, active, completed]) => {
-        const jobsInProgress = [...upcoming, ...active];
-        const progressList = await Promise.all(
-          jobsInProgress.map((job) => workProgressApi.getProgress(job.id)),
-        );
-        // Completed cards show the opportunity's picture too; a missing one just falls back to the default photo.
-        const completedProgress = await Promise.all(
-          completed.map((job) => workProgressApi.getProgress(job.id).catch(() => null)),
-        );
+      .then(([upcoming, active, completed, progressList]) => {
         if (isCancelled()) return;
 
+        const jobsInProgress = [...upcoming, ...active];
         const progressMap: Record<string, WorkProgressResponse> = {};
         progressList.forEach((p) => {
           progressMap[p.jobId] = p;
         });
 
+        // Completed cards show the opportunity's picture too; a missing one just falls back to the default photo.
+        const pictures: Record<string, string | null> = {};
+        const published: Record<string, boolean> = {};
+        completed.forEach((job) => {
+          pictures[job.id] = progressMap[job.id]?.heroImageUrl ?? null;
+          published[job.id] = Boolean(progressMap[job.id]?.publishedAt);
+        });
+
         setWorkJobs(jobsInProgress);
         setProgressByJobId(progressMap);
         setCompletedJobs(completed);
-        const pictures: Record<string, string | null> = {};
-        completedProgress.forEach((p, i) => {
-          pictures[completed[i].id] = p?.heroImageUrl ?? null;
-        });
         setCompletedPictures(pictures);
-        const published: Record<string, boolean> = {};
-        completedProgress.forEach((p, i) => {
-          published[completed[i].id] = Boolean(p?.publishedAt);
-        });
         setCompletedPublished(published);
+        lastWork = {
+          userId: signedInUserId(), workJobs: jobsInProgress, completedJobs: completed,
+          progressByJobId: progressMap, completedPictures: pictures, completedPublished: published,
+        };
       })
       .catch((err) => {
         if (isCancelled()) return;
@@ -836,6 +865,9 @@ const s = StyleSheet.create({
   // A softer, wider shadow plus a faint white top edge gives the card a
   // subtle "glass" lift off the page background, instead of the flat
   // hairline-bordered look every other list card here uses.
+  cardUrgent: { borderLeftWidth: 3, borderLeftColor: '#C0392B' },
+  urgentPill: { backgroundColor: '#C0392B', borderRadius: Radii.full, paddingHorizontal: 10, paddingVertical: 3 },
+  urgentPillText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff', letterSpacing: 0.3 },
   card: {
     backgroundColor: D.surfaceContainerLowest,
     borderRadius: Radii.xl,

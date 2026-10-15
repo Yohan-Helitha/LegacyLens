@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { BackButton } from '../../components/common';
 import { ApiError } from '../../services/api/client';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -34,6 +35,7 @@ export const ChangeNicScreen: React.FC<ChangeNicScreenProps> = ({
   onComplete,
   onBack,
 }) => {
+  const { t } = useTranslation('profile');
   const [newNic, setNewNic] = useState('');
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -44,11 +46,11 @@ export const ChangeNicScreen: React.FC<ChangeNicScreenProps> = ({
     setFormError(null);
 
     if (!trimmed) {
-      setFieldError('New NIC number is required');
+      setFieldError(t('changeNic.required'));
       return;
     }
     if (trimmed.length > 20) {
-      setFieldError('NIC number must not exceed 20 characters');
+      setFieldError(t('changeNic.tooLong'));
       return;
     }
     setFieldError(null);
@@ -62,7 +64,7 @@ export const ChangeNicScreen: React.FC<ChangeNicScreenProps> = ({
     } catch (err) {
       setSubmitting(false);
       setFormError(
-        err instanceof ApiError ? err.message : 'Something went wrong. Please try again.',
+        err instanceof ApiError ? err.message : t('errors.generic'),
       );
     }
   };
@@ -83,24 +85,22 @@ export const ChangeNicScreen: React.FC<ChangeNicScreenProps> = ({
         >
           <View style={styles.headingBlock}>
             <Text style={styles.headline} accessibilityRole="header">
-              Change NIC number
+              {t('changeNic.headline')}
             </Text>
-            <Text style={styles.subheadline}>
-              We'll text a code to your current phone number to confirm this change.
-            </Text>
+            <Text style={styles.subheadline}>{t('changeNic.subheadline')}</Text>
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>New NIC number</Text>
+            <Text style={styles.fieldLabel}>{t('changeNic.fieldLabel')}</Text>
             <View style={[styles.inputBox, !!fieldError && styles.inputBoxError]}>
               <TextInput
                 style={styles.textInput}
                 value={newNic}
-                onChangeText={(t) => {
-                  setNewNic(t);
+                onChangeText={(text) => {
+                  setNewNic(text);
                   if (fieldError) setFieldError(null);
                 }}
-                placeholder="Enter your new NIC number"
+                placeholder={t('changeNic.placeholder')}
                 placeholderTextColor={Colors.textMuted}
                 autoCapitalize="characters"
                 returnKeyType="done"
@@ -116,10 +116,10 @@ export const ChangeNicScreen: React.FC<ChangeNicScreenProps> = ({
             onPress={handleContinue}
             disabled={submitting}
             accessibilityRole="button"
-            accessibilityLabel="Continue"
+            accessibilityLabel={t('continue', { ns: 'common' })}
             style={({ pressed }) => [styles.primaryBtn, pressed && styles.primaryBtnPressed]}
           >
-            <Text style={styles.primaryBtnText}>{submitting ? 'Sending code…' : 'Continue'}</Text>
+            <Text style={styles.primaryBtnText}>{submitting ? t('sendingCode') : t('continue', { ns: 'common' })}</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>

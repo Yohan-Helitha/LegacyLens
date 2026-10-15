@@ -1,5 +1,5 @@
 /** The creator screen a tapped notification should open, or null when it should just open the app. */
-export function creatorScreenForNotification(data: Record<string, unknown> | null | undefined): 'rejected-applications' | 'dashboard' | 'market' | 'rejected-work' | 'my-work' | null {
+export function creatorScreenForNotification(data: Record<string, unknown> | null | undefined): 'rejected-applications' | 'dashboard' | 'market' | 'rejected-work' | 'my-work' | 'pending' | null {
   switch (data?.type) {
     case 'application-rejected':
       return 'rejected-applications';
@@ -18,6 +18,10 @@ export function creatorScreenForNotification(data: Record<string, unknown> | nul
     // Work both reviewers approved (or then published) is on the Completed tab of My Work.
     case 'work-approved':
       return 'my-work';
+    // The admin's decision on the creator's own application lands on its status page.
+    case 'creator-application-approved':
+    case 'creator-application-rejected':
+      return 'pending';
     default:
       return null;
   }

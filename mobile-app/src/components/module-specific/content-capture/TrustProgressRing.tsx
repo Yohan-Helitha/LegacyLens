@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Typography } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
+import { useTranslation } from 'react-i18next';
 
 interface TrustProgressRingProps {
   level: number;
@@ -21,6 +22,7 @@ export const TrustProgressRing: React.FC<TrustProgressRingProps> = ({
   progress,
   size = 176,
 }) => {
+  const { t } = useTranslation('contentCapture');
   const strokeWidth = 14;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -55,7 +57,7 @@ export const TrustProgressRing: React.FC<TrustProgressRingProps> = ({
         />
       </Svg>
       <View style={s.centerLabel} pointerEvents="none">
-        <Text style={s.levelCaption}>LEVEL</Text>
+        <Text style={s.levelCaption}>{t('trustRing.level')}</Text>
         <Text style={s.levelNumber}>{level}</Text>
       </View>
     </View>

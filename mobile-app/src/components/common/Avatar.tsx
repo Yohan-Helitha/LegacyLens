@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Camera, User } from 'lucide-react-native';
 import { Colors, Radii } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 interface AvatarProps {
   uri?: string | null;
@@ -18,6 +19,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   editable = false,
   onEditPress,
 }) => {
+  const { t } = useTranslation('common');
   const badgeSize = Math.round(size * 0.3);
 
   return (
@@ -38,7 +40,7 @@ export const Avatar: React.FC<AvatarProps> = ({
         <Pressable
           onPress={onEditPress}
           accessibilityRole="button"
-          accessibilityLabel="Edit profile picture"
+          accessibilityLabel={t('avatar.edit')}
           style={[
             styles.badge,
             {

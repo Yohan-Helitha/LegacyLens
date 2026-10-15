@@ -42,6 +42,8 @@ public class AdminGeneratedTrackPreviewDto {
 		private String word;
 		private String meaning;
 		private String culturalNote;
+		/** Pronunciation audio (mp3/mp4) uploaded by the admin during preview; saved onto the flashcard on publish. */
+		private String audioUrl;
 	}
 
 	@Data

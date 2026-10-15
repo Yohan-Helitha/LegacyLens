@@ -1,0 +1,34 @@
+{
+  "openMenu": "Open menu",
+  "goBack": "Go back",
+  "notifications": "Notifications",
+  "continue": "Continue",
+  "cancel": "Cancel",
+  "tabs": {
+    "home": "Home",
+    "learn": "Learn",
+    "market": "Market",
+    "map": "Map",
+    "profile": "Profile"
+  },
+  "close": "Close",
+  "filter": "Filter",
+  "back": "Back",
+  "loading": "Loading",
+  "tryAgain": "Try again",
+  "translation": {
+    "showOriginal": "Translated · Show original",
+    "showTranslation": "Original · Show translation"
+  },
+  "profile": {
+    "languagePreference": "Language preference"
+  },
+  "language": {
+    "title": "Choose your language"
+  },
+  "settings": "Settings",
+  "avatar": {
+    "edit": "Edit profile picture"
+  },
+  "getStarted": "Get Started"
+}

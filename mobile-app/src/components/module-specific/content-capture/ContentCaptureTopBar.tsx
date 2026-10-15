@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Menu, X, SlidersHorizontal } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { RoundIconButton } from '../../common';
 import { Typography, Spacing } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
@@ -28,7 +29,9 @@ export const ContentCaptureTopBar: React.FC<ContentCaptureTopBarProps> = ({
   right = 'none',
   onLeftPress,
   onRightPress,
-}) => (
+}) => {
+  const { t } = useTranslation('common');
+  return (
   <View style={s.bar}>
     <View style={s.slot}>
       {left === 'menu' && (
@@ -36,7 +39,7 @@ export const ContentCaptureTopBar: React.FC<ContentCaptureTopBarProps> = ({
           icon={Menu}
           color={D.primary}
           onPress={onLeftPress}
-          accessibilityLabel="Open menu"
+          accessibilityLabel={t('openMenu')}
         />
       )}
       {left === 'close' && (
@@ -44,7 +47,7 @@ export const ContentCaptureTopBar: React.FC<ContentCaptureTopBarProps> = ({
           icon={X}
           color={D.primary}
           onPress={onLeftPress}
-          accessibilityLabel="Close"
+          accessibilityLabel={t('close')}
         />
       )}
     </View>
@@ -58,12 +61,13 @@ export const ContentCaptureTopBar: React.FC<ContentCaptureTopBarProps> = ({
           iconSize={22}
           color={D.primary}
           onPress={onRightPress}
-          accessibilityLabel="Filter"
+          accessibilityLabel={t('filter')}
         />
       )}
     </View>
   </View>
-);
+  );
+};
 
 const s = StyleSheet.create({
   bar: {

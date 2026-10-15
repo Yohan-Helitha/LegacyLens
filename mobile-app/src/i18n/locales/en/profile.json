@@ -1,0 +1,67 @@
+{
+  "memberSince": "Member since {{date}}",
+  "completeness": "Profile {{percent}}% complete",
+  "stats": {
+    "dayStreak": "day streak",
+    "lessons": "lessons completed",
+    "saved": "saved stories"
+  },
+  "grow": {
+    "title": "Grow your role in the community"
+  },
+  "storyteller": {
+    "titleActive": "Your Storyteller Dashboard",
+    "titleNew": "Become a Storyteller",
+    "descriptionActive": "Record new stories and manage the ones you've already shared.",
+    "descriptionNew": "Share your stories, dialects, and traditions with the community.",
+    "hintActive": "Tap to open your dashboard.",
+    "hintNew": "No experience needed — record however feels comfortable.",
+    "ctaActive": "Open Dashboard",
+    "ctaNew": "Get Started"
+  },
+  "freelancer": {
+    "title": "Become a Freelancer",
+    "description": "Get hired by elders to help record and preserve their stories.",
+    "hint": "Earn credits and build your reputation."
+  },
+  "settings": {
+    "notifications": "Notification settings",
+    "privacy": "Privacy & data",
+    "help": "Help & support",
+    "logOut": "Log out"
+  },
+  "dialog": {
+    "title": "Become a Storyteller?",
+    "message": "You'll answer a couple of quick questions about the content you'd like to share, then verify your number to unlock story recording.",
+    "notNow": "Not now"
+  },
+  "privacy": {
+    "title": "Privacy & data",
+    "accountSecurity": "Account security",
+    "changePhone": "Change mobile number",
+    "changeNic": "Change NIC number",
+    "changePin": "Change PIN",
+    "hint": "Each change is verified with a one-time code sent by SMS before it takes effect."
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again."
+  },
+  "sendingCode": "Sending code…",
+  "changeNic": {
+    "required": "New NIC number is required",
+    "tooLong": "NIC number must not exceed 20 characters",
+    "headline": "Change NIC number",
+    "subheadline": "We'll text a code to your current phone number to confirm this change.",
+    "fieldLabel": "New NIC number",
+    "placeholder": "Enter your new NIC number"
+  },
+  "changePhone": {
+    "required": "New phone number is required",
+    "invalid": "Enter a valid phone number",
+    "headline": "Change mobile number",
+    "subheadlineWithPhone": "Currently {{phone}}. We'll text a code to your new number to confirm it.",
+    "subheadline": "We'll text a code to your new number to confirm it.",
+    "fieldLabel": "New phone number",
+    "placeholder": "Enter your new phone number"
+  }
+}

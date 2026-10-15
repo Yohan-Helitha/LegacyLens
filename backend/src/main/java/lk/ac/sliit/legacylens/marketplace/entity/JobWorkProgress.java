@@ -89,6 +89,13 @@ public class JobWorkProgress {
     private LocalDateTime rejectedAt;
 
     /**
+     * When the creator opened Rejected Submissions after this rejection. Null means they have not seen it
+     * yet - what the red number on the menu counts. A new rejection clears it again.
+     */
+    @Column(name = "rejection_seen_at")
+    private LocalDateTime rejectionSeenAt;
+
+    /**
      * What the knowledge holder wants changed. Private to the creator and the admin - the knowledge
      * holder never sees the admin's note, and neither note is part of the published content.
      * Cleared when the creator resubmits (see JobWorkProgressServiceImpl#submitDraft).

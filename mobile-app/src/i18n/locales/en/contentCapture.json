@@ -1,0 +1,366 @@
+{
+  "drawer": {
+    "home": "Home",
+    "stories": "My Stories",
+    "requests": "Requests",
+    "trust": "Trust Score",
+    "reviews": "Reviews & Ratings",
+    "hire": "Hire a Creator",
+    "myRequests": "My Requests",
+    "voiceHelp": "Voice Help",
+    "settings": "Settings",
+    "logOut": "Log out",
+    "closeNavigation": "Close navigation",
+    "defaultRole": "Knowledge Keeper",
+    "defaultLevel": "Level 4"
+  },
+  "status": {
+    "draft": "Draft",
+    "pending": "Pending Review",
+    "published": "Published",
+    "rejected": "Needs changes",
+    "archived": "Archived"
+  },
+  "transcript": {
+    "placeholder": "Taking notes…",
+    "label": "Live story transcript"
+  },
+  "mic": {
+    "start": "Voice input for {{label}}",
+    "stop": "Stop voice input for {{label}}",
+    "listening": "Listening…",
+    "permissionError": "Microphone access is needed for voice typing.",
+    "recognitionError": "Couldn't hear that — please try again.",
+    "lowConfidence": "Please check this — we might not have heard you right.",
+    "noSpeech": "Didn't catch that — tap the mic to try again.",
+    "fieldRequired": "{{label}}, required, {{error}}"
+  },
+  "media": {
+    "rerecord": "Re-record",
+    "pause": "Pause playback",
+    "play": "Play recording",
+    "clipTitle": "Your voice recording"
+  },
+  "submit": {
+    "title": "Submit this story?",
+    "body": "Are you sure you want to submit this? Once submitted, you won't be able to edit it.",
+    "confirmAccurate": "I confirm this story is accurate to the best of my knowledge.",
+    "acceptTerms": "I accept the <terms>Terms & Conditions</terms>.",
+    "termsTitle": "Terms & Conditions",
+    "termsSoon": "Terms & Conditions coming soon.",
+    "submit": "Submit",
+    "submitting": "Submitting…"
+  },
+  "thumbnail": {
+    "selected": "Selected thumbnail",
+    "remove": "Remove thumbnail",
+    "addAria": "Add thumbnail, optional",
+    "add": "Add thumbnail",
+    "optional": "Optional"
+  },
+  "storyCard": {
+    "openVideo": "Open video story",
+    "openVoice": "Open voice story",
+    "video": "Video story",
+    "voice": "Voice recording",
+    "published": "Published",
+    "pending": "Pending",
+    "review": "Review Content",
+    "delete": "Delete Content"
+  },
+  "trustRing": {
+    "level": "LEVEL"
+  },
+  "analyticsCard": {
+    "ariaUp": "Story analytics. {{views}} views in the last 7 days, up {{percent}} percent. Opens My Stories.",
+    "ariaDown": "Story analytics. {{views}} views in the last 7 days, down {{percent}} percent. Opens My Stories.",
+    "ariaEmpty": "Story analytics. Publish a story to see how it is doing. Opens My Stories.",
+    "title": "Story analytics",
+    "period": "Last 7 days",
+    "loadError": "Couldn't load your analytics right now.",
+    "empty": "Once a story of yours is published, you'll see how many people watched and loved it here.",
+    "views": "views",
+    "comparisonUp": "More than the {{number}} views in the 7 days before",
+    "comparisonDown": "Fewer than the {{number}} views in the 7 days before",
+    "totalViews": "Total views",
+    "likes": "Likes",
+    "comments": "Comments",
+    "published": "Published"
+  },
+  "preview": {
+    "typeVideo": "Video story",
+    "typeAudio": "Audio story",
+    "typeWritten": "Written story",
+    "title": "Story preview",
+    "viewAsAria": "View this story as listeners see it",
+    "viewAs": "View as listeners see it",
+    "notInFeed": "This story isn't showing in the Home feed yet. Please try again in a moment.",
+    "backAria": "Back to story analytics"
+  },
+  "dashboard": {
+    "trustAria": "Open your Knowledge Keeper progress",
+    "trustTitle": "Knowledge Keeper",
+    "trustSubtitle_one": "Level {{level}} • {{count}} Story shared",
+    "trustSubtitle_other": "Level {{level}} • {{count}} Stories shared",
+    "recordTitle": "Record a new story",
+    "recordSubtitle": "Share your memories clearly",
+    "requestsTitle": "Requests for you",
+    "requestAvatarAria": "{{name}}'s profile photo",
+    "requestAsked": "Asked about: {{topic}}",
+    "requestTopic": "Early life in Colombo",
+    "reply": "Reply with voice",
+    "yourStories": "Your Stories",
+    "noStories": "You haven't recorded any stories yet.",
+    "viewAll": "View All"
+  },
+  "analytics": {
+    "title": "Story analytics",
+    "loadError": "Couldn't load this story's analytics. Check your connection and try again.",
+    "publishedOn": "Published {{date}}",
+    "totalViews": "total views",
+    "summaryUp": "{{views}} views in the last 7 days, more than the {{previous}} before",
+    "summaryDown": "{{views}} views in the last 7 days, fewer than the {{previous}} before",
+    "views": "Views",
+    "likes": "Likes",
+    "comments": "Comments",
+    "last7Days": "Views in the last 7 days",
+    "reviewsTitle": "Reviews & ratings",
+    "noRatings": "No ratings yet",
+    "ratedAria": "Rated {{rating}} out of 5",
+    "overallRating_one": "Your overall rating from {{count}} person you've worked with",
+    "overallRating_other": "Your overall rating from {{count}} people you've worked with",
+    "noComments": "No comments on this story yet.",
+    "dailyViewsAria": "Daily views: {{values}}",
+    "reviewerPhoto": "{{name}}'s photo"
+  },
+  "stories": {
+    "headerTitle": "My Stories",
+    "fallbackName": "there",
+    "greetingTitle": "Your Stories, {{name}}",
+    "greetingSubtitle_one": "{{count}} story shared · loved by your family and community",
+    "greetingSubtitle_other": "{{count}} stories shared · loved by your family and community",
+    "inProgress": "In progress",
+    "published": "Published",
+    "tabAria_one": "{{label}}, {{count}} story",
+    "tabAria_other": "{{label}}, {{count}} stories",
+    "loadError": "Couldn't load your stories",
+    "loadErrorHint": "Check your connection and try again.",
+    "noMatch": "No stories match \"{{query}}\".",
+    "emptyTitle": "Your stories will appear here once you share one",
+    "emptyText": "Every memory you record or write becomes part of your family's story.",
+    "newStory": "New Story",
+    "emptyPublished": "No published stories yet. Once a story is approved, it will appear here with its views, likes and reviews.",
+    "emptyInProgress": "Nothing in progress right now."
+  },
+  "trust": {
+    "title": "Trust Score",
+    "loadError": "Couldn't load your Knowledge Keeper progress.",
+    "pill": "Knowledge Keeper",
+    "supporting": "Your Knowledge Keeper level grows every time you share a story or someone learns from your words.",
+    "storiesShared_one": "{{count}} Story Shared",
+    "storiesShared_other": "{{count}} Stories Shared",
+    "preserving": "You are actively preserving knowledge for future generations.",
+    "level": "Level {{level}}",
+    "nextMilestone_one": "{{count}} more story to reach Level {{level}}",
+    "nextMilestone_other": "{{count}} more stories to reach Level {{level}}",
+    "reached": "Reached",
+    "maxLevel": "You've reached the highest Knowledge Keeper level — thank you for sharing so much with your family and community.",
+    "reviewsAria": "Reviews and ratings. See what people have said about you.",
+    "reviewsTitle": "Reviews & Ratings",
+    "reviewsSubtitle": "See what people have said about you"
+  },
+  "reviews": {
+    "title": "Reviews & Ratings",
+    "loadError": "Couldn't load your reviews",
+    "loadErrorHint": "Check your connection and try again.",
+    "summaryAria_one": "Average rating {{rating}} out of 5, based on {{count}} review",
+    "summaryAria_other": "Average rating {{rating}} out of 5, based on {{count}} reviews",
+    "averageCaption": "AVERAGE RATING",
+    "stars": "{{rating}} out of 5 stars",
+    "basedOn_one": "Based on {{count}} review",
+    "basedOn_other": "Based on {{count}} reviews",
+    "empty": "Your reviews will appear here as people you've worked with share their feedback.",
+    "rated": "Rated {{score}} out of 5"
+  },
+  "method": {
+    "headline": "Share your story",
+    "subheadline": "Choose how you'd like to tell it",
+    "audio": "Audio",
+    "audioDesc": "Speak and we'll record your voice",
+    "video": "Video",
+    "videoDesc": "Record yourself on camera",
+    "written": "Written",
+    "writtenDesc": "Speak and we'll write it down for you"
+  },
+  "recording": {
+    "startOver": "Start Over",
+    "finish": "Finish",
+    "useThis": "Use this recording",
+    "done": "Done",
+    "pausedAria": "Paused, tap to resume",
+    "recordingAria": "Recording, tap to pause",
+    "audioInstruction": "Speak naturally — we're recording your story, just as you tell it.",
+    "paused": "Paused",
+    "recording": "Recording…",
+    "resume": "Resume recording",
+    "pause": "Pause recording",
+    "videoInstructionRecording": "Tell your story on camera — tap Finish when you're done.",
+    "videoInstructionIdle": "Frame your shot, then tap the button to start recording.",
+    "cameraPermission": "Legacy Lens needs camera and microphone access to record a video story.",
+    "grantAria": "Grant camera and microphone access",
+    "grant": "Grant access",
+    "startVideoAria": "Start recording video"
+  },
+  "speech": {
+    "idle": {
+      "label": "Tap to speak",
+      "accessibilityLabel": "Tap to speak"
+    },
+    "requestingPermission": {
+      "label": "Checking microphone access…"
+    },
+    "permissionDenied": {
+      "title": "Microphone access needed",
+      "body": "Legacy Lens needs microphone access to turn your voice into text.",
+      "openSettings": "Open Settings"
+    },
+    "preparing": {
+      "label": "Getting ready…"
+    },
+    "recording": {
+      "label": "Listening… tap to finish",
+      "accessibilityLabel": "Listening, tap to finish",
+      "autoStopWarning": "Finishing in {{seconds}}…"
+    },
+    "tooShort": {
+      "message": "That was too short. Please try again.",
+      "retry": "Try again"
+    },
+    "uploading": {
+      "label": "Writing it down…",
+      "accessibilityLabel": "Writing it down, please wait"
+    },
+    "lowConfidence": {
+      "message": "Please check the words — we're not fully sure we heard you right.",
+      "retry": "Try again"
+    },
+    "noSpeechDetected": {
+      "message": "We couldn't hear anything.",
+      "tip1": "Find a quiet place",
+      "tip2": "Hold the phone close to your mouth",
+      "tip3": "Speak slowly",
+      "retry": "Try again"
+    },
+    "networkError": {
+      "message": "Couldn't reach the server. Check your connection and try again.",
+      "retry": "Try again"
+    },
+    "serverError": {
+      "message": "Something went wrong. We've kept your recording — please try again.",
+      "retry": "Try again"
+    },
+    "sessionExpired": {
+      "message": "Please sign in again to keep using voice typing."
+    }
+  },
+  "voiceTyping": {
+    "instruction": "Press the mic. Say a bit of your story, then pause — we'll write it down and you can keep going.",
+    "cancelAria": "Cancel this recording"
+  },
+  "form": {
+    "loadError": "Couldn't load this story.",
+    "genericError": "Something went wrong. Please try again.",
+    "errors": {
+      "empty": "this field is empty",
+      "addStory": "add your story before submitting",
+      "recordingRequired": "a recording is required before submitting"
+    },
+    "headlineEdit": "Edit your story",
+    "headlineReview": "Review your story",
+    "subheadline": "Give it a title and a little context",
+    "readOnly": "This story is {{status}} and can't be edited.",
+    "title": "Title",
+    "titlePlaceholder": "Give your story a title",
+    "description": "Description",
+    "descriptionPlaceholder": "Add a little context for this story…",
+    "yourStory": "Your story",
+    "video": "Video",
+    "voice": "Voice recording",
+    "storyPlaceholder": "Speak or type your story…",
+    "noRecording": "No recording attached",
+    "thumbnail": "Thumbnail",
+    "saving": "Saving…",
+    "saveDraft": "Save as Draft",
+    "submitForReview": "Submit for Review",
+    "deleteContent": "Delete Content",
+    "deleteTitle": "Delete this story?",
+    "deleteMessage": "This can't be undone — the recording and details will be permanently removed.",
+    "deleting": "Deleting…",
+    "delete": "Delete",
+    "discardTitle": "Discard this story?",
+    "discardMessage": "Your recording and anything you've written here will be lost.",
+    "discard": "Discard",
+    "keepEditing": "Keep editing",
+    "thumbnailFailedTitle": "Thumbnail not saved",
+    "thumbnailFailed": "Your story was saved, but the thumbnail couldn't be uploaded. You can add it again by editing the story."
+  },
+  "recorder": {
+    "micNeededTitle": "Microphone access needed",
+    "micNeededBody": "Legacy Lens needs microphone access to record your story.",
+    "started": "Recording started",
+    "stopped": "Recording stopped",
+    "cameraFailed": "The camera failed to start.",
+    "cameraErrorTitle": "Camera error",
+    "problemTitle": "Recording problem",
+    "notSaved": "The recording didn't save properly. Please try again.",
+    "failedTitle": "Recording failed",
+    "startFailed": "Something went wrong starting the recording.",
+    "genericFailed": "Something went wrong."
+  },
+  "micOrb": {
+    "start": "Start recording"
+  },
+  "storyCards": {
+    "open": "Open story: {{title}}"
+  },
+  "search": {
+    "placeholder": "Search your stories…",
+    "stopVoice": "Stop voice search",
+    "speak": "Search by speaking"
+  },
+  "creatorApps": {
+    "title": "Creators who applied",
+    "subtitle": "Creators who want to help with your stories",
+    "empty": "No creators have applied yet. We'll let you know when they do.",
+    "loadError": "Couldn't load the creators. Check your connection and try again.",
+    "appliedTo": "Applied to: {{title}}",
+    "accept": "Accept",
+    "accepting": "Accepting…",
+    "decline": "Decline",
+    "acceptAria": "Accept {{name}} for this request",
+    "declineAria": "Decline {{name}}",
+    "statusPending": "Waiting for your reply",
+    "statusAccepted": "Accepted",
+    "statusBooked": "Booked",
+    "statusDeclined": "Not selected",
+    "chat": "Chat with {{name}}",
+    "chatAria": "Open a chat with {{name}}",
+    "chatError": "Couldn't open the chat. Please try again.",
+    "actionError": "That didn't work. Please try again.",
+    "creatorFallback": "Creator"
+  },
+  "inbox": {
+    "headerTitle": "Messages"
+  },
+  "dashboardMessages": {
+    "empty": "No creator has messaged you yet. When one does, you'll see them here.",
+    "loadError": "Couldn't load your messages. Check your connection and try again.",
+    "about": "About: {{title}}",
+    "openChat": "Open chat",
+    "unreadAria": "{{count}} new messages",
+    "viewAll": "See all messages",
+    "voiceMessage": "Voice message",
+    "noMessagesYet": "No messages yet — say hello!",
+    "you": "You: "
+  }
+}

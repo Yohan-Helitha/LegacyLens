@@ -3,6 +3,7 @@ package lk.ac.sliit.legacylens.marketplace.repository;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
 import lk.ac.sliit.legacylens.marketplace.entity.OpportunityStatus;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,9 +21,14 @@ public interface OpportunityRepository extends JpaRepository<Opportunity, UUID> 
     List<Opportunity> findRecommended(@Param("status") OpportunityStatus status, Pageable pageable);
 
     /** Backs "Urgent Missions" — soonest deadline first. */
+    @EntityGraph(attributePaths = {"elder", "elder.city"})
     List<Opportunity> findByStatusAndUrgentTrueOrderByDueAtAsc(OpportunityStatus status, Pageable pageable);
 
-    /** Backs "Recent Postings" — newest first. */
+    /**
+     * Backs "Recent Postings" — newest first. The knowledge holder and their city come in the same query,
+     * because every card shows them (otherwise each card costs two more trips to the database).
+     */
+    @EntityGraph(attributePaths = {"elder", "elder.city"})
     List<Opportunity> findByStatusOrderByCreatedAtDesc(OpportunityStatus status, Pageable pageable);
 
     List<Opportunity> findByStatus(OpportunityStatus status);
@@ -39,11 +45,15 @@ public interface OpportunityRepository extends JpaRepository<Opportunity, UUID> 
      * the filters actually in effect. {@code text} is what the creator typed in the search box: it matches
      * the title, description, location, category or the knowledge holder's name. "Nearby" is resolved by the service
      * into a location string (the creator's own city) before calling this.
+     *
+     * <p>A filter that is not in effect is passed as an empty string, never null: PostgreSQL cannot work out the
+     * type of a null that sits inside LOWER(CONCAT(...)), and the whole search then fails instead of matching.
      */
+    @EntityGraph(attributePaths = {"elder", "elder.city"})
     @Query("SELECT o FROM Opportunity o LEFT JOIN o.elder e WHERE o.status = :status "
-            + "AND (:category IS NULL OR LOWER(o.category) LIKE LOWER(CONCAT('%', :category, '%'))) "
-            + "AND (:location IS NULL OR LOWER(o.location) LIKE LOWER(CONCAT('%', :location, '%'))) "
-            + "AND (:text IS NULL OR LOWER(o.title) LIKE LOWER(CONCAT('%', :text, '%')) "
+            + "AND (:category = '' OR LOWER(o.category) LIKE LOWER(CONCAT('%', :category, '%'))) "
+            + "AND (:location = '' OR LOWER(o.location) LIKE LOWER(CONCAT('%', :location, '%'))) "
+            + "AND (:text = '' OR LOWER(o.title) LIKE LOWER(CONCAT('%', :text, '%')) "
             + "  OR LOWER(o.description) LIKE LOWER(CONCAT('%', :text, '%')) "
             + "  OR LOWER(o.location) LIKE LOWER(CONCAT('%', :text, '%')) "
             + "  OR LOWER(o.category) LIKE LOWER(CONCAT('%', :text, '%')) "

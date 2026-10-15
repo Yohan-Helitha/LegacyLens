@@ -616,6 +616,11 @@ export const HomeScreen: React.FC<{
             { useNativeDriver: false }
           )}
           scrollEventThrottle={16}
+          // Keep only a few cards mounted around the screen (the default keeps ~10 screens' worth alive).
+          initialNumToRender={3}
+          maxToRenderPerBatch={3}
+          windowSize={5}
+          removeClippedSubviews
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
           refreshControl={

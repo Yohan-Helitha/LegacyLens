@@ -85,6 +85,10 @@ const RejectedCard: React.FC<{
 
   return (
     <View style={s.card}>
+      <View style={s.statusRow}>
+        <WorkStatusChip status={progress?.workStatus ?? 'REJECTED'} />
+      </View>
+
       <View style={s.cardPhotoWrapper}>
         <Image
           source={resolveOpportunityImage(heroImageUrl) ?? GENERIC_HERO_IMAGE}
@@ -93,8 +97,6 @@ const RejectedCard: React.FC<{
           accessibilityLabel={job.title}
         />
       </View>
-
-      <WorkStatusChip status={progress?.workStatus ?? 'REJECTED'} />
 
       <Text style={s.cardTitle} numberOfLines={2}>{job.title}</Text>
 
@@ -127,6 +129,7 @@ const RejectedCard: React.FC<{
           elderFeedbackAt={progress?.elderFeedbackAt}
           adminFeedback={progress?.adminFeedback}
           adminFeedbackAt={progress?.adminFeedbackAt}
+          showEmpty
         />
       ) : (
         !progress?.rejectionReason && (
@@ -155,7 +158,9 @@ export const RejectedWorkPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onBack: () => void;
   onEditWork: (jobId: string, title: string, elderName: string, location: string | null) => void;
-}> = ({ onNavigate, onBack, onEditWork }) => {
+  /** Called once the creator has seen what is rejected, so the menu's red number can clear. */
+  onSeen: () => void;
+}> = ({ onNavigate, onBack, onEditWork, onSeen }) => {
   const [jobs, setJobs] = useState<JobResponse[]>([]);
   const [progressByJobId, setProgressByJobId] = useState<Record<string, WorkProgressResponse>>({});
   const [loading, setLoading] = useState(true);
@@ -166,10 +171,10 @@ export const RejectedWorkPage: React.FC<{
     setLoading(true);
     setLoadError(null);
 
-    Promise.all([creatorDashboardApi.getJobs('UPCOMING'), creatorDashboardApi.getJobs('ACTIVE')])
-      .then(async ([upcoming, active]) => {
+    // The jobs and all their progress side by side - not one request per job in a queue.
+    Promise.all([creatorDashboardApi.getJobs('UPCOMING'), creatorDashboardApi.getJobs('ACTIVE'), workProgressApi.listMine()])
+      .then(([upcoming, active, progressList]) => {
         const candidates = [...upcoming, ...active];
-        const progressList = await Promise.all(candidates.map((job) => workProgressApi.getProgress(job.id)));
         if (cancelled) return;
 
         const progressMap: Record<string, WorkProgressResponse> = {};
@@ -192,6 +197,12 @@ export const RejectedWorkPage: React.FC<{
       cancelled = true;
     };
   }, []);
+
+  // Looking at the page is what clears the menu's red number - but only once the list has really loaded.
+  useEffect(() => {
+    if (loading || loadError) return;
+    workProgressApi.markRejectedSeen().then(onSeen).catch(() => {});
+  }, [loading, loadError, onSeen]);
 
   const rejectedJobs = useMemo(
     () => jobs.filter((job) => progressByJobId[job.id]?.rejected),
@@ -268,6 +279,8 @@ export default RejectedWorkPage;
 // ─────────────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
+
+  statusRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm },
 
   headerSection: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: Spacing.xs, gap: 4 },
   pageHeading: {

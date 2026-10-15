@@ -15,6 +15,7 @@ const LOCAL_OPPORTUNITY_IMAGES: Record<string, ImageSourcePropType> = {
   'pottery-craft': require('../../assets/images/opportunities/pottery-craft.jpg'),
   'war-veteran': require('../../assets/images/opportunities/war-veteran.jpg'),
   'mask-collection': require('../../assets/images/opportunities/mask-collection.jpg'),
+  'education': require('../../assets/images/opportunities/education.png'),
 };
 
 export function resolveOpportunityImage(heroImageUrl: string | null): ImageSourcePropType | undefined {

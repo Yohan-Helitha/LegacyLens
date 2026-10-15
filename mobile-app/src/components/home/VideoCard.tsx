@@ -6,7 +6,7 @@ import { styles } from './VideoCard.styles';
 import { FeedCardActions } from './FeedCardActions';
 import { VideoLoader } from './VideoLoader';
 import { homeApi } from '../../services/api/homeApi';
-import { getMediaUrl } from '../../constants/api';
+import { getMediaUrl, resolveImageUrl } from '../../constants/api';
 
 export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModalVisible, onNavigate, loadedVideoIds, onLikeChange }: any) => {
   const [isMuted, setIsMuted] = useState(false);
@@ -18,7 +18,12 @@ export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModal
     ? getMediaUrl(rawUrl.startsWith('/uploads/') ? rawUrl : (rawUrl.startsWith('uploads/') ? `/${rawUrl}` : `/uploads/${rawUrl.replace(/^\/+/, '')}`))
     : (rawUrl || 'https://www.w3schools.com/html/mov_bbb.mp4');
   const source = { uri: resolvedVideoUri };
-  const player = useVideoPlayer(source, (p) => {
+  const rawPoster = v.thumbnail || item?.thumbnail || item?.imageUrl;
+  const posterUri = rawPoster ? resolveImageUrl(rawPoster) : null;
+  // Only the card that is actually playing gets a source. Every card in the feed used to open its video
+  // straight away, so a few screens of videos were all being downloaded and buffered at once, which ran the
+  // app out of memory (java.lang.OutOfMemoryError inside okhttp's HTTP/2 reader). A null source loads nothing.
+  const player = useVideoPlayer(isPlaying ? source : null, (p) => {
     p.loop = true;
     p.muted = isMuted;
   });
@@ -54,9 +59,12 @@ export const VideoCard = ({ v, isPlaying, item, setActivePostId, setCommentModal
     <TouchableOpacity activeOpacity={0.9} onPress={() => onNavigate?.('video', item || v)} style={styles.premiumCard}>
       <View style={styles.premiumHeroBox}>
         {(showLoader && !isReady) ? <VideoLoader /> : null}
+        {!!posterUri && !isPlaying && (
+          <Image source={{ uri: posterUri }} style={[styles.premiumHeroImg, { position: 'absolute' }]} resizeMode="cover" />
+        )}
         <VideoView
           player={player}
-          style={[styles.premiumHeroImg, !isReady && { opacity: 0 }]}
+          style={[styles.premiumHeroImg, (!isReady || !isPlaying) && { opacity: 0 }]}
           contentFit="cover"
           nativeControls={false}
         />

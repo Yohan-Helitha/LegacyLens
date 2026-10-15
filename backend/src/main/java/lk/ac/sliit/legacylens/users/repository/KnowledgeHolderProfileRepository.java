@@ -10,5 +10,4 @@ import java.util.UUID;
 @Repository
 public interface KnowledgeHolderProfileRepository extends JpaRepository<KnowledgeHolderProfile, UUID> {
 
-    Optional<KnowledgeHolderProfile> findByUserId(UUID userId);
-}
+    Optional<KnowledgeHolderProfile> findByUserId(UUID userId);}

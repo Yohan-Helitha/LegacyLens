@@ -44,9 +44,11 @@ class OpportunityApplicationResponseMapper {
                 .equipment(splitCsv(application.getEquipment()))
                 .languages(LanguageSkills.toResponses(LanguageSkills.deserialize(application.getLanguages())))
                 .status(application.getStatus().name())
+                .urgent(opportunity.isUrgent())
                 .savedAt(application.getSavedAt())
                 .submittedAt(application.getSubmittedAt())
                 .rejectionSeenAt(application.getRejectionSeenAt())
+                .decidedAt(application.getDecidedAt())
                 .build();
     }
 

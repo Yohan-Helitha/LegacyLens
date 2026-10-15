@@ -77,13 +77,6 @@ public class FileStorageService {
         if (file == null || file.isEmpty()) {
             throw new InvalidFileUploadException("A file is required");
         }
-        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
-            throw new InvalidFileUploadException("File must not exceed 50MB");
-        }
-
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
-            throw new InvalidFileUploadException("Only PDF, image, video or audio files are allowed");
         if (file.getSize() > maxFileSizeBytes) {
             throw new InvalidFileUploadException("File must not exceed " + (maxFileSizeBytes / (1024 * 1024)) + "MB");
         }

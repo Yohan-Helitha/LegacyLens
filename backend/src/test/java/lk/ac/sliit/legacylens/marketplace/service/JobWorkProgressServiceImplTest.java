@@ -31,6 +31,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * The rules for how a creator's work moves from Prep to Record to Edit to Submit: what can be ticked,
@@ -46,6 +48,7 @@ class JobWorkProgressServiceImplTest {
     @Mock private WorkChecklistProgressRepository checklistProgressRepository;
     @Mock private OpportunityRepository opportunityRepository;
     @Mock private FileStorageService fileStorageService;
+    @Mock private org.springframework.context.ApplicationEventPublisher events;
 
     private JobWorkProgressServiceImpl service;
     private final UUID creatorId = UUID.randomUUID();
@@ -57,7 +60,7 @@ class JobWorkProgressServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new JobWorkProgressServiceImpl(jobRepository, workProgressRepository, workMaterialRepository,
-                checklistItemRepository, checklistProgressRepository, opportunityRepository, fileStorageService);
+                checklistItemRepository, checklistProgressRepository, opportunityRepository, fileStorageService, events);
 
         job = new Job();
         job.setId(UUID.randomUUID());
@@ -68,7 +71,7 @@ class JobWorkProgressServiceImplTest {
         lenient().when(workProgressRepository.findByJobId(job.getId())).thenReturn(Optional.of(progress));
         lenient().when(workProgressRepository.save(any(JobWorkProgress.class))).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(checklistProgressRepository.save(any(WorkChecklistProgress.class))).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(checklistProgressRepository.findByJobIdOrderByChecklistItem_SortOrderAsc(job.getId()))
+        lenient().when(checklistProgressRepository.findWithItemByJobId(job.getId()))
                 .thenReturn(checklist);
         lenient().when(workMaterialRepository.findByJobIdOrderByUploadedAtAsc(job.getId())).thenReturn(materials);
         lenient().when(checklistProgressRepository.findByJobIdAndChecklistItemId(any(), any())).thenAnswer(inv ->
@@ -100,6 +103,38 @@ class JobWorkProgressServiceImplTest {
     }
 
     // ── Ticking ─────────────────────────────────────────────────────────────
+
+    @Test
+    void listMyProgress_buildsEveryJobFromAFewBatchQueries_andStartsProgressForAJobNeverOpened() {
+        Job second = new Job();
+        second.setId(UUID.randomUUID());
+        second.setTitle("Never opened");
+        org.mockito.Mockito.when(jobRepository.findByCreatorIdAndStatusIn(any(), any())).thenReturn(List.of(job, second));
+        org.mockito.Mockito.when(workProgressRepository.findByJobIdIn(any())).thenReturn(List.of(progress));
+        org.mockito.Mockito.when(workProgressRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+        org.mockito.Mockito.when(checklistProgressRepository.findWithItemByJobIdIn(any())).thenReturn(List.of());
+        org.mockito.Mockito.when(workMaterialRepository.findByJobIdInOrderByUploadedAtAsc(any())).thenReturn(List.of());
+
+        List<lk.ac.sliit.legacylens.marketplace.dto.WorkProgressResponse> all = service.listMyProgress(creatorId);
+
+        assertThat(all).extracting(lk.ac.sliit.legacylens.marketplace.dto.WorkProgressResponse::getJobId)
+                .containsExactly(job.getId(), second.getId());
+        // One batch query for the progress records - never one lookup per job.
+        org.mockito.Mockito.verify(workProgressRepository, org.mockito.Mockito.times(1)).findByJobIdIn(any());
+        org.mockito.Mockito.verify(workProgressRepository, org.mockito.Mockito.never()).findByJobId(second.getId());
+        org.mockito.Mockito.verify(workProgressRepository).saveAll(any());
+    }
+
+    @Test
+    void openingRejectedSubmissionsClearsTheNewCount() {
+        progress.setRejected(true);
+        when(workProgressRepository.findByJobCreatorIdAndRejectedTrueAndRejectionSeenAtIsNull(creatorId)).thenReturn(List.of(progress));
+
+        service.markRejectedSeen(creatorId);
+
+        assertThat(progress.getRejectionSeenAt()).isNotNull();
+        verify(workProgressRepository).saveAll(List.of(progress));
+    }
 
     @Test
     void aPrepTask_isTickedByHand() {

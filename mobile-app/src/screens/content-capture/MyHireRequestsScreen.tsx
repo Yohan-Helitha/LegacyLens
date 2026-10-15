@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { CircleAlert, HandHeart, Plus, Sparkles, X } from 'lucide-react-native';
-import { Header, UserFooter } from '../../components/common';
+import { ConfirmDialog, Header, UserFooter } from '../../components/common';
 import type { UserTabKey } from '../../components/common';
 import {
+  CreatorApplicationCard,
   ElderNavDrawer,
   HireActionButton,
   HireRequestCard,
@@ -14,6 +16,8 @@ import type { ElderDrawerItem } from '../../components/module-specific/content-c
 import { useHireRequests } from '../../hooks/useHireRequests';
 import type { HireRequestItem } from '../../hooks/useHireRequests';
 import { useHireStrings } from '../../hooks/useHireStrings';
+import { useElderApplications } from '../../hooks/useElderApplications';
+import { useTranslation } from 'react-i18next';
 import { Typography, Spacing, Radii } from '../../theme';
 
 interface MyHireRequestsScreenProps {
@@ -22,6 +26,8 @@ interface MyHireRequestsScreenProps {
   onPostRequest?: () => void;
   onViewApplicants?: (request: HireRequestItem) => void;
   onMessageCreator?: (request: HireRequestItem) => void;
+  /** Opens the chat with a creator whose application the elder accepted. */
+  onOpenChat?: (conversationId: string) => void;
   onTabPress?: (tab: UserTabKey) => void;
   onDrawerNavigate?: (item: ElderDrawerItem) => void;
   onLogout?: () => void;
@@ -37,14 +43,37 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
   onPostRequest,
   onViewApplicants,
   onMessageCreator,
+  onOpenChat,
   onTabPress,
   onDrawerNavigate,
   onLogout,
 }) => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [noticeDismissed, setNoticeDismissed] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
   const { t } = useHireStrings();
-  const { requests, loading, refreshing, loadError, refresh, reload } = useHireRequests();
+  const { t: tc } = useTranslation('contentCapture');
+  const creatorApps = useElderApplications();
+  const { requests, loading, refreshing, loadError, deletingId, deleteError, refresh, reload, removeRequest } =
+    useHireRequests();
+
+  const handleChat = async (application: Parameters<typeof creatorApps.openChat>[0]) => {
+    const conversationId = await creatorApps.openChat(application);
+    if (conversationId) onOpenChat?.(conversationId);
+  };
+
+  const refreshAll = () => {
+    refresh();
+    creatorApps.refresh();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return;
+    if (await removeRequest(deleteTargetId)) setDeleteTargetId(null);
+    // On failure, leave the dialog open with removeRequest's own `deleting`
+    // state cleared — the elder sees the inline deleteError text and can retry.
+  };
 
   const showNotice = justPosted && !noticeDismissed;
   const showEmpty = !loading && !loadError && requests.length === 0;
@@ -67,8 +96,8 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={refresh}
+            refreshing={refreshing || creatorApps.refreshing}
+            onRefresh={refreshAll}
             tintColor={D.primary}
             colors={[D.primary]}
           />
@@ -141,6 +170,8 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
                 item={request}
                 onViewApplicants={onViewApplicants}
                 onMessage={onMessageCreator}
+                onRequestDelete={(item) => setDeleteTargetId(item.id)}
+                deleting={deletingId === request.id}
               />
             ))}
 
@@ -152,7 +183,71 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
             />
           </View>
         )}
+
+        {/* Creators who applied to this elder's marketplace opportunities — accept one, then chat. */}
+        <View style={s.applicantsSection}>
+          <Text style={s.sectionTitle} accessibilityRole="header">
+            {tc('creatorApps.title')}
+          </Text>
+          <Text style={s.sectionSubtitle}>{tc('creatorApps.subtitle')}</Text>
+
+          {creatorApps.loading && creatorApps.applications.length === 0 && (
+            <ActivityIndicator size="small" color={D.primary} accessibilityLabel={t('common.loading')} />
+          )}
+
+          {creatorApps.loadError && creatorApps.applications.length === 0 && (
+            <View style={s.inlineState}>
+              <Text style={s.stateBody}>{tc('creatorApps.loadError')}</Text>
+              <HireActionButton label={t('common.retry')} variant="neutral" onPress={creatorApps.reload} />
+            </View>
+          )}
+
+          {!creatorApps.loading && !creatorApps.loadError && creatorApps.applications.length === 0 && (
+            <Text style={s.stateBody}>{tc('creatorApps.empty')}</Text>
+          )}
+
+          {creatorApps.actionError !== null && (
+            <Text style={s.errorText} accessibilityRole="alert" accessibilityLiveRegion="polite">
+              {creatorApps.actionError || tc('creatorApps.actionError')}
+            </Text>
+          )}
+
+          {creatorApps.applications.map((application) => (
+            <CreatorApplicationCard
+              key={application.id}
+              application={application}
+              busy={creatorApps.busyId === application.id}
+              locked={creatorApps.busyId !== null}
+              onAccept={(item) => creatorApps.approve(item.id)}
+              onDecline={(item) => creatorApps.reject(item.id)}
+              onChat={handleChat}
+            />
+          ))}
+        </View>
       </ScrollView>
+
+      {/* Persistent shortcut to post a new request — the drawer no longer has
+          a direct "Hire a Creator" item, so this (plus the inline button at
+          the end of the list, and the empty state's own CTA) is how a new
+          request gets started from here. */}
+      <Pressable
+        onPress={onPostRequest}
+        style={({ pressed }) => [
+          s.fab,
+          // UserFooter's own container is a fixed 64px tall, plus whatever
+          // bottom safe-area inset this device needs under it (its own
+          // SafeAreaView adds that padding) — bottom:76 alone undershot that
+          // inset on a phone with a tall gesture bar, so the button sat
+          // right on the footer instead of floating above it.
+          { bottom: 64 + insets.bottom + Spacing.md },
+          pressed && s.pressedLight,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={t('requests.askForHelp')}
+      >
+        <HandHeart size={22} color={D.onPrimary} strokeWidth={2} />
+        <Text style={s.fabText}>{t('requests.askForHelp')}</Text>
+      </Pressable>
 
       <UserFooter activeTab="home" onTabSelect={(tab) => onTabPress?.(tab)} />
 
@@ -162,6 +257,16 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
         activeItem="myRequests"
         onNavigate={onDrawerNavigate}
         onLogout={onLogout}
+      />
+
+      <ConfirmDialog
+        visible={!!deleteTargetId}
+        title={t('requests.deleteConfirmTitle')}
+        message={deleteError ? `${t('requests.deleteConfirmBody')}\n\n${t('requests.deleteError')}` : t('requests.deleteConfirmBody')}
+        confirmLabel={deletingId === deleteTargetId ? t('requests.deleting') : t('requests.deleteAction')}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setDeleteTargetId(null)}
+        onConfirm={confirmDelete}
       />
     </View>
   );
@@ -175,7 +280,8 @@ const s = StyleSheet.create({
     flexGrow: 1,
     paddingTop: Spacing.lg,
     paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xl,
+    // Clears the floating "Ask for help" button so the last card's actions stay tappable.
+    paddingBottom: 160,
     gap: Spacing.md,
   },
   title: {
@@ -206,6 +312,27 @@ const s = StyleSheet.create({
   noticeClose: { width: 44, height: 44, margin: -10, alignItems: 'center', justifyContent: 'center' },
 
   list: { gap: Spacing.md },
+
+  applicantsSection: { gap: Spacing.sm, marginTop: Spacing.sm },
+  sectionTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeXL,
+    lineHeight: 34,
+    color: D.onSurface,
+  },
+  sectionSubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    lineHeight: 21,
+    color: D.onSurfaceVariant,
+  },
+  inlineState: { gap: Spacing.sm },
+  errorText: {
+    fontFamily: Typography.fontBodyMed,
+    fontSize: Typography.sizeSM,
+    lineHeight: 22,
+    color: '#ba1a1a',
+  },
 
   centered: {
     alignItems: 'center',
@@ -259,6 +386,28 @@ const s = StyleSheet.create({
     textAlign: 'center',
   },
   stateBtn: { alignSelf: 'stretch', marginTop: Spacing.md },
+
+  // Matches your_stories.tsx's own FAB positioning (bottom: 76 clears the
+  // UserFooter without overlapping it) — mango/secondary instead of teal so
+  // it reads as a distinct action from "New Request".
+  fab: {
+    position: 'absolute',
+    right: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: D.secondary,
+    borderRadius: Radii.full,
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.md,
+    shadowColor: D.secondary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  fabText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onPrimary },
+  pressedLight: { opacity: 0.88 },
 });
 
 export default MyHireRequestsScreen;

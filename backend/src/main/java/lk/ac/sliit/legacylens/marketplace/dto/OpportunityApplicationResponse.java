@@ -47,8 +47,12 @@ public class OpportunityApplicationResponse {
     private List<LanguageSkillResponse> languages;
 
     private String status;
+    /** Whether the opportunity is urgent - its cards get a red edge. */
+    private boolean urgent;
     private LocalDateTime savedAt;
     private LocalDateTime submittedAt;
     /** Null while a rejection has not been looked at yet. */
     private LocalDateTime rejectionSeenAt;
+    /** When it was approved or rejected; null while undecided. */
+    private LocalDateTime decidedAt;
 }

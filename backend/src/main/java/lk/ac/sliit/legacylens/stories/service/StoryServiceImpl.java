@@ -3,7 +3,7 @@ package lk.ac.sliit.legacylens.stories.service;
 import lk.ac.sliit.legacylens.common.exception.ForbiddenOperationException;
 import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
-import lk.ac.sliit.legacylens.common.storage.FileStorageService;
+import lk.ac.sliit.legacylens.common.storage.MediaStorageService;
 import lk.ac.sliit.legacylens.stories.dto.CreateStoryRequest;
 import lk.ac.sliit.legacylens.stories.dto.StoryResponse;
 import lk.ac.sliit.legacylens.stories.dto.UpdateStoryRequest;
@@ -27,8 +27,9 @@ import java.util.stream.Collectors;
 /**
  * Owns story creation and retrieval — the backend side of the mobile app's
  * record → review → save flow (RecordCapture/upload → StoryDetails). Media
- * bytes are delegated to FileStorageService; this class only ever deals in
- * relative paths.
+ * bytes are delegated to MediaStorageService; this class only ever deals in
+ * the complete URL it hands back (local /uploads/... or a Supabase Storage
+ * public URL — see that class's own doc comment).
  */
 @Service
 public class StoryServiceImpl implements StoryService {
@@ -36,21 +37,29 @@ public class StoryServiceImpl implements StoryService {
     /** Subfolder under the storage root that story clips are saved into. */
     private static final String MEDIA_SUBFOLDER = "stories";
 
+    /**
+     * Supabase bucket for story cover images (must exist and be public). Only images stored in this bucket are ever
+     * deleted when replaced - never an image an admin set elsewhere.
+     */
+    private static final String THUMBNAIL_BUCKET = "story-thumbnail";
+    private static final String THUMBNAIL_SUBFOLDER = "covers";
+    private static final long MAX_THUMBNAIL_BYTES = 5L * 1024 * 1024;
+
     private final StoryRepository storyRepository;
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
-    private final FileStorageService fileStorageService;
+    private final MediaStorageService mediaStorageService;
 
     public StoryServiceImpl(
             StoryRepository storyRepository,
             UserRepository userRepository,
             UserRoleRepository userRoleRepository,
-            FileStorageService fileStorageService) {
+            MediaStorageService mediaStorageService) {
 
         this.storyRepository = storyRepository;
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
-        this.fileStorageService = fileStorageService;
+        this.mediaStorageService = mediaStorageService;
     }
 
     @Override
@@ -114,18 +123,47 @@ public class StoryServiceImpl implements StoryService {
         Story story = getOwnedStory(userId, storyId);
 
         if (story.getMediaFilePath() != null) {
-            fileStorageService.delete(story.getMediaFilePath());
+            mediaStorageService.delete(story.getMediaFilePath());
         }
 
         storyRepository.delete(story);
     }
 
+    @Override
+    @Transactional
+    public StoryResponse setThumbnail(UUID userId, UUID storyId, MultipartFile thumbnail) {
+        Story story = getOwnedStory(userId, storyId);
+
+        if (story.getStatus() == StoryStatus.PUBLISHED || story.getStatus() == StoryStatus.ARCHIVED) {
+            throw new InvalidRequestException("The thumbnail of a published story can't be changed");
+        }
+        if (thumbnail == null || thumbnail.isEmpty()) {
+            throw new InvalidRequestException("A thumbnail image is required");
+        }
+        String contentType = thumbnail.getContentType();
+        if (contentType == null || !contentType.toLowerCase(java.util.Locale.ROOT).startsWith("image/")) {
+            throw new InvalidRequestException("The thumbnail must be an image");
+        }
+        if (thumbnail.getSize() > MAX_THUMBNAIL_BYTES) {
+            throw new InvalidRequestException("The thumbnail must be 5 MB or smaller");
+        }
+
+        String previous = story.getImageUrl();
+        story.setImageUrl(mediaStorageService.store(thumbnail, THUMBNAIL_BUCKET, THUMBNAIL_SUBFOLDER));
+        storyRepository.save(story);
+
+        if (previous != null && previous.contains("/" + THUMBNAIL_BUCKET + "/")) {
+            mediaStorageService.delete(previous);
+        }
+        return toResponse(story);
+    }
+
     private void attachMedia(Story story, MultipartFile media, Long durationMillis) {
         MediaType mediaType = resolveMediaType(media.getContentType());
-        String relativePath = fileStorageService.store(media, MEDIA_SUBFOLDER);
+        String mediaUrl = mediaStorageService.store(media, MEDIA_SUBFOLDER);
 
         story.setMediaType(mediaType);
-        story.setMediaFilePath(relativePath);
+        story.setMediaFilePath(mediaUrl);
         story.setMediaMimeType(media.getContentType());
         story.setMediaFileSizeBytes(media.getSize());
         story.setMediaDurationMillis(durationMillis);
@@ -165,9 +203,13 @@ public class StoryServiceImpl implements StoryService {
     }
 
     private StoryResponse toResponse(Story story) {
-        String mediaUrl = story.getMediaFilePath() != null
-                ? "/uploads/" + story.getMediaFilePath()
-                : null;
+        // mediaFilePath is now a complete URL as of MediaStorageService (either
+        // "/uploads/..." or a Supabase Storage public URL) — no prefix to add here.
+        // NOTE: a story whose media was attached before this change stored a bare
+        // relative path instead, which this will return un-prefixed and broken;
+        // there's no production data affected, but re-attach media on any such
+        // story if you hit one while testing.
+        String mediaUrl = story.getMediaFilePath();
 
         return StoryResponse.builder()
                 .id(story.getId())
@@ -175,9 +217,10 @@ public class StoryServiceImpl implements StoryService {
                 .description(story.getDescription())
                 .status(story.getStatus().name())
                 .method(story.getMethod().name())
-                .mediaType(story.getMediaType() != null ? story.getMediaType().name() : null)
+                .mediaType(story.getMediaType() != null && story.getMediaType().isClip() ? story.getMediaType().name() : null)
                 .mediaUrl(mediaUrl)
                 .mediaDurationMillis(story.getMediaDurationMillis())
+                .imageUrl(story.getImageUrl())
                 .createdAt(story.getCreatedAt())
                 .updatedAt(story.getUpdatedAt())
                 .publishedAt(story.getPublishedAt())

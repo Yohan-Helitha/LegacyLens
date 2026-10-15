@@ -18,6 +18,8 @@ export interface JobRequestSummary {
   status: JobRequestStatus;
   applicantCount: number;
   createdAt: string;
+  /** Null when the request has no recorded Details clip (inputMode TEXT) — lets the card play it back inline. */
+  voiceNoteUrl: string | null;
   /**
    * Not returned by the backend's summary projection today (title only) —
    * the card falls back to `title` for its snippet until it is.
@@ -51,12 +53,19 @@ export interface JobApplicationSummary {
 
 /**
  * Region and format are deliberately not separate fields: the elder mentions
- * them in the free-text details instead (see the guidance bullets on Screen 8).
+ * them in the recorded details instead (see the guidance bullets on Screen 8).
+ *
+ * Details are voice-only — recorded, not typed or dictated — so the admin
+ * reviewing a request hears it directly rather than through a speech-to-text
+ * transcription. The backend's JobRequestSubmissionDto also accepts a text
+ * `description` and inputMode TEXT, but nothing on the mobile side sends
+ * that path anymore.
  */
 export interface SubmitHireRequestPayload {
   title: string;
-  description: string;
   inputMode: HireInputMode;
+  /** The recorded details clip — required in practice, since this screen no longer offers a text alternative. */
+  voiceNote: { uri: string; name: string; type: string };
 }
 
 /**

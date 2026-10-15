@@ -30,6 +30,5 @@ public class OpportunityCardResponse {
     private LocalDateTime dueAt;
     private String elderName;
     private String elderAvatarUrl;
-    private String elderLocation;
-    private LocalDateTime createdAt;
+    private String elderLocation;    private LocalDateTime createdAt;
 }

@@ -3,7 +3,10 @@ package lk.ac.sliit.legacylens.contentcapture.controller;
 import lk.ac.sliit.legacylens.auth.security.CustomUserDetails;
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
 import lk.ac.sliit.legacylens.common.dto.PagedResponse;
+import lk.ac.sliit.legacylens.contentcapture.dto.AnalyticsSummaryDto;
+import lk.ac.sliit.legacylens.contentcapture.dto.StoryAnalyticsDto;
 import lk.ac.sliit.legacylens.contentcapture.dto.StorySummaryDto;
+import lk.ac.sliit.legacylens.contentcapture.service.StoryAnalyticsService;
 import lk.ac.sliit.legacylens.contentcapture.service.StoryQueryService;
 import lk.ac.sliit.legacylens.contentcapture.service.StoryViewTrackingService;
 import lk.ac.sliit.legacylens.stories.entity.StoryStatus;
@@ -27,10 +30,33 @@ public class ContentController {
 
     private final StoryQueryService storyQueryService;
     private final StoryViewTrackingService storyViewTrackingService;
+    private final StoryAnalyticsService storyAnalyticsService;
 
-    public ContentController(StoryQueryService storyQueryService, StoryViewTrackingService storyViewTrackingService) {
+    public ContentController(
+            StoryQueryService storyQueryService,
+            StoryViewTrackingService storyViewTrackingService,
+            StoryAnalyticsService storyAnalyticsService) {
         this.storyQueryService = storyQueryService;
         this.storyViewTrackingService = storyViewTrackingService;
+        this.storyAnalyticsService = storyAnalyticsService;
+    }
+
+    /** Dashboard analytics card — totals and the 7-day view trend across the caller's published stories. */
+    @GetMapping("/mine/analytics/summary")
+    public ResponseEntity<ApiResponse<AnalyticsSummaryDto>> getAnalyticsSummary(
+            @AuthenticationPrincipal CustomUserDetails principal) {
+
+        return ResponseEntity.ok(ApiResponse.ok(storyAnalyticsService.getSummary(principal.getUser().getId())));
+    }
+
+    /** One of the caller's own stories: views, likes, comments (as reviews), 7-day chart and trend. */
+    @GetMapping("/{storyId}/analytics")
+    public ResponseEntity<ApiResponse<StoryAnalyticsDto>> getStoryAnalytics(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable UUID storyId) {
+
+        return ResponseEntity.ok(ApiResponse.ok(
+                storyAnalyticsService.getStoryAnalytics(principal.getUser().getId(), storyId)));
     }
 
     @GetMapping("/mine")

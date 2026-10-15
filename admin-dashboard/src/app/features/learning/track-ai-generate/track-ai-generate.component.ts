@@ -7,10 +7,12 @@ import {
   AdminTrackGenerationRequest,
   AdminGeneratedTrackPreviewDto,
   AdminGeneratedLessonDto,
+  AdminGeneratedFlashcardDto,
   AdminPublishTrackRequest,
   CommunityStorySummary,
   ApiResponse
 } from '../../../core/services/learning.service';
+import { environment } from '../../../../environments/environment';
 import { LearningSidebarComponent } from '../components/learning-sidebar/learning-sidebar.component';
 
 @Component({
@@ -173,6 +175,13 @@ export class TrackAiGenerateComponent implements OnInit {
       return;
     }
 
+    const missingAudio = this.getFlashcardsWithoutAudioCount();
+    if (missingAudio > 0) {
+      this.errorMessage = `Add audio to every flashcard before publishing (${missingAudio} still missing). Open the Flashcards tab to upload an MP3 or MP4.`;
+      this.activePreviewTab = 'FLASHCARDS';
+      return;
+    }
+
     this.isPublishing = true;
     this.errorMessage = '';
 
@@ -215,5 +224,57 @@ export class TrackAiGenerateComponent implements OnInit {
   getTotalQuestionsCount(): number {
     if (!this.preview || !this.preview.lessons) return 0;
     return this.preview.lessons.reduce((acc: number, l: AdminGeneratedLessonDto) => acc + (l.quizQuestions?.length || 0), 0);
+  }
+
+  // --- Flashcard audio ---
+
+  /** Cards with an upload in flight, and the last upload error per card. */
+  private uploadingAudio = new Set<AdminGeneratedFlashcardDto>();
+  audioErrors = new Map<AdminGeneratedFlashcardDto, string>();
+
+  /** Accepted by the audio picker; the backend checks the type and the 10 MB limit again. */
+  readonly audioAccept = 'audio/mpeg,audio/mp4,video/mp4,.mp3,.mp4,.m4a';
+
+  isAudioUploading(card: AdminGeneratedFlashcardDto): boolean {
+    return this.uploadingAudio.has(card);
+  }
+
+  getFlashcardsWithoutAudioCount(): number {
+    if (!this.preview || !this.preview.lessons) return 0;
+    return this.preview.lessons.reduce(
+      (acc: number, l: AdminGeneratedLessonDto) => acc + (l.flashcards?.filter(c => !c.audioUrl).length || 0), 0);
+  }
+
+  /** The audio URL as the browser can play it: full URLs (Supabase) as-is, "/uploads/..." paths via the backend host. */
+  getAudioPreviewUrl(path: string | null | undefined): string {
+    if (!path) return '';
+    if (/^https?:\/\//i.test(path)) return path;
+    const origin = environment.apiUrl.replace(/\/api\/?$/, '');
+    return origin + (path.startsWith('/') ? path : '/' + path);
+  }
+
+  onFlashcardAudioSelected(card: AdminGeneratedFlashcardDto, event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // lets the same file be picked again after an error
+    if (!file) return;
+
+    this.audioErrors.delete(card);
+    this.uploadingAudio.add(card);
+    this.learningService.uploadAudio(file).subscribe({
+      next: (res) => {
+        card.audioUrl = res.audioUrl;
+        this.uploadingAudio.delete(card);
+      },
+      error: (err: any) => {
+        this.uploadingAudio.delete(card);
+        this.audioErrors.set(card, err?.error?.message || 'Audio upload failed. Please try again.');
+      }
+    });
+  }
+
+  removeFlashcardAudio(card: AdminGeneratedFlashcardDto) {
+    card.audioUrl = undefined;
+    this.audioErrors.delete(card);
   }
 }

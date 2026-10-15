@@ -394,7 +394,7 @@ const ApprovedApplicationCard: React.FC<{
   item: OpportunityApplicationResponse;
   onBook: () => void;
 }> = ({ item, onBook }) => (
-  <View style={s.jobCard}>
+  <View style={[s.jobCard, item.urgent && s.jobCardUrgent]}>
     <View style={s.jobCardHeader}>
       <View style={s.jobCardLeft}>
         <JobIcon />
@@ -583,7 +583,8 @@ const RecentWorkSection: React.FC<{ jobs: JobResponse[] | null; onViewAll: () =>
 export const CreatorDashboard: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onOpenHistory: () => void;
-  onOpenSchedule: () => void;
+  /** `focusDateKey` ("YYYY-MM-DD") is the day just booked, so the Schedule opens on that month. */
+  onOpenSchedule: (focusDateKey?: string) => void;
   onOpenMyWork: () => void;
   onOpenCompletedWork: () => void;
   onAddPayment: () => void;
@@ -667,9 +668,9 @@ export const CreatorDashboard: React.FC<{
       setApprovedApplications((prev) => prev.filter((a) => a.id !== bookingTarget.id));
       setBookingTarget(null);
 
-      // Booking confirmed — jump straight to the Schedule page so the
-      // creator sees it marked on the calendar right away.
-      onOpenSchedule();
+      // Booking confirmed — jump straight to the Schedule page, on the month of the day just booked,
+      // so the creator sees it marked on the calendar right away.
+      onOpenSchedule(toDateKey(confirmedDate));
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Could not confirm this booking.';
       Alert.alert('Booking failed', message);
@@ -762,7 +763,7 @@ export const CreatorDashboard: React.FC<{
             <TabPill
               label="Schedule"
               active={false}
-              onPress={onOpenSchedule}
+              onPress={() => onOpenSchedule()}
             />
             <TabPill
               label="Completed"
