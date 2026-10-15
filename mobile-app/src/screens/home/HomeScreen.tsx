@@ -152,6 +152,7 @@ export interface AItem {
   avatar: string;
   bars: number[];
   type: 'audio';
+  mediaUrl?: string;
   likesCount?: number;
   commentsCount?: number;
 }
@@ -377,13 +378,25 @@ export const HomeScreen: React.FC<{
     if (discoverySearchResults !== null) {
       return discoverySearchResults;
     }
+    const isVideoItem = (i: any) => (i.type || '').toLowerCase() === 'video';
+    const isBlogItem = (i: any) => {
+      const t = (i.type || '').toLowerCase();
+      const m = (i.method || '').toLowerCase();
+      return t === 'blog' || t === 'written' || m === 'written' || (!t && !i.mediaUrl && !i.videoUrl);
+    };
+    const isAudioItem = (i: any) => {
+      const t = (i.type || '').toLowerCase();
+      const m = (i.method || '').toLowerCase();
+      return (t === 'audio' || m === 'recorded') && !isBlogItem(i) && !isVideoItem(i);
+    };
+
     let pool = allFeedItems;
     if (activeTab === 'Videos') {
-      pool = allFeedItems.filter(i => i.type === 'video');
+      pool = allFeedItems.filter(isVideoItem);
     } else if (activeTab === 'Blogs') {
-      pool = allFeedItems.filter(i => i.type === 'blog');
+      pool = allFeedItems.filter(isBlogItem);
     } else if (activeTab === 'Audio') {
-      pool = allFeedItems.filter(i => i.type === 'audio');
+      pool = allFeedItems.filter(isAudioItem);
     }
 
     return pool.filter(item => {
@@ -667,8 +680,13 @@ export const HomeScreen: React.FC<{
             )
           }
           renderItem={({ item }: any) => {
+            const itemType = (item.type || '').toLowerCase();
+            const itemMethod = (item.method || '').toLowerCase();
+            const isVideo = itemType === 'video';
+            const isBlog = itemType === 'blog' || itemType === 'written' || itemMethod === 'written' || (!itemType && !item.mediaUrl && !item.videoUrl);
+
             /* ── VIDEO CARD ──────────────────────────────────────── */
-            if (item.type === 'video') {
+            if (isVideo) {
               const v = item as VItem;
               const isPlaying = visibleVideoId === v.id && !isOverlayActive;
               return (
@@ -686,7 +704,7 @@ export const HomeScreen: React.FC<{
             }
 
             /* ── BLOG / STORY CARD ───────────────────────────────── */
-            if (item.type === 'blog') {
+            if (isBlog) {
               const b = item as BItem;
               return (
                 <BlogCard
