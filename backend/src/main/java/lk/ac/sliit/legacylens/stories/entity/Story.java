@@ -57,10 +57,13 @@ public class Story {
     @Column(nullable = false, length = 20)
     private StoryMethod method;
 
-    /** Null when the story has no media clip (e.g. a WRITTEN story). */
-    @Enumerated(EnumType.STRING)
-    @Column(name = "media_type", length = 10)
+    /** Mapped via MediaTypeConverter (autoApply), null or BLOG on a story with no clip. */
+    @Column(name = "media_type", length = 30)
     private MediaType mediaType;
+
+    /** Path or URL to the cover / thumbnail image, e.g. "thumbnails/xxx.jpg". */
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
 
     /** Path relative to the storage root, e.g. "stories/3f9c...-e1.m4a" — see FileStorageService. */
     @Column(name = "media_file_path", length = 255)
