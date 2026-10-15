@@ -19,6 +19,11 @@ public interface StoryTagRepository extends JpaRepository<StoryTag, UUID> {
 
     List<StoryTag> findByTagId(UUID tagId);
 
+    long countByTagId(UUID tagId);
+
+    @Query("SELECT st.tag.id, COUNT(st) FROM StoryTag st GROUP BY st.tag.id")
+    List<Object[]> countStoriesGroupedByTag();
+
     Optional<StoryTag> findByStoryIdAndTagId(UUID storyId, UUID tagId);
 
     boolean existsByStoryIdAndTagId(UUID storyId, UUID tagId);
