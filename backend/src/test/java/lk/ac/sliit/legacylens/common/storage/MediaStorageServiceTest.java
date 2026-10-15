@@ -47,6 +47,41 @@ class MediaStorageServiceTest {
     }
 
     @Test
+    void store_withTypeAndSizeChecks_goesToTheBucket_whenTheFileIsAllowed() {
+        MediaStorageService mediaStorageService = new MediaStorageService(fileStorageService, supabaseStorageClient, "supabase");
+        MockMultipartFile file = new MockMultipartFile("file", "photo.jpg", "image/jpeg", "x".getBytes());
+        when(supabaseStorageClient.upload(file, "work-materials", "files"))
+                .thenReturn("https://project.supabase.co/storage/v1/object/public/work-materials/files/generated.jpg");
+
+        String url = mediaStorageService.store(file, "work-materials", "files",
+                java.util.List.of("image/jpeg", "image/png"), 1024);
+
+        assertThat(url).isEqualTo("https://project.supabase.co/storage/v1/object/public/work-materials/files/generated.jpg");
+    }
+
+    @Test
+    void store_withTypeAndSizeChecks_rejectsAFileOfTheWrongType_andStoresNothing() {
+        MediaStorageService mediaStorageService = new MediaStorageService(fileStorageService, supabaseStorageClient, "supabase");
+        MockMultipartFile file = new MockMultipartFile("file", "notes.exe", "application/x-msdownload", "x".getBytes());
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                lk.ac.sliit.legacylens.common.exception.InvalidFileUploadException.class,
+                () -> mediaStorageService.store(file, "work-materials", "files", java.util.List.of("image/jpeg"), 1024));
+        verify(supabaseStorageClient, never()).upload(any(), any(), any());
+    }
+
+    @Test
+    void store_withTypeAndSizeChecks_rejectsAFileThatIsTooBig() {
+        MediaStorageService mediaStorageService = new MediaStorageService(fileStorageService, supabaseStorageClient, "supabase");
+        MockMultipartFile file = new MockMultipartFile("file", "photo.jpg", "image/jpeg", new byte[2048]);
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                lk.ac.sliit.legacylens.common.exception.InvalidFileUploadException.class,
+                () -> mediaStorageService.store(file, "work-materials", "files", java.util.List.of("image/jpeg"), 1024));
+        verify(supabaseStorageClient, never()).upload(any(), any(), any());
+    }
+
+    @Test
     void store_withExplicitBucket_localProvider_foldsBucketIntoThePath() {
         MediaStorageService mediaStorageService = new MediaStorageService(fileStorageService, supabaseStorageClient, "local");
         MockMultipartFile file = new MockMultipartFile("media", "cover.jpg", "image/jpeg", "x".getBytes());

@@ -25,14 +25,6 @@ export const opportunityApplicationApi = {
   submit: (id: string) =>
     apiPost<OpportunityApplicationResponse, undefined>(`/opportunity-applications/${id}/submit`, undefined),
 
-  /** TEMPORARY: self-approve until a real knowledge-holder review UI exists — see the backend controller's javadoc. */
-  approve: (id: string) =>
-    apiPost<OpportunityApplicationResponse, undefined>(`/opportunity-applications/${id}/approve`, undefined),
-
-  /** TEMPORARY: self-reject, standing in for the knowledge holder the same way approve() does. */
-  reject: (id: string) =>
-    apiPost<OpportunityApplicationResponse, undefined>(`/opportunity-applications/${id}/reject`, undefined),
-
   /**
    * Moves an APPROVED application to BOOKED and creates the real Job behind
    * it, using the creator's confirmed date/time from the "Confirm Booking" form.

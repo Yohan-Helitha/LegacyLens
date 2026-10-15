@@ -78,6 +78,38 @@ class WorkReviewServiceImplTest {
     }
 
     @Test
+    void theSummaryNamesTheOpportunityAndTheCreatorSoTheKnowledgeHolderCanMessageThem() {
+        UUID opportunityId = UUID.randomUUID();
+        job.setOpportunityId(opportunityId);
+
+        var summary = service.viewForElder(elder.getId(), job.getId()).getSummary();
+
+        assertThat(summary.getOpportunityId()).isEqualTo(opportunityId);
+        assertThat(summary.getCreatorId()).isEqualTo(job.getCreator().getId());
+    }
+
+    @Test
+    void theAdminSeesWhoSentTheWorkBackButTheKnowledgeHolderDoesNot() {
+        progress.setRejected(true);
+        org.mockito.Mockito.lenient().when(progressRepository.findBySubmittedAtIsNotNullAndDraftFalseOrderBySubmittedAtDesc())
+                .thenReturn(List.of(progress));
+        org.mockito.Mockito.lenient().when(progressRepository.findByJobElderIdAndSubmittedAtIsNotNullAndDraftFalseOrderBySubmittedAtDesc(elder.getId()))
+                .thenReturn(List.of(progress));
+
+        // setUp leaves a note from both reviewers
+        assertThat(service.listForAdmin().get(0).getSentBackBy()).isEqualTo("BOTH");
+        assertThat(service.listForElder(elder.getId()).get(0).getSentBackBy()).isNull();
+
+        progress.setAdminFeedback(null);
+        assertThat(WorkReviewServiceImpl.sentBackBy(job, progress)).isEqualTo("KNOWLEDGE_HOLDER");
+        progress.setAdminFeedback("Admin note");
+        progress.setElderFeedback(" ");
+        assertThat(WorkReviewServiceImpl.sentBackBy(job, progress)).isEqualTo("ADMIN");
+        progress.setRejected(false);
+        assertThat(WorkReviewServiceImpl.sentBackBy(job, progress)).isNull();
+    }
+
+    @Test
     void theAdminReadsBothNotes() {
         assertThat(service.viewForAdmin(job.getId()).getAdminFeedback()).isEqualTo("Admin wants a clearer photo");
     }

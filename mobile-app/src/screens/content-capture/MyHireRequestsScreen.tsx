@@ -26,8 +26,8 @@ interface MyHireRequestsScreenProps {
   onPostRequest?: () => void;
   onViewApplicants?: (request: HireRequestItem) => void;
   onMessageCreator?: (request: HireRequestItem) => void;
-  /** Opens the chat with a creator whose application the elder accepted. */
-  onOpenChat?: (conversationId: string) => void;
+  /** Opens one creator's application, where the elder approves or rejects it and can message them. */
+  onOpenApplication?: (applicationId: string) => void;
   onTabPress?: (tab: UserTabKey) => void;
   onDrawerNavigate?: (item: ElderDrawerItem) => void;
   onLogout?: () => void;
@@ -43,7 +43,7 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
   onPostRequest,
   onViewApplicants,
   onMessageCreator,
-  onOpenChat,
+  onOpenApplication,
   onTabPress,
   onDrawerNavigate,
   onLogout,
@@ -58,10 +58,8 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
   const { requests, loading, refreshing, loadError, deletingId, deleteError, refresh, reload, removeRequest } =
     useHireRequests();
 
-  const handleChat = async (application: Parameters<typeof creatorApps.openChat>[0]) => {
-    const conversationId = await creatorApps.openChat(application);
-    if (conversationId) onOpenChat?.(conversationId);
-  };
+  const pendingApps = creatorApps.applications.filter((item) => item.status === 'PENDING');
+  const decidedApps = creatorApps.applications.filter((item) => item.status !== 'PENDING');
 
   const refreshAll = () => {
     refresh();
@@ -206,23 +204,23 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
             <Text style={s.stateBody}>{tc('creatorApps.empty')}</Text>
           )}
 
-          {creatorApps.actionError !== null && (
-            <Text style={s.errorText} accessibilityRole="alert" accessibilityLiveRegion="polite">
-              {creatorApps.actionError || tc('creatorApps.actionError')}
-            </Text>
+          {pendingApps.length > 0 && (
+            <>
+              <Text style={s.groupTitle}>{tc('creatorApps.waitingTitle')}</Text>
+              {pendingApps.map((application) => (
+                <CreatorApplicationCard key={application.id} application={application} onPress={(item) => onOpenApplication?.(item.id)} />
+              ))}
+            </>
           )}
 
-          {creatorApps.applications.map((application) => (
-            <CreatorApplicationCard
-              key={application.id}
-              application={application}
-              busy={creatorApps.busyId === application.id}
-              locked={creatorApps.busyId !== null}
-              onAccept={(item) => creatorApps.approve(item.id)}
-              onDecline={(item) => creatorApps.reject(item.id)}
-              onChat={handleChat}
-            />
-          ))}
+          {decidedApps.length > 0 && (
+            <>
+              <Text style={s.groupTitle}>{tc('creatorApps.decidedTitle')}</Text>
+              {decidedApps.map((application) => (
+                <CreatorApplicationCard key={application.id} application={application} onPress={(item) => onOpenApplication?.(item.id)} />
+              ))}
+            </>
+          )}
         </View>
       </ScrollView>
 
@@ -320,6 +318,13 @@ const s = StyleSheet.create({
     lineHeight: 34,
     color: D.onSurface,
   },
+  groupTitle: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeMD,
+    lineHeight: 24,
+    color: D.onSurface,
+    marginTop: Spacing.sm,
+  },
   sectionSubtitle: {
     fontFamily: Typography.fontBody,
     fontSize: Typography.sizeSM,
@@ -327,12 +332,6 @@ const s = StyleSheet.create({
     color: D.onSurfaceVariant,
   },
   inlineState: { gap: Spacing.sm },
-  errorText: {
-    fontFamily: Typography.fontBodyMed,
-    fontSize: Typography.sizeSM,
-    lineHeight: 22,
-    color: '#ba1a1a',
-  },
 
   centered: {
     alignItems: 'center',

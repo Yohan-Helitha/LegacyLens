@@ -16,6 +16,8 @@ export interface OpportunityCardResponse {
   matchReasons?: string[] | null;
   urgent: boolean;
   dueAt: string | null;
+  /** The day the elder needs the work done ("yyyy-MM-dd"). */
+  scheduledDate?: string | null;
   elderName: string;
   elderAvatarUrl: string | null;
   elderLocation: string | null;
@@ -42,6 +44,21 @@ export interface OpportunityDetailResponse {
   matchPercentage?: number | null;
   matchLevel?: MatchLevel | null;
   matchReasons?: string[] | null;
+}
+
+/** The public profile of the knowledge holder behind an opportunity. */
+export interface ElderProfileResponse {
+  name: string;
+  avatarUrl: string | null;
+  verified: boolean;
+  location: string | null;
+  bio: string | null;
+  topics: string[];
+  averageRating: number | null;
+  ratingCount: number;
+  /** "yyyy-MM-dd" */
+  memberSince: string | null;
+  openOpportunities: number;
 }
 
 export interface AdminOpportunityResponse {
@@ -126,4 +143,18 @@ export interface OpportunityDraft {
   tasks: string[];
   selectedDeliverables: string[];
   preservationDescription: string;
+}
+
+export interface OpportunityTranscriptSegment {
+  time: string;
+  text: string;
+  active?: boolean;
+}
+
+export interface OpportunityTranscriptionResponse {
+  audioId: string;
+  fullSinhalaText?: string;
+  fullEnglishText?: string;
+  transcriptOriginal: OpportunityTranscriptSegment[];
+  transcriptTranslation?: OpportunityTranscriptSegment[];
 }

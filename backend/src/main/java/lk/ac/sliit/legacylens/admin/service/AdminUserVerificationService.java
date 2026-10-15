@@ -47,6 +47,18 @@ public interface AdminUserVerificationService {
     AdminUserVerificationResponse approveUser(UUID userId, String note, String performedById, String performedByName);
 
     /**
+     * Shortcut to approve verification with optional manual phone verification override.
+     *
+     * @param userId          The UUID of the user
+     * @param note            Optional audit note
+     * @param verifyPhone     Whether to manually verify phone as part of admin approval
+     * @param performedById   ID of the admin performing the action
+     * @param performedByName Name of the admin performing the action
+     * @return Updated user verification response
+     */
+    AdminUserVerificationResponse approveUser(UUID userId, String note, boolean verifyPhone, String performedById, String performedByName);
+
+    /**
      * Shortcut to reject verification.
      *
      * @param userId          The UUID of the user

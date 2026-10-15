@@ -63,5 +63,19 @@
     "subheadline": "We'll text a code to your new number to confirm it.",
     "fieldLabel": "New phone number",
     "placeholder": "Enter your new phone number"
+  },
+  "notifications": {
+    "title": "Notification settings",
+    "description": "Get a message on your phone when something needs you: a new chat message, an application, or work to review.",
+    "allow": "Allow notifications",
+    "statusOn": "On",
+    "statusOff": "Off",
+    "statusBlocked": "Blocked",
+    "blockedHelp": "Notifications are blocked for Legacy Lens in your phone's settings. Open the settings, switch them on, then come back.",
+    "openSettings": "Open phone settings",
+    "unsupported": "Notifications can't be used on this phone or this version of the app.",
+    "failed": "That didn't work. Check your connection and try again.",
+    "offNote": "You won't get phone notifications. Everything is still in the app.",
+    "close": "Done"
   }
 }

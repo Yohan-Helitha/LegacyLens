@@ -53,12 +53,15 @@ class JobRequestServiceImplTest {
     @Mock
     private AdminNotificationPort adminNotificationPort;
 
+    @Mock
+    private lk.ac.sliit.legacylens.admin.repository.OpportunityAudioRepository opportunityAudioRepository;
+
     private JobRequestServiceImpl jobRequestService;
 
     @BeforeEach
     void setUp() {
         jobRequestService = new JobRequestServiceImpl(
-                jobRequestRepository, userRepository, mediaStorageService, jobRequestStateMachine, adminNotificationPort);
+                jobRequestRepository, userRepository, mediaStorageService, jobRequestStateMachine, adminNotificationPort, opportunityAudioRepository);
     }
 
     private User buildElder() {

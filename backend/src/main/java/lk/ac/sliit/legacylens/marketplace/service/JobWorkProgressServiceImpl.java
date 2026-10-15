@@ -3,6 +3,7 @@ package lk.ac.sliit.legacylens.marketplace.service;
 import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.common.storage.FileStorageService;
+import lk.ac.sliit.legacylens.common.storage.MediaStorageService;
 import lk.ac.sliit.legacylens.marketplace.dto.ChecklistItemResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.WorkMaterialResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.WorkProgressResponse;
@@ -39,7 +40,9 @@ import java.util.stream.Collectors;
 public class JobWorkProgressServiceImpl implements JobWorkProgressService {
 
     /** Subdirectory (under app.upload.dir) that work materials — photos, video clips, audio recordings — are stored in. */
-    private static final String WORK_MATERIAL_UPLOAD_SUBDIR = "work-materials";
+    /** The public Supabase bucket the creator's photos, recordings and documents go into - it must exist (see the storage docs). */
+    static final String WORK_MATERIAL_BUCKET = "work-materials";
+    private static final String WORK_MATERIAL_UPLOAD_SUBDIR = "files";
 
     private final JobRepository jobRepository;
     private final JobWorkProgressRepository workProgressRepository;
@@ -47,7 +50,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
     private final OpportunityChecklistItemRepository checklistItemRepository;
     private final WorkChecklistProgressRepository checklistProgressRepository;
     private final OpportunityRepository opportunityRepository;
-    private final FileStorageService fileStorageService;
+    private final MediaStorageService mediaStorageService;
     private final ApplicationEventPublisher events;
 
     public JobWorkProgressServiceImpl(
@@ -57,7 +60,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
             OpportunityChecklistItemRepository checklistItemRepository,
             WorkChecklistProgressRepository checklistProgressRepository,
             OpportunityRepository opportunityRepository,
-            FileStorageService fileStorageService,
+            MediaStorageService mediaStorageService,
             ApplicationEventPublisher events) {
 
         this.jobRepository = jobRepository;
@@ -66,7 +69,7 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         this.checklistItemRepository = checklistItemRepository;
         this.checklistProgressRepository = checklistProgressRepository;
         this.opportunityRepository = opportunityRepository;
-        this.fileStorageService = fileStorageService;
+        this.mediaStorageService = mediaStorageService;
         this.events = events;
     }
 
@@ -222,7 +225,8 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         Job job = getOwnedJob(creatorId, jobId);
         JobWorkProgress progress = getOrCreateProgress(job);
 
-        String fileUrl = fileStorageService.store(file, WORK_MATERIAL_UPLOAD_SUBDIR,
+        // Kept in shared storage (not on this computer's disk) so the knowledge holder and the admin can open it.
+        String fileUrl = mediaStorageService.store(file, WORK_MATERIAL_BUCKET, WORK_MATERIAL_UPLOAD_SUBDIR,
                 FileStorageService.MEDIA_CONTENT_TYPES, FileStorageService.MAX_MEDIA_FILE_SIZE_BYTES);
 
         JobWorkMaterial material = new JobWorkMaterial();
@@ -245,6 +249,8 @@ public class JobWorkProgressServiceImpl implements JobWorkProgressService {
         JobWorkMaterial material = workMaterialRepository.findByIdAndJobId(materialId, job.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found"));
         workMaterialRepository.delete(material);
+        // The file goes with it (best effort - a file that is already gone is not an error).
+        mediaStorageService.delete(material.getFileUrl());
 
         return mapToResponse(progress);
     }

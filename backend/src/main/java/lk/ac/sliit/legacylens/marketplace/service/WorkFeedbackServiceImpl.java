@@ -9,6 +9,7 @@ import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
 import lk.ac.sliit.legacylens.marketplace.event.WorkApprovedEvent;
 import lk.ac.sliit.legacylens.marketplace.event.WorkFeedbackGivenEvent;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
+import lk.ac.sliit.legacylens.marketplace.repository.JobWorkMaterialRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.JobWorkProgressRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -22,12 +23,20 @@ public class WorkFeedbackServiceImpl implements WorkFeedbackService {
 
     private final JobRepository jobRepository;
     private final JobWorkProgressRepository progressRepository;
+    private final JobWorkMaterialRepository materialRepository;
+    private final CreatorWorkPublisher publisher;
     private final ApplicationEventPublisher events;
 
     public WorkFeedbackServiceImpl(
-            JobRepository jobRepository, JobWorkProgressRepository progressRepository, ApplicationEventPublisher events) {
+            JobRepository jobRepository,
+            JobWorkProgressRepository progressRepository,
+            JobWorkMaterialRepository materialRepository,
+            CreatorWorkPublisher publisher,
+            ApplicationEventPublisher events) {
         this.jobRepository = jobRepository;
         this.progressRepository = progressRepository;
+        this.materialRepository = materialRepository;
+        this.publisher = publisher;
         this.events = events;
     }
 
@@ -106,17 +115,46 @@ public class WorkFeedbackServiceImpl implements WorkFeedbackService {
         }
         JobWorkProgress progress = progressRepository.findByJobId(jobId)
                 .orElseThrow(() -> new InvalidApplicationStateException("This work has not been submitted yet."));
-        if (progress.getPublishedAt() == null) {
-            progress.setPublishedAt(LocalDateTime.now());
-            events.publishEvent(new WorkApprovedEvent(job.getCreator().getId(), jobId, job.getTitle(), true));
-        }
+        // Normally work is published the moment both reviewers approve; this covers work that was approved
+        // before that was automatic. Publishing twice does nothing extra.
+        publishNow(job, progress);
         return adminView(progressRepository.save(progress));
     }
 
     /**
+     * Puts the work in front of users and tells the creator. Does nothing if it is already published, so the
+     * same work can never appear in the feed twice.
+     */
+    private void publishNow(Job job, JobWorkProgress progress) {
+        if (progress.getPublishedStoryId() != null) {
+            return;
+        }
+        progress.setPublishedStoryId(
+                publisher.publish(PublishedWork.from(job, progress, materialRepository.findByJobIdOrderByUploadedAtAsc(job.getId()))));
+        // Work that was already flagged as published (before that put anything in the feed) was announced then.
+        if (progress.getPublishedAt() == null) {
+            progress.setPublishedAt(LocalDateTime.now());
+            events.publishEvent(new WorkApprovedEvent(job.getCreator().getId(), job.getId(), job.getTitle(), true));
+        }
+    }
+
+    @Override
+    @Transactional
+    public int publishBacklog() {
+        int published = 0;
+        for (JobWorkProgress progress : progressRepository.findByJobStatusAndPublishedStoryIdIsNull(JobStatus.COMPLETED)) {
+            publishNow(progress.getJob(), progress);
+            progressRepository.save(progress);
+            published++;
+        }
+        return published;
+    }
+
+    /**
      * Once both reviewers have approved and neither note is outstanding the work is complete: the job
-     * becomes COMPLETED (so it moves to the creator's Completed tab) and the creator is told. A note
-     * still outstanding keeps it on the creator's Rejected Submissions page.
+     * becomes COMPLETED (so it moves to the creator's Completed tab) and it is published to users straight
+     * away, with the creator told it is live. A note still outstanding keeps it on the creator's Rejected
+     * Submissions page.
      */
     private void completeWhenBothApproved(Job job, JobWorkProgress progress) {
         boolean noteOutstanding = progress.getElderFeedback() != null || progress.getAdminFeedback() != null;
@@ -129,7 +167,8 @@ public class WorkFeedbackServiceImpl implements WorkFeedbackService {
             job.setStatus(JobStatus.COMPLETED);
             job.setCompletedAt(LocalDateTime.now());
             jobRepository.save(job);
-            events.publishEvent(new WorkApprovedEvent(job.getCreator().getId(), job.getId(), job.getTitle(), false));
+            // One notification, "published", rather than "approved" followed straight away by "published".
+            publishNow(job, progress);
         }
     }
 

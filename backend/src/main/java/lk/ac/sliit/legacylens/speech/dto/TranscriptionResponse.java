@@ -4,10 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
+import lombok.NoArgsConstructor;
+import java.util.List;
+
 /** Body of {@code POST /api/speech/transcribe}'s {@code ApiResponse.data}. */
 @Data
 @Builder
 @AllArgsConstructor
+@NoArgsConstructor
 public class TranscriptionResponse {
 
     private String providerName;
@@ -19,4 +23,5 @@ public class TranscriptionResponse {
     private Long firstPhraseOffsetMs;
     private int phraseCount;
     private QualityHint qualityHint;
+    private List<TranscriptionPhrase> phrases;
 }

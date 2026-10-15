@@ -1,11 +1,14 @@
 jest.mock('@react-native-async-storage/async-storage', () =>
   jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
+// The drawer's two red numbers come from the backend; the test supplies them instead of calling it.
+jest.mock('../../src/hooks/useAwaitingWorkCount', () => ({ useAwaitingWorkCount: jest.fn(() => 0) }));
+jest.mock('../../src/store/inboxUnreadStore', () => ({ useInboxUnread: jest.fn(() => 0) }));
 // The icon library ships as an ES module Jest doesn't transform; the icons aren't what's under test.
 jest.mock('lucide-react-native', () => {
   const Icon = () => null;
   return {
-    Home: Icon, BookOpen: Icon, Handshake: Icon, BadgeCheck: Icon, UserSearch: Icon, ClipboardList: Icon,
+    Home: Icon, BookOpen: Icon, Handshake: Icon, BadgeCheck: Icon, UserSearch: Icon, ClipboardList: Icon, ClipboardCheck: Icon,
     Star: Icon, Mic: Icon, Settings: Icon, LogOut: Icon, X: Icon,
   };
 });
@@ -15,6 +18,7 @@ import { ScrollView } from 'react-native';
 import { fireEvent, render, within } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../../src/i18n';
+import { useAwaitingWorkCount } from '../../src/hooks/useAwaitingWorkCount';
 import i18n from '../../src/i18n';
 import { ElderNavDrawer } from '../../src/components/module-specific/content-capture/ElderNavDrawer';
 
@@ -37,7 +41,7 @@ describe('ElderNavDrawer', () => {
     const screen = renderDrawer();
     const scroll = screen.UNSAFE_getByType(ScrollView);
 
-    for (const label of ['Home', 'My Stories', 'Hire a Creator', 'My Requests', 'Voice Help', 'Settings', 'Log out']) {
+    for (const label of ['Home', 'My Stories', 'Hire a Creator', 'My Requests', 'Submitted Work', 'Voice Help', 'Settings', 'Log out']) {
       expect(within(scroll).getByLabelText(label)).toBeTruthy();
     }
   });
@@ -66,5 +70,23 @@ describe('ElderNavDrawer', () => {
 
     expect(screen.queryByLabelText('Log out')).toBeNull();
     expect(screen.getByLabelText(i18n.t('drawer.logOut', { ns: 'contentCapture' }))).toBeTruthy();
+  });
+
+  it('calls the incoming-messages item "Messages", not "Requests"', () => {
+    const screen = renderDrawer();
+    const scroll = screen.UNSAFE_getByType(ScrollView);
+
+    expect(within(scroll).getByLabelText('Messages')).toBeTruthy();
+    expect(within(scroll).queryByLabelText('Requests')).toBeNull();
+  });
+
+  it('shows how many pieces of submitted work are waiting beside Submitted Work, and nothing when none are', () => {
+    const waiting = useAwaitingWorkCount as jest.Mock;
+
+    waiting.mockReturnValue(0);
+    expect(renderDrawer().queryByText('3')).toBeNull();
+
+    waiting.mockReturnValue(3);
+    expect(renderDrawer().getByText('3')).toBeTruthy();
   });
 });

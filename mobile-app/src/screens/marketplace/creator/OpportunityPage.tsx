@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
@@ -20,6 +20,7 @@ import type { OpportunityCardResponse } from '../../../types/opportunity';
 import { resolveOpportunityImage, resolveAvatarImage } from '../../../utils/opportunityImages';
 import { showsMatchBadge } from '../../../utils/matchLevel';
 import { useAuthStore } from '../../../store/authStore';
+import { PersonPhoto } from '../../../components/module-specific/marketplace/PersonPhoto';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local design tokens (mapped from HTML Tailwind config colour system)
@@ -59,10 +60,6 @@ const D = {
 // ─────────────────────────────────────────────────────────────────────────────
 type FilterKey  = 'all' | 'nearby' | 'photography' | 'writing' | 'documentation' | 'craft' | 'video';
 
-/** Shown for an elder with no uploaded profile photo. */
-const PLACEHOLDER_AVATAR =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuBdukQOb20lmYsNjgSC79bwk6nR11u86Bj87jNIlc_ZQzQ97BxLNMhydins5gSF08W2CSQyNGsh4guyGBVX0htKvkNTzRAY76Yfv8jK-W-9Z-cW30fTc-tVqTE_3MXVnOr3daWdokTEReYQUt-ciXqQB8LF7qkH10d4SgSRvnxi4hdlzLG5RUNcZvLxKkHwfHK5wXsfSfaNkQJdZelcgow41KGgsq77Fkd9zgLSrunJwEJsg3U5ZQcTdg';
-
 /** Google Maps-style location pin, in the requested #336574 tone. */
 const LocationPinIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
@@ -75,9 +72,14 @@ const LocationPinIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
 );
 
 /** How the work is done ("On-Site") and what kind it is (microphone + "Craft"), side by side. */
-const TypeTags: React.FC<{ item: OpportunityCardResponse }> = ({ item }) =>
-  item.locationType || item.category ? (
-    <View style={s.tagsRow}>
+const TypeTags: React.FC<{ item: OpportunityCardResponse; showDue?: boolean; showDate?: boolean }> = ({
+  item,
+  showDue = false,
+  showDate = false,
+}) =>
+  item.locationType || item.category || (showDue && dueLabel(item)) || (showDate && item.scheduledDate) ? (
+    <View style={[s.tagsRow, s.tagsWrap]}>
+      {showDue && <DueBadge item={item} />}
       {!!item.locationType && (
         <View style={s.tagNeutral}>
           <Text style={s.tagNeutralText}>{item.locationType}</Text>
@@ -89,17 +91,80 @@ const TypeTags: React.FC<{ item: OpportunityCardResponse }> = ({ item }) =>
           <Text style={s.tagNeutralText}>{item.category}</Text>
         </View>
       )}
+      {showDate && !!item.scheduledDate && (
+        <View style={[s.tagNeutral, s.tagWithIcon]}>
+          <CalendarIcon size={12} />
+          <Text style={s.tagNeutralText}>{formatNeededDate(item.scheduledDate)}</Text>
+        </View>
+      )}
     </View>
   ) : null;
 
-/** Where the work happens - the opportunity's own location, not the knowledge holder's home town. */
-const PlaceLine: React.FC<{ item: OpportunityCardResponse }> = ({ item }) =>
-  item.location ? (
-    <View style={s.placeLine}>
-      <LocationPinIcon size={13} />
-      <Text style={s.placeText} numberOfLines={1}>{item.location}</Text>
+/** Small calendar, in the same tone as the map pin. */
+const CalendarIcon: React.FC<{ size?: number }> = ({ size = 13 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#336574" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="3" y="5" width="18" height="16" rx="2" />
+    <Line x1="16" y1="3" x2="16" y2="7" />
+    <Line x1="8" y1="3" x2="8" y2="7" />
+    <Line x1="3" y1="10" x2="21" y2="10" />
+  </Svg>
+);
+
+/** "yyyy-MM-dd" (or a full timestamp) as a calendar day, without letting the time zone move it to another day. */
+function toLocalDay(value: string): Date {
+  const [y, m, d] = value.slice(0, 10).split('-').map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
+}
+
+/** The day the elder needs the work done, e.g. "18 Oct 2026". */
+function formatNeededDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return toLocalDay(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** "Due in 3 days" / "Due tomorrow" / "Due today" for an urgent opportunity - null when it is not urgent or the day has passed. */
+function dueLabel(item: OpportunityCardResponse): string | null {
+  const when = item.dueAt ?? item.scheduledDate;
+  if (!item.urgent || !when) return null;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const days = Math.round((toLocalDay(when).getTime() - startOfToday.getTime()) / 86400000);
+  if (days > 1) return `Due in ${days} days`;
+  if (days === 1) return 'Due tomorrow';
+  if (days === 0) return 'Due today';
+  return null;
+}
+
+/** Red "Due in 3 days" pill. */
+const DueBadge: React.FC<{ item: OpportunityCardResponse }> = ({ item }) => {
+  const label = dueLabel(item);
+  return label ? (
+    <View style={s.dueBadge}>
+      <Text style={s.dueBadgeText}>{label}</Text>
     </View>
   ) : null;
+};
+
+/** Where the work happens (the opportunity's own location, not the knowledge holder's home town) and when it is needed. */
+const PlaceLine: React.FC<{ item: OpportunityCardResponse; showDate?: boolean }> = ({ item, showDate = true }) => {
+  const needed = showDate ? formatNeededDate(item.scheduledDate) : null;
+  return item.location || needed ? (
+    <View style={s.placeBlock}>
+      {!!item.location && (
+        <View style={s.placeLine}>
+          <LocationPinIcon size={13} />
+          <Text style={s.placeText} numberOfLines={1}>{item.location}</Text>
+        </View>
+      )}
+      {!!needed && (
+        <View style={s.placeLine}>
+          <CalendarIcon size={13} />
+          <Text style={s.placeText} numberOfLines={1}>{`Needed on ${needed}`}</Text>
+        </View>
+      )}
+    </View>
+  ) : null;
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline icon helpers (emoji / primitive, zero extra dependencies)
@@ -201,12 +266,13 @@ const MatchBadgeInline: React.FC<{ item: OpportunityCardResponse }> = ({ item })
 // ─────────────────────────────────────────────────────────────────────────────
 // RecommendedCard
 // ─────────────────────────────────────────────────────────────────────────────
-const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void }> = ({
+const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void; showTitle?: boolean }> = ({
   item,
   onViewDetail,
+  showTitle = true,
 }) => (
   <View style={s.section}>
-    <Text style={s.sectionTitle}>Recommended For You</Text>
+    {showTitle && <Text style={s.sectionTitle}>Recommended For You</Text>}
 
     <Pressable
       style={({ pressed }) => [s.recommendedCard, pressed && s.cardPressed]}
@@ -231,20 +297,16 @@ const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: (
         {/* 1. who it is from, and where the work is */}
         {!!item.elderName && (
           <View style={s.authorRow}>
-            <Image
-              source={resolveAvatarImage(item.elderAvatarUrl) ?? { uri: PLACEHOLDER_AVATAR }}
-              style={s.recommendedAvatar}
-              accessibilityLabel={`${item.elderName} profile photo`}
-            />
+            <PersonPhoto name={item.elderName} source={resolveAvatarImage(item.elderAvatarUrl)} size={28} />
             <View style={s.authorText}>
               <Text style={s.holderName} numberOfLines={1}>{item.elderName}</Text>
-              <PlaceLine item={item} />
+              <PlaceLine item={item} showDate={false} />
             </View>
           </View>
         )}
 
-        {/* 2. what kind of work it is */}
-        <TypeTags item={item} />
+        {/* 2. what kind of work it is, and the day it is needed - together as tags */}
+        <TypeTags item={item} showDue showDate />
 
         {/* 3. its name, and what it involves */}
         <Text style={s.cardTitle}>{item.title}</Text>
@@ -266,27 +328,31 @@ const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: (
 // ─────────────────────────────────────────────────────────────────────────────
 // UrgentSection
 // ─────────────────────────────────────────────────────────────────────────────
-const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void }> = ({
+const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void; showTitle?: boolean }> = ({
   item,
   onViewDetail,
+  showTitle = true,
 }) => (
   <View style={s.section}>
-    <View style={s.urgentTitleRow}>
-      <Text style={{ fontSize: 18 }}>{'\uD83D\uDD25'}</Text>
-      <Text style={s.sectionTitle}>Urgent Missions</Text>
-    </View>
+    {showTitle && (
+      <View style={s.urgentTitleRow}>
+        <Text style={{ fontSize: 18 }}>{'\uD83D\uDD25'}</Text>
+        <Text style={s.sectionTitle}>Urgent Missions</Text>
+      </View>
+    )}
 
     <Pressable
       style={({ pressed }) => [s.urgentCard, pressed && s.cardPressed]}
       accessibilityRole="button"
       accessibilityLabel={`${item.title} opportunity`}
     >
-      {/* The percentage sits at the top right of the card; the picture and the job details come below it. */}
-      {showsMatchBadge(item.matchPercentage, item.matchLevel) && (
-        <View style={s.urgentBadgeTop}>
-          <MatchBadgeInline item={item} />
+      {/* How soon it is due on the left, the match percentage on the right; the picture and details come below. */}
+      <View style={s.urgentTopRow}>
+        <View>
+          <DueBadge item={item} />
         </View>
-      )}
+        <MatchBadgeInline item={item} />
+      </View>
       <View style={s.urgentTop}>
         <Image
           source={resolveOpportunityImage(item.heroImageUrl)}
@@ -334,11 +400,7 @@ const RecentOpportunityCard: React.FC<{
   >
     <View style={s.recentHeader}>
       <View style={[s.authorRow, s.authorRowFit]}>
-        <Image
-          source={resolveAvatarImage(item.elderAvatarUrl) ?? { uri: PLACEHOLDER_AVATAR }}
-          style={s.authorAvatar}
-          accessibilityLabel={`${item.elderName} profile photo`}
-        />
+        <PersonPhoto name={item.elderName} source={resolveAvatarImage(item.elderAvatarUrl)} size={40} />
         <View style={s.authorText}>
           <Text style={s.authorName} numberOfLines={1}>{item.elderName}</Text>
           <PlaceLine item={item} />
@@ -348,7 +410,7 @@ const RecentOpportunityCard: React.FC<{
     </View>
 
     <View style={s.recentContent}>
-      <TypeTags item={item} />
+      <TypeTags item={item} showDue />
       <Text style={s.cardTitle}>{item.title}</Text>
       <Text style={s.recentDesc} numberOfLines={2}>
         {item.description}
@@ -401,14 +463,38 @@ const RecentSection: React.FC<{
 /** What the page showed last time, kept for the signed-in account only so another login never sees it. */
 interface BrowseSnapshot {
   userId: string | null;
-  recommended: OpportunityCardResponse | null;
-  urgent: OpportunityCardResponse | null;
+  recommended: OpportunityCardResponse[];
+  urgent: OpportunityCardResponse[];
   recent: OpportunityCardResponse[];
 }
 let lastBrowse: BrowseSnapshot | null = null;
 const signedInUserId = () => useAuthStore.getState().user?.userId ?? null;
 const remembered = (): BrowseSnapshot | null =>
   lastBrowse && lastBrowse.userId === signedInUserId() ? lastBrowse : null;
+
+// One request at a time: a prefetch that is still on its way is reused by the page instead of asking again.
+let inFlight: Promise<BrowseSnapshot> | null = null;
+const fetchBrowse = (): Promise<BrowseSnapshot> => {
+  if (!inFlight) {
+    const userId = signedInUserId();
+    inFlight = opportunityApi
+      .browse()
+      .then((data) => {
+        const next = { userId, recommended: data.recommended, urgent: data.urgent, recent: data.recent };
+        lastBrowse = next;
+        return next;
+      })
+      .finally(() => {
+        inFlight = null;
+      });
+  }
+  return inFlight;
+};
+
+/** Warms the Market page while the creator is still on another tab, so it opens with its cards already there. */
+export const prefetchOpportunityBrowse = () => {
+  fetchBrowse().catch(() => {});
+};
 
 export const OpportunityPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
@@ -423,8 +509,8 @@ export const OpportunityPage: React.FC<{
   // Null only until the initial fetch settles — real data only, no fallback/mock content.
   // Starts from what the page showed last time (for this account), so the tab opens at once and refreshes behind it.
   const [seen] = useState(remembered);
-  const [recommended, setRecommended] = useState<OpportunityCardResponse | null>(seen?.recommended ?? null);
-  const [urgent, setUrgent] = useState<OpportunityCardResponse | null>(seen?.urgent ?? null);
+  const [recommended, setRecommended] = useState<OpportunityCardResponse[]>(seen?.recommended ?? []);
+  const [urgent, setUrgent] = useState<OpportunityCardResponse[]>(seen?.urgent ?? []);
   const [recent, setRecent] = useState<OpportunityCardResponse[] | null>(seen?.recent ?? null);
 
   // Populated by a real /opportunities/search call whenever a filter chip
@@ -436,25 +522,17 @@ export const OpportunityPage: React.FC<{
   useEffect(() => {
     let cancelled = false;
     // One request for all three sections - the server works out the creator's matching once, not three times.
-    opportunityApi
-      .browse()
-      .then((data) => {
+    fetchBrowse()
+      .then((next) => {
         if (cancelled) return;
-        const next = {
-          userId: signedInUserId(),
-          recommended: data.recommended[0] ?? null,
-          urgent: data.urgent[0] ?? null,
-          recent: data.recent,
-        };
-        lastBrowse = next;
         setRecommended(next.recommended);
         setUrgent(next.urgent);
         setRecent(next.recent);
       })
       .catch(() => {
         if (cancelled || remembered()) return;
-        setRecommended(null);
-        setUrgent(null);
+        setRecommended([]);
+        setUrgent([]);
         setRecent([]);
       });
     return () => {
@@ -527,16 +605,26 @@ export const OpportunityPage: React.FC<{
             </View>
           ) : (
             <>
-              {recommended && (
-                <RecommendedCard item={recommended} onViewDetail={() => onViewDetail(recommended.id)} />
-              )}
-              {urgent && (
-                <UrgentSection item={urgent} onViewDetail={() => onViewDetail(urgent.id)} />
-              )}
+              {recommended.map((item, index) => (
+                <RecommendedCard
+                  key={item.id}
+                  item={item}
+                  showTitle={index === 0}
+                  onViewDetail={() => onViewDetail(item.id)}
+                />
+              ))}
+              {urgent.map((item, index) => (
+                <UrgentSection
+                  key={item.id}
+                  item={item}
+                  showTitle={index === 0}
+                  onViewDetail={() => onViewDetail(item.id)}
+                />
+              ))}
               {recent.length > 0 && (
                 <RecentSection items={recent} onApply={onViewDetail} onViewDetail={onViewDetail} />
               )}
-              {!recommended && !urgent && recent.length === 0 && (
+              {recommended.length === 0 && urgent.length === 0 && recent.length === 0 && (
                 <View style={s.emptyState}>
                   <Text style={s.emptyStateText}>No opportunities to show yet.</Text>
                 </View>
@@ -806,7 +894,12 @@ const s = StyleSheet.create({
   tagIcon:         { fontSize: 12 },
   authorText:      { flexShrink: 1, gap: 1 },
   authorRowFit:    { flexShrink: 1 },
+  tagsWrap:        { flexWrap: 'wrap', alignItems: 'center' },
+  placeBlock:      { gap: 2 },
   placeLine:       { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dueBadge:        { backgroundColor: '#FDECEA', borderRadius: Radii.full, paddingHorizontal: 10, paddingVertical: 4 },
+  dueBadgeText:    { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#B3261E', letterSpacing: 0.4 },
+  urgentTopRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: -Spacing.xs },
   placeText:       { flexShrink: 1, fontFamily: Typography.fontBody, fontSize: 12, color: D.onSurfaceVariant },
   urgentBadgeTop:  { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: -Spacing.xs },
   urgentMeta:     { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs },

@@ -62,9 +62,10 @@ public class AdminUserVerificationController {
     public ResponseEntity<ApiResponse<AdminUserVerificationResponse>> approveUser(
             @PathVariable UUID userId,
             @RequestParam(required = false) String note,
+            @RequestParam(required = false, defaultValue = "false") boolean verifyPhone,
             @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
             @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
-        AdminUserVerificationResponse response = adminUserVerificationService.approveUser(userId, note, adminId, adminName);
+        AdminUserVerificationResponse response = adminUserVerificationService.approveUser(userId, note, verifyPhone, adminId, adminName);
         return ResponseEntity.ok(ApiResponse.ok("User profile verified and role activated successfully", response));
     }
 

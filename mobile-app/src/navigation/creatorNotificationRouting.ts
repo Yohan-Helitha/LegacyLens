@@ -1,6 +1,9 @@
 /** The creator screen a tapped notification should open, or null when it should just open the app. */
-export function creatorScreenForNotification(data: Record<string, unknown> | null | undefined): 'rejected-applications' | 'dashboard' | 'market' | 'rejected-work' | 'my-work' | 'pending' | null {
+export function creatorScreenForNotification(data: Record<string, unknown> | null | undefined): 'rejected-applications' | 'dashboard' | 'market' | 'rejected-work' | 'my-work' | 'pending' | 'inbox' | null {
   switch (data?.type) {
+    // A new message opens the Inbox (or, when the notification says which chat, that chat - see the navigator).
+    case 'new-message':
+      return 'inbox';
     case 'application-rejected':
       return 'rejected-applications';
     // An approved application is booked from the dashboard's Upcoming Booking tab.

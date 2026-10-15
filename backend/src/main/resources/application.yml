@@ -7,10 +7,18 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
 
 server:
   port: 8081
+  tomcat:
+    max-http-form-post-size: 50MB
+    max-swallow-size: 50MB
 
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+

@@ -1,4 +1,4 @@
-﻿export interface AdminOpportunityResponse {
+export interface AdminOpportunityResponse {
   id: string;
   title: string;
   description: string;
@@ -36,6 +36,7 @@ export interface OpportunityAudioResponse {
   tags?: string;
   status?: string;
   createdAt?: string;
+  transcript?: string;
 }
 
 export interface CreateOpportunityRequest {
@@ -55,6 +56,7 @@ export interface CreateOpportunityRequest {
   offeredAmount?: number;
   preservationGoal?: string;
   tasks?: string;
+  requiredSkills?: string;
   status?: string;
   elderId?: string;
   elderName?: string;
@@ -62,4 +64,18 @@ export interface CreateOpportunityRequest {
 
 export interface UpdateOpportunityStatusRequest {
   status: string;
+}
+
+export interface OpportunityTranscriptSegment {
+  time: string;
+  text: string;
+  active?: boolean;
+}
+
+export interface OpportunityTranscriptionResponse {
+  audioId: string;
+  fullSinhalaText?: string;
+  fullEnglishText?: string;
+  transcriptOriginal: OpportunityTranscriptSegment[];
+  transcriptTranslation: OpportunityTranscriptSegment[];
 }

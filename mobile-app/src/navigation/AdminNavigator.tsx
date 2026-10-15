@@ -8,6 +8,8 @@ import { OpportunityIntakeScreen, OpportunityReviewScreen } from '../screens/adm
 import { OpportunityDraftsScreen } from '../screens/admin/opportunity-drafts';
 import { AdminNotificationsScreen } from '../screens/admin/notifications';
 import { AdminProfileScreen } from '../screens/admin/profile';
+import { AdminSubmittedWorkScreen, AdminWorkDetailScreen } from '../screens/admin/work-review';
+import { adminWorkReviewApi } from '../services/api/adminWorkReviewApi';
 import { VideoDetailScreen, BlogDetailScreen } from '../screens/content-details';
 import { AdminHeader, AdminFooter } from '../components/common';
 import type { AdminTabKey } from '../components/common';
@@ -15,10 +17,10 @@ import { Colors } from '../theme';
 import type { RootStackParamList } from './RootNavigator';
 import { useOpportunity } from '../context/OpportunityContext';
 
-export type AdminScreen = AdminTabKey | 'add_opp' | 'opp_review' | 'drafts' | 'video' | 'blog' | 'notifications';
+export type AdminScreen = AdminTabKey | 'add_opp' | 'opp_review' | 'drafts' | 'video' | 'blog' | 'notifications' | 'work_detail';
 
 interface AdminNavigatorProps {
-  /** Root stack navigation â€” used only to leave this flow ("Return to User View"). */
+  /** Root stack navigation used only to leave this flow ("Return to User View"). */
   navigation: NativeStackNavigationProp<RootStackParamList>;
 }
 
@@ -33,6 +35,9 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
   const [intakeBadge, setIntakeBadge] = useState<string | null>(null);
   
   const [reviewBadge, setReviewBadge] = useState<string | null>(null);
+  /** Submitted work the admin has not reviewed yet, and the job being opened. */
+  const [workBadge, setWorkBadge] = useState<string | null>(null);
+  const [workJobId, setWorkJobId] = useState<string | null>(null);
 
   // Sync intake badge with real unlistened count
   useEffect(() => {
@@ -48,6 +53,17 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
         })
         .catch(err => console.log('Failed to fetch pending moderation', err));
     });
+  }, [screen]);
+
+  // Count of submitted work still awaiting review - the number on the Work tab (not made up: it is the queue's own size).
+  useEffect(() => {
+    adminWorkReviewApi
+      .list()
+      .then((items) => {
+        const waiting = items.filter((item) => item.state === 'AWAITING_REVIEW').length;
+        setWorkBadge(waiting > 0 ? String(waiting) : null);
+      })
+      .catch(() => undefined);
   }, [screen]);
 
   const handleNavigate = (tab: string, item?: any) => {
@@ -70,7 +86,9 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
       ? 'intake'
       : screen === 'review'
         ? 'review'
-        : screen === 'admin_profile'
+        : screen === 'work_review' || screen === 'work_detail'
+          ? 'work_review'
+          : screen === 'admin_profile'
           ? 'admin_profile'
           : 'admin_home';
 
@@ -108,6 +126,17 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
       )}
       {screen === 'drafts' && <OpportunityDraftsScreen onNavigate={handleNavigate} />}
       {screen === 'review' && <ModerationQueueScreen initialItemId={initialItemId} />}
+      {screen === 'work_review' && (
+        <AdminSubmittedWorkScreen
+          onOpenWork={(jobId) => {
+            setWorkJobId(jobId);
+            setScreen('work_detail');
+          }}
+        />
+      )}
+      {screen === 'work_detail' && !!workJobId && (
+        <AdminWorkDetailScreen jobId={workJobId} onBack={() => setScreen('work_review')} />
+      )}
 
       <Modal
         visible={screen === 'video'}
@@ -145,6 +174,7 @@ export const AdminNavigator: React.FC<AdminNavigatorProps> = ({ navigation }) =>
           onTabSelect={handleNavigate} 
           intakeBadge={intakeBadge}
           reviewBadge={reviewBadge}
+          workBadge={workBadge}
         />
       )}
     </View>
@@ -157,6 +187,3 @@ const s = StyleSheet.create({
 });
 
 export default AdminNavigator;
-
-
-

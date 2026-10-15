@@ -45,6 +45,7 @@ export interface CreateStoryPayload {
   method: StoryMethod;
   mediaDurationMillis?: number;
   media?: StoryMediaFile | null;
+  thumbnail?: StoryMediaFile | null;
 }
 
 /** Title/description only — there's no re-upload endpoint, media isn't editable. */

@@ -2,6 +2,7 @@ package lk.ac.sliit.legacylens.marketplace.controller;
 
 import lk.ac.sliit.legacylens.auth.security.CustomUserDetails;
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
+import lk.ac.sliit.legacylens.marketplace.dto.ElderProfileResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityBrowseResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityCardResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityDetailResponse;
@@ -75,6 +76,12 @@ public class OpportunityController {
             @RequestParam(defaultValue = "20") int limit) {
         return ResponseEntity.ok(ApiResponse.ok(
                 opportunityService.search(limit, principal.getUser().getId(), category, nearby, q)));
+    }
+
+    /** The knowledge holder's public profile, opened from the opportunity detail page. */
+    @GetMapping("/{id}/elder")
+    public ResponseEntity<ApiResponse<ElderProfileResponse>> getElderProfile(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(opportunityService.getElderProfile(id)));
     }
 
     @GetMapping("/{id}")

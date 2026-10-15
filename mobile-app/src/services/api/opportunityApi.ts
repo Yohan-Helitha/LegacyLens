@@ -1,10 +1,12 @@
-import { apiGet, apiPost, apiPatch } from './client';
+import { apiGet, apiPost, apiPatch, apiPut } from './client';
 import {
   OpportunityCardResponse,
   OpportunityDetailResponse,
+  ElderProfileResponse,
   AdminOpportunityResponse,
   OpportunityAudioResponse,
   CreateOpportunityRequest,
+  OpportunityTranscriptionResponse,
 } from '../../types/opportunity';
 
 /** Creator-facing read endpoints. */
@@ -28,6 +30,9 @@ export const opportunityApi = {
 
   getById: (id: string) => apiGet<OpportunityDetailResponse>(`/opportunities/${id}`),
 
+  /** The knowledge holder's public profile for one opportunity. */
+  getElderProfile: (id: string) => apiGet<ElderProfileResponse>(`/opportunities/${id}/elder`),
+
   /** Backs the filter chips — a real DB search, not a client-side slice of an already-fetched list. */
   search: (params: { category?: string; nearby?: boolean; q?: string; limit?: number }) => {
     const query = new URLSearchParams();
@@ -50,6 +55,9 @@ export const adminOpportunityApi = {
   createOpportunity: (body: CreateOpportunityRequest) =>
     apiPost<AdminOpportunityResponse, CreateOpportunityRequest>('/admin/opportunities', body),
 
+  updateOpportunity: (id: string, body: CreateOpportunityRequest) =>
+    apiPut<AdminOpportunityResponse, CreateOpportunityRequest>(`/admin/opportunities/${id}`, body),
+
   publishFromAudio: (audioId: string, body: CreateOpportunityRequest) =>
     apiPost<AdminOpportunityResponse, CreateOpportunityRequest>(`/admin/opportunities/audios/${audioId}/publish`, body),
 
@@ -61,4 +69,10 @@ export const adminOpportunityApi = {
 
   updateOpportunityStatus: (id: string, status: string) =>
     apiPatch<AdminOpportunityResponse, { status: string }>(`/admin/opportunities/${id}/status`, { status }),
+
+  updateAudioStatus: (id: string, status: string) =>
+    apiPatch<OpportunityAudioResponse, Record<string, never>>(`/admin/opportunities/audios/${id}/status?status=${encodeURIComponent(status)}`, {}),
+
+  autoTranscribeAudio: (audioId: string) =>
+    apiPost<OpportunityTranscriptionResponse, Record<string, never>>(`/admin/opportunities/audios/${audioId}/transcribe`, {}),
 };

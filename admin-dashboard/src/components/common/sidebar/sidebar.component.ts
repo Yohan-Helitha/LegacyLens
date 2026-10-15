@@ -93,6 +93,19 @@ import { LayoutService } from '../../../app/core/services/layout.service';
             </div>
           </a>
 
+          <!-- 2.02 Submitted Work (content-creator work awaiting the admin's review) -->
+          <a routerLink="/work-review"
+             routerLinkActive="active-link"
+             [title]="showFull() ? '' : 'Submitted Work'"
+             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-xl nav-icon shrink-0">assignment_turned_in</span>
+              @if (showFull()) {
+                <span class="truncate">Submitted Work</span>
+              }
+            </div>
+          </a>
+
           <!-- 2.05 Cultural Taxonomy & Tag Intelligence -->
           <a routerLink="/taxonomy"
              routerLinkActive="active-link"
@@ -132,18 +145,6 @@ import { LayoutService } from '../../../app/core/services/layout.service';
             </div>
           </a>
 
-          <!-- 4. Dispute Resolution -->
-          <a routerLink="/disputes"
-             routerLinkActive="active-link"
-             [title]="showFull() ? '' : 'Dispute Resolution'"
-             class="sidebar-nav-item flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer">
-            <div class="flex items-center gap-3 min-w-0">
-              <span class="material-symbols-outlined text-xl nav-icon shrink-0">gavel</span>
-              @if (showFull()) {
-                <span class="truncate">Dispute Resolution</span>
-              }
-            </div>
-          </a>
 
           <!-- 5. Cultural Map Management -->
           <a routerLink="/map"

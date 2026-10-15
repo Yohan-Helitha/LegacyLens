@@ -53,13 +53,13 @@ public class Opportunity {
     @JoinColumn(name = "elder_id")
     private User elder;
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = 500)
     private String title;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "hero_image_url", length = 500)
+    @Column(name = "hero_image_url", columnDefinition = "TEXT")
     private String heroImageUrl;
 
     @Column(length = 150)
@@ -81,16 +81,39 @@ public class Opportunity {
     @Column(name = "match_percentage")
     private Integer matchPercentage;
 
-    /** Whether this shows up in the Urgent Missions section. */
+    /** Set on purpose by whoever creates the opportunity. Nobody has to: see {@link #isUrgent()} for the date rule. */
     @Column(nullable = false)
     private boolean urgent = false;
 
-    /** Deadline backing the "Due in N days" badge — only meaningful when urgent = true. */
+    /** The deadline - the "Due in N days" badge, and what makes an opportunity urgent as it gets close. */
     @Column(name = "due_at")
     private LocalDateTime dueAt;
 
     @Column(name = "scheduled_date")
     private LocalDate scheduledDate;
+
+    /** An opportunity whose date is this close (or closer) is urgent, whether or not anyone marked it. */
+    public static final int URGENT_WITHIN_DAYS = 3;
+
+    /**
+     * Urgent when it was marked urgent, or when its date is close: the deadline if it has one, otherwise the day
+     * the work happens, falling within the next {@value #URGENT_WITHIN_DAYS} days. A date already past is not "close".
+     * Worked out from the date each time, so an opportunity becomes urgent by itself as its day approaches.
+     */
+    public boolean isUrgent() {
+        return urgent || closeToItsDate(LocalDateTime.now());
+    }
+
+    private boolean closeToItsDate(LocalDateTime now) {
+        if (dueAt != null) {
+            return !dueAt.isBefore(now) && !dueAt.isAfter(now.plusDays(URGENT_WITHIN_DAYS));
+        }
+        if (scheduledDate != null) {
+            LocalDate today = now.toLocalDate();
+            return !scheduledDate.isBefore(today) && !scheduledDate.isAfter(today.plusDays(URGENT_WITHIN_DAYS));
+        }
+        return false;
+    }
 
     /** Free text, e.g. "3 - 4 h". */
     @Column(name = "duration_text", length = 50)

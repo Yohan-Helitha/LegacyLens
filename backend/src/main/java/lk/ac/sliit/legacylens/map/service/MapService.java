@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class MapService {
 
     private final LandmarkRepository landmarkRepository;
@@ -33,11 +32,24 @@ public class MapService {
     private final lk.ac.sliit.legacylens.common.storage.FileStorageService fileStorageService;
     private final lk.ac.sliit.legacylens.common.storage.MediaStorageService mediaStorageService;
 
-    /**
-     * Supabase bucket for 3D landmark models (GLB) uploaded from the admin dashboard. Must exist in
-     * Supabase as a public bucket so the mobile app can load the returned URL directly.
-     */
-    private static final String MODEL_BUCKET = "cultural-model";
+    public MapService(
+            LandmarkRepository landmarkRepository,
+            QuestRepository questRepository,
+            QuestionRepository questionRepository,
+            UserBadgeRepository userBadgeRepository,
+            BadgeRepository badgeRepository,
+            RegionRepository regionRepository,
+            lk.ac.sliit.legacylens.common.storage.FileStorageService fileStorageService,
+            lk.ac.sliit.legacylens.common.storage.MediaStorageService mediaStorageService) {
+        this.landmarkRepository = landmarkRepository;
+        this.questRepository = questRepository;
+        this.questionRepository = questionRepository;
+        this.userBadgeRepository = userBadgeRepository;
+        this.badgeRepository = badgeRepository;
+        this.regionRepository = regionRepository;
+        this.fileStorageService = fileStorageService;
+        this.mediaStorageService = mediaStorageService;
+    }
 
     @PostConstruct
     public void seedData() {
@@ -218,8 +230,21 @@ public class MapService {
 
     @Transactional
     public MapLandmarkResponse updateLandmark(Long id, CreateLandmarkRequest request) {
-        Landmark l = landmarkRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Landmark not found with id: " + id));
+        Landmark l = null;
+        if (request.getCode() != null && !request.getCode().isBlank()) {
+            l = landmarkRepository.findByCode(request.getCode().trim()).orElse(null);
+        }
+        if (l == null && id != null && id > 0) {
+            l = landmarkRepository.findById(id).orElse(null);
+        }
+        if (l == null && request.getName() != null && !request.getName().isBlank()) {
+            l = landmarkRepository.findAll().stream()
+                    .filter(item -> item.getName().equalsIgnoreCase(request.getName().trim()))
+                    .findFirst().orElse(null);
+        }
+        if (l == null) {
+            throw new RuntimeException("Landmark not found with id: " + id + " or code: " + request.getCode());
+        }
 
         if (request.getName() != null && !request.getName().isBlank()) {
             l.setName(request.getName());
@@ -270,8 +295,7 @@ public class MapService {
 
     @Transactional
     public String uploadModelFile(org.springframework.web.multipart.MultipartFile file) {
-        // Returns a complete URL (Supabase public URL, or a root-relative /uploads/... path on the local provider).
-        return mediaStorageService.store(file, MODEL_BUCKET, "models");
+        return mediaStorageService.storeModelFile(file, "models");
     }
 
     @Transactional

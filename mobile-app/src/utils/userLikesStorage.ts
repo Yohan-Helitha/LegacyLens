@@ -1,13 +1,41 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = '@legacylens_user_liked_posts';
+const CLIENT_ID_KEY = '@legacylens_client_device_id';
 
 // In-memory cache for instant UI rendering without layout jumps
 let cachedLikes: Set<string> | null = null;
+let cachedClientId: string | null = null;
 let isLoaded = false;
 const listeners = new Set<(postId: string, liked: boolean) => void>();
 
+function generateUuid(): string {
+  return 'dev-' + Math.random().toString(36).substring(2, 10) + '-' + Date.now().toString(36);
+}
+
 export const userLikesStorage = {
+  async getClientId(): Promise<string> {
+    if (cachedClientId) return cachedClientId;
+    try {
+      const stored = await AsyncStorage.getItem(CLIENT_ID_KEY);
+      if (stored && stored.trim()) {
+        cachedClientId = stored.trim();
+        return cachedClientId;
+      }
+      const newId = generateUuid();
+      cachedClientId = newId;
+      await AsyncStorage.setItem(CLIENT_ID_KEY, newId);
+      return newId;
+    } catch {
+      if (!cachedClientId) cachedClientId = generateUuid();
+      return cachedClientId;
+    }
+  },
+
+  getClientIdSync(): string | null {
+    return cachedClientId;
+  },
+
   async getLikes(): Promise<Set<string>> {
     if (cachedLikes !== null) {
       return cachedLikes;
@@ -74,3 +102,6 @@ export const userLikesStorage = {
   },
 };
 
+// Immediate pre-fetch on module load
+userLikesStorage.getLikes().catch(() => {});
+userLikesStorage.getClientId().catch(() => {});

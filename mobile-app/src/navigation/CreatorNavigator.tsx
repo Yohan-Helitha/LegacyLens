@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CreatorDashboard } from '../screens/marketplace/creator/CreatorDashboard';
-import { OpportunityPage } from '../screens/marketplace/creator/OpportunityPage';
+import { OpportunityPage, prefetchOpportunityBrowse } from '../screens/marketplace/creator/OpportunityPage';
 import { OpportunityDetailPage } from '../screens/marketplace/creator/OpportunityDetailPage';
 import { BecomeCreatorApplication } from '../screens/marketplace/creator/BecomeCreatoApplication';
 import { CreatorVerificationUpdatePage } from '../screens/marketplace/creator/CreatorVerificationUpdatePage';
@@ -89,10 +89,23 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
     return () => clearTimeout(timer);
   }, [screen, reloadApplications]);
 
+  // While the creator is on the dashboard, quietly load the Market cards so that tab opens at once.
+  useEffect(() => {
+    if (screen !== 'dashboard') return;
+    const timer = setTimeout(prefetchOpportunityBrowse, 1500);
+    return () => clearTimeout(timer);
+  }, [screen]);
+
   // Phone notifications. The phone itself is registered once for everyone at the top of the app;
   // here the creator side decides what a tap opens, and refreshes the red number when one arrives
   // while the app is open. On a build without notification support this does nothing.
   const openFromNotification = useCallback((data: Record<string, unknown>) => {
+    // A new-message notification opens that very chat.
+    if (data.type === 'new-message' && typeof data.conversationId === 'string') {
+      setSelectedConversationId(data.conversationId);
+      setScreen('conversation');
+      return;
+    }
     const target = creatorScreenForNotification(data);
     if (target) setScreen(target);
   }, []);
@@ -234,7 +247,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
 
   /**
    * Called when the creator application is submitted: the admin decides next, so the creator waits on
-   * the status page (which has temporary test buttons for the admin's decision until their screen exists).
+   * the status page, which updates when the admin's decision arrives.
    */
   const handleApplicationSubmit = () => setScreen('pending');
 

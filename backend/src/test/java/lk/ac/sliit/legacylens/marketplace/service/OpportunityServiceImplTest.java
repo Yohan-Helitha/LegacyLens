@@ -147,6 +147,11 @@ class OpportunityServiceImplTest {
                 .thenReturn(List.of(opportunities));
     }
 
+    private void urgentOnes(Opportunity... opportunities) {
+        lenient().when(opportunityRepository.findUrgent(eq(OpportunityStatus.PUBLISHED), any(), any(), any(), any(), any()))
+                .thenReturn(List.of(opportunities));
+    }
+
     // ── Ranking ─────────────────────────────────────────────────────────────
 
     @Test
@@ -345,8 +350,7 @@ class OpportunityServiceImplTest {
         sent.setStatus(OpportunityApplicationStatus.PENDING);
         lenient().when(applicationRepository.findByCreatorIdOrderBySavedAtDesc(nimal.getId())).thenReturn(List.of(sent));
         published(recipe, dance);
-        lenient().when(opportunityRepository.findByStatusAndUrgentTrueOrderByDueAtAsc(eq(OpportunityStatus.PUBLISHED), any()))
-                .thenReturn(List.of(recipe, dance));
+        urgentOnes(recipe, dance);
 
         var page = service.browse(nimal.getId());
 
@@ -361,8 +365,7 @@ class OpportunityServiceImplTest {
         Opportunity recipe = opportunity("Traditional recipe documentation", "Food", "Matara");
         Opportunity words = opportunity("Old village words and proverbs", "Language", "Matara");
         published(recipe, words);
-        lenient().when(opportunityRepository.findByStatusAndUrgentTrueOrderByDueAtAsc(eq(OpportunityStatus.PUBLISHED), any()))
-                .thenReturn(List.of(recipe));
+        urgentOnes(recipe);
 
         var page = service.browse(nimal.getId());
 
@@ -396,5 +399,41 @@ class OpportunityServiceImplTest {
         assertThat(detail.getMatchPercentage()).isEqualTo(91);
         assertThat(detail.getMatchLevel()).isEqualTo("EXCELLENT");
         assertThat(detail.getMatchReasons()).contains("You have all 2 skills this needs");
+    }
+
+    // ── Knowledge holder profile ────────────────────────────────────────────
+
+    @Test
+    void elderProfile_showsPublicDetailsOnly_withReadableTopics() {
+        Opportunity recipe = opportunity("Traditional recipe documentation", "Food", "Matara");
+        elder.setCity(matara);
+        var profile = new lk.ac.sliit.legacylens.users.entity.KnowledgeHolderProfile();
+        profile.setBio("Keeper of southern recipes.");
+        profile.setKnownTopics("village-dialects, old-stories");
+        profile.setRatingCount(2);
+        lenient().when(opportunityRepository.findByIdAndStatus(recipe.getId(), OpportunityStatus.PUBLISHED))
+                .thenReturn(Optional.of(recipe));
+        lenient().when(knowledgeHolderProfileRepository.findByUserId(elder.getId())).thenReturn(Optional.of(profile));
+        lenient().when(opportunityRepository.findByElderIdAndStatusOrderByCreatedAtDesc(elder.getId(), OpportunityStatus.PUBLISHED))
+                .thenReturn(List.of(recipe));
+
+        var result = service.getElderProfile(recipe.getId());
+
+        assertThat(result.getName()).isEqualTo(elder.getFullName());
+        assertThat(result.isVerified()).isTrue();
+        assertThat(result.getLocation()).isEqualTo("Matara");
+        assertThat(result.getBio()).isEqualTo("Keeper of southern recipes.");
+        assertThat(result.getTopics()).containsExactly("Village dialects", "Old stories");
+        assertThat(result.getOpenOpportunities()).isEqualTo(1);
+    }
+
+    @Test
+    void elderProfile_unknownOpportunity_isNotFound() {
+        UUID id = UUID.randomUUID();
+        lenient().when(opportunityRepository.findByIdAndStatus(id, OpportunityStatus.PUBLISHED)).thenReturn(Optional.empty());
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException.class,
+                () -> service.getElderProfile(id));
     }
 }

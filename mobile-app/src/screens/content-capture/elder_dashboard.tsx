@@ -23,6 +23,7 @@ import type { ElderDrawerItem } from '../../components/module-specific/content-c
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
 import { useRecentStories } from '../../hooks/useRecentStories';
 import { useConversations } from '../../hooks/useConversations';
+import { useAwaitingWorkCount } from '../../hooks/useAwaitingWorkCount';
 import { resolveImageUrl } from '../../constants/api';
 import type { ConversationSummary } from '../../types/messaging';
 import type { StoryStatus, StorySummary } from '../../types/story';
@@ -72,6 +73,29 @@ const PrimaryActionSection: React.FC<{ onPress?: () => void }> = ({ onPress }) =
     <Text style={s.recordTitle}>{t('dashboard.recordTitle')}</Text>
     <Text style={s.recordSubtitle}>{t('dashboard.recordSubtitle')}</Text>
   </Pressable>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WorkToReviewCard - shown only while creators' submitted work is waiting for this elder
+// ─────────────────────────────────────────────────────────────────────────────
+const WorkToReviewCard: React.FC<{ onPress?: () => void }> = ({ onPress }) => {
+  const { t } = useTranslation('contentCapture');
+  const waiting = useAwaitingWorkCount();
+  if (waiting === 0) return null;
+  const text = t('dashboard.workWaiting', { count: waiting });
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [s.workCard, pressed && s.pressedLight]}
+      accessibilityRole="button"
+      accessibilityLabel={`${text}. ${t('dashboard.reviewWork')}`}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={s.workCardText}>{text}</Text>
+        <Text style={s.workCardCta}>{t('dashboard.reviewWork')}</Text>
+      </View>
+    </Pressable>
   );
 };
 
@@ -230,6 +254,8 @@ interface ElderDashboardProps {
   onOpenChat?: (conversationId: string) => void;
   /** Opens the full messages inbox. */
   onOpenMessages?: () => void;
+  /** Opens Submitted Work, where creators' finished work is approved or declined. */
+  onOpenSubmittedWork?: () => void;
   onViewAllStories?: () => void;
   /** Opens My Stories on its Published tab — where the analytics for each story live. */
   onOpenAnalytics?: () => void;
@@ -248,6 +274,7 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
   onRecordStory,
   onOpenChat,
   onOpenMessages,
+  onOpenSubmittedWork,
   onViewAllStories,
   onOpenAnalytics,
   onOpenStory,
@@ -277,6 +304,7 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
         />
         <TrustBadgeSection onPress={onOpenTrustScore} />
         <PrimaryActionSection onPress={onRecordStory} />
+        <WorkToReviewCard onPress={onOpenSubmittedWork} />
         <RequestsSection onOpenChat={onOpenChat} onViewAll={onOpenMessages} />
         <YourStoriesSection
           stories={stories}
@@ -372,6 +400,12 @@ const s = StyleSheet.create({
   },
   requestHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   requestName:   { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, color: D.onSurface, marginBottom: 2 },
+  workCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: D.secondaryContainer, borderRadius: Radii.xl, padding: Spacing.md, minHeight: 72,
+  },
+  workCardText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, lineHeight: 26, color: D.onSecondaryContainer },
+  workCardCta: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSecondaryContainer, textDecorationLine: 'underline', marginTop: 2 },
   requestPreview: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 20, color: D.onSurfaceVariant, marginTop: 2 },
   unreadBadge: {
     minWidth: 28, height: 28, borderRadius: 14, paddingHorizontal: 8,

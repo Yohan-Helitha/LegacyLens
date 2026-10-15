@@ -92,20 +92,6 @@ export const LANDMARK_TYPES = [
 const DEFAULT_LANDMARKS: LandmarkDTO[] = [
   { 
     dbId: 1, 
-    id: 'sigiriya', 
-    name: 'Sigiriya Rock Fortress', 
-    type: 'Historical & Archaeological Sites',
-    description: 'Ancient rock fortress and palace ruins built by King Kashyapa in the 5th century CE.', 
-    lng: 80.7603, 
-    lat: 7.9570, 
-    icon: 'account_balance', 
-    region: 'North Central', 
-    district: 'Matale', 
-    badge: { id: 'sigiriya_badge', title: 'Sigiriya Conqueror', image: 'https://images.unsplash.com/photo-1586220742614-eb06ec4a3629?q=80&w=200' }, 
-    quests: [{ id: 1, title: 'Citadel of the Cloud Maidens', description: 'Unravel the frescoes and mirror wall secrets' }] 
-  },
-  { 
-    dbId: 2, 
     id: 'kandy', 
     name: 'Temple of the Tooth', 
     type: 'Religious & Sacred Places',
@@ -117,6 +103,20 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
     district: 'Kandy', 
     badge: { id: 'kandy_badge', title: 'Guardian of the Sacred Relic', image: 'https://images.unsplash.com/photo-1620025983849-01eaae8b7c7b?q=80&w=200' }, 
     quests: [{ id: 2, title: 'The Esala Legacy', description: 'Explore the golden canopy and ritual chambers' }] 
+  },
+  { 
+    dbId: 2, 
+    id: 'sigiriya', 
+    name: 'Sigiriya Rock Fortress', 
+    type: 'Historical & Archaeological Sites',
+    description: 'Ancient rock fortress and palace ruins built by King Kashyapa in the 5th century CE.', 
+    lng: 80.7603, 
+    lat: 7.9570, 
+    icon: 'account_balance', 
+    region: 'North Central', 
+    district: 'Matale', 
+    badge: { id: 'sigiriya_badge', title: 'Sigiriya Conqueror', image: 'https://images.unsplash.com/photo-1586220742614-eb06ec4a3629?q=80&w=200' }, 
+    quests: [{ id: 1, title: 'Citadel of the Cloud Maidens', description: 'Unravel the frescoes and mirror wall secrets' }] 
   },
   { 
     dbId: 3, 
@@ -668,42 +668,58 @@ const DEFAULT_LANDMARKS: LandmarkDTO[] = [
 
 
 
-                        <!-- 3D Model Upload -->
+                        <!-- 3D Model Upload & URL -->
                         <div>
-                          <label class="block text-xs font-bold text-[#191c1c] mb-1.5">
-                            Upload 3D Model (.glb)
-                          </label>
+                          <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-bold text-[#191c1c]">
+                              3D Spatial Canon Model (.glb)
+                            </label>
+                            <span class="text-[10px] text-[#6f7978]">Cloud / Server / External URL</span>
+                          </div>
                           <input 
                             type="file" 
                             accept=".glb"
                             (change)="onModelFileSelected($event)"
                             class="w-full text-xs bg-[#f8faf9] border border-[#dde3eb] rounded-xl p-2 text-[#191c1c] file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#004343] file:text-white file:cursor-pointer cursor-pointer">
                           @if (isUploadingModel()) {
-                            <div class="mt-2 space-y-1.5">
-                              <div class="text-[10px] text-[#004343] font-bold flex items-center justify-between">
-                                <div class="flex items-center gap-1">
-                                  <span class="material-symbols-outlined text-xs animate-spin">sync</span>
-                                  Uploading model asset...
+                            <div class="mt-2 space-y-2 bg-[#f0f9f8] p-3 rounded-xl border border-[#004343]/20 shadow-xs">
+                              <div class="text-[11px] text-[#004343] font-bold flex items-center justify-between">
+                                <div class="flex items-center gap-1.5 truncate">
+                                  <span class="material-symbols-outlined text-sm animate-spin text-[#004343]">sync</span>
+                                  <span class="truncate">{{ uploadModelStatus() || 'Uploading model asset...' }}</span>
                                 </div>
-                                <span>{{ uploadModelProgress() }}%</span>
+                                <span class="font-mono text-xs ml-2">{{ uploadModelProgress() }}%</span>
                               </div>
-                              <div class="w-full bg-[#dde3eb] rounded-full h-1.5 overflow-hidden">
+                              <div class="w-full bg-[#dde3eb] rounded-full h-2 overflow-hidden">
                                 <div class="bg-[#004343] h-full rounded-full transition-all duration-300" [style.width.%]="uploadModelProgress()"></div>
                               </div>
+                              @if (uploadModelProgress() >= 100) {
+                                <div class="text-[10px] text-[#4e5d5b] flex items-center gap-1 font-medium animate-pulse">
+                                  <span class="material-symbols-outlined text-[13px] text-[#004343]">cloud_upload</span>
+                                  Processing and saving model asset. Please keep this page open...
+                                </div>
+                              }
                             </div>
                           } @else if (landmarkForm.modelUrl) {
                             <div class="mt-2 px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between group transition-all">
                               <div class="flex items-center gap-2 overflow-hidden">
                                 <span class="material-symbols-outlined text-sm text-emerald-600">check_circle</span>
                                 <span class="text-[10px] font-mono font-bold text-emerald-800 truncate" title="{{ landmarkForm.modelUrl }}">
-                                  {{ landmarkForm.modelUrl.split('/').pop() }}
+                                  {{ landmarkForm.modelUrl }}
                                 </span>
                               </div>
-                              <button (click)="landmarkForm.modelUrl = ''" class="text-emerald-500 hover:text-red-500 transition-colors flex items-center" title="Remove 3D Model">
+                              <button (click)="landmarkForm.modelUrl = ''" class="text-emerald-500 hover:text-red-500 transition-colors flex items-center cursor-pointer" title="Remove 3D Model">
                                 <span class="material-symbols-outlined text-[14px]">close</span>
                               </button>
                             </div>
                           }
+                          <div class="mt-2 flex items-center gap-2">
+                            <input 
+                              type="text" 
+                              [(ngModel)]="landmarkForm.modelUrl" 
+                              placeholder="Or paste external .glb URL (e.g. https://.../model.glb)"
+                              class="w-full text-[11px] bg-[#f8faf9] border border-[#dde3eb] rounded-lg px-2.5 py-1.5 font-mono text-[#191c1c] focus:outline-hidden focus:border-[#004343] focus:bg-white transition-all">
+                          </div>
                         </div>
 
 
@@ -1572,6 +1588,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   isSavingBadge = signal<boolean>(false);
   isUploadingModel = signal<boolean>(false);
   uploadModelProgress = signal<number>(0);
+  uploadModelStatus = signal<string>('');
   isSavingQuest = signal<boolean>(false);
   toastMessage = signal<string | null>(null);
   isDestructiveToast = signal<boolean>(false);
@@ -2936,42 +2953,46 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     const typeMatch = LANDMARK_TYPES.find(t => t.value === this.landmarkForm.type);
     
 
+    if (this.landmarkForm.longitude !== undefined && this.landmarkForm.longitude !== null) {
+      this.landmarkForm.longitude = Number(this.landmarkForm.longitude);
+    }
+    if (this.landmarkForm.latitude !== undefined && this.landmarkForm.latitude !== null) {
+      this.landmarkForm.latitude = Number(this.landmarkForm.latitude);
+    }
+
     this.isSaving.set(true);
 
-    if (this.isEditMode() && this.selectedLandmarkDbId) {
-      const targetId = typeof this.selectedLandmarkDbId === 'number' ? this.selectedLandmarkDbId : 1;
-      this.mapService.updateLandmark(targetId, this.landmarkForm).subscribe({
+    if (this.isEditMode() && (this.selectedLandmarkDbId || this.landmarkForm.code)) {
+      let targetId: number | null = null;
+      if (typeof this.selectedLandmarkDbId === 'number' && this.selectedLandmarkDbId > 0) {
+        targetId = this.selectedLandmarkDbId;
+      }
+      if (!targetId) {
+        const matched = this.landmarks().find(l => 
+          (l.id && l.id === this.landmarkForm.code) ||
+          (l.id && l.id === this.selectedLandmarkDbId) ||
+          (l.name && l.name.trim().toLowerCase() === this.landmarkForm.name.trim().toLowerCase())
+        );
+        if (matched && typeof matched.dbId === 'number') {
+          targetId = matched.dbId;
+        } else if (Number(this.selectedLandmarkDbId)) {
+          targetId = Number(this.selectedLandmarkDbId);
+        }
+      }
+
+      const finalId = targetId || 1;
+      this.mapService.updateLandmark(finalId, this.landmarkForm).subscribe({
         next: (res) => {
           this.isSaving.set(false);
           this.showToast(`Landmark "${this.landmarkForm.name}" updated successfully!`);
-          
-          // Update local landmarks signal
-          const updatedList = this.landmarks().map(l => {
-            if (l.dbId === this.selectedLandmarkDbId || l.id === this.landmarkForm.code) {
-              return {
-                ...l,
-                name: this.landmarkForm.name,
-                type: this.landmarkForm.type,
-                description: this.landmarkForm.description || '',
-                region: this.landmarkForm.region,
-                district: this.landmarkForm.district,
-                lng: this.landmarkForm.longitude || l.lng,
-                lat: this.landmarkForm.latitude || l.lat,
-                modelUrl: this.landmarkForm.modelUrl || l.modelUrl,
-                attachedStoryIds: this.landmarkForm.attachedStoryIds
-              };
-            }
-            return l;
-          });
-          this.landmarks.set(updatedList);
-          this.renderLandmarkMarkersOnMap();
+          this.refreshAllData();
           this.setLandmarkSubTab('details');
         },
         error: (err) => {
-          // If update succeeds locally even if backend mock is offline
           this.isSaving.set(false);
-          this.showToast(`Landmark "${this.landmarkForm.name}" updated locally!`);
-          this.setLandmarkSubTab('details');
+          console.error('[MapComponent] Update failed:', err);
+          const msg = err.error?.message || err.message || 'Server error';
+          this.showToast(`Failed to update landmark: ${msg}`, true);
         }
       });
     } else {
@@ -3154,21 +3175,33 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   onModelFileSelected(event: any): void {
     const file = event.target.files[0];
     if (file) {
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      if (file.size > 500 * 1024 * 1024) {
+        this.showToast(`Selected model is ${sizeMb} MB. Maximum upload limit is 500 MB.`, true);
+        event.target.value = '';
+        return;
+      }
       this.isUploadingModel.set(true);
       this.uploadModelProgress.set(0);
+      const isLarge = file.size > 50 * 1024 * 1024;
+      this.uploadModelStatus.set(isLarge 
+        ? `Uploading large 3D model (${sizeMb} MB)...`
+        : `Uploading 3D model (${sizeMb} MB)...`);
       this.mapService.uploadModelFile(file).subscribe({
-        next: (progressOrUrl) => {
-          if (typeof progressOrUrl === 'number') {
-            this.uploadModelProgress.set(progressOrUrl);
-          } else if (typeof progressOrUrl === 'string' && progressOrUrl !== '') {
-            this.landmarkForm.modelUrl = progressOrUrl;
+        next: (uploadEvent) => {
+          this.uploadModelProgress.set(uploadEvent.progress);
+          this.uploadModelStatus.set(uploadEvent.status);
+
+          if (uploadEvent.stage === 'done' && uploadEvent.url) {
+            this.landmarkForm.modelUrl = uploadEvent.url;
             this.isUploadingModel.set(false);
-            this.showToast('3D model uploaded successfully!');
+            this.showToast(`3D model (${sizeMb} MB) uploaded successfully!`);
           }
         },
         error: (err) => {
           this.isUploadingModel.set(false);
           this.uploadModelProgress.set(0);
+          this.uploadModelStatus.set('');
           console.error('Upload Error Details:', err);
           const errMsg = err.error?.message || err.message || 'Unknown error';
           this.showToast(`Failed to upload 3D model: ${errMsg}`, true);

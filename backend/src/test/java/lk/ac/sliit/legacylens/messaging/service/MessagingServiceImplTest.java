@@ -21,6 +21,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+import org.mockito.ArgumentCaptor;
+import lk.ac.sliit.legacylens.messaging.event.MessageSentEvent;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -48,6 +51,7 @@ class MessagingServiceImplTest {
     @Mock private UserRepository userRepository;
     @Mock private OpportunityAccess opportunityAccess;
     @Mock private ConversationContextProvider contextProvider;
+    @Mock private ApplicationEventPublisher events;
 
     private MessagingServiceImpl service;
 
@@ -58,7 +62,7 @@ class MessagingServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new MessagingServiceImpl(conversationRepository, messageRepository, userRepository,
-                opportunityAccess, new ConversationMapper(contextProvider));
+                opportunityAccess, new ConversationMapper(contextProvider), events);
 
         elder = user("Kamala Wijesinghe");
         creator = user("Nimal Perera");
@@ -149,6 +153,72 @@ class MessagingServiceImplTest {
         // Your own message is never unread for you — but stays unread for the elder.
         assertThat(conversation.getCreatorLastReadAt()).isEqualTo(sentAt);
         assertThat(conversation.getElderLastReadAt()).isNull();
+    }
+
+    @Test
+    void sendText_tellsTheOtherPerson_throughAnEvent() {
+        when(conversationRepository.findById(conversation.getId())).thenReturn(Optional.of(conversation));
+        when(messageRepository.saveAndFlush(any(Message.class))).thenAnswer(invocation -> {
+            Message message = invocation.getArgument(0);
+            message.setId(UUID.randomUUID());
+            message.setCreatedAt(LocalDateTime.now());
+            return message;
+        });
+
+        service.sendText(creator.getId(), conversation.getId(), "See you on Saturday");
+
+        ArgumentCaptor<MessageSentEvent> sent = ArgumentCaptor.forClass(MessageSentEvent.class);
+        verify(events).publishEvent(sent.capture());
+        assertThat(sent.getValue().recipientId()).isEqualTo(elder.getId());
+        assertThat(sent.getValue().conversationId()).isEqualTo(conversation.getId());
+        assertThat(sent.getValue().senderName()).isEqualTo("Nimal Perera");
+        assertThat(sent.getValue().preview()).isEqualTo("See you on Saturday");
+    }
+
+    @Test
+    void whenTheElderWrites_theCreatorIsTheOneTold() {
+        when(conversationRepository.findById(conversation.getId())).thenReturn(Optional.of(conversation));
+        when(messageRepository.saveAndFlush(any(Message.class))).thenAnswer(invocation -> {
+            Message message = invocation.getArgument(0);
+            message.setId(UUID.randomUUID());
+            message.setCreatedAt(LocalDateTime.now());
+            return message;
+        });
+
+        service.sendText(elder.getId(), conversation.getId(), "Saturday is fine");
+
+        ArgumentCaptor<MessageSentEvent> sent = ArgumentCaptor.forClass(MessageSentEvent.class);
+        verify(events).publishEvent(sent.capture());
+        assertThat(sent.getValue().recipientId()).isEqualTo(creator.getId());
+        assertThat(sent.getValue().senderName()).isEqualTo("Kamala Wijesinghe");
+    }
+
+    @Test
+    void aMessageThatIsNotAllowed_tellsNobody() {
+        assertThrows(InvalidRequestException.class, () -> service.sendText(creator.getId(), conversation.getId(), "  "));
+        verify(events, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void countUnread_addsUpEveryChat_forTheInboxBadge() {
+        Conversation other = new Conversation();
+        other.setId(UUID.randomUUID());
+        other.setElder(user("Sunil Perera"));
+        other.setCreator(creator);
+        when(conversationRepository.findAllForUser(creator.getId())).thenReturn(List.of(conversation, other));
+        List<Object[]> rows = new ArrayList<>();
+        rows.add(new Object[] { conversation.getId(), 2L });
+        rows.add(new Object[] { other.getId(), 3L });
+        when(messageRepository.countUnreadByConversation(anyCollection(), eq(creator.getId()), any())).thenReturn(rows);
+
+        assertThat(service.countUnread(creator.getId())).isEqualTo(5L);
+    }
+
+    @Test
+    void countUnread_isZeroWithNoChats() {
+        when(conversationRepository.findAllForUser(creator.getId())).thenReturn(List.of());
+
+        assertThat(service.countUnread(creator.getId())).isZero();
     }
 
     @Test

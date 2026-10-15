@@ -16,6 +16,8 @@ public class WorkSubmissionSummaryResponse {
     private UUID jobId;
     private String title;
     private UUID creatorId;
+    /** The opportunity the job came from; lets the knowledge holder open a chat with the creator about it. Null if it was deleted. */
+    private UUID opportunityId;
     private String creatorName;
     private String elderName;
     private String category;
@@ -25,4 +27,9 @@ public class WorkSubmissionSummaryResponse {
     private boolean elderApproved;
     private boolean adminApproved;
     private LocalDateTime publishedAt;
+    /**
+     * Admin queue only (null for the knowledge holder): who sent the work back while it is CHANGES_REQUESTED -
+     * KNOWLEDGE_HOLDER, ADMIN or BOTH. Left out of the knowledge holder's view so it never hints at the admin's note.
+     */
+    private String sentBackBy;
 }

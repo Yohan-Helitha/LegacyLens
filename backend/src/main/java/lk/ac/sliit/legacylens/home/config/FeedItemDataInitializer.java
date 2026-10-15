@@ -97,7 +97,8 @@ public class FeedItemDataInitializer implements CommandLineRunner {
                     vi.setAuthor(vNode.hasNonNull("author") ? vNode.get("author").asText() : "Elder Custodian");
                     vi.setLocation(vNode.hasNonNull("location") ? vNode.get("location").asText() : "Sri Lanka");
                     vi.setThumbnail(vNode.hasNonNull("thumbnail") ? vNode.get("thumbnail").asText() : null);
-                    vi.setVideoUrl(vNode.hasNonNull("videoUrl") ? vNode.get("videoUrl").asText() : null);
+                    String rawVUrl = vNode.hasNonNull("videoUrl") ? vNode.get("videoUrl").asText() : null;
+                    vi.setVideoUrl(rawVUrl != null && !rawVUrl.isBlank() ? rawVUrl : null);
                     vi.setDuration(vNode.hasNonNull("duration") ? vNode.get("duration").asText() : "10:00");
                     vi.setLikesCount(20);
                     vi.setCommentsCount(4);

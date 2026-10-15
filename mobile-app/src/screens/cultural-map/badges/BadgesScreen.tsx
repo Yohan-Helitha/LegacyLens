@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,6 +10,7 @@ import {
   Animated,
   StatusBar,
   Image,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -117,11 +118,37 @@ export const BadgesScreen: React.FC<BadgesProps> = ({ onNavigate }) => {
   const modalSlideAnim = useRef(new Animated.Value(300)).current;
   const musicPlayer = useAudioPlayer(require('../../../../assets/sounds/inside-map/badges-music.mp3'));
 
-  React.useEffect(() => {
-    musicPlayer.loop = true;
-    musicPlayer.volume = 1.0;
-    musicPlayer.play();
-  }, [musicPlayer]);
+  // Stop/play music based on screen focus and app active state
+  useFocusEffect(
+    React.useCallback(() => {
+      let isFocused = true;
+      try {
+        musicPlayer.loop = true;
+        musicPlayer.volume = 1.0;
+        musicPlayer.play();
+      } catch (err) {
+        console.log('Failed to play badges music', err);
+      }
+
+      const subscription = AppState.addEventListener('change', (nextAppState) => {
+        if (nextAppState === 'active' && isFocused) {
+          try { musicPlayer.play(); } catch (_) {}
+        } else {
+          try { musicPlayer.pause(); } catch (_) {}
+        }
+      });
+
+      return () => {
+        isFocused = false;
+        subscription.remove();
+        try {
+          musicPlayer.pause();
+        } catch (err) {
+          console.log('Failed to pause badges music', err);
+        }
+      };
+    }, [musicPlayer])
+  );
 
   const openBadgeModal = (badge: BadgeItem) => {
     if (!badge.isUnlocked) return;

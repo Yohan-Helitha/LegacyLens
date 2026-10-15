@@ -23,6 +23,7 @@ import { resolveOpportunityImage } from '../../../utils/opportunityImages';
 import { creatorDashboardApi } from '../../../services/api/creatorDashboardApi';
 import { profileApi } from '../../../services/api/profileApi';
 import { useAuthStore } from '../../../store/authStore';
+import { useProfilePhoto } from '../../../store/profilePhotoStore';
 import { opportunityApplicationApi } from '../../../services/api/opportunityApplicationApi';
 import { ApiError } from '../../../services/api/client';
 import type {
@@ -202,15 +203,18 @@ function greetingForHour(hour: number): string {
   return 'Good Evening';
 }
 
-const GreetingSection: React.FC<{ name: string }> = ({ name }) => (
+const GreetingSection: React.FC<{ name: string }> = ({ name }) => {
+  // The creator's own profile picture - the same one the bottom bar and the profile page show.
+  const photo = useProfilePhoto();
+  return (
   <View style={s.greetingRow}>
-    <Image
-      source={{
-        uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBdmWxeiutm8VuCuwb8B-bcbY4uwLEOEIZpHad16sSCOnOCn176-8moOj3W6uDPAciix85yHVNmpAd1RTzDZNIib4AVMq68gwoQfyYec-CiNygpv3Rti52MfEWixskGSi9K2HzQJc1XhIg649C9xWHdmBqgXNA5LsR-CP4PfF7fUKsBLElU0twICuF7-ZcI9Vlnj9GgnzoL4Bqj9ilpxA4BZs3oFt_0h7PcPdk4HDm4JKWKr6S3bofO2g',
-      }}
-      style={s.avatar}
-      accessibilityLabel="Your profile photo"
-    />
+    {photo ? (
+      <Image source={{ uri: photo }} style={s.avatar} accessibilityLabel="Your profile photo" />
+    ) : (
+      <View style={[s.avatar, s.avatarEmpty]} accessibilityLabel="No profile photo yet">
+        <Text style={s.avatarInitial}>{name.trim().charAt(0).toUpperCase() || '?'}</Text>
+      </View>
+    )}
     <View style={s.greetingText}>
       <View style={s.greetingHeadlineRow}>
         <Text style={s.greetingHeadline}>{`${greetingForHour(new Date().getHours())}${name ? `, ${name}` : ''}`}</Text>
@@ -219,7 +223,8 @@ const GreetingSection: React.FC<{ name: string }> = ({ name }) => (
       <Text style={s.greetingSubtitle}>Ready to preserve a story today?</Text>
     </View>
   </View>
-);
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MetricsSection  (stats card + balance card)
@@ -946,6 +951,8 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1, shadowRadius: 3, elevation: 2,
   },
+  avatarEmpty:      { backgroundColor: D.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' },
+  avatarInitial:    { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeXL, color: D.primary },
   greetingText:     { flex: 1, justifyContent: 'center' },
   greetingHeadlineRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   greetingHeadline: {

@@ -13,6 +13,9 @@ public interface JobWorkProgressRepository extends JpaRepository<JobWorkProgress
 
     Optional<JobWorkProgress> findByJobId(UUID jobId);
 
+    /** Work both reviewers approved that is not in the users' feed yet. */
+    List<JobWorkProgress> findByJobStatusAndPublishedStoryIdIsNull(lk.ac.sliit.legacylens.marketplace.entity.JobStatus status);
+
     List<JobWorkProgress> findByJobIdIn(java.util.Collection<UUID> jobIds);
 
     /** Rejected submissions the creator has not looked at yet - the number on the menu. */

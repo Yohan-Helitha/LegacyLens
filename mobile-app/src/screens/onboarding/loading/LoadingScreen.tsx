@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import {
   Animated,
   Easing,
+  Image,
   StyleSheet,
   Text,
   View,
@@ -10,7 +11,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Circle, Path } from 'react-native-svg';
 import { Colors, Typography, Spacing } from '../../../theme';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -24,83 +24,20 @@ interface LoadingScreenProps {
 // ─────────────────────────────────────────────────────────────────────────────
 // Logo mark — pure SVG, no external assets required
 // ─────────────────────────────────────────────────────────────────────────────
-const LogoMark: React.FC<{ ringAnim: Animated.Value; coreAnim: Animated.Value }> = ({
-  ringAnim,
-  coreAnim,
-}) => {
-  const ringRotate = ringAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  const coreScale = coreAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [1, 1.35, 1],
-  });
-
-  const coreOpacity = coreAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [1, 0.65, 1],
-  });
+const LogoMark: React.FC<{ ringAnim: Animated.Value; coreAnim: Animated.Value }> = ({ coreAnim }) => {
+  // The Legacy Lens mark (same artwork as the app icon, also hosted in the Supabase "app-icons" bucket).
+  // It breathes very slightly while the app loads; the animation values come from the screen's existing loop.
+  const scale = coreAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.04, 1] });
 
   return (
-    <View style={styles.logoContainer}>
-      {/* Outer ring — slow continuous rotation */}
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          { transform: [{ rotate: ringRotate }] },
-        ]}
-      >
-        <Svg width="100%" height="100%" viewBox="0 0 120 120" fill="none">
-          <Circle
-            cx="60" cy="60" r="50"
-            stroke={Colors.secondary}
-            strokeWidth="3.5"
-            opacity={0.85}
-          />
-        </Svg>
-      </Animated.View>
-
-      {/* Static inner dashed ring + soundwave bars */}
-      <Svg
-        width="100%"
-        height="100%"
-        viewBox="0 0 120 120"
-        fill="none"
-        style={StyleSheet.absoluteFill}
-      >
-        {/* Dashed inner ring */}
-        <Circle
-          cx="60" cy="60" r="40"
-          stroke={Colors.secondary}
-          strokeWidth="1.5"
-          strokeDasharray="5 4"
-          opacity={0.45}
-        />
-        {/* Soundwave / storytelling bars */}
-        <Path
-          d="M45 48 V72 M52.5 38 V82 M60 28 V92 M67.5 38 V82 M75 48 V72"
-          stroke={Colors.secondary}
-          strokeWidth="3"
-          strokeLinecap="round"
-          opacity={0.75}
-        />
-      </Svg>
-
-      {/* Mango accent core — pulsing */}
-      <Animated.View
-        style={[
-          styles.logoCoreWrapper,
-          {
-            transform: [{ scale: coreScale }],
-            opacity: coreOpacity,
-          },
-        ]}
-      >
-        <View style={styles.logoCore} />
-      </Animated.View>
-    </View>
+    <Animated.View style={[styles.logoContainer, { transform: [{ scale }] }]}>
+      <Image
+        source={require('../../../../assets/splash-icon.png')}
+        style={styles.logoImage}
+        resizeMode="contain"
+        accessibilityLabel="Legacy Lens logo"
+      />
+    </Animated.View>
   );
 };
 
@@ -336,7 +273,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onFinish }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
-const LOGO_SIZE = 120;
+const LOGO_SIZE = 168;
 const DOT_SIZE  = 10;
 
 const styles = StyleSheet.create({
@@ -387,26 +324,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoCoreWrapper: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: LOGO_SIZE,
-    height: LOGO_SIZE,
-  },
-  logoCore: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: Colors.accent,
-    // React Native shadow (iOS)
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    // Android elevation
-    elevation: 4,
-  },
+  logoImage: { width: '100%', height: '100%' },
 
   // ── Text ───────────────────────────────────────────────────────────────────
   wordmark: {

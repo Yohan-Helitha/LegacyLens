@@ -15,13 +15,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import MapView from 'react-native-maps';
+import * as FileSystem from 'expo-file-system';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Colors, Typography, Spacing, Radii } from '../../../theme';
 import { styles } from './CreateOpportunityScreen.styles';
 import { useOpportunity } from '../../../context/OpportunityContext';
 import { adminOpportunityApi } from '../../../services/api/opportunityApi';
 import { CreateOpportunityRequest } from '../../../types/opportunity';
+
+const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN ?? '';
 
 export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
   const [step, setStep] = useState(1);
@@ -37,6 +39,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
+  const [mapZoom, setMapZoom] = useState(13);
   const [locationText, setLocationText] = useState('');
   const [isLocationSaved, setIsLocationSaved] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<Date | null>(null);
@@ -53,7 +56,51 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   const [preservationDescription, setPreservationDescription] = useState('');
   const [publishing, setPublishing] = useState(false);
 
-  const { saveDraft, publishDraft, getActiveDraft, activeDraftId, setActiveDraftId, originTab, refreshAll } = useOpportunity();
+  const { saveDraft, publishDraft, getActiveDraft, activeDraftId, setActiveDraftId, originTab, refreshAll, audioSubmissions, allOpportunities } = useOpportunity();
+
+  // Knowledge holders collection
+  const knowledgeHolders = React.useMemo(() => {
+    const list: Array<{ id: string; name: string; role: string; location: string; avatarUrl?: string | null }> = [
+      { id: 'kh-1', name: 'Mrs. Nirmala Wijesinghe', role: 'Traditional Pottery Master', location: 'Matara, Southern Province' },
+      { id: 'kh-2', name: 'Master Ariyapala Wijesuriya', role: 'Mask Carving Artisan', location: 'Ambalangoda, Southern Province' },
+      { id: 'kh-3', name: 'K. Gunadasa', role: 'Brassware & Metal Engraver', location: 'Pilimathalawa, Kandy' },
+      { id: 'kh-4', name: 'Premawathi Menike', role: 'Dumbara Mat Weaver', location: 'Kundasale, Central Province' },
+      { id: 'kh-5', name: 'Dharmasena Alahakoon', role: 'Traditional Herbal Medicine', location: 'Anuradhapura' },
+    ];
+
+    (audioSubmissions || []).forEach(a => {
+      if (a.elderName && !list.some(k => k.name.toLowerCase() === a.elderName.toLowerCase())) {
+        list.push({
+          id: a.id,
+          name: a.elderName,
+          role: a.topic || 'Heritage Practitioner',
+          location: a.location || 'Sri Lanka',
+          avatarUrl: a.elderAvatarUrl,
+        });
+      }
+    });
+
+    (allOpportunities || []).forEach(o => {
+      const elderName = o.elderName;
+      if (elderName && !list.some(k => k.name.toLowerCase() === elderName.toLowerCase())) {
+        list.push({
+          id: o.elderId || o.id,
+          name: elderName,
+          role: o.category || 'Culture Custodian',
+          location: o.location || 'Sri Lanka',
+          avatarUrl: (o as any).elderAvatarUrl || null,
+        });
+      }
+    });
+
+    return list;
+  }, [audioSubmissions, allOpportunities]);
+
+  const filteredKnowledgeHolders = React.useMemo(() => {
+    if (!searchQuery.trim()) return knowledgeHolders;
+    const q = searchQuery.toLowerCase();
+    return knowledgeHolders.filter(k => k.name.toLowerCase().includes(q) || k.role.toLowerCase().includes(q) || k.location.toLowerCase().includes(q));
+  }, [knowledgeHolders, searchQuery]);
 
   const hasDraftContent = Boolean(
     opportunityTitle?.trim() ||
@@ -127,11 +174,14 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
 
   const handleSaveDraft = async () => {
     if (!hasDraftContent) {
+      Alert.alert('Empty Draft', 'Please provide a title or other details before saving a draft.');
       return;
     }
 
-    const selectedKH: any = null;
-    const elderName = selectedKH ? selectedKH.name : null;
+    const selectedKH = knowledgeHolders.find(k => k.id === selectedKnowledgeHolder || k.name === selectedKnowledgeHolder);
+    const elderName = selectedKH ? selectedKH.name : (selectedKnowledgeHolder || 'Culture Custodian');
+    const elderId = (selectedKH?.id && selectedKH.id.includes('-') && !selectedKH.id.startsWith('mock-') && !selectedKH.id.startsWith('kh-')) ? selectedKH.id : undefined;
+
     const body = {
       title: opportunityTitle || 'Untitled Opportunity',
       description: preservationDescription,
@@ -149,13 +199,29 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
       requiredSkills: selectedSkills.join(','),
       status: 'DRAFT',
       elderName,
+      elderId,
     } as CreateOpportunityRequest;
 
+    let targetDraftId = activeDraftId;
     try {
-      await adminOpportunityApi.createOpportunity(body);
+      const isBackendDraft = activeDraftId && !activeDraftId.startsWith('draft-');
+      if (isBackendDraft) {
+        await adminOpportunityApi.updateOpportunity(activeDraftId, body);
+      } else {
+        const res = await adminOpportunityApi.createOpportunity(body);
+        if (res && res.id) {
+          targetDraftId = res.id;
+          setActiveDraftId(res.id);
+        }
+      }
+    } catch (backendErr) {
+      console.warn('Backend draft sync skipped/failed, persisting locally:', backendErr);
+    }
+
+    try {
       await saveDraft({
-        id: activeDraftId || undefined,
-        opportunityTitle,
+        id: targetDraftId || undefined,
+        opportunityTitle: opportunityTitle || 'Untitled Opportunity',
         coverImage,
         selectedCategory,
         selectedKnowledgeHolder,
@@ -171,17 +237,21 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
         selectedDeliverables,
         preservationDescription,
       });
+      Alert.alert('Draft Saved', 'Opportunity draft has been saved successfully.');
+      await refreshAll();
       onNavigate?.('drafts');
-    } catch (e: any) {
-      Alert.alert('Save Draft Failed', e?.message || 'Could not save draft. Please try again.');
+    } catch (localErr: any) {
+      Alert.alert('Save Draft Failed', localErr?.message || 'Could not save draft locally.');
     }
   };
 
   const handlePublish = async () => {
     setPublishing(true);
     try {
-      const selectedKH: any = null;
-      const elderName = selectedKH ? selectedKH.name : null;
+      const selectedKH = knowledgeHolders.find(k => k.id === selectedKnowledgeHolder || k.name === selectedKnowledgeHolder);
+      const elderName = selectedKH ? selectedKH.name : (selectedKnowledgeHolder || 'Culture Custodian');
+      const elderId = (selectedKH?.id && selectedKH.id.includes('-') && !selectedKH.id.startsWith('mock-') && !selectedKH.id.startsWith('kh-')) ? selectedKH.id : undefined;
+
       const body = {
         title: opportunityTitle,
         description: preservationDescription,
@@ -199,6 +269,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
         requiredSkills: selectedSkills.join(','),
         status: 'PUBLISHED',
         elderName,
+        elderId,
       } as CreateOpportunityRequest;
       await publishDraft(activeDraftId || `draft-${Date.now()}`, body);
       setStep(6);
@@ -209,7 +280,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
     }
   };
 
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<any>(null);
 
   const formatTime = (date: Date | null) => {
     if (!date) return '';
@@ -229,15 +300,38 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   };
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.7,
+        base64: true,
+      });
 
-    if (!result.canceled) {
-      setCoverImage(result.assets[0].uri);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        if (asset.base64) {
+          setCoverImage(`data:image/jpeg;base64,${asset.base64}`);
+        } else if (asset.uri) {
+          // Fallback: read file directly as base64 so web dashboard can always display it
+          try {
+            const base64Str = await FileSystem.readAsStringAsync(asset.uri, {
+              encoding: 'base64' as any,
+            });
+            if (base64Str) {
+              setCoverImage(`data:image/jpeg;base64,${base64Str}`);
+            } else {
+              setCoverImage(asset.uri);
+            }
+          } catch (fsErr) {
+            console.warn('Could not read file as base64:', fsErr);
+            setCoverImage(asset.uri);
+          }
+        }
+      }
+    } catch (e: any) {
+      Alert.alert('Image Picker Error', e?.message || 'Could not pick image');
     }
   };
 
@@ -443,15 +537,79 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
           <MaterialIcons name="search" size={20} color={Colors.textMuted} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Select a knowledge holder..."
+            placeholder="Search or select a knowledge holder..."
             placeholderTextColor={Colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <MaterialIcons name="close" size={20} color={Colors.textMuted} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.profilesGrid}>
-          {[]}
+          {filteredKnowledgeHolders.map((kh) => {
+            const isSelected = selectedKnowledgeHolder === kh.id || selectedKnowledgeHolder === kh.name;
+            return (
+              <TouchableOpacity
+                key={kh.id}
+                style={[
+                  styles.profileCard,
+                  isSelected && {
+                    borderColor: '#fe893e',
+                    borderWidth: 2,
+                    backgroundColor: 'rgba(254, 137, 62, 0.05)',
+                  },
+                ]}
+                activeOpacity={0.7}
+                onPress={() => setSelectedKnowledgeHolder(kh.name)}
+              >
+                <View style={[styles.profileAvatarContainer, isSelected && { borderColor: '#fe893e' }]}>
+                  {kh.avatarUrl ? (
+                    <Image source={{ uri: kh.avatarUrl }} style={{ width: 62, height: 62, borderRadius: 31 }} />
+                  ) : (
+                    <MaterialIcons name="person" size={32} color={isSelected ? '#fe893e' : Colors.secondary} />
+                  )}
+                </View>
+                <View style={styles.profileInfo}>
+                  <View style={styles.profileNameRow}>
+                    <Text style={[styles.profileName, isSelected && { color: '#0f5c5c', fontWeight: '700' }]}>
+                      {kh.name}
+                    </Text>
+                    {isSelected && (
+                      <MaterialIcons name="check-circle" size={18} color="#fe893e" style={{ marginLeft: 4 }} />
+                    )}
+                  </View>
+                  <Text style={styles.profileRole}>{kh.role}</Text>
+                  <View style={styles.profileLocationRow}>
+                    <MaterialIcons name="location-on" size={14} color={Colors.textMuted} />
+                    <Text style={styles.profileLocation}>{kh.location}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+
+          {filteredKnowledgeHolders.length === 0 && (
+            <View style={{ padding: 24, alignItems: 'center' }}>
+              <MaterialIcons name="person-off" size={36} color={Colors.textMuted} />
+              <Text style={{ marginTop: 8, color: Colors.textMuted, fontFamily: Typography.fontBodyMed }}>
+                No knowledge holders matching "{searchQuery}"
+              </Text>
+            </View>
+          )}
+
+          {searchQuery.trim().length > 0 && !filteredKnowledgeHolders.some(k => k.name.toLowerCase() === searchQuery.trim().toLowerCase()) && (
+            <TouchableOpacity
+              style={styles.addHolderBtn}
+              onPress={() => setSelectedKnowledgeHolder(searchQuery.trim())}
+            >
+              <MaterialIcons name="add" size={20} color={Colors.secondary} />
+              <Text style={styles.addHolderText}>Use "{searchQuery.trim()}" as Custodian</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
       </ScrollView>
@@ -507,23 +665,39 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
               returnKeyType="search"
             />
           </View>
-          <View style={[styles.mapPreviewBox, { overflow: 'hidden' }]}>
-            <MapView
-              ref={mapRef}
-              style={{ flex: 1, width: '100%', height: '100%' }}
-              initialRegion={mapRegion}
-              scrollEnabled={!isLocationSaved}
-              zoomEnabled={!isLocationSaved}
-              pitchEnabled={!isLocationSaved}
-              rotateEnabled={!isLocationSaved}
-              onRegionChangeComplete={(region) => {
-                setMapRegion(region);
+          <View style={[styles.mapPreviewBox, { overflow: 'hidden', position: 'relative' }]}>
+            <Image
+              source={{
+                uri: `https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/${mapRegion.longitude.toFixed(6)},${mapRegion.latitude.toFixed(6)},${mapZoom},0/600x350@2x?access_token=${MAPBOX_TOKEN}`
               }}
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="cover"
             />
             {/* Center pointer overlay */}
-            <View style={{ position: 'absolute', top: '50%', left: '50%', marginTop: -24, marginLeft: -16, alignItems: 'center' }} pointerEvents="none">
-              <MaterialIcons name="location-on" size={32} color={isLocationSaved ? "#2e7d32" : "#fe893e"} />
-              {!isLocationSaved && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.3)', marginTop: -6 }} />}
+            <View style={{ position: 'absolute', top: '50%', left: '50%', marginTop: -20, marginLeft: -16, alignItems: 'center' }} pointerEvents="none">
+              <MaterialIcons name="location-on" size={36} color={isLocationSaved ? "#2e7d32" : "#fe893e"} />
+              {!isLocationSaved && <View style={{ width: 8, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.3)', marginTop: -4 }} />}
+            </View>
+            {/* Zoom Controls */}
+            <View style={{ position: 'absolute', top: 8, right: 8, gap: 6 }}>
+              <TouchableOpacity
+                style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.white, alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } }}
+                onPress={() => setMapZoom(prev => Math.min(18, prev + 1))}
+              >
+                <MaterialIcons name="add" size={20} color={Colors.secondary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.white, alignItems: 'center', justifyContent: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } }}
+                onPress={() => setMapZoom(prev => Math.max(5, prev - 1))}
+              >
+                <MaterialIcons name="remove" size={20} color={Colors.secondary} />
+              </TouchableOpacity>
+            </View>
+            {/* Coordinates / Location Pill */}
+            <View style={{ position: 'absolute', bottom: 8, left: 8, backgroundColor: 'rgba(15,92,92,0.85)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+              <Text style={{ color: '#fff', fontSize: 11, fontFamily: Typography.fontBodyMed }}>
+                {locationText || `${mapRegion.latitude.toFixed(4)}, ${mapRegion.longitude.toFixed(4)}`}
+              </Text>
             </View>
           </View>
           {/* Save Location Button */}
@@ -858,35 +1032,38 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
             <MaterialIcons name="visibility" size={14} color={Colors.textMuted} />
             <Text style={styles.previewTagText}>PREVIEW</Text>
           </View>
-          <ImageBackground
-            source={{ uri: coverImage || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCP68zF6Gx2bvH0fVStHJXGnBk5k_zSJg9JGpVV_809FYAbsWYy07BPZju5VzHAh0a3DsWveaJuEjyGZZuqsEJK63MJTxJ8oCdRaLzuOqiEPkZjrQZbSry6dS7t3kk18Z23_FVbDtwh1ltzKXc_ucCq8Q6epXt5apHZzXR6wBeAoHsvijSJzyy7b_DOS2II3W_dmHBW_4KryJA7_7PDvzAoPgp4ylZTV3AZjsRq8m_Cc_xV9mRXNloj' }}
-            style={styles.previewImage}
-          />
+          {coverImage ? (
+            <ImageBackground source={{ uri: coverImage }} style={styles.previewImage} />
+          ) : (
+            <View style={[styles.previewImage, { backgroundColor: Colors.secondary, alignItems: 'center', justifyContent: 'center' }]}>
+              <MaterialIcons name="image" size={48} color="rgba(255,255,255,0.4)" />
+            </View>
+          )}
           <View style={styles.previewContent}>
             <View style={styles.previewHostRow}>
               <View style={[styles.previewHostAvatar, { backgroundColor: '#eceeed', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }]}>
-                {selectedKH?.image ? (
-                  <Image source={{ uri: selectedKH.image }} style={{ width: '100%', height: '100%' }} />
+                {selectedKH?.avatarUrl ? (
+                  <Image source={{ uri: selectedKH.avatarUrl }} style={{ width: '100%', height: '100%' }} />
                 ) : (
                   <MaterialIcons name="person" size={24} color={Colors.textMuted} />
                 )}
               </View>
               <View>
-                <Text style={styles.previewHostName}>Hosted by {selectedKH ? selectedKH.name.split(' ')[1] : 'Someone'}</Text>
+                <Text style={styles.previewHostName}>Hosted by {selectedKH ? selectedKH.name : (selectedKnowledgeHolder || 'Culture Custodian')}</Text>
                 <View style={styles.previewLocationRow}>
                   <MaterialIcons name="location-on" size={12} color={Colors.textMuted} />
-                  <Text style={styles.previewLocation}>{selectedKH ? selectedKH.location : 'Unknown'}, Sri Lanka</Text>
+                  <Text style={styles.previewLocation}>{selectedKH ? selectedKH.location : (locationText || 'Sri Lanka')}</Text>
                 </View>
               </View>
             </View>
             <Text style={styles.previewTitle}>{opportunityTitle || 'Untitled Opportunity'}</Text>
             <Text style={styles.previewDesc} numberOfLines={2}>
-              Join an immersive session to document and preserve vital cultural knowledge with a verified master artisan.
+              {preservationDescription || 'Join an immersive session to document and preserve vital cultural knowledge with a verified master artisan.'}
             </Text>
             <View style={styles.previewBottomRow}>
               <View style={styles.previewBadgesRow}>
                 <View style={styles.previewBadge}><Text style={styles.previewBadgeText}>{selectedCategory || 'Cultural'}</Text></View>
-                <View style={styles.previewBadge}><MaterialIcons name="schedule" size={12} color={Colors.textMuted} /><Text style={styles.previewBadgeText}>3 hrs</Text></View>
+                <View style={styles.previewBadge}><MaterialIcons name="schedule" size={12} color={Colors.textMuted} /><Text style={styles.previewBadgeText}>{scheduleDuration || '3 hrs'}</Text></View>
               </View>
               <Text style={styles.previewPrice}>LKR 3,500</Text>
             </View>
@@ -912,7 +1089,7 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
   // Step 6: Published Success
   // ────────────────────────────────────────────────────────────────────────
   const renderStep6 = () => {
-    const selectedKH: any = null;
+    const selectedKH = knowledgeHolders.find(k => k.id === selectedKnowledgeHolder || k.name === selectedKnowledgeHolder);
     return (
     <View style={styles.successContainer}>
       <View style={styles.successIconBox}>
@@ -922,13 +1099,19 @@ export const CreateOpportunityScreen: React.FC<{ onNavigate?: (tab: string) => v
       <Text style={styles.successSubtitle}>Someone can now help preserve this knowledge for the generations ahead.</Text>
 
       <View style={styles.successCard}>
-        <Image source={{ uri: coverImage || 'https://lh3.googleusercontent.com/aida-public/AB6AXuA2eHWgprmT-eZ-gPeztEDmvJEI7QO38bzognKTuXbt7LM4g_1Gp14KWl0lpa5hdQS-RJbRgewgi8gh4fC5npq5nxXICHwO34nPBnWxwmq6BlfWuaD210-XIq2zirwIXwr_TgbdrCYnGo2-_IO-KENJ8e-WyYOOZlfJvZcFZiQ0g24_V-cbW08KXQSqj72qKppnWpDvW0FJ1jFQmsvp-HMHtOV_m6TtJn_hiExVCXoX16AYATUnvzzi' }} style={styles.successCardImg} />
+        {coverImage ? (
+          <Image source={{ uri: coverImage }} style={styles.successCardImg} />
+        ) : (
+          <View style={[styles.successCardImg, { backgroundColor: Colors.secondary, alignItems: 'center', justifyContent: 'center' }]}>
+            <MaterialIcons name="image" size={32} color="rgba(255,255,255,0.5)" />
+          </View>
+        )}
         <View style={styles.successCardInfo}>
           <Text style={styles.successCardTag}>Preservation Task</Text>
           <Text style={styles.successCardTitle} numberOfLines={1}>{opportunityTitle || 'Untitled Opportunity'}</Text>
           <View style={styles.successLocationRow}>
             <MaterialIcons name="location-on" size={14} color={Colors.textMuted} />
-            <Text style={styles.successLocationText} numberOfLines={1}>{selectedKH ? selectedKH.location : 'Unknown Location'}</Text>
+            <Text style={styles.successLocationText} numberOfLines={1}>{selectedKH ? selectedKH.location : (locationText || 'Sri Lanka')}</Text>
           </View>
         </View>
       </View>

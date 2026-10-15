@@ -17,6 +17,8 @@ import { KnowledgeKeeperComponent } from '../pages/knowledge-keeper/knowledge-ke
 import { NotificationsComponent } from '../pages/notifications/notifications.component';
 import { GuidelinesComponent } from '../pages/guidelines/guidelines.component';
 import { TaxonomyComponent } from '../pages/taxonomy/taxonomy.component';
+import { WorkReviewComponent } from '../pages/work-review/work-review.component';
+import { WorkReviewDetailComponent } from '../pages/work-review/work-review-detail.component';
 import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -45,6 +47,16 @@ export const routes: Routes = [
   {
     path: 'moderation',
     component: ModerationComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'work-review',
+    component: WorkReviewComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'work-review/:jobId',
+    component: WorkReviewDetailComponent,
     canActivate: [authGuard]
   },
   {

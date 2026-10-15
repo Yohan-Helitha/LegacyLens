@@ -190,8 +190,15 @@ const VERIFICATIONS_API = 'http://localhost:8081/api/admin/verifications';
                             [ngClass]="selectedAdmin()?.id === admin.id ? 'bg-[#004343]/10 border-l-4 border-l-[#004343]' : 'hover:bg-[#f8faf9]'"
                             class="transition-colors cursor-pointer">
                           <td class="px-5 py-3.5">
-                            <div class="font-bold text-[#191c1c] text-xs">{{ admin.fullName }}</div>
-                            <div class="text-[10px] text-[#6e7978] font-mono">{{ admin.phoneNumber }}</div>
+                            <div class="flex items-center gap-3">
+                              <div class="w-8 h-8 rounded-full bg-[#004343] text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
+                                {{ getInitials(admin.fullName) }}
+                              </div>
+                              <div class="min-w-0">
+                                <div class="font-bold text-[#191c1c] text-xs truncate">{{ admin.fullName }}</div>
+                                <div class="text-[10px] text-[#6e7978] font-mono truncate">{{ admin.phoneNumber }}</div>
+                              </div>
+                            </div>
                           </td>
                           <td class="px-5 py-3.5 font-mono text-[#6e7978] text-[10px]">{{ admin.nicNumber }}</td>
                           <td class="px-5 py-3.5">
@@ -239,9 +246,14 @@ const VERIFICATIONS_API = 'http://localhost:8081/api/admin/verifications';
               @if (selectedAdmin(); as admin) {
                 <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-sm p-5 space-y-5">
                   <div class="flex items-center justify-between pb-3 border-b border-[#dde3eb]">
-                    <div>
-                      <h3 class="text-sm font-bold text-[#191c1c]">Administrator Profile</h3>
-                      <p class="text-[10px] text-[#6e7978] font-mono mt-0.5">ID: {{ admin.id }}</p>
+                    <div class="flex items-center gap-3">
+                      <div class="w-10 h-10 rounded-xl bg-[#004343] text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                        {{ getInitials(admin.fullName) }}
+                      </div>
+                      <div>
+                        <h3 class="text-sm font-bold text-[#191c1c]">{{ admin.fullName }}</h3>
+                        <p class="text-[10px] text-[#6e7978] font-mono mt-0.5">ID: {{ admin.id }}</p>
+                      </div>
                     </div>
                     <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border"
                           [ngClass]="getAccountStatusBadge(admin.accountStatus)">
@@ -607,6 +619,14 @@ export class AdminManagementComponent implements OnInit {
       createdAt: '',
       updatedAt: ''
     };
+  }
+
+  getInitials(name?: string | null): string {
+    if (!name) return 'AD';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'AD';
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
   private showToast(msg: string, isError = false): void {

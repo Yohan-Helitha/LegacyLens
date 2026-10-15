@@ -1,10 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { messagingApi } from '../services/api/messagingApi';
+import { useInboxUnreadStore } from '../store/inboxUnreadStore';
+import { usePushNotificationEvents } from './usePushNotifications';
 import type { ChatMessage, ConversationDetail } from '../types/messaging';
 
-/** How often an open chat checks for new messages. There's no push channel yet, so this is a cheap "anything newer?" poll. */
+/**
+ * How often an open chat checks for new messages when nothing tells it sooner: a cheap "anything newer?" poll.
+ * A notification arriving while the chat is open makes it check straight away.
+ */
 const POLL_INTERVAL_MS = 5000;
+
+/** A message that could not be sent. It stays in the chat, marked, so it can be sent again or removed. */
+export interface FailedMessage {
+  key: string;
+  text: string;
+  /** True while a resend is in flight. */
+  retrying: boolean;
+}
 
 /** Adds messages that aren't already there (by id) and keeps reading order. */
 const mergeMessages = (current: ChatMessage[], incoming: ChatMessage[]) => {
@@ -27,9 +40,18 @@ export function useConversation(conversationId: string) {
   const [loadError, setLoadError] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(false);
+  const [failed, setFailed] = useState<FailedMessage[]>([]);
   const mountedRef = useRef(true);
   const messagesRef = useRef<ChatMessage[]>([]);
   messagesRef.current = messages;
+
+  /** The chat is read: tell the backend, then refresh the Inbox tab's number so it drops at once. */
+  const markRead = useCallback(() => {
+    messagingApi
+      .markRead(conversationId)
+      .then(() => useInboxUnreadStore.getState().refresh(true))
+      .catch(() => undefined);
+  }, [conversationId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -42,13 +64,13 @@ export function useConversation(conversationId: string) {
       if (!mountedRef.current) return;
       setDetail(conversation);
       setMessages(latest ?? []);
-      messagingApi.markRead(conversationId).catch(() => undefined);
+      markRead();
     } catch {
       if (mountedRef.current) setLoadError(true);
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, [conversationId]);
+  }, [conversationId, markRead]);
 
   /** Fetches only what arrived since the newest message we have; marks the chat read if any of it is theirs. */
   const poll = useCallback(async () => {
@@ -60,12 +82,16 @@ export function useConversation(conversationId: string) {
       if (!mountedRef.current || !incoming?.length) return;
       setMessages((prev) => mergeMessages(prev, incoming));
       if (incoming.some((message) => !message.fromMe)) {
-        messagingApi.markRead(conversationId).catch(() => undefined);
+        markRead();
       }
     } catch {
       // A missed poll is harmless — the next one catches up.
     }
-  }, [conversationId]);
+  }, [conversationId, markRead]);
+
+  // A notification arriving while this chat is open is almost always a new message: look for it right away
+  // instead of waiting for the next check.
+  usePushNotificationEvents({ onReceived: poll });
 
   useEffect(() => {
     mountedRef.current = true;
@@ -94,7 +120,10 @@ export function useConversation(conversationId: string) {
     };
   }, [detail, poll]);
 
-  /** Sends a text message. Resolves false on failure so the caller can keep the draft. */
+  /**
+   * Sends a text message. When it cannot be sent it is kept in the chat as a "not sent" message (see
+   * `failed`) that can be tried again - so what the person wrote is never lost. Resolves false on failure.
+   */
   const send = useCallback(
     async (text: string): Promise<boolean> => {
       const trimmed = text.trim();
@@ -106,7 +135,9 @@ export function useConversation(conversationId: string) {
         if (mountedRef.current && sent) setMessages((prev) => mergeMessages(prev, [sent]));
         return true;
       } catch {
-        if (mountedRef.current) setSendError(true);
+        if (mountedRef.current) {
+          setFailed((prev) => [...prev, { key: `failed-${Date.now()}-${prev.length}`, text: trimmed, retrying: false }]);
+        }
         return false;
       } finally {
         if (mountedRef.current) setSending(false);
@@ -114,6 +145,31 @@ export function useConversation(conversationId: string) {
     },
     [conversationId],
   );
+
+  /** Tries a "not sent" message again; on success it becomes a normal message, on failure it stays marked. */
+  const retryFailed = useCallback(
+    async (key: string) => {
+      const target = failed.find((item) => item.key === key);
+      if (!target || target.retrying) return;
+      setFailed((prev) => prev.map((item) => (item.key === key ? { ...item, retrying: true } : item)));
+      try {
+        const sent = await messagingApi.send(conversationId, target.text);
+        if (!mountedRef.current) return;
+        if (sent) setMessages((prev) => mergeMessages(prev, [sent]));
+        setFailed((prev) => prev.filter((item) => item.key !== key));
+      } catch {
+        if (mountedRef.current) {
+          setFailed((prev) => prev.map((item) => (item.key === key ? { ...item, retrying: false } : item)));
+        }
+      }
+    },
+    [conversationId, failed],
+  );
+
+  /** Removes a "not sent" message the person decided not to send after all. */
+  const discardFailed = useCallback((key: string) => {
+    setFailed((prev) => prev.filter((item) => item.key !== key));
+  }, []);
 
   /** Sends a recorded clip as a voice message, then fetches it so it shows in the chat. Resolves false on failure. */
   const sendVoice = useCallback(
@@ -136,7 +192,10 @@ export function useConversation(conversationId: string) {
 
   const clearSendError = useCallback(() => setSendError(false), []);
 
-  return { detail, messages, loading, loadError, sending, sendError, send, sendVoice, clearSendError, reload: load };
+  return {
+    detail, messages, loading, loadError, sending, sendError, failed,
+    send, retryFailed, discardFailed, sendVoice, clearSendError, reload: load,
+  };
 }
 
 export default useConversation;
