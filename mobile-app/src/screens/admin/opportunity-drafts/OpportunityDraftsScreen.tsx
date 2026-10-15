@@ -29,7 +29,7 @@ type PubItem = {
 const toPubItem = (opp: AdminOpportunityResponse): PubItem => ({
   id: opp.id,
   title: opp.title,
-  image: opp.heroImageUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCP68zF6Gx2bvH0fVStHJXGnBk5k_zSJg9JGpVV_809FYAbsWYy07BPZju5VzHAh0a3DsWveaJuEjyGZZuqsEJK63MJTxJ8oCdRaLzuOqiEPkZjrQZbSry6dS7t3kk18Z23_FVbDtwh1ltzKXc_ucCq8Q6epXt5apHZzXR6wBeAoHsvijSJzyy7b_DOS2II3W_dmHBW_4KryJA7_7PDvzAoPgp4ylZTV3AZjsRq8m_Cc_xV9mRXNloj',
+  image: opp.heroImageUrl || '',
   status: opp.status === 'PUBLISHED' ? 'ACTIVE' : opp.status === 'COMPLETED' ? 'COMPLETED' : 'REMOVED',
   dateStr: opp.scheduledDate ? String(opp.scheduledDate) : (opp.createdAt ? opp.createdAt.split(' ')[0] : ''),
   participantsInfo: opp.offeredAmount ? `LKR ${opp.offeredAmount}` : 'No amount set',
@@ -40,7 +40,7 @@ const toPubItem = (opp: AdminOpportunityResponse): PubItem => ({
 const toDraftItem = (opp: AdminOpportunityResponse) => ({
   id: opp.id,
   title: opp.title,
-  image: opp.heroImageUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCP68zF6Gx2bvH0fVStHJXGnBk5k_zSJg9JGpVV_809FYAbsWYy07BPZju5VzHAh0a3DsWveaJuEjyGZZuqsEJK63MJTxJ8oCdRaLzuOqiEPkZjrQZbSry6dS7t3kk18Z23_FVbDtwh1ltzKXc_ucCq8Q6epXt5apHZzXR6wBeAoHsvijSJzyy7b_DOS2II3W_dmHBW_4KryJA7_7PDvzAoPgp4ylZTV3AZjsRq8m_Cc_xV9mRXNloj',
+  image: opp.heroImageUrl || '',
   category: opp.category || 'No Category',
   locationText: opp.location || 'Unknown',
   elderName: opp.elderName || 'Unknown',
@@ -62,7 +62,7 @@ export const OpportunityDraftsScreen: React.FC<{ onNavigate?: (tab: string) => v
     const localDrafts = drafts.map(d => ({
       id: d.id,
       title: d.opportunityTitle,
-      image: d.coverImage || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCP68zF6Gx2bvH0fVStHJXGnBk5k_zSJg9JGpVV_809FYAbsWYy07BPZju5VzHAh0a3DsWveaJuEjyGZZuqsEJK63MJTxJ8oCdRaLzuOqiEPkZjrQZbSry6dS7t3kk18Z23_FVbDtwh1ltzKXc_ucCq8Q6epXt5apHZzXR6wBeAoHsvijSJzyy7b_DOS2II3W_dmHBW_4KryJA7_7PDvzAoPgp4ylZTV3AZjsRq8m_Cc_xV9mRXNloj',
+      image: d.coverImage || '',
       category: d.selectedCategory || 'No Category',
       locationText: d.locationText || 'Unknown',
       elderName: d.selectedKnowledgeHolder ? 'Selected' : '',

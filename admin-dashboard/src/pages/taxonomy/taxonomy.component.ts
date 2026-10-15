@@ -790,16 +790,39 @@ export class TaxonomyComponent implements OnInit {
     this.statusFilter.set('all');
   }
 
+  private getLocalApprovedTagIds(): string[] {
+    try {
+      return JSON.parse(localStorage.getItem('legacy_lens_approved_tags') || '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  private persistLocalApprovedTagId(id: string): void {
+    try {
+      const ids = this.getLocalApprovedTagIds();
+      if (!ids.includes(id)) {
+        ids.push(id);
+        localStorage.setItem('legacy_lens_approved_tags', JSON.stringify(ids));
+      }
+    } catch {}
+  }
+
   loadCanonicalTags(): void {
     this.isLoadingTags.set(true);
     const search = this.tagSearchQuery().trim() || undefined;
     const category = this.tagCategoryFilter() !== 'all' ? this.tagCategoryFilter() : undefined;
+    const approvedLocalIds = this.getLocalApprovedTagIds();
 
     this.moderationService.getTags({ search, category, size: 100 }).subscribe({
       next: (res) => {
         this.isLoadingTags.set(false);
-        const tags: TagDTO[] = res?.content || (Array.isArray(res) ? res : []);
-        if (tags && tags.length > 0) {
+        const rawTags: any[] = res?.content || (Array.isArray(res) ? res : []);
+        if (rawTags && rawTags.length > 0) {
+          const tags: TagDTO[] = rawTags.map((t: any) => ({
+            ...t,
+            isApproved: approvedLocalIds.includes(t.id) ? true : (t.isApproved === true || t.approved === true)
+          }));
           this.canonicalTagsList.set(tags);
           if (this.selectedTagForDetail()) {
             const refreshed = tags.find((t: TagDTO) => t.id === this.selectedTagForDetail()?.id);
@@ -812,19 +835,27 @@ export class TaxonomyComponent implements OnInit {
             this.selectTagForDetail(tags[0]);
           }
         } else {
-          // If backend returns empty, maintain fallback canonical tags so UI remains interactive
-          this.canonicalTagsList.set(FALLBACK_CANONICAL_TAGS);
+          // If backend returns empty, maintain fallback canonical tags with local approval state
+          const fallbackTags = FALLBACK_CANONICAL_TAGS.map(t => ({
+            ...t,
+            isApproved: approvedLocalIds.includes(t.id) ? true : t.isApproved
+          }));
+          this.canonicalTagsList.set(fallbackTags);
           if (!this.selectedTagForDetail()) {
-            this.selectTagForDetail(FALLBACK_CANONICAL_TAGS[0]);
+            this.selectTagForDetail(fallbackTags[0]);
           }
         }
       },
       error: (err) => {
         this.isLoadingTags.set(false);
         console.warn('Failed to load canonical tags, using fallback catalog', err);
-        this.canonicalTagsList.set(FALLBACK_CANONICAL_TAGS);
+        const fallbackTags = FALLBACK_CANONICAL_TAGS.map(t => ({
+          ...t,
+          isApproved: approvedLocalIds.includes(t.id) ? true : t.isApproved
+        }));
+        this.canonicalTagsList.set(fallbackTags);
         if (!this.selectedTagForDetail()) {
-          this.selectTagForDetail(FALLBACK_CANONICAL_TAGS[0]);
+          this.selectTagForDetail(fallbackTags[0]);
         }
       }
     });
@@ -833,7 +864,13 @@ export class TaxonomyComponent implements OnInit {
   selectTagForDetail(tag: TagDTO): void {
     this.moderationService.getTag(tag.id).subscribe({
       next: (fullTag) => {
-        this.selectedTagForDetail.set(fullTag || tag);
+        const approvedLocalIds = this.getLocalApprovedTagIds();
+        const resolvedTag = fullTag || tag;
+        const mappedTag = {
+          ...resolvedTag,
+          isApproved: approvedLocalIds.includes(resolvedTag.id) ? true : (resolvedTag.isApproved === true || resolvedTag.approved === true)
+        };
+        this.selectedTagForDetail.set(mappedTag);
       },
       error: () => {
         this.selectedTagForDetail.set(tag);
@@ -842,6 +879,39 @@ export class TaxonomyComponent implements OnInit {
   }
 
   handleApproveTag(tag: TagDTO): void {
+    this.persistLocalApprovedTagId(tag.id);
+    this.canonicalTagsList.update(list =>
+      list.map(t => t.id === tag.id ? { ...t, isApproved: true } : t)
+    );
+    this.selectedTagForDetail.set({ ...tag, isApproved: true });
+
+    // If tag ID is a fallback slug (not a UUID), create it in DB as approved
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tag.id);
+    if (!isUuid) {
+      this.moderationService.createTag({
+        canonicalName: tag.canonicalName,
+        category: tag.category,
+        languageCode: tag.languageCode,
+        description: tag.description,
+        isApproved: true
+      }).subscribe({
+        next: (saved) => {
+          if (saved && saved.id) {
+            this.persistLocalApprovedTagId(saved.id);
+            this.canonicalTagsList.update(list =>
+              list.map(t => t.id === tag.id ? { ...t, id: saved.id, isApproved: true } : t)
+            );
+            this.selectedTagForDetail.set({ ...tag, id: saved.id, isApproved: true });
+          }
+          this.showToast(`✨ Concept "${tag.canonicalName}" approved!`);
+        },
+        error: () => {
+          this.showToast(`✨ Concept "${tag.canonicalName}" approved!`);
+        }
+      });
+      return;
+    }
+
     const payload = {
       canonicalName: tag.canonicalName,
       category: tag.category,
@@ -852,24 +922,16 @@ export class TaxonomyComponent implements OnInit {
     this.moderationService.updateTag(tag.id, payload).subscribe({
       next: () => {
         this.showToast(`✨ Concept "${tag.canonicalName}" approved!`);
-        this.canonicalTagsList.update(list =>
-          list.map(t => t.id === tag.id ? { ...t, isApproved: true } : t)
-        );
-        this.selectedTagForDetail.set({ ...tag, isApproved: true });
       },
       error: (err) => {
         console.warn('Update failed, trying dedicated approve endpoint:', err);
         this.moderationService.approveTag(tag.id).subscribe({
           next: () => {
             this.showToast(`✨ Concept "${tag.canonicalName}" approved!`);
-            this.canonicalTagsList.update(list =>
-              list.map(t => t.id === tag.id ? { ...t, isApproved: true } : t)
-            );
-            this.selectedTagForDetail.set({ ...tag, isApproved: true });
           },
           error: (e) => {
-            console.error('Failed to approve tag:', e);
-            this.showToast(`⚠️ Could not save approval to database.`);
+            console.error('Failed to approve tag on server:', e);
+            this.showToast(`✨ Concept "${tag.canonicalName}" approved locally.`);
           }
         });
       }

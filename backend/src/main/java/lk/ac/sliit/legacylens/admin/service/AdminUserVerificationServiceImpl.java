@@ -94,6 +94,14 @@ public class AdminUserVerificationServiceImpl implements AdminUserVerificationSe
 
         if ("VERIFIED".equals(normalizedStatus) || "APPROVED".equals(normalizedStatus)
                 || "ACTIVE".equals(normalizedStatus)) {
+
+            if (Boolean.TRUE.equals(request.getPhoneVerified())) {
+                user.setPhoneVerified(true);
+            } else if (!user.isPhoneVerified()) {
+                throw new lk.ac.sliit.legacylens.common.exception.InvalidRequestException(
+                        "Cannot approve user: Phone number (" + user.getPhoneNumber() + ") is unverified. User must complete SMS OTP verification first.");
+            }
+
             user.setAccountStatus(AccountStatus.ACTIVE);
 
             for (UserRole role : roles) {
@@ -136,9 +144,16 @@ public class AdminUserVerificationServiceImpl implements AdminUserVerificationSe
     @Override
     @Transactional
     public AdminUserVerificationResponse approveUser(UUID userId, String note, String performedById, String performedByName) {
+        return approveUser(userId, note, false, performedById, performedByName);
+    }
+
+    @Override
+    @Transactional
+    public AdminUserVerificationResponse approveUser(UUID userId, String note, boolean verifyPhone, String performedById, String performedByName) {
         UpdateUserVerificationRequest request = UpdateUserVerificationRequest.builder()
                 .status("VERIFIED")
                 .notes(note)
+                .phoneVerified(verifyPhone ? true : null)
                 .build();
         AdminUserVerificationResponse response = updateVerificationStatus(userId, request);
         auditService.logAction(AuditActionType.APPROVED, "User Verification", userId.toString(), response.getFullName(), performedById, performedByName, note);
@@ -256,6 +271,10 @@ public class AdminUserVerificationServiceImpl implements AdminUserVerificationSe
             return "REJECTED";
         }
 
+        if (!user.isPhoneVerified()) {
+            return "PENDING";
+        }
+
         boolean hasInactiveSpecialRole = roles.stream()
                 .anyMatch(r -> r.getStatus() == RoleStatus.INACTIVE && r.getRoleType() != RoleType.GENERAL_USER);
 
@@ -270,7 +289,14 @@ public class AdminUserVerificationServiceImpl implements AdminUserVerificationSe
             return "VERIFIED";
         }
 
-        return user.isPhoneVerified() ? "VERIFIED" : "PENDING";
+        boolean hasActiveGeneralRole = roles.stream()
+                .anyMatch(r -> r.getStatus() == RoleStatus.ACTIVE && r.getRoleType() == RoleType.GENERAL_USER);
+
+        if (hasActiveGeneralRole && user.getAccountStatus() == AccountStatus.ACTIVE) {
+            return "VERIFIED";
+        }
+
+        return user.isPhoneVerified() && user.getAccountStatus() == AccountStatus.ACTIVE ? "VERIFIED" : "PENDING";
     }
 
     private String determineRoleCategory(List<UserRole> roles) {
