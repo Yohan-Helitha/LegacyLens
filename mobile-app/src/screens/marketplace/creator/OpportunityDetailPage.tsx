@@ -19,6 +19,7 @@ import { opportunityApi } from '../../../services/api/opportunityApi';
 import type { OpportunityDetailResponse } from '../../../types/opportunity';
 import { resolveOpportunityImage, resolveAvatarImage } from '../../../utils/opportunityImages';
 import { PersonPhoto } from '../../../components/module-specific/marketplace/PersonPhoto';
+import { ElderProfilePage } from './ElderProfilePage';
 import { matchLevelLabel, showsMatchBadge } from '../../../utils/matchLevel';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -136,8 +137,11 @@ export const OpportunityDetailPage: React.FC<{
   const [loadFailed, setLoadFailed] = useState(false);
   const [heroFailed, setHeroFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  // The knowledge holder's profile opens over this page; Back returns to the opportunity.
+  const [showHolder, setShowHolder] = useState(false);
 
   useEffect(() => {
+    setShowHolder(false);
     setHeroFailed(false);
     setDetail(null);
     if (!opportunityId) {
@@ -185,6 +189,10 @@ export const OpportunityDetailPage: React.FC<{
         <BottomNavBar activeTab="market" onNavigate={onNavigate} />
       </SafeAreaView>
     );
+  }
+
+  if (showHolder && opportunityId) {
+    return <ElderProfilePage opportunityId={opportunityId} onBack={() => setShowHolder(false)} onNavigate={onNavigate} />;
   }
 
   const facts: { key: string; icon: React.ReactNode; label: string; value: string }[] = [];
@@ -285,6 +293,7 @@ export const OpportunityDetailPage: React.FC<{
         <Pressable
           style={({ pressed }) => [s.holderCard, pressed && s.cardPressed]}
           accessibilityRole="button"
+          onPress={() => setShowHolder(true)}
           accessibilityLabel={`View ${detail.elderName}'s profile`}
         >
           <View style={s.holderLeft}>

@@ -400,4 +400,40 @@ class OpportunityServiceImplTest {
         assertThat(detail.getMatchLevel()).isEqualTo("EXCELLENT");
         assertThat(detail.getMatchReasons()).contains("You have all 2 skills this needs");
     }
+
+    // ── Knowledge holder profile ────────────────────────────────────────────
+
+    @Test
+    void elderProfile_showsPublicDetailsOnly_withReadableTopics() {
+        Opportunity recipe = opportunity("Traditional recipe documentation", "Food", "Matara");
+        elder.setCity(matara);
+        var profile = new lk.ac.sliit.legacylens.users.entity.KnowledgeHolderProfile();
+        profile.setBio("Keeper of southern recipes.");
+        profile.setKnownTopics("village-dialects, old-stories");
+        profile.setRatingCount(2);
+        lenient().when(opportunityRepository.findByIdAndStatus(recipe.getId(), OpportunityStatus.PUBLISHED))
+                .thenReturn(Optional.of(recipe));
+        lenient().when(knowledgeHolderProfileRepository.findByUserId(elder.getId())).thenReturn(Optional.of(profile));
+        lenient().when(opportunityRepository.findByElderIdAndStatusOrderByCreatedAtDesc(elder.getId(), OpportunityStatus.PUBLISHED))
+                .thenReturn(List.of(recipe));
+
+        var result = service.getElderProfile(recipe.getId());
+
+        assertThat(result.getName()).isEqualTo(elder.getFullName());
+        assertThat(result.isVerified()).isTrue();
+        assertThat(result.getLocation()).isEqualTo("Matara");
+        assertThat(result.getBio()).isEqualTo("Keeper of southern recipes.");
+        assertThat(result.getTopics()).containsExactly("Village dialects", "Old stories");
+        assertThat(result.getOpenOpportunities()).isEqualTo(1);
+    }
+
+    @Test
+    void elderProfile_unknownOpportunity_isNotFound() {
+        UUID id = UUID.randomUUID();
+        lenient().when(opportunityRepository.findByIdAndStatus(id, OpportunityStatus.PUBLISHED)).thenReturn(Optional.empty());
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException.class,
+                () -> service.getElderProfile(id));
+    }
 }

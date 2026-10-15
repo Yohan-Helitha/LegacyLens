@@ -472,6 +472,30 @@ const signedInUserId = () => useAuthStore.getState().user?.userId ?? null;
 const remembered = (): BrowseSnapshot | null =>
   lastBrowse && lastBrowse.userId === signedInUserId() ? lastBrowse : null;
 
+// One request at a time: a prefetch that is still on its way is reused by the page instead of asking again.
+let inFlight: Promise<BrowseSnapshot> | null = null;
+const fetchBrowse = (): Promise<BrowseSnapshot> => {
+  if (!inFlight) {
+    const userId = signedInUserId();
+    inFlight = opportunityApi
+      .browse()
+      .then((data) => {
+        const next = { userId, recommended: data.recommended, urgent: data.urgent, recent: data.recent };
+        lastBrowse = next;
+        return next;
+      })
+      .finally(() => {
+        inFlight = null;
+      });
+  }
+  return inFlight;
+};
+
+/** Warms the Market page while the creator is still on another tab, so it opens with its cards already there. */
+export const prefetchOpportunityBrowse = () => {
+  fetchBrowse().catch(() => {});
+};
+
 export const OpportunityPage: React.FC<{
   onNavigate: (tab: NavTab) => void;
   onViewDetail: (opportunityId: string) => void;
@@ -498,17 +522,9 @@ export const OpportunityPage: React.FC<{
   useEffect(() => {
     let cancelled = false;
     // One request for all three sections - the server works out the creator's matching once, not three times.
-    opportunityApi
-      .browse()
-      .then((data) => {
+    fetchBrowse()
+      .then((next) => {
         if (cancelled) return;
-        const next = {
-          userId: signedInUserId(),
-          recommended: data.recommended,
-          urgent: data.urgent,
-          recent: data.recent,
-        };
-        lastBrowse = next;
         setRecommended(next.recommended);
         setUrgent(next.urgent);
         setRecent(next.recent);

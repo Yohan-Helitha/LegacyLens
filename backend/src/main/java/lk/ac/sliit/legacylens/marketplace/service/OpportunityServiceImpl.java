@@ -1,6 +1,7 @@
 package lk.ac.sliit.legacylens.marketplace.service;
 
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
+import lk.ac.sliit.legacylens.marketplace.dto.ElderProfileResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityBrowseResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityCardResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityDetailResponse;
@@ -12,6 +13,7 @@ import lk.ac.sliit.legacylens.marketplace.matching.OpportunityMatcher;
 import lk.ac.sliit.legacylens.marketplace.matching.OpportunityMatcher.CreatorMatching;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityApplicationRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
+import lk.ac.sliit.legacylens.users.entity.KnowledgeHolderProfile;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.repository.KnowledgeHolderProfileRepository;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
@@ -207,6 +209,43 @@ public class OpportunityServiceImpl implements OpportunityService {
                 .limit(limit)
                 .map(o -> new Scored(o, matching.score(o)))
                 .collect(Collectors.toList()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ElderProfileResponse getElderProfile(UUID opportunityId) {
+        Opportunity opportunity = opportunityRepository.findByIdAndStatus(opportunityId, OpportunityStatus.PUBLISHED)
+                .orElseThrow(() -> new ResourceNotFoundException("Opportunity not found"));
+        User elder = opportunity.getElder();
+        if (elder == null) {
+            throw new ResourceNotFoundException("This opportunity has no knowledge holder profile");
+        }
+
+        KnowledgeHolderProfile profile = knowledgeHolderProfileRepository.findByUserId(elder.getId()).orElse(null);
+        String location = elder.getCity() != null ? elder.getCity().getName()
+                : profile != null ? profile.getPrimaryRegion() : null;
+
+        List<String> topics = profile == null || profile.getKnownTopics() == null
+                ? List.of()
+                : Arrays.stream(profile.getKnownTopics().split(","))
+                        .map(t -> t.trim().replace('-', ' '))
+                        .filter(t -> !t.isEmpty())
+                        .map(t -> Character.toUpperCase(t.charAt(0)) + t.substring(1))
+                        .collect(Collectors.toList());
+
+        return ElderProfileResponse.builder()
+                .name(elder.getFullName())
+                .avatarUrl(elder.getProfilePhotoUrl())
+                .verified(profile != null)
+                .location(location)
+                .bio(profile == null ? null : profile.getBio())
+                .topics(topics)
+                .averageRating(profile == null ? null : profile.getAverageRating())
+                .ratingCount(profile == null ? 0 : profile.getRatingCount())
+                .memberSince(elder.getCreatedAt() == null ? null : elder.getCreatedAt().toLocalDate())
+                .openOpportunities(opportunityRepository
+                        .findByElderIdAndStatusOrderByCreatedAtDesc(elder.getId(), OpportunityStatus.PUBLISHED).size())
+                .build();
     }
 
     @Override
