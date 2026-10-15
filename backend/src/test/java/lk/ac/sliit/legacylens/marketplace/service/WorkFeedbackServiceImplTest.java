@@ -7,6 +7,7 @@ import lk.ac.sliit.legacylens.marketplace.entity.Job;
 import lk.ac.sliit.legacylens.marketplace.entity.JobWorkProgress;
 import lk.ac.sliit.legacylens.marketplace.event.WorkFeedbackGivenEvent;
 import lk.ac.sliit.legacylens.marketplace.repository.JobRepository;
+import lk.ac.sliit.legacylens.marketplace.repository.JobWorkMaterialRepository;
 import lk.ac.sliit.legacylens.marketplace.repository.JobWorkProgressRepository;
 import lk.ac.sliit.legacylens.users.entity.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,8 @@ class WorkFeedbackServiceImplTest {
 
     @Mock private JobRepository jobRepository;
     @Mock private JobWorkProgressRepository progressRepository;
+    @Mock private JobWorkMaterialRepository materialRepository;
+    @Mock private CreatorWorkPublisher publisher;
     @Mock private ApplicationEventPublisher events;
 
     private WorkFeedbackServiceImpl service;
@@ -44,7 +47,7 @@ class WorkFeedbackServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new WorkFeedbackServiceImpl(jobRepository, progressRepository, events);
+        service = new WorkFeedbackServiceImpl(jobRepository, progressRepository, materialRepository, publisher, events);
 
         elder = new User();
         elder.setId(UUID.randomUUID());
@@ -145,10 +148,24 @@ class WorkFeedbackServiceImplTest {
 
         assertThat(job.getStatus()).isEqualTo(lk.ac.sliit.legacylens.marketplace.entity.JobStatus.COMPLETED);
         assertThat(job.getCompletedAt()).isNotNull();
+        // Both approved: it is published to users straight away, with one notification saying so.
+        assertThat(progress.getPublishedAt()).isNotNull();
+        ArgumentCaptor<PublishedWork> work = ArgumentCaptor.forClass(PublishedWork.class);
+        verify(publisher).publish(work.capture());
+        assertThat(work.getValue().creatorId()).isEqualTo(creator.getId());
+        assertThat(work.getValue().title()).isEqualTo(job.getTitle());
         ArgumentCaptor<lk.ac.sliit.legacylens.marketplace.event.WorkApprovedEvent> event = ArgumentCaptor.forClass(lk.ac.sliit.legacylens.marketplace.event.WorkApprovedEvent.class);
         verify(events).publishEvent(event.capture());
         assertThat(event.getValue().creatorId()).isEqualTo(creator.getId());
-        assertThat(event.getValue().published()).isFalse();
+        assertThat(event.getValue().published()).isTrue();
+    }
+
+    @Test
+    void oneApproval_publishesNothing() {
+        service.approveAsElder(elder.getId(), job.getId());
+
+        assertThat(progress.getPublishedAt()).isNull();
+        verify(publisher, never()).publish(any());
     }
 
     @Test
@@ -162,6 +179,7 @@ class WorkFeedbackServiceImplTest {
         // ...and the admin can still see why.
         assertThat(service.adminView(job.getId()).getElderFeedback()).isEqualTo("Fix the intro");
         assertThat(service.adminView(job.getId()).isAdminApproved()).isTrue();
+        verify(publisher, never()).publish(any());
     }
 
     @Test
@@ -184,18 +202,29 @@ class WorkFeedbackServiceImplTest {
     }
 
     @Test
-    void onlyCompletedWork_canBePublished_andOnlyOnce() {
+    void onlyCompletedWork_canBePublishedByHand_andOnlyOnce() {
         assertThatThrownBy(() -> service.publish(job.getId())).isInstanceOf(InvalidApplicationStateException.class);
 
         service.approveAsElder(elder.getId(), job.getId());
         service.approveAsAdmin(job.getId());
+        // Already published automatically by the second approval - publishing again does nothing extra.
         service.publish(job.getId());
         service.publish(job.getId());
 
         assertThat(progress.getPublishedAt()).isNotNull();
-        ArgumentCaptor<Object> events2 = ArgumentCaptor.forClass(Object.class);
-        verify(events, org.mockito.Mockito.times(2)).publishEvent(events2.capture());
-        assertThat(events2.getAllValues()).hasSize(2); // approved once, published once - not twice
+        verify(publisher, org.mockito.Mockito.times(1)).publish(any());
+        verify(events, org.mockito.Mockito.times(1)).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void workApprovedBeforePublishingWasAutomatic_canStillBePublishedByHand() {
+        job.setStatus(lk.ac.sliit.legacylens.marketplace.entity.JobStatus.COMPLETED);
+        progress.setPublishedAt(null);
+
+        service.publish(job.getId());
+
+        assertThat(progress.getPublishedAt()).isNotNull();
+        verify(publisher, org.mockito.Mockito.times(1)).publish(any());
     }
 
     @Test

@@ -171,7 +171,11 @@ export const WorkDetailScreen: React.FC<WorkDetailScreenProps> = ({ jobId, onBac
               </Text>
             )}
 
-            {done && <Text style={s.statusDone}>{t('workDetail.completedNote')}</Text>}
+            {done && (
+              <Text style={s.statusDone}>
+                {t(summary.state === 'PUBLISHED' ? 'workDetail.publishedNote' : 'workDetail.completedNote')}
+              </Text>
+            )}
             {!done && summary.elderApproved && <Text style={s.statusWaiting}>{t('workDetail.waitingAdmin')}</Text>}
 
             {!!detail.elderFeedback && !summary.elderApproved && (

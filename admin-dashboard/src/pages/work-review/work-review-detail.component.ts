@@ -87,10 +87,10 @@ function errorMessage(err: unknown): string {
           }
 
           @if (d.summary.state === 'PUBLISHED') {
-            <div class="text-sm font-bold text-[#004343]">Published{{ d.summary.publishedAt ? ' on ' + (d.summary.publishedAt | date:'mediumDate') : '' }}</div>
+            <div class="text-sm font-bold text-[#004343]">Published to users{{ d.summary.publishedAt ? ' on ' + (d.summary.publishedAt | date:'mediumDate') : '' }}</div>
           }
           @if (d.summary.state === 'COMPLETED') {
-            <div class="text-sm font-bold text-[#004343]">Both reviewers approved. Ready to publish.</div>
+            <div class="text-sm font-bold text-[#004343]">Both reviewers approved. Not published yet - publish it below.</div>
           }
 
           <!-- The knowledge holder's review -->
@@ -189,7 +189,7 @@ function errorMessage(err: unknown): string {
       <div class="bg-white rounded-2xl shadow-xl border border-[#dde3eb] w-full max-w-md p-6 space-y-4">
         <h2 class="text-lg font-bold text-[#004343] font-['Source_Serif_4',serif]">{{ which === 'publish' ? 'Publish this work?' : 'Approve this work?' }}</h2>
         <p class="text-sm text-[#3f4948]">
-          {{ which === 'publish' ? 'The creator is told it has been published.' : 'It is completed once the knowledge holder has approved it too.' }}
+          {{ which === 'publish' ? 'The creator is told it has been published.' : 'It is published to users once the knowledge holder has approved it too.' }}
         </p>
         <div class="flex justify-end gap-3">
           <button type="button" (click)="confirming.set(null)" class="px-4 py-2 text-sm font-bold text-[#3f4948] hover:bg-[#e1e3e2] rounded-xl cursor-pointer">Cancel</button>

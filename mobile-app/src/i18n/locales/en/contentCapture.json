@@ -434,7 +434,7 @@
     "approving": "Approving…",
     "decline": "Decline",
     "approveTitle": "Approve this work?",
-    "approveBody": "It is completed once the admin approves it too.",
+    "approveBody": "It is published to users once the admin approves it too.",
     "approvedNote": "Work approved",
     "declineTitle": "What needs to change?",
     "declineHint": "Tell {{name}} what to fix. They will read this note.",
@@ -444,7 +444,7 @@
     "sentNote": "Feedback sent to the creator",
     "counter": "{{count}} / {{max}}",
     "previous": "Your earlier feedback ({{date}})",
-    "waitingAdmin": "You approved this. It is completed when the admin approves it too.",
+    "waitingAdmin": "You approved this. It is published to users when the admin approves it too.",
     "completedNote": "Completed",
     "message": "Message {{name}}",
     "rateTitle": "Rate {{name}}",
@@ -458,6 +458,7 @@
     "loadError": "Couldn't load this work. Check your connection and try again.",
     "retry": "Try again",
     "cancel": "Cancel",
-    "by": "by {{name}}"
+    "by": "by {{name}}",
+    "publishedNote": "Published to users"
   }
 }

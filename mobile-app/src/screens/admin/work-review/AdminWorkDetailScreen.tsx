@@ -142,9 +142,9 @@ export const AdminWorkDetailScreen: React.FC<AdminWorkDetailScreenProps> = ({ jo
             )}
 
             {state === 'PUBLISHED' && (
-              <Text style={s.statusDone}>Published{summary.publishedAt ? ` on ${formatDate(summary.publishedAt, locale)}` : ''}</Text>
+              <Text style={s.statusDone}>Published to users{summary.publishedAt ? ` on ${formatDate(summary.publishedAt, locale)}` : ''}</Text>
             )}
-            {state === 'COMPLETED' && <Text style={s.statusDone}>Both reviewers approved. Ready to publish.</Text>}
+            {state === 'COMPLETED' && <Text style={s.statusDone}>Both reviewers approved. Not published yet - publish it below.</Text>}
 
             {/* The knowledge holder's review - what the admin most needs to see. */}
             <View style={[g.card, s.section, summary.elderApproved ? s.panelOk : detail.elderFeedback ? s.panelWarn : null]}>
@@ -268,7 +268,7 @@ export const AdminWorkDetailScreen: React.FC<AdminWorkDetailScreenProps> = ({ jo
         message={
           confirm === 'publish'
             ? 'The creator is told it has been published.'
-            : 'It is completed once the knowledge holder has approved it too.'
+            : 'It is published to users once the knowledge holder has approved it too.'
         }
         confirmLabel={confirm === 'publish' ? 'Publish' : 'Approve'}
         cancelLabel="Cancel"
