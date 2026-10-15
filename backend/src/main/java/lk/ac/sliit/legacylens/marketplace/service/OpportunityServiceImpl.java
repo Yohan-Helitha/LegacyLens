@@ -267,6 +267,7 @@ public class OpportunityServiceImpl implements OpportunityService {
                 .matchReasons(match == null ? null : match.reasons())
                 .urgent(opportunity.isUrgent())
                 .dueAt(opportunity.getDueAt())
+                .scheduledDate(opportunity.getScheduledDate())
                 .elderName(elder != null ? elder.getFullName() : null)
                 .elderAvatarUrl(elder != null ? elder.getProfilePhotoUrl() : null)
                 .elderLocation(elder != null && elder.getCity() != null ? elder.getCity().getName() : null)

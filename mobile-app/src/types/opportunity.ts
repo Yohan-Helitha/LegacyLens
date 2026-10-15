@@ -16,6 +16,8 @@ export interface OpportunityCardResponse {
   matchReasons?: string[] | null;
   urgent: boolean;
   dueAt: string | null;
+  /** The day the elder needs the work done ("yyyy-MM-dd"). */
+  scheduledDate?: string | null;
   elderName: string;
   elderAvatarUrl: string | null;
   elderLocation: string | null;

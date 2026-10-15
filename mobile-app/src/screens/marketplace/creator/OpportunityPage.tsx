@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { BottomNavBar } from '../../../components/BottomNavBar';
 import type { NavTab } from '../../../components/BottomNavBar';
@@ -75,9 +75,14 @@ const LocationPinIcon: React.FC<{ size?: number }> = ({ size = 14 }) => (
 );
 
 /** How the work is done ("On-Site") and what kind it is (microphone + "Craft"), side by side. */
-const TypeTags: React.FC<{ item: OpportunityCardResponse }> = ({ item }) =>
-  item.locationType || item.category ? (
-    <View style={s.tagsRow}>
+const TypeTags: React.FC<{ item: OpportunityCardResponse; showDue?: boolean; showDate?: boolean }> = ({
+  item,
+  showDue = false,
+  showDate = false,
+}) =>
+  item.locationType || item.category || (showDue && dueLabel(item)) || (showDate && item.scheduledDate) ? (
+    <View style={[s.tagsRow, s.tagsWrap]}>
+      {showDue && <DueBadge item={item} />}
       {!!item.locationType && (
         <View style={s.tagNeutral}>
           <Text style={s.tagNeutralText}>{item.locationType}</Text>
@@ -89,17 +94,80 @@ const TypeTags: React.FC<{ item: OpportunityCardResponse }> = ({ item }) =>
           <Text style={s.tagNeutralText}>{item.category}</Text>
         </View>
       )}
+      {showDate && !!item.scheduledDate && (
+        <View style={[s.tagNeutral, s.tagWithIcon]}>
+          <CalendarIcon size={12} />
+          <Text style={s.tagNeutralText}>{formatNeededDate(item.scheduledDate)}</Text>
+        </View>
+      )}
     </View>
   ) : null;
 
-/** Where the work happens - the opportunity's own location, not the knowledge holder's home town. */
-const PlaceLine: React.FC<{ item: OpportunityCardResponse }> = ({ item }) =>
-  item.location ? (
-    <View style={s.placeLine}>
-      <LocationPinIcon size={13} />
-      <Text style={s.placeText} numberOfLines={1}>{item.location}</Text>
+/** Small calendar, in the same tone as the map pin. */
+const CalendarIcon: React.FC<{ size?: number }> = ({ size = 13 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#336574" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="3" y="5" width="18" height="16" rx="2" />
+    <Line x1="16" y1="3" x2="16" y2="7" />
+    <Line x1="8" y1="3" x2="8" y2="7" />
+    <Line x1="3" y1="10" x2="21" y2="10" />
+  </Svg>
+);
+
+/** "yyyy-MM-dd" (or a full timestamp) as a calendar day, without letting the time zone move it to another day. */
+function toLocalDay(value: string): Date {
+  const [y, m, d] = value.slice(0, 10).split('-').map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1);
+}
+
+/** The day the elder needs the work done, e.g. "18 Oct 2026". */
+function formatNeededDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return toLocalDay(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** "Due in 3 days" / "Due tomorrow" / "Due today" for an urgent opportunity - null when it is not urgent or the day has passed. */
+function dueLabel(item: OpportunityCardResponse): string | null {
+  const when = item.dueAt ?? item.scheduledDate;
+  if (!item.urgent || !when) return null;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const days = Math.round((toLocalDay(when).getTime() - startOfToday.getTime()) / 86400000);
+  if (days > 1) return `Due in ${days} days`;
+  if (days === 1) return 'Due tomorrow';
+  if (days === 0) return 'Due today';
+  return null;
+}
+
+/** Red "Due in 3 days" pill. */
+const DueBadge: React.FC<{ item: OpportunityCardResponse }> = ({ item }) => {
+  const label = dueLabel(item);
+  return label ? (
+    <View style={s.dueBadge}>
+      <Text style={s.dueBadgeText}>{label}</Text>
     </View>
   ) : null;
+};
+
+/** Where the work happens (the opportunity's own location, not the knowledge holder's home town) and when it is needed. */
+const PlaceLine: React.FC<{ item: OpportunityCardResponse; showDate?: boolean }> = ({ item, showDate = true }) => {
+  const needed = showDate ? formatNeededDate(item.scheduledDate) : null;
+  return item.location || needed ? (
+    <View style={s.placeBlock}>
+      {!!item.location && (
+        <View style={s.placeLine}>
+          <LocationPinIcon size={13} />
+          <Text style={s.placeText} numberOfLines={1}>{item.location}</Text>
+        </View>
+      )}
+      {!!needed && (
+        <View style={s.placeLine}>
+          <CalendarIcon size={13} />
+          <Text style={s.placeText} numberOfLines={1}>{`Needed on ${needed}`}</Text>
+        </View>
+      )}
+    </View>
+  ) : null;
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline icon helpers (emoji / primitive, zero extra dependencies)
@@ -239,13 +307,13 @@ const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: (
             />
             <View style={s.authorText}>
               <Text style={s.holderName} numberOfLines={1}>{item.elderName}</Text>
-              <PlaceLine item={item} />
+              <PlaceLine item={item} showDate={false} />
             </View>
           </View>
         )}
 
-        {/* 2. what kind of work it is */}
-        <TypeTags item={item} />
+        {/* 2. what kind of work it is, and the day it is needed - together as tags */}
+        <TypeTags item={item} showDue showDate />
 
         {/* 3. its name, and what it involves */}
         <Text style={s.cardTitle}>{item.title}</Text>
@@ -285,12 +353,13 @@ const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () 
       accessibilityRole="button"
       accessibilityLabel={`${item.title} opportunity`}
     >
-      {/* The percentage sits at the top right of the card; the picture and the job details come below it. */}
-      {showsMatchBadge(item.matchPercentage, item.matchLevel) && (
-        <View style={s.urgentBadgeTop}>
-          <MatchBadgeInline item={item} />
+      {/* How soon it is due on the left, the match percentage on the right; the picture and details come below. */}
+      <View style={s.urgentTopRow}>
+        <View>
+          <DueBadge item={item} />
         </View>
-      )}
+        <MatchBadgeInline item={item} />
+      </View>
       <View style={s.urgentTop}>
         <Image
           source={resolveOpportunityImage(item.heroImageUrl)}
@@ -352,7 +421,7 @@ const RecentOpportunityCard: React.FC<{
     </View>
 
     <View style={s.recentContent}>
-      <TypeTags item={item} />
+      <TypeTags item={item} showDue />
       <Text style={s.cardTitle}>{item.title}</Text>
       <Text style={s.recentDesc} numberOfLines={2}>
         {item.description}
@@ -820,7 +889,12 @@ const s = StyleSheet.create({
   tagIcon:         { fontSize: 12 },
   authorText:      { flexShrink: 1, gap: 1 },
   authorRowFit:    { flexShrink: 1 },
+  tagsWrap:        { flexWrap: 'wrap', alignItems: 'center' },
+  placeBlock:      { gap: 2 },
   placeLine:       { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dueBadge:        { backgroundColor: '#FDECEA', borderRadius: Radii.full, paddingHorizontal: 10, paddingVertical: 4 },
+  dueBadgeText:    { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#B3261E', letterSpacing: 0.4 },
+  urgentTopRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: -Spacing.xs },
   placeText:       { flexShrink: 1, fontFamily: Typography.fontBody, fontSize: 12, color: D.onSurfaceVariant },
   urgentBadgeTop:  { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: -Spacing.xs },
   urgentMeta:     { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs },

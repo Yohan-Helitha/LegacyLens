@@ -28,6 +28,8 @@ public class OpportunityCardResponse {
     private java.util.List<String> matchReasons;
     private boolean urgent;
     private LocalDateTime dueAt;
+    /** The day the elder needs the work done - shown on the card so a creator sees it without opening the detail page. */
+    private java.time.LocalDate scheduledDate;
     private String elderName;
     private String elderAvatarUrl;
     private String elderLocation;    private LocalDateTime createdAt;
