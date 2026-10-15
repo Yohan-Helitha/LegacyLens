@@ -47,6 +47,7 @@ public class StoryQueryServiceImpl implements StoryQueryService {
                 .status(story.getStatus().name())
                 .mediaType(story.getMediaType() != null ? story.getMediaType().name() : null)
                 .mediaUrl(mediaUrl)
+                .imageUrl(story.getImageUrl())
                 .viewCount(story.getViewCount())
                 .createdAt(story.getCreatedAt())
                 .build();
