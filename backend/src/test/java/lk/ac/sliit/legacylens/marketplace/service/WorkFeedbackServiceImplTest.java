@@ -48,6 +48,7 @@ class WorkFeedbackServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new WorkFeedbackServiceImpl(jobRepository, progressRepository, materialRepository, publisher, events);
+        lenient().when(publisher.publish(any())).thenAnswer(call -> UUID.randomUUID());
 
         elder = new User();
         elder.setId(UUID.randomUUID());
@@ -213,6 +214,39 @@ class WorkFeedbackServiceImplTest {
 
         assertThat(progress.getPublishedAt()).isNotNull();
         verify(publisher, org.mockito.Mockito.times(1)).publish(any());
+        verify(events, org.mockito.Mockito.times(1)).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void workThatWasOnlyFlaggedPublishedEarlier_getsItsFeedPostWithoutAnotherNotification() {
+        // Approved and "published" back when that only set a flag: nothing was in the feed.
+        job.setStatus(lk.ac.sliit.legacylens.marketplace.entity.JobStatus.COMPLETED);
+        progress.setPublishedAt(LocalDateTime.now().minusDays(3));
+        progress.setPublishedStoryId(null);
+        when(progressRepository.findByJobStatusAndPublishedStoryIdIsNull(lk.ac.sliit.legacylens.marketplace.entity.JobStatus.COMPLETED))
+                .thenReturn(java.util.List.of(progress));
+
+        int published = service.publishBacklog();
+
+        assertThat(published).isEqualTo(1);
+        assertThat(progress.getPublishedStoryId()).isNotNull();
+        verify(publisher, org.mockito.Mockito.times(1)).publish(any());
+        verify(events, never()).publishEvent(any(Object.class)); // the creator was told when it was flagged
+    }
+
+    @Test
+    void theBacklogPassPublishesApprovedWorkOnceAndLeavesPublishedWorkAlone() {
+        job.setStatus(lk.ac.sliit.legacylens.marketplace.entity.JobStatus.COMPLETED);
+        progress.setPublishedStoryId(null);
+        when(progressRepository.findByJobStatusAndPublishedStoryIdIsNull(lk.ac.sliit.legacylens.marketplace.entity.JobStatus.COMPLETED))
+                .thenReturn(java.util.List.of(progress))
+                .thenReturn(java.util.List.of());
+
+        assertThat(service.publishBacklog()).isEqualTo(1);
+        assertThat(service.publishBacklog()).isEqualTo(0);
+
+        verify(publisher, org.mockito.Mockito.times(1)).publish(any());
+        // Never announced before, so the creator is told once, that it is live.
         verify(events, org.mockito.Mockito.times(1)).publishEvent(any(Object.class));
     }
 

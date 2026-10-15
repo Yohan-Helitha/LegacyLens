@@ -126,12 +126,28 @@ public class WorkFeedbackServiceImpl implements WorkFeedbackService {
      * same work can never appear in the feed twice.
      */
     private void publishNow(Job job, JobWorkProgress progress) {
-        if (progress.getPublishedAt() != null) {
+        if (progress.getPublishedStoryId() != null) {
             return;
         }
-        publisher.publish(PublishedWork.from(job, progress, materialRepository.findByJobIdOrderByUploadedAtAsc(job.getId())));
-        progress.setPublishedAt(LocalDateTime.now());
-        events.publishEvent(new WorkApprovedEvent(job.getCreator().getId(), job.getId(), job.getTitle(), true));
+        progress.setPublishedStoryId(
+                publisher.publish(PublishedWork.from(job, progress, materialRepository.findByJobIdOrderByUploadedAtAsc(job.getId()))));
+        // Work that was already flagged as published (before that put anything in the feed) was announced then.
+        if (progress.getPublishedAt() == null) {
+            progress.setPublishedAt(LocalDateTime.now());
+            events.publishEvent(new WorkApprovedEvent(job.getCreator().getId(), job.getId(), job.getTitle(), true));
+        }
+    }
+
+    @Override
+    @Transactional
+    public int publishBacklog() {
+        int published = 0;
+        for (JobWorkProgress progress : progressRepository.findByJobStatusAndPublishedStoryIdIsNull(JobStatus.COMPLETED)) {
+            publishNow(progress.getJob(), progress);
+            progressRepository.save(progress);
+            published++;
+        }
+        return published;
     }
 
     /**
