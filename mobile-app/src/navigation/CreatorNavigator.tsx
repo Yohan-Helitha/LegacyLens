@@ -234,7 +234,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
 
   /**
    * Called when the creator application is submitted: the admin decides next, so the creator waits on
-   * the status page (which has temporary test buttons for the admin's decision until their screen exists).
+   * the status page, which updates when the admin's decision arrives.
    */
   const handleApplicationSubmit = () => setScreen('pending');
 

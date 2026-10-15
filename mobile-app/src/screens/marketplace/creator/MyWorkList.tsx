@@ -191,10 +191,8 @@ const WorkCard: React.FC<{
   variant: 'continue' | 'submitted';
   /** The full progress record - the submitted card shows what was written from it. */
   progress?: WorkProgressResponse;
-  /** TEMPORARY test buttons: stand in for the knowledge holder / admin until their screens exist. */
-  onTestReview?: (by: 'elder' | 'admin', action: 'approve' | 'reject') => void;
   onContinue: () => void;
-}> = ({ job, heroImageUrl, materialsCount, progressPercentage, doneSteps, variant, progress, onTestReview, onContinue }) => {
+}> = ({ job, heroImageUrl, materialsCount, progressPercentage, doneSteps, variant, progress, onContinue }) => {
   // A job already sent for review is no longer "due" - the chip would only mislead.
   const dueText = variant === 'submitted' ? null : formatDueText(job.scheduledAt);
   const overdue = dueText === 'Overdue';
@@ -294,27 +292,6 @@ const WorkCard: React.FC<{
           <Text style={s.awaitingPillText}>Awaiting Review</Text>
         </View>
       )}
-      {variant === 'submitted' && !!onTestReview && (
-        <View style={s.testGrid}>
-          <Text style={s.testLabel}>TEMPORARY - stands in for the reviewers</Text>
-          <View style={s.testRow}>
-            <Pressable onPress={() => onTestReview('elder', 'reject')} style={({ pressed }) => [s.testBtnDanger, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Knowledge holder rejects (test)">
-              <Text style={s.testBtnDangerText}>Elder Reject (Test)</Text>
-            </Pressable>
-            <Pressable onPress={() => onTestReview('elder', 'approve')} style={({ pressed }) => [s.testBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Knowledge holder approves (test)">
-              <Text style={s.testBtnText}>Elder Approve (Test)</Text>
-            </Pressable>
-          </View>
-          <View style={s.testRow}>
-            <Pressable onPress={() => onTestReview('admin', 'reject')} style={({ pressed }) => [s.testBtnDanger, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Admin rejects (test)">
-              <Text style={s.testBtnDangerText}>Admin Reject (Test)</Text>
-            </Pressable>
-            <Pressable onPress={() => onTestReview('admin', 'approve')} style={({ pressed }) => [s.testBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel="Admin approves (test)">
-              <Text style={s.testBtnText}>Admin Approve (Test)</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
       {variant === 'submitted' && !!progress && (
         <View style={s.reviewRow}>
           <ReviewerStatus who="Knowledge holder" approved={progress.elderApproved} />
@@ -343,7 +320,7 @@ const UrgentPill: React.FC = () => (
   </View>
 );
 
-const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; published: boolean; onView: () => void; onTestRate: (stars: number) => void }> = ({ job, heroImageUrl, published, onView, onTestRate }) => {
+const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; published: boolean; onView: () => void }> = ({ job, heroImageUrl, published, onView }) => {
   const doneOn = formatDoneDate(job.completedAt);
 
   return (
@@ -401,17 +378,6 @@ const CompletedCard: React.FC<{ job: JobResponse; heroImageUrl: string | null; p
           {!!job.reviewComment && <Text style={s.feedbackText}>{`“${job.reviewComment}”`}</Text>}
         </View>
       )}
-
-      <View style={s.testGrid}>
-        <Text style={s.testLabel}>TEMPORARY - the knowledge holder rates you</Text>
-        <View style={s.testRow}>
-          {[1, 3, 5].map((stars) => (
-            <Pressable key={stars} onPress={() => onTestRate(stars)} style={({ pressed }) => [s.testBtn, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel={`Knowledge holder gives ${stars} stars (test)`}>
-              <Text style={s.testBtnText}>{`${stars} ★ (Test)`}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
 
       <Pressable
         onPress={onView}
@@ -606,27 +572,6 @@ export const MyWorkList: React.FC<{
     ]);
   };
 
-  // TEMPORARY: stands in for the knowledge holder and the admin until their screens exist.
-  const handleTestReview = async (job: JobResponse, by: 'elder' | 'admin', action: 'approve' | 'reject') => {
-    try {
-      await workProgressApi.testReview(job.id, by, action);
-      await loadWork();
-    } catch (err) {
-      appAlert('Test review failed', err instanceof ApiError ? err.message : 'Could not record this review.');
-    }
-  };
-
-  // TEMPORARY: stands in for the knowledge holder's "rate the creator" screen until it exists.
-  const handleTestRate = async (job: JobResponse, stars: number) => {
-    try {
-      const result = await workProgressApi.testRate(job.id, stars);
-      const overall = result.creatorRating != null ? Number(result.creatorRating).toFixed(2) : '-';
-      appAlert('Rating recorded', `You were given ${stars} star${stars === 1 ? '' : 's'} for this job.\n\nYour overall rating is now ${overall} from ${result.creatorRatingCount} review${result.creatorRatingCount === 1 ? '' : 's'}.`);
-    } catch (err) {
-      appAlert('Test rating failed', err instanceof ApiError ? err.message : 'Could not record this rating.');
-    }
-  };
-
   const handleDeleteDraft = (job: JobResponse) => {
     appAlert('Delete this draft?', `All progress on "${job.title}" will be discarded.`, [
       { text: 'Cancel', style: 'cancel' },
@@ -745,7 +690,6 @@ export const MyWorkList: React.FC<{
                 doneSteps={steps}
                 variant="submitted"
                 progress={progressByJobId[job.id]}
-                onTestReview={(by, action) => handleTestReview(job, by, action)}
                 onContinue={() => {}}
               />
             ))
@@ -774,7 +718,7 @@ export const MyWorkList: React.FC<{
                     </Text>
                   </View>
                   {month.jobs.map((job) => (
-                    <CompletedCard key={job.id} job={job} heroImageUrl={completedPictures[job.id] ?? null} published={completedPublished[job.id] ?? false} onView={() => onViewPublication(job)} onTestRate={(stars) => handleTestRate(job, stars)} />
+                    <CompletedCard key={job.id} job={job} heroImageUrl={completedPictures[job.id] ?? null} published={completedPublished[job.id] ?? false} onView={() => onViewPublication(job)} />
                   ))}
                 </View>
               ))}
@@ -969,13 +913,6 @@ const s = StyleSheet.create({
   feedbackHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
   feedbackFrom: { flex: 1, fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: D.primary },
   feedbackText: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 22, color: D.onSurface, fontStyle: 'italic' },
-  testGrid: { marginTop: Spacing.md, gap: 6 },
-  testLabel: { fontFamily: Typography.fontBody, fontSize: 10, color: D.onSurfaceVariant, letterSpacing: 0.3 },
-  testRow: { flexDirection: 'row', gap: Spacing.sm },
-  testBtn: { flex: 1, minHeight: 44, borderRadius: Radii.full, backgroundColor: D.primary, alignItems: 'center', justifyContent: 'center' },
-  testBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#ffffff' },
-  testBtnDanger: { flex: 1, minHeight: 44, borderRadius: Radii.full, borderWidth: 1.5, borderColor: '#C0392B', alignItems: 'center', justifyContent: 'center' },
-  testBtnDangerText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS, color: '#C0392B' },
   reviewRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: Spacing.sm },
   reviewChip: { borderRadius: Radii.full, backgroundColor: '#f0f5f5', borderWidth: StyleSheet.hairlineWidth, borderColor: D.surfaceVariant, paddingHorizontal: 12, paddingVertical: 6 },
   reviewChipDone: { backgroundColor: '#E3F1E6', borderColor: '#2F6B3F' },
