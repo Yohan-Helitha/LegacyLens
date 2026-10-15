@@ -98,6 +98,31 @@ export class ModerationService {
   }
 
   /**
+   * Upload cover image file for a moderation item
+   * Endpoint: POST /api/admin/moderation/queue/upload-cover
+   */
+  uploadCoverImage(file: File): Observable<{ imageUrl: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const token = this.authService.getToken();
+    let headers = new HttpHeaders();
+    if (token) {
+      headers = headers.set('Authorization', `Bearer ${token}`);
+    }
+    return this.http.post<any>(
+      `${environment.apiUrl}/admin/moderation/queue/upload-cover`,
+      formData,
+      { headers }
+    ).pipe(
+      map(res => (res && res.data ? res.data : res)),
+      catchError(err => {
+        console.warn('[ModerationService] Failed to upload cover image:', err);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  /**
    * Permanently delete a moderation queue item
    * Endpoint: DELETE /api/admin/moderation/queue/{id}
    */
@@ -233,6 +258,12 @@ export class ModerationService {
 
   updateTag(tagId: string, request: any): Observable<any> {
     return this.http.put<any>(`${environment.apiUrl}/v1/tags/${tagId}`, request, {
+      headers: this.getHeaders()
+    }).pipe(map(res => (res && res.data ? res.data : res)));
+  }
+
+  approveTag(tagId: string): Observable<any> {
+    return this.http.post<any>(`${environment.apiUrl}/v1/tags/${tagId}/approve`, {}, {
       headers: this.getHeaders()
     }).pipe(map(res => (res && res.data ? res.data : res)));
   }
