@@ -4,6 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
+import lombok.NoArgsConstructor;
+import java.util.List;
+
 /**
  * What a {@link lk.ac.sliit.legacylens.speech.provider.SpeechToTextProvider}
  * hands back — provider-agnostic, so {@code TranscriptionService} can score
@@ -12,6 +15,7 @@ import lombok.Data;
 @Data
 @Builder
 @AllArgsConstructor
+@NoArgsConstructor
 public class TranscriptionResult {
 
     private String providerName;
@@ -28,4 +32,7 @@ public class TranscriptionResult {
     private Long firstPhraseOffsetMs;
 
     private int phraseCount;
+
+    /** Individual timestamped phrases recognized by the provider. */
+    private List<TranscriptionPhrase> phrases;
 }
