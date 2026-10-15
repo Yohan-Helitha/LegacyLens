@@ -3,7 +3,7 @@ package lk.ac.sliit.legacylens.stories.service;
 import lk.ac.sliit.legacylens.common.exception.ForbiddenOperationException;
 import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
-import lk.ac.sliit.legacylens.common.storage.FileStorageService;
+import lk.ac.sliit.legacylens.common.storage.MediaStorageService;
 import lk.ac.sliit.legacylens.stories.dto.CreateStoryRequest;
 import lk.ac.sliit.legacylens.stories.dto.StoryResponse;
 import lk.ac.sliit.legacylens.stories.dto.UpdateStoryRequest;
@@ -27,8 +27,9 @@ import java.util.stream.Collectors;
 /**
  * Owns story creation and retrieval — the backend side of the mobile app's
  * record → review → save flow (RecordCapture/upload → StoryDetails). Media
- * bytes are delegated to FileStorageService; this class only ever deals in
- * relative paths.
+ * bytes are delegated to MediaStorageService; this class only ever deals in
+ * the complete URL it hands back (local /uploads/... or a Supabase Storage
+ * public URL — see that class's own doc comment).
  */
 @Service
 public class StoryServiceImpl implements StoryService {
@@ -39,18 +40,18 @@ public class StoryServiceImpl implements StoryService {
     private final StoryRepository storyRepository;
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
-    private final FileStorageService fileStorageService;
+    private final MediaStorageService mediaStorageService;
 
     public StoryServiceImpl(
             StoryRepository storyRepository,
             UserRepository userRepository,
             UserRoleRepository userRoleRepository,
-            FileStorageService fileStorageService) {
+            MediaStorageService mediaStorageService) {
 
         this.storyRepository = storyRepository;
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
-        this.fileStorageService = fileStorageService;
+        this.mediaStorageService = mediaStorageService;
     }
 
     @Override
@@ -114,7 +115,7 @@ public class StoryServiceImpl implements StoryService {
         Story story = getOwnedStory(userId, storyId);
 
         if (story.getMediaFilePath() != null) {
-            fileStorageService.delete(story.getMediaFilePath());
+            mediaStorageService.delete(story.getMediaFilePath());
         }
 
         storyRepository.delete(story);
@@ -122,10 +123,10 @@ public class StoryServiceImpl implements StoryService {
 
     private void attachMedia(Story story, MultipartFile media, Long durationMillis) {
         MediaType mediaType = resolveMediaType(media.getContentType());
-        String relativePath = fileStorageService.store(media, MEDIA_SUBFOLDER);
+        String mediaUrl = mediaStorageService.store(media, MEDIA_SUBFOLDER);
 
         story.setMediaType(mediaType);
-        story.setMediaFilePath(relativePath);
+        story.setMediaFilePath(mediaUrl);
         story.setMediaMimeType(media.getContentType());
         story.setMediaFileSizeBytes(media.getSize());
         story.setMediaDurationMillis(durationMillis);
@@ -165,9 +166,13 @@ public class StoryServiceImpl implements StoryService {
     }
 
     private StoryResponse toResponse(Story story) {
-        String mediaUrl = story.getMediaFilePath() != null
-                ? "/uploads/" + story.getMediaFilePath()
-                : null;
+        // mediaFilePath is now a complete URL as of MediaStorageService (either
+        // "/uploads/..." or a Supabase Storage public URL) — no prefix to add here.
+        // NOTE: a story whose media was attached before this change stored a bare
+        // relative path instead, which this will return un-prefixed and broken;
+        // there's no production data affected, but re-attach media on any such
+        // story if you hit one while testing.
+        String mediaUrl = story.getMediaFilePath();
 
         return StoryResponse.builder()
                 .id(story.getId())

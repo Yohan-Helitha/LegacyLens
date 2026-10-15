@@ -1,9 +1,10 @@
-import React, { useRef } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { ReturnKeyTypeOptions } from 'react-native';
 import { Mic } from 'lucide-react-native';
 import { RoundIconButton } from '../../common';
-import { useVoiceToText } from '../../../hooks/useVoiceToText';
+import { useVoiceInput } from '../../../hooks/useVoiceInput';
+import type { SpeechQualityHint } from '../../../types/speech';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
 
@@ -30,7 +31,7 @@ interface MicInputFieldProps {
   editable?: boolean;
   /** Keeps `label` as the input's accessibilityLabel but doesn't draw it — for inline fields like a reply bar. */
   hideLabel?: boolean;
-  /** BCP-47 tag for dictation (e.g. 'si-LK'); defaults to US English. */
+  /** BCP-47 tag sent to the backend for transcription (e.g. 'si-LK'); defaults to the backend's own default. */
   voiceLang?: string;
   voiceLabels?: MicInputFieldVoiceLabels;
   maxLength?: number;
@@ -48,12 +49,25 @@ const DEFAULT_VOICE_LABELS = (label: string): MicInputFieldVoiceLabels => ({
   recognitionError: "Couldn't hear that — please try again.",
 });
 
+/** One line of helper text for a just-finished turn that doesn't warrant a full notice card in a compact field. */
+function qualityHintMessage(hint: SpeechQualityHint): string | null {
+  if (hint === 'LOW_CONFIDENCE') return "Please check this — we might not have heard you right.";
+  if (hint === 'NO_SPEECH_DETECTED') return "Didn't catch that — tap the mic to try again.";
+  return null;
+}
+
 /**
  * Standard text input used everywhere text entry happens in this module —
  * Title, Description, and the written-content transcript — with an
- * embedded mic button for voice dictation. Appends each finalized phrase to
- * whatever's already typed, so switching between typing and speaking
- * mid-field works naturally.
+ * embedded mic button for voice dictation.
+ *
+ * Backed by useVoiceInput (record up to 30s, then upload to the backend's
+ * Azure-based /api/speech/transcribe) rather than on-device recognition —
+ * tap to start, tap again to finish; the transcript appends once transcription
+ * completes rather than growing live while speaking. A low-confidence or
+ * no-speech turn shows a one-line hint rather than a full notice card, to
+ * stay compact; the field returns to idle automatically either way, ready
+ * for another tap.
  */
 export const MicInputField: React.FC<MicInputFieldProps> = ({
   label,
@@ -71,39 +85,50 @@ export const MicInputField: React.FC<MicInputFieldProps> = ({
   onSubmitEditing,
   minInputHeight,
 }) => {
-  // Holds the value as of when dictation started, so an interim result
-  // replaces only the in-progress phrase rather than re-appending on every
-  // partial update.
-  const baseValueRef = useRef(value);
   const labels = voiceLabels ?? DEFAULT_VOICE_LABELS(label);
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
-  const { isListening, errorCode, toggle } = useVoiceToText({
-    lang: voiceLang,
-    onFinalResult: (text) => {
-      const base = baseValueRef.current;
-      const next = base && !base.endsWith(' ') ? `${base} ${text}` : `${base}${text}`;
-      baseValueRef.current = next;
+  /** Survives the hook's own auto-reset to idle, so the elder still sees it after a turn finishes. Cleared on the next tap. */
+  const [lastQualityHint, setLastQualityHint] = useState<SpeechQualityHint | null>(null);
+
+  const { state, result, errorKind, errorMessage, start, stop, retry } = useVoiceInput({ language: voiceLang });
+
+  const insertedForResultRef = useRef<typeof result>(null);
+  useEffect(() => {
+    if (!result || insertedForResultRef.current === result) return;
+    insertedForResultRef.current = result;
+
+    if (result.qualityHint !== 'NO_SPEECH_DETECTED') {
+      const base = valueRef.current;
+      const next = base && !base.endsWith(' ') ? `${base} ${result.text}` : `${base}${result.text}`;
       onChangeText(next);
-    },
-    onInterimResult: (text) => {
-      const base = baseValueRef.current;
-      const joined = base && !base.endsWith(' ') ? `${base} ${text}` : `${base}${text}`;
-      onChangeText(joined);
-    },
-  });
+    }
+    setLastQualityHint(result.qualityHint);
+    retry(); // back to idle, ready for another turn — see this component's own doc comment.
+    // onChangeText/retry intentionally excluded — this must run only when `result` itself changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
+  const busy = state === 'requestingPermission' || state === 'preparing' || state === 'uploading';
+  const isRecording = state === 'recording';
 
   const handleMicPress = () => {
-    if (!isListening) baseValueRef.current = value;
-    toggle();
+    setLastQualityHint(null);
+    if (state === 'idle' || state === 'error') start();
+    else if (state === 'recording') stop();
   };
 
   const fieldAccessibilityLabel = errorText ? `${label}, required, ${errorText}` : label;
-  const voiceErrorText =
-    !isListening && errorCode
-      ? errorCode === 'permission'
+
+  const helperMessage =
+    state === 'error'
+      ? errorKind === 'permission'
         ? labels.permissionError
-        : labels.recognitionError
-      : undefined;
+        : errorMessage ?? labels.recognitionError
+      : lastQualityHint
+        ? qualityHintMessage(lastQualityHint)
+        : null;
 
   return (
     <View style={s.section}>
@@ -113,7 +138,7 @@ export const MicInputField: React.FC<MicInputFieldProps> = ({
         style={[
           s.fieldWrap,
           multiline && s.fieldWrapMultiline,
-          isListening && s.fieldWrapListening,
+          isRecording && s.fieldWrapListening,
           !!errorText && s.fieldWrapError,
         ]}
       >
@@ -132,26 +157,37 @@ export const MicInputField: React.FC<MicInputFieldProps> = ({
           accessibilityLabel={fieldAccessibilityLabel}
         />
 
-        {editable && (
+        {editable && busy && (
+          <View style={[s.micBtnBusy, { width: 40, height: 40 }]}>
+            <ActivityIndicator size="small" color={D.onSecondaryContainer} />
+          </View>
+        )}
+
+        {editable && !busy && (
           <RoundIconButton
             icon={Mic}
             size={40}
             iconSize={18}
-            color={isListening ? D.onPrimary : D.onSecondaryContainer}
-            backgroundColor={isListening ? D.secondary : D.secondaryContainer}
+            color={isRecording ? D.onPrimary : D.onSecondaryContainer}
+            backgroundColor={isRecording ? D.secondary : D.secondaryContainer}
             onPress={handleMicPress}
-            accessibilityLabel={isListening ? labels.stop : labels.start}
+            accessibilityLabel={isRecording ? labels.stop : labels.start}
           />
         )}
       </View>
 
-      {isListening && (
+      {isRecording && (
         <Text style={s.listeningText} accessibilityLiveRegion="polite">
           {labels.listening}
         </Text>
       )}
+      {state === 'uploading' && (
+        <Text style={s.listeningText} accessibilityLiveRegion="polite">
+          Writing it down…
+        </Text>
+      )}
       {!!errorText && <Text style={s.errorText}>{errorText}</Text>}
-      {!!voiceErrorText && <Text style={s.errorText}>{voiceErrorText}</Text>}
+      {!!helperMessage && <Text style={s.errorText}>{helperMessage}</Text>}
     </View>
   );
 };
@@ -190,6 +226,13 @@ const s = StyleSheet.create({
     paddingVertical: 10,
   },
   inputMultiline: { minHeight: 96, flexGrow: 1 },
+
+  micBtnBusy: {
+    borderRadius: Radii.full,
+    backgroundColor: D.secondaryContainer,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   listeningText: {
     fontFamily: Typography.fontBodyMed,
