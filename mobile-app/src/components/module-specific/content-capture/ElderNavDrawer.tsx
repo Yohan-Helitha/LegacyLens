@@ -32,6 +32,7 @@ import { Typography, Spacing, Radii } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
 import { useAuthStore } from '../../../store/authStore';
 import { useInboxUnread } from '../../../store/inboxUnreadStore';
+import { useAwaitingWorkCount } from '../../../hooks/useAwaitingWorkCount';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -109,6 +110,8 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
   // The red number on "Requests": unread chat messages, from the one shared copy the whole app uses.
   const unreadCount = useInboxUnread();
   const requestsCount = requestsCountProp ?? unreadCount;
+  // Submitted work waiting for the elder's review; reloaded each time the drawer opens.
+  const awaitingWork = useAwaitingWorkCount(visible);
   const insets = useSafeAreaInsets();
   const progress = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
@@ -214,6 +217,11 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
                   {key === 'requests' && !!requestsCount && (
                     <View style={s.badge}>
                       <Text style={s.badgeText}>{requestsCount}</Text>
+                    </View>
+                  )}
+                  {key === 'submittedWork' && awaitingWork > 0 && (
+                    <View style={s.badge}>
+                      <Text style={s.badgeText}>{awaitingWork}</Text>
                     </View>
                   )}
                 </Pressable>

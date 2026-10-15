@@ -2,7 +2,7 @@
   "drawer": {
     "home": "Home",
     "stories": "My Stories",
-    "requests": "Requests",
+    "requests": "Messages",
     "trust": "Trust Score",
     "reviews": "Reviews & Ratings",
     "hire": "Hire a Creator",
@@ -112,7 +112,10 @@
     "reply": "Reply with voice",
     "yourStories": "Your Stories",
     "noStories": "You haven't recorded any stories yet.",
-    "viewAll": "View All"
+    "viewAll": "View All",
+    "workWaiting_one": "{{count}} piece of work is waiting for your review",
+    "workWaiting_other": "{{count}} pieces of work are waiting for your review",
+    "reviewWork": "Review now"
   },
   "analytics": {
     "title": "Story analytics",

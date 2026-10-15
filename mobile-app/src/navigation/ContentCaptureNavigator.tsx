@@ -243,6 +243,7 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
           onOpenTrustScore={() => setStep('trustScore')}
           onOpenChat={(conversationId) => openChat(conversationId, 'dashboard')}
           onOpenMessages={() => setStep('inbox')}
+          onOpenSubmittedWork={() => setStep('submittedWork')}
           onDrawerNavigate={handleDrawerNavigate}
           onTabPress={handleTabPress}
           onLogout={handleLogout}
