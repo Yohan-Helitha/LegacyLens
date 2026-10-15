@@ -2,6 +2,7 @@ import { apiGet, apiPost, apiPatch, apiPut } from './client';
 import {
   OpportunityCardResponse,
   OpportunityDetailResponse,
+  ElderProfileResponse,
   AdminOpportunityResponse,
   OpportunityAudioResponse,
   CreateOpportunityRequest,
@@ -28,6 +29,9 @@ export const opportunityApi = {
     apiGet<OpportunityCardResponse[]>(`/opportunities/recent?limit=${limit}`),
 
   getById: (id: string) => apiGet<OpportunityDetailResponse>(`/opportunities/${id}`),
+
+  /** The knowledge holder's public profile for one opportunity. */
+  getElderProfile: (id: string) => apiGet<ElderProfileResponse>(`/opportunities/${id}/elder`),
 
   /** Backs the filter chips — a real DB search, not a client-side slice of an already-fetched list. */
   search: (params: { category?: string; nearby?: boolean; q?: string; limit?: number }) => {

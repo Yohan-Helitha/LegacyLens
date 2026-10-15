@@ -102,6 +102,7 @@ const ProfileIcon: React.FC<{ color: string; avatarUri?: string }> = ({ color, a
 // ─────────────────────────────────────────────────────────────────────────────
 const TABS: { key: NavTab; label: string }[] = [
   { key: 'home',    label: 'Home'    },
+  { key: 'market',  label: 'Market'  },
   { key: 'inbox',   label: 'Inbox'   },
   { key: 'profile', label: 'Profile' },
 ];

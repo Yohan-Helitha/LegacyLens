@@ -46,6 +46,21 @@ export interface OpportunityDetailResponse {
   matchReasons?: string[] | null;
 }
 
+/** The public profile of the knowledge holder behind an opportunity. */
+export interface ElderProfileResponse {
+  name: string;
+  avatarUrl: string | null;
+  verified: boolean;
+  location: string | null;
+  bio: string | null;
+  topics: string[];
+  averageRating: number | null;
+  ratingCount: number;
+  /** "yyyy-MM-dd" */
+  memberSince: string | null;
+  openOpportunities: number;
+}
+
 export interface AdminOpportunityResponse {
   id: string;
   title: string;

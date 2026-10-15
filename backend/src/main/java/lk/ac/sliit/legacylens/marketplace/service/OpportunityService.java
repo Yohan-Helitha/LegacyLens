@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.marketplace.service;
 
+import lk.ac.sliit.legacylens.marketplace.dto.ElderProfileResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityBrowseResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityCardResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityDetailResponse;
@@ -29,6 +30,9 @@ public interface OpportunityService {
 
     /** One published opportunity's full detail, with how well it fits the signed-in creator. */
     OpportunityDetailResponse getById(UUID id, UUID creatorId);
+
+    /** The public profile of the knowledge holder behind one published opportunity. */
+    ElderProfileResponse getElderProfile(UUID opportunityId);
 
     /**
      * Backs the filter chips. category is matched case-insensitively as a

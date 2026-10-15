@@ -221,6 +221,9 @@ export const SavedOpportunityApplication: React.FC<{
             waiting.map((record) => (
               <ApplicationSummary key={record.id} record={record}>
                 <View style={{ gap: Spacing.sm }}>
+                  <View style={s.awaitingPill}>
+                    <Text style={s.awaitingPillText}>Awaiting Review</Text>
+                  </View>
                   <Pressable
                     onPress={() => handleView(record)}
                     style={({ pressed }) => [s.outlineBtn, s.viewBtnFull, pressed && s.pressed]}
@@ -308,6 +311,12 @@ const s = StyleSheet.create({
   },
   fillBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeXS + 1, color: '#ffffff' },
   viewBtnFull: { flex: 0, alignSelf: 'stretch' },
+  // Same "Awaiting Review" bar the Submitted tab in My Work uses.
+  awaitingPill: {
+    backgroundColor: '#f0f5f5', borderRadius: Radii.full, borderWidth: 1, borderColor: D.surfaceVariant,
+    paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
+  },
+  awaitingPillText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSurfaceVariant, letterSpacing: 0.3 },
 
   // ── Load error ───────────────────────────────────────────────────────────
   errorBox: {
