@@ -29,6 +29,8 @@ import type { LucideIcon } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
+import { useAuthStore } from '../../../store/authStore';
+import { messagingApi } from '../../../services/api/messagingApi';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -53,7 +55,7 @@ interface ElderNavDrawerProps {
   userRole?: string;
   userLevel?: string;
   avatarUri?: string;
-  /** Badge count shown on "Requests"; omitted when 0/undefined */
+  /** Badge count shown on "Requests" (messages); defaults to the elder's own unread-message count. */
   requestsCount?: number;
   /** Fired for any item other than the currently active one, right before the drawer closes */
   onNavigate?: (item: ElderDrawerItem) => void;
@@ -89,15 +91,19 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
   visible,
   onClose,
   activeItem = 'home',
-  userName = 'Anura Bandara',
+  userName: userNameProp,
   userRole,
   userLevel,
   avatarUri,
-  requestsCount,
+  requestsCount: requestsCountProp,
   onNavigate,
   onLogout,
 }) => {
   const { t } = useTranslation('contentCapture');
+  const signedInName = useAuthStore((state) => state.user?.fullName);
+  const userName = userNameProp ?? signedInName ?? '';
+  const [unreadCount, setUnreadCount] = useState(0);
+  const requestsCount = requestsCountProp ?? unreadCount;
   const insets = useSafeAreaInsets();
   const progress = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
@@ -112,6 +118,21 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
       );
     }
   }, [visible]);
+
+  // Refresh the "Requests" badge each time the drawer opens (the number of unread chat messages).
+  useEffect(() => {
+    if (!visible || requestsCountProp !== undefined) return;
+    let cancelled = false;
+    messagingApi
+      .list('UNREAD')
+      .then((unread) => {
+        if (!cancelled) setUnreadCount((unread ?? []).reduce((sum, item) => sum + item.unreadCount, 0));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, requestsCountProp]);
 
   useEffect(() => {
     if (!visible) return;
@@ -165,7 +186,7 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
               {avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={s.avatarImage} />
               ) : (
-                <Text style={s.avatarInitial}>{userName.charAt(0)}</Text>
+                <Text style={s.avatarInitial}>{userName.charAt(0).toUpperCase()}</Text>
               )}
             </View>
 

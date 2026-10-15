@@ -166,7 +166,6 @@ export const TrustScoreDetail: React.FC<TrustScoreDetailProps> = ({
         visible={drawerVisible}
         onClose={() => setDrawerVisible(false)}
         activeItem="trust"
-        requestsCount={1}
         onNavigate={onDrawerNavigate}
         onLogout={onLogout}
       />
