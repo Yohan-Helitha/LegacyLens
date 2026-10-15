@@ -25,6 +25,24 @@ public interface OpportunityRepository extends JpaRepository<Opportunity, UUID> 
     List<Opportunity> findByStatusAndUrgentTrueOrderByDueAtAsc(OpportunityStatus status, Pageable pageable);
 
     /**
+     * Backs "Urgent Missions" - marked urgent, or close to its date (see {@link Opportunity#isUrgent()}): the
+     * deadline falls between {@code now} and {@code soon}, or - with no deadline - the work day falls between
+     * {@code today} and {@code soonDay}. Soonest first.
+     */
+    @EntityGraph(attributePaths = {"elder", "elder.city"})
+    @Query("SELECT o FROM Opportunity o WHERE o.status = :status AND (o.urgent = true "
+            + "OR (o.dueAt IS NOT NULL AND o.dueAt >= :now AND o.dueAt <= :soon) "
+            + "OR (o.dueAt IS NULL AND o.scheduledDate >= :today AND o.scheduledDate <= :soonDay)) "
+            + "ORDER BY o.dueAt ASC NULLS LAST, o.scheduledDate ASC NULLS LAST, o.createdAt DESC")
+    List<Opportunity> findUrgent(
+            @Param("status") OpportunityStatus status,
+            @Param("now") java.time.LocalDateTime now,
+            @Param("soon") java.time.LocalDateTime soon,
+            @Param("today") java.time.LocalDate today,
+            @Param("soonDay") java.time.LocalDate soonDay,
+            Pageable pageable);
+
+    /**
      * Backs "Recent Postings" — newest first. The knowledge holder and their city come in the same query,
      * because every card shows them (otherwise each card costs two more trips to the database).
      */

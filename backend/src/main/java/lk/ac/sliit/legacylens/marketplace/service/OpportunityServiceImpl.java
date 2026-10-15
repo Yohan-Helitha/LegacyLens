@@ -21,6 +21,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -47,6 +48,9 @@ public class OpportunityServiceImpl implements OpportunityService {
      * in memory, so this keeps one request bounded; a warning is logged whenever it is reached.
      */
     private static final int RECOMMENDATION_POOL = 500;
+
+    /** How many opportunities the Recommended and the Urgent section each show on the Opportunities page. */
+    private static final int SECTION_SIZE = 3;
 
     private final OpportunityRepository opportunityRepository;
     private final KnowledgeHolderProfileRepository knowledgeHolderProfileRepository;
@@ -94,8 +98,11 @@ public class OpportunityServiceImpl implements OpportunityService {
         // Worked out once for the whole page - the three lists used to each repeat it in their own request.
         CreatorMatching matching = matcher.forCreator(creatorId);
         Set<UUID> applied = alreadyAppliedTo(creatorId);
-        List<OpportunityCardResponse> recommended = recommended(1, creatorId, matching, applied);
-        List<OpportunityCardResponse> urgent = urgent(1, matching, applied);
+        // Each opportunity goes where it belongs: a strong match under Recommended, one close to its date under
+        // Urgent, and whatever is left under Recent Postings. A section shows its best few; one that does not fit
+        // there falls through to Recent Postings rather than disappearing.
+        List<OpportunityCardResponse> recommended = recommended(SECTION_SIZE, creatorId, matching, applied);
+        List<OpportunityCardResponse> urgent = urgent(SECTION_SIZE, matching, applied);
         // A job already shown as Recommended or Urgent is not listed a second time under Recent Postings.
         Set<UUID> alreadyShown = new java.util.HashSet<>(applied);
         recommended.forEach(card -> alreadyShown.add(card.getId()));
@@ -147,8 +154,11 @@ public class OpportunityServiceImpl implements OpportunityService {
     }
 
     private List<OpportunityCardResponse> urgent(int limit, CreatorMatching matching, Set<UUID> applied) {
+        LocalDateTime now = LocalDateTime.now();
         return cards(opportunityRepository
-                .findByStatusAndUrgentTrueOrderByDueAtAsc(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit + applied.size()))
+                .findUrgent(OpportunityStatus.PUBLISHED, now, now.plusDays(Opportunity.URGENT_WITHIN_DAYS),
+                        now.toLocalDate(), now.toLocalDate().plusDays(Opportunity.URGENT_WITHIN_DAYS),
+                        PageRequest.of(0, limit + applied.size()))
                 .stream()
                 .filter(o -> !applied.contains(o.getId()))
                 .limit(limit)

@@ -201,12 +201,13 @@ const MatchBadgeInline: React.FC<{ item: OpportunityCardResponse }> = ({ item })
 // ─────────────────────────────────────────────────────────────────────────────
 // RecommendedCard
 // ─────────────────────────────────────────────────────────────────────────────
-const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void }> = ({
+const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void; showTitle?: boolean }> = ({
   item,
   onViewDetail,
+  showTitle = true,
 }) => (
   <View style={s.section}>
-    <Text style={s.sectionTitle}>Recommended For You</Text>
+    {showTitle && <Text style={s.sectionTitle}>Recommended For You</Text>}
 
     <Pressable
       style={({ pressed }) => [s.recommendedCard, pressed && s.cardPressed]}
@@ -266,15 +267,18 @@ const RecommendedCard: React.FC<{ item: OpportunityCardResponse; onViewDetail: (
 // ─────────────────────────────────────────────────────────────────────────────
 // UrgentSection
 // ─────────────────────────────────────────────────────────────────────────────
-const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void }> = ({
+const UrgentSection: React.FC<{ item: OpportunityCardResponse; onViewDetail: () => void; showTitle?: boolean }> = ({
   item,
   onViewDetail,
+  showTitle = true,
 }) => (
   <View style={s.section}>
-    <View style={s.urgentTitleRow}>
-      <Text style={{ fontSize: 18 }}>{'\uD83D\uDD25'}</Text>
-      <Text style={s.sectionTitle}>Urgent Missions</Text>
-    </View>
+    {showTitle && (
+      <View style={s.urgentTitleRow}>
+        <Text style={{ fontSize: 18 }}>{'\uD83D\uDD25'}</Text>
+        <Text style={s.sectionTitle}>Urgent Missions</Text>
+      </View>
+    )}
 
     <Pressable
       style={({ pressed }) => [s.urgentCard, pressed && s.cardPressed]}
@@ -401,8 +405,8 @@ const RecentSection: React.FC<{
 /** What the page showed last time, kept for the signed-in account only so another login never sees it. */
 interface BrowseSnapshot {
   userId: string | null;
-  recommended: OpportunityCardResponse | null;
-  urgent: OpportunityCardResponse | null;
+  recommended: OpportunityCardResponse[];
+  urgent: OpportunityCardResponse[];
   recent: OpportunityCardResponse[];
 }
 let lastBrowse: BrowseSnapshot | null = null;
@@ -423,8 +427,8 @@ export const OpportunityPage: React.FC<{
   // Null only until the initial fetch settles — real data only, no fallback/mock content.
   // Starts from what the page showed last time (for this account), so the tab opens at once and refreshes behind it.
   const [seen] = useState(remembered);
-  const [recommended, setRecommended] = useState<OpportunityCardResponse | null>(seen?.recommended ?? null);
-  const [urgent, setUrgent] = useState<OpportunityCardResponse | null>(seen?.urgent ?? null);
+  const [recommended, setRecommended] = useState<OpportunityCardResponse[]>(seen?.recommended ?? []);
+  const [urgent, setUrgent] = useState<OpportunityCardResponse[]>(seen?.urgent ?? []);
   const [recent, setRecent] = useState<OpportunityCardResponse[] | null>(seen?.recent ?? null);
 
   // Populated by a real /opportunities/search call whenever a filter chip
@@ -442,8 +446,8 @@ export const OpportunityPage: React.FC<{
         if (cancelled) return;
         const next = {
           userId: signedInUserId(),
-          recommended: data.recommended[0] ?? null,
-          urgent: data.urgent[0] ?? null,
+          recommended: data.recommended,
+          urgent: data.urgent,
           recent: data.recent,
         };
         lastBrowse = next;
@@ -453,8 +457,8 @@ export const OpportunityPage: React.FC<{
       })
       .catch(() => {
         if (cancelled || remembered()) return;
-        setRecommended(null);
-        setUrgent(null);
+        setRecommended([]);
+        setUrgent([]);
         setRecent([]);
       });
     return () => {
@@ -527,16 +531,26 @@ export const OpportunityPage: React.FC<{
             </View>
           ) : (
             <>
-              {recommended && (
-                <RecommendedCard item={recommended} onViewDetail={() => onViewDetail(recommended.id)} />
-              )}
-              {urgent && (
-                <UrgentSection item={urgent} onViewDetail={() => onViewDetail(urgent.id)} />
-              )}
+              {recommended.map((item, index) => (
+                <RecommendedCard
+                  key={item.id}
+                  item={item}
+                  showTitle={index === 0}
+                  onViewDetail={() => onViewDetail(item.id)}
+                />
+              ))}
+              {urgent.map((item, index) => (
+                <UrgentSection
+                  key={item.id}
+                  item={item}
+                  showTitle={index === 0}
+                  onViewDetail={() => onViewDetail(item.id)}
+                />
+              ))}
               {recent.length > 0 && (
                 <RecentSection items={recent} onApply={onViewDetail} onViewDetail={onViewDetail} />
               )}
-              {!recommended && !urgent && recent.length === 0 && (
+              {recommended.length === 0 && urgent.length === 0 && recent.length === 0 && (
                 <View style={s.emptyState}>
                   <Text style={s.emptyStateText}>No opportunities to show yet.</Text>
                 </View>
