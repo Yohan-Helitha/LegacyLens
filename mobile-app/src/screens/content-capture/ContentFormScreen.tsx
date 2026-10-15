@@ -178,6 +178,13 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
             type: draft.mediaType === 'VIDEO' ? 'video/mp4' : 'audio/m4a',
           }
         : null,
+    thumbnail: draft.thumbnailUri
+      ? {
+          uri: draft.thumbnailUri,
+          name: 'thumbnail.jpg',
+          type: 'image/jpeg',
+        }
+      : null,
   });
 
   const persist = async () => {
