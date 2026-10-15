@@ -43,7 +43,7 @@ public class WorkReviewServiceImpl implements WorkReviewService {
     @Transactional(readOnly = true)
     public List<WorkSubmissionSummaryResponse> listForElder(UUID elderId) {
         return progressRepository.findByJobElderIdAndSubmittedAtIsNotNullAndDraftFalseOrderBySubmittedAtDesc(elderId)
-                .stream().map(this::summary).toList();
+                .stream().map(p -> summary(p, false)).toList();
     }
 
     @Override
@@ -62,7 +62,7 @@ public class WorkReviewServiceImpl implements WorkReviewService {
     @Transactional(readOnly = true)
     public List<WorkSubmissionSummaryResponse> listForAdmin() {
         return progressRepository.findBySubmittedAtIsNotNullAndDraftFalseOrderBySubmittedAtDesc()
-                .stream().map(this::summary).toList();
+                .stream().map(p -> summary(p, true)).toList();
     }
 
     @Override
@@ -77,7 +77,7 @@ public class WorkReviewServiceImpl implements WorkReviewService {
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found"));
     }
 
-    private WorkSubmissionSummaryResponse summary(JobWorkProgress progress) {
+    private WorkSubmissionSummaryResponse summary(JobWorkProgress progress, boolean forAdmin) {
         Job job = progress.getJob();
         Opportunity opportunity = opportunityOf(job);
         return WorkSubmissionSummaryResponse.builder()
@@ -93,7 +93,21 @@ public class WorkReviewServiceImpl implements WorkReviewService {
                 .elderApproved(progress.isElderApproved())
                 .adminApproved(progress.isAdminApproved())
                 .publishedAt(progress.getPublishedAt())
+                .sentBackBy(forAdmin ? sentBackBy(job, progress) : null)
                 .build();
+    }
+
+    /** Who has an outstanding note on work that is CHANGES_REQUESTED; null in any other state. */
+    static String sentBackBy(Job job, JobWorkProgress progress) {
+        if (!CHANGES_REQUESTED.equals(stateOf(job, progress))) {
+            return null;
+        }
+        boolean elder = progress.getElderFeedback() != null && !progress.getElderFeedback().isBlank();
+        boolean admin = progress.getAdminFeedback() != null && !progress.getAdminFeedback().isBlank();
+        if (elder && admin) return "BOTH";
+        if (elder) return "KNOWLEDGE_HOLDER";
+        if (admin) return "ADMIN";
+        return null;
     }
 
     private WorkSubmissionDetailResponse detail(JobWorkProgress progress, boolean includeAdminNote) {
@@ -107,7 +121,7 @@ public class WorkReviewServiceImpl implements WorkReviewService {
                         .build())
                 .toList();
         return WorkSubmissionDetailResponse.builder()
-                .summary(summary(progress))
+                .summary(summary(progress, includeAdminNote))
                 .brief(job.getDescription())
                 .introduction(progress.getIntroduction())
                 .story(progress.getStory())

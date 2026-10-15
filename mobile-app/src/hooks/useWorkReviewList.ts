@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { elderWorkReviewApi } from '../services/api/elderWorkReviewApi';
 import type { WorkSubmissionSummary } from '../types/workReview';
 
-/** The elder's queue of submitted work, grouped the way the Submitted Work screen shows it. */
-export function useWorkReviewList() {
+/**
+ * A reviewer's queue of submitted work, grouped the way the Submitted Work screens show it. Defaults to the
+ * knowledge holder's queue; the admin passes their own `fetchList`.
+ */
+export function useWorkReviewList(fetchList: () => Promise<WorkSubmissionSummary[]> = elderWorkReviewApi.list) {
   const [items, setItems] = useState<WorkSubmissionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -15,7 +18,7 @@ export function useWorkReviewList() {
     else setLoading(true);
     setLoadError(false);
     try {
-      const result = await elderWorkReviewApi.list();
+      const result = await fetchList();
       if (mountedRef.current) setItems(result ?? []);
     } catch {
       if (mountedRef.current) setLoadError(true);
@@ -25,7 +28,7 @@ export function useWorkReviewList() {
         setRefreshing(false);
       }
     }
-  }, []);
+  }, [fetchList]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -38,11 +41,13 @@ export function useWorkReviewList() {
   const awaiting = items.filter((item) => item.state === 'AWAITING_REVIEW');
   const changesRequested = items.filter((item) => item.state === 'CHANGES_REQUESTED');
   const approved = items.filter((item) => item.state === 'COMPLETED' || item.state === 'PUBLISHED');
+  const readyToPublish = items.filter((item) => item.state === 'COMPLETED');
+  const published = items.filter((item) => item.state === 'PUBLISHED');
 
   const refresh = useCallback(() => load('refresh'), [load]);
   const reload = useCallback(() => load('initial'), [load]);
 
-  return { items, awaiting, changesRequested, approved, loading, refreshing, loadError, refresh, reload };
+  return { items, awaiting, changesRequested, approved, readyToPublish, published, loading, refreshing, loadError, refresh, reload };
 }
 
 export default useWorkReviewList;

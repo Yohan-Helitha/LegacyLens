@@ -27,4 +27,9 @@ public class WorkSubmissionSummaryResponse {
     private boolean elderApproved;
     private boolean adminApproved;
     private LocalDateTime publishedAt;
+    /**
+     * Admin queue only (null for the knowledge holder): who sent the work back while it is CHANGES_REQUESTED -
+     * KNOWLEDGE_HOLDER, ADMIN or BOTH. Left out of the knowledge holder's view so it never hints at the admin's note.
+     */
+    private String sentBackBy;
 }

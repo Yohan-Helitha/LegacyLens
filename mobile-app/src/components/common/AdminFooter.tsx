@@ -4,20 +4,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Typography, Radii, Spacing } from '../../theme';
 
-export type AdminTabKey = 'admin_home' | 'intake' | 'review' | 'admin_profile';
+export type AdminTabKey = 'admin_home' | 'intake' | 'review' | 'work_review' | 'admin_profile';
 
 interface AdminFooterProps {
   activeTab: AdminTabKey;
   onTabSelect: (tab: AdminTabKey) => void;
   intakeBadge?: string | null;
   reviewBadge?: string | null;
+  /** Submitted work waiting for the admin's review. */
+  workBadge?: string | null;
 }
 
-export const AdminFooter: React.FC<AdminFooterProps> = ({ activeTab, onTabSelect, intakeBadge, reviewBadge }) => {
+export const AdminFooter: React.FC<AdminFooterProps> = ({ activeTab, onTabSelect, intakeBadge, reviewBadge, workBadge }) => {
   const tabs: Array<{ key: AdminTabKey; icon: string; label: string; badge: string | null; badgeErr?: boolean }> = [
     { key: 'admin_home',    icon: 'home',      label: 'Home',       badge: null },
     { key: 'intake',        icon: 'inbox',     label: 'Opportunities',     badge: intakeBadge || null },
     { key: 'review',        icon: 'gavel',     label: 'Moderation', badge: reviewBadge || null, badgeErr: true },
+    { key: 'work_review',   icon: 'assignment-turned-in', label: 'Work', badge: workBadge || null },
     { key: 'admin_profile', icon: 'person',    label: 'Profile',    badge: null }
   ];
 

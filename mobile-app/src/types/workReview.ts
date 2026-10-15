@@ -22,6 +22,8 @@ export interface WorkSubmissionSummary {
   elderApproved: boolean;
   adminApproved: boolean;
   publishedAt: string | null;
+  /** Admin queue only: who sent the work back while it is CHANGES_REQUESTED. Null for the knowledge holder. */
+  sentBackBy?: 'KNOWLEDGE_HOLDER' | 'ADMIN' | 'BOTH' | null;
 }
 
 /** Everything the creator submitted for one job. */
@@ -37,6 +39,9 @@ export interface WorkSubmissionDetail {
   /** This elder's own note from an earlier decline; the admin's note is never sent to the elder. */
   elderFeedback: string | null;
   elderFeedbackAt: string | null;
+  /** Only filled for the admin; always null for the knowledge holder. */
+  adminFeedback?: string | null;
+  adminFeedbackAt?: string | null;
 }
 
 export interface WorkFeedbackState {
@@ -44,6 +49,18 @@ export interface WorkFeedbackState {
   elderFeedback: string | null;
   elderFeedbackAt: string | null;
   elderApproved: boolean;
+  publishedAt: string | null;
+}
+
+/** Both reviewers' state on one job - what the admin's feedback calls return. */
+export interface AdminWorkFeedbackState {
+  jobId: string;
+  elderApproved: boolean;
+  elderFeedback: string | null;
+  elderFeedbackAt: string | null;
+  adminApproved: boolean;
+  adminFeedback: string | null;
+  adminFeedbackAt: string | null;
   publishedAt: string | null;
 }
 
