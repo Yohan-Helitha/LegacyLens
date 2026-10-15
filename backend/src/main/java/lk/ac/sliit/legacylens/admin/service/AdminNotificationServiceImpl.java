@@ -12,6 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import lk.ac.sliit.legacylens.admin.entity.AudioReviewStatus;
+import lk.ac.sliit.legacylens.admin.entity.OpportunityAudio;
+import lk.ac.sliit.legacylens.admin.repository.OpportunityAudioRepository;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -21,11 +25,28 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
 
     private final OpportunityRepository opportunityRepository;
     private final ModerationQueueRepository moderationQueueRepository;
+    private final OpportunityAudioRepository opportunityAudioRepository;
     private final java.util.Set<String> readNotificationIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     @Override
     public List<AdminNotificationResponse> getAdminNotifications() {
         List<AdminNotificationResponse> notifications = new ArrayList<>();
+
+        // Fetch Opportunity Audio Submissions (Field Recordings for Intake Queue)
+        List<OpportunityAudio> audios = opportunityAudioRepository.findAll();
+        for (OpportunityAudio audio : audios) {
+            String audioId = audio.getId().toString();
+            boolean read = readNotificationIds.contains(audioId) || audio.getStatus() == AudioReviewStatus.FULLY_LISTENED;
+            notifications.add(AdminNotificationResponse.builder()
+                    .id(audioId)
+                    .title("Audio Submission: " + (audio.getElderName() != null ? audio.getElderName() : "Elder Knowledge Keeper"))
+                    .subtitle("Opportunity Intake • " + (audio.getTopic() != null ? audio.getTopic() : "Cultural Archive"))
+                    .body("New audio submission awaiting review and transcription from " + (audio.getLocation() != null ? audio.getLocation() : "Sri Lanka") + ".")
+                    .createdAt(audio.getCreatedAt() != null ? audio.getCreatedAt() : java.time.LocalDateTime.now())
+                    .type("opportunity")
+                    .isRead(read)
+                    .build());
+        }
 
         // Fetch Opportunities
         List<Opportunity> opportunities = opportunityRepository.findAll();
@@ -35,8 +56,8 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
             notifications.add(AdminNotificationResponse.builder()
                     .id(oppId)
                     .title(opp.getTitle() != null ? opp.getTitle() : "Opportunity")
-                    .subtitle("Opportunity Intake")
-                    .body("New opportunity for review.")
+                    .subtitle("Opportunity Listing")
+                    .body("Opportunity status: " + opp.getStatus())
                     .createdAt(opp.getCreatedAt())
                     .type("opportunity")
                     .isRead(read)
