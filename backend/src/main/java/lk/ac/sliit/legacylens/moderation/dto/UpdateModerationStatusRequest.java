@@ -12,6 +12,7 @@ public class UpdateModerationStatusRequest {
     private String reason;
     private String notes;
     private String[] tags;
+    private String imageUrl;
 
     public String getEffectiveRejectionReason() {
         if (rejectionReason != null && !rejectionReason.isBlank()) {

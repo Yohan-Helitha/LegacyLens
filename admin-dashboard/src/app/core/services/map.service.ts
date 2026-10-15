@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, catchError, map, of, throwError } from 'rxjs';
+import { HttpClient, HttpHeaders, HttpEventType } from '@angular/common/http';
+import { Observable, catchError, filter, map, of, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   RegionDTO,
@@ -145,9 +145,9 @@ export class MapService {
   }
 
   /**
-   * Upload a 3D model file to uploads/models directory with progress
+   * Upload a 3D model file with accurate multi-stage progress (upload -> cloud sync)
    */
-  uploadModelFile(file: File): Observable<number | string> {
+  uploadModelFile(file: File): Observable<{ progress: number; stage: 'uploading' | 'processing' | 'done'; status: string; url?: string }> {
     const formData = new FormData();
     formData.append('file', file);
     return this.http.post<any>(`${environment.apiUrl}/admin/cultural-map/models/upload`, formData, {
@@ -155,18 +155,45 @@ export class MapService {
       reportProgress: true,
       observe: 'events'
     }).pipe(
+      filter(event => 
+        event.type === HttpEventType.UploadProgress || 
+        event.type === HttpEventType.ResponseHeader || 
+        event.type === HttpEventType.Response
+      ),
       map(event => {
-        if (event.type === 1) { // HttpEventType.UploadProgress
-          return Math.round(100 * event.loaded / (event.total || 1));
-        } else if (event.type === 4) { // HttpEventType.Response
+        if (event.type === HttpEventType.UploadProgress) {
+          const percent = Math.min(99, Math.round(100 * event.loaded / (event.total || 1)));
+          return {
+            progress: percent,
+            stage: 'uploading' as const,
+            status: `Uploading file (${percent}%)...`
+          };
+        } else if (event.type === HttpEventType.ResponseHeader) {
+          // File finished sending to server; backend is saving to Supabase Storage
+          return {
+            progress: 100,
+            stage: 'processing' as const,
+            status: 'Transferring to Supabase storage... Please wait'
+          };
+        } else if (event.type === HttpEventType.Response) {
           const res = event.body;
+          let modelUrl = '';
           if (res && res.data && res.data.modelUrl) {
-            const modelUrl = res.data.modelUrl;
-            return modelUrl.startsWith('http') ? modelUrl : `${environment.apiUrl.replace('/api', '')}${modelUrl.startsWith('/') ? '' : '/'}${modelUrl}`;
+            modelUrl = res.data.modelUrl;
+            modelUrl = modelUrl.startsWith('http') ? modelUrl : `${environment.apiUrl.replace('/api', '')}${modelUrl.startsWith('/') ? '' : '/'}${modelUrl}`;
           }
-          return '';
+          return {
+            progress: 100,
+            stage: 'done' as const,
+            status: 'Upload complete!',
+            url: modelUrl
+          };
         }
-        return 0; // Other events (like Sent)
+        return {
+          progress: 0,
+          stage: 'uploading' as const,
+          status: 'Starting upload...'
+        };
       }),
       catchError(err => {
         console.error('[MapService] Failed to upload model file:', err);

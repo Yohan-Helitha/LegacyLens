@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.tags.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,7 +21,15 @@ public class TagDTO {
     private String description;
     private String languageCode;
     private String category;
+
+    @JsonProperty("isApproved")
     private boolean isApproved;
+
+    @JsonProperty("approved")
+    public boolean getApproved() {
+        return isApproved;
+    }
+
     private long storyCount;
 
     @Builder.Default
@@ -32,4 +41,3 @@ public class TagDTO {
     private String createdAt;
     private String updatedAt;
 }
-

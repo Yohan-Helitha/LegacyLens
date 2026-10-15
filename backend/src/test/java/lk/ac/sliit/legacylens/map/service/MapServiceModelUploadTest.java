@@ -29,12 +29,12 @@ class MapServiceModelUploadTest {
     void modelUploadsGoToTheCulturalModelBucketAndReturnTheCompleteUrl() {
         MockMultipartFile glb = new MockMultipartFile("file", "temple.glb", "model/gltf-binary", new byte[] {1, 2, 3});
         String publicUrl = "https://example.supabase.co/storage/v1/object/public/cultural-model/models/abc.glb";
-        when(mediaStorageService.store(glb, "cultural-model", "models")).thenReturn(publicUrl);
+        when(mediaStorageService.storeModelFile(glb, "models")).thenReturn(publicUrl);
 
         String result = mapService.uploadModelFile(glb);
 
         assertThat(result).isEqualTo(publicUrl);
-        verify(mediaStorageService).store(glb, "cultural-model", "models");
+        verify(mediaStorageService).storeModelFile(glb, "models");
         verifyNoInteractions(fileStorageService);
     }
 

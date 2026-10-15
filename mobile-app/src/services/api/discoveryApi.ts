@@ -110,13 +110,14 @@ function resolveMediaUri(url?: string): string | undefined {
  */
 export function mapDiscoveryToFeedItem(item: DiscoveryStoryItem): any {
   const baseType = (item.type || 'blog').toLowerCase();
+  const baseMethod = ((item as any).method || '').toLowerCase();
   const id = String(item.id);
   const title = item.title || 'Untitled Cultural Heritage';
   const author = item.authorName || 'Elder Storyteller';
   const location = item.district ? `${item.district}, ${item.region || 'Sri Lanka'}` : (item.region || 'Sri Lanka');
   const tags = item.tags && item.tags.length > 0 ? item.tags : ['heritage'];
   const rawThumbnail = item.imageUrl || (item as any).thumbnail;
-  const thumbnail = resolveMediaUri(rawThumbnail) || 'https://images.unsplash.com/photo-1546707012-c46675f12716?auto=format&fit=crop&q=80&w=600';
+  const thumbnail = resolveMediaUri(rawThumbnail) || undefined;
 
   if (baseType === 'video') {
     const rawVideo = (item as any).videoUrl || item.mediaUrl;
@@ -125,18 +126,18 @@ export function mapDiscoveryToFeedItem(item: DiscoveryStoryItem): any {
       title,
       author,
       location,
-      thumbnail,
-      videoUrl: resolveMediaUri(rawVideo) || 'https://assets.mixkit.co/videos/preview/mixkit-traditional-cultural-dance-41484-large.mp4',
+      videoUrl: resolveMediaUri(rawVideo) || '',
       duration: item.duration || '4:20',
       tags,
       type: 'video',
       likesCount: item.likesCount ?? 0,
       commentsCount: item.commentsCount ?? 0,
+      liked: Boolean((item as any).liked),
       description: item.description ?? '',
       excerpt: item.description ?? '',
       ...(item as any),
     };
-  } else if (baseType === 'audio') {
+  } else if (baseType === 'audio' && baseMethod !== 'written') {
     const rawAudio = item.mediaUrl || (item as any).audioUrl;
     return {
       id,
@@ -154,6 +155,7 @@ export function mapDiscoveryToFeedItem(item: DiscoveryStoryItem): any {
       type: 'audio',
       likesCount: item.likesCount ?? 0,
       commentsCount: item.commentsCount ?? 0,
+      liked: Boolean((item as any).liked),
       description: item.description ?? '',
       excerpt: item.description ?? '',
       ...(item as any),
@@ -171,6 +173,7 @@ export function mapDiscoveryToFeedItem(item: DiscoveryStoryItem): any {
       type: 'blog',
       likesCount: item.likesCount ?? 0,
       commentsCount: item.commentsCount ?? 0,
+      liked: Boolean((item as any).liked),
       description: item.description ?? '',
       content: item.bodyContent ?? '',
       ...(item as any),

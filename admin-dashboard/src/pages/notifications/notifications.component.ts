@@ -1,4 +1,4 @@
-﻿import { Component, signal, computed, OnInit, inject } from '@angular/core';
+import { Component, signal, computed, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -239,6 +239,19 @@ export interface AppNotification {
                               </button>
                             }
 
+                            @if (item.unread) {
+                              <button (click)="markSingleAsRead($event, item)"
+                                      class="px-2.5 py-1.5 rounded-lg bg-[#004343]/10 hover:bg-[#004343]/20 text-[#004343] text-xs font-semibold transition-all flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">done</span>
+                                <span>Mark read</span>
+                              </button>
+                            } @else {
+                              <span class="text-[11px] text-[#6e7978] flex items-center gap-1 font-medium px-2 py-1 bg-[#f2f4f7] rounded-md">
+                                <span class="material-symbols-outlined text-sm text-emerald-600">done_all</span>
+                                <span>Read</span>
+                              </span>
+                            }
+
                             <button (click)="dismissNotification($event, item)"
                                     class="px-2.5 py-1.5 rounded-lg text-[#6e7978] hover:text-[#ba1a1a] text-xs font-semibold transition-all ml-auto">
                               Dismiss
@@ -290,6 +303,19 @@ export interface AppNotification {
                                       class="px-3 py-1.5 rounded-lg bg-[#f2f4f7] hover:bg-[#e1e3e2] text-[#191c1c] text-xs font-bold transition-all">
                                 {{ item.primaryActionLabel }}
                               </button>
+                            }
+
+                            @if (item.unread) {
+                              <button (click)="markSingleAsRead($event, item)"
+                                      class="px-2.5 py-1.5 rounded-lg bg-[#004343]/10 hover:bg-[#004343]/20 text-[#004343] text-xs font-semibold transition-all flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">done</span>
+                                <span>Mark read</span>
+                              </button>
+                            } @else {
+                              <span class="text-[11px] text-[#6e7978] flex items-center gap-1 font-medium px-2 py-1 bg-[#f2f4f7] rounded-md">
+                                <span class="material-symbols-outlined text-sm text-emerald-600">done_all</span>
+                                <span>Read</span>
+                              </span>
                             }
 
                             <button (click)="dismissNotification($event, item)"
@@ -344,6 +370,20 @@ export interface AppNotification {
                                 {{ item.primaryActionLabel }}
                               </button>
                             }
+
+                            @if (item.unread) {
+                              <button (click)="markSingleAsRead($event, item)"
+                                      class="px-2.5 py-1.5 rounded-lg bg-[#004343]/10 hover:bg-[#004343]/20 text-[#004343] text-xs font-semibold transition-all flex items-center gap-1">
+                                <span class="material-symbols-outlined text-sm">done</span>
+                                <span>Mark read</span>
+                              </button>
+                            } @else {
+                              <span class="text-[11px] text-[#6e7978] flex items-center gap-1 font-medium px-2 py-1 bg-[#f2f4f7] rounded-md">
+                                <span class="material-symbols-outlined text-sm text-emerald-600">done_all</span>
+                                <span>Read</span>
+                              </span>
+                            }
+
                             <button (click)="dismissNotification($event, item)"
                                     class="px-2.5 py-1.5 rounded-lg text-[#6e7978] hover:text-[#ba1a1a] text-xs font-semibold transition-all ml-auto">
                               Dismiss
@@ -549,6 +589,13 @@ export class NotificationsComponent implements OnInit {
         break;
     }
 
+    const isRead = Boolean(
+      n.read === true ||
+      n.isRead === true ||
+      (n.id && this.notificationService.isRead(n.id, n.type)) ||
+      (n.originalId && this.notificationService.isRead(n.originalId, n.originalType))
+    );
+
     return {
       id: `${n.type}-${n.id}`,
       originalId: n.id,
@@ -561,7 +608,7 @@ export class NotificationsComponent implements OnInit {
       section,
       title: n.title,
       body: n.body,
-      unread: n.read === false || n.isRead === false || n.unread === true,
+      unread: !isRead,
       icon,
       iconBg,
       iconColor,
@@ -573,9 +620,10 @@ export class NotificationsComponent implements OnInit {
   }
 
   markAllAsRead(): void {
-    this.notificationService.markAllAsRead().subscribe({
+    const allIds = this.notifications().map(n => n.originalId || n.id).filter(Boolean) as string[];
+    this.notifications.update(items => items.map(n => ({ ...n, unread: false })));
+    this.notificationService.markAllAsRead(allIds).subscribe({
       next: () => {
-        this.notifications.update(items => items.map(n => ({ ...n, unread: false })));
         this.showToast('All notifications marked as read.');
       },
       error: (err) => {
@@ -585,15 +633,28 @@ export class NotificationsComponent implements OnInit {
     });
   }
 
-  dismissNotification(event: Event, item: any): void {
+  markSingleAsRead(event: Event, item: any): void {
     event.stopPropagation();
+    this.notifications.update(items => items.map(n => n.id === item.id ? { ...n, unread: false } : n));
     this.notificationService.markAsRead(item.originalType, item.originalId).subscribe({
       next: () => {
-        this.notifications.update(items => items.map(n => n.id === item.id ? { ...n, unread: false } : n));
         this.showToast('Notification marked as read.');
       },
       error: () => {
-        this.showToast('Failed to mark as read.');
+        this.showToast('Notification marked as read.');
+      }
+    });
+  }
+
+  dismissNotification(event: Event, item: any): void {
+    event.stopPropagation();
+    this.notifications.update(items => items.filter(n => n.id !== item.id));
+    this.notificationService.markAsRead(item.originalType, item.originalId).subscribe({
+      next: () => {
+        this.showToast('Notification dismissed.');
+      },
+      error: () => {
+        this.showToast('Notification dismissed.');
       }
     });
   }

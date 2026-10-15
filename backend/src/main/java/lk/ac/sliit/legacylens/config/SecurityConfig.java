@@ -85,7 +85,7 @@ public class SecurityConfig {
                                 "/api/learning/tracks/**",
                                 "/api/learning/builder/content")
                         .permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/tags/**")
+                        .requestMatchers("/api/v1/tags/**")
                         .permitAll()
                         // Everything else requires authentication
                         .anyRequest().authenticated())

@@ -74,19 +74,19 @@ const API_BASE = `${environment.apiUrl}/admin/knowledge-keepers`;
               </p>
             </div>
 
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 shrink-0">
               <button
                 (click)="openAiModal()"
-                class="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#fe893e] to-[#e6752d] text-white rounded-xl text-xs font-bold hover:shadow-lg hover:shadow-[#fe893e]/30 transition-all cursor-pointer">
-                <span class="material-symbols-outlined text-base">auto_awesome</span>
-                <span>Generate with Groq AI</span>
+                class="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#fe893e] to-[#e6752d] text-white rounded-xl text-xs font-bold hover:shadow-lg hover:shadow-[#fe893e]/30 transition-all cursor-pointer whitespace-nowrap shrink-0">
+                <span class="material-symbols-outlined text-base shrink-0">auto_awesome</span>
+                <span class="whitespace-nowrap">Generate with Groq AI</span>
               </button>
 
               <button
                 (click)="openCreateModal()"
-                class="flex items-center gap-2 px-4 py-2.5 bg-[#004343] text-white rounded-xl text-xs font-bold hover:bg-[#003535] transition-all cursor-pointer shadow-sm">
-                <span class="material-symbols-outlined text-base">add</span>
-                <span>Add Keeper</span>
+                class="flex items-center gap-2 px-4 py-2.5 bg-[#004343] text-white rounded-xl text-xs font-bold hover:bg-[#003535] transition-all cursor-pointer shadow-sm whitespace-nowrap shrink-0">
+                <span class="material-symbols-outlined text-base shrink-0">add</span>
+                <span class="whitespace-nowrap">Add Keeper</span>
               </button>
             </div>
           </div>
@@ -95,24 +95,24 @@ const API_BASE = `${environment.apiUrl}/admin/knowledge-keepers`;
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Metric 1: Total Keepers -->
             <div class="bg-white p-5 rounded-2xl border border-[#dde3eb] shadow-sm flex items-center justify-between">
-              <div>
+              <div class="min-w-0 flex-1 pr-2">
                 <span class="text-xs font-bold uppercase text-[#6e7978]">Total Keepers</span>
                 <div class="text-2xl font-bold text-[#191c1c] mt-1">{{ keepers().length }}</div>
               </div>
-              <div class="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center text-[#004343]">
+              <div class="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center text-[#004343] shrink-0">
                 <span class="material-symbols-outlined text-2xl">group</span>
               </div>
             </div>
 
             <!-- Metric 2: Active Today -->
             <div class="bg-white p-5 rounded-2xl border border-emerald-200 shadow-sm flex items-center justify-between bg-emerald-50/20">
-              <div>
+              <div class="min-w-0 flex-1 pr-2">
                 <span class="text-xs font-bold uppercase text-emerald-800">Featured Today</span>
-                <div class="text-base font-bold text-emerald-950 mt-1 truncate max-w-[170px]" [title]="todayKeeper()?.name || 'None'">
-                  {{ todayKeeper() ? todayKeeper()?.name : 'Auto-Rotating' }}
+                <div class="text-base font-bold text-emerald-950 mt-1 truncate" [title]="todayKeeper()?.name || 'No Keepers Available'">
+                  {{ todayKeeper() ? todayKeeper()?.name : 'No Keepers Available' }}
                 </div>
               </div>
-              <div class="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800">
+              <div class="w-11 h-11 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800 shrink-0">
                 <span class="material-symbols-outlined text-2xl">star</span>
               </div>
             </div>
@@ -158,28 +158,39 @@ const API_BASE = `${environment.apiUrl}/admin/knowledge-keepers`;
                 />
               </div>
 
-              <!-- Filter Tabs -->
-              <div class="flex items-center gap-1 p-1 bg-[#f8faf9] rounded-xl border border-[#dde3eb] text-xs font-bold">
+              <div class="flex items-center gap-2">
+                <!-- Filter Tabs -->
+                <div class="flex items-center gap-1 p-1 bg-[#f8faf9] rounded-xl border border-[#dde3eb] text-xs font-bold">
+                  <button
+                    (click)="filterStatus.set('ALL')"
+                    [class.bg-white]="filterStatus() === 'ALL'"
+                    [class.shadow-sm]="filterStatus() === 'ALL'"
+                    class="px-3 py-1.5 rounded-lg transition-all text-[#6e7978] hover:text-[#191c1c] cursor-pointer">
+                    All ({{ keepers().length }})
+                  </button>
+                  <button
+                    (click)="filterStatus.set('Active')"
+                    [class.bg-white]="filterStatus() === 'Active'"
+                    [class.shadow-sm]="filterStatus() === 'Active'"
+                    class="px-3 py-1.5 rounded-lg transition-all text-emerald-700 hover:text-emerald-900 cursor-pointer">
+                    Active
+                  </button>
+                  <button
+                    (click)="filterStatus.set('Scheduled')"
+                    [class.bg-white]="filterStatus() === 'Scheduled'"
+                    [class.shadow-sm]="filterStatus() === 'Scheduled'"
+                    class="px-3 py-1.5 rounded-lg transition-all text-blue-700 hover:text-blue-900 cursor-pointer">
+                    Scheduled
+                  </button>
+                </div>
+
+                <!-- Refresh Button -->
                 <button
-                  (click)="filterStatus.set('ALL')"
-                  [class.bg-white]="filterStatus() === 'ALL'"
-                  [class.shadow-sm]="filterStatus() === 'ALL'"
-                  class="px-3 py-1.5 rounded-lg transition-all text-[#6e7978] hover:text-[#191c1c] cursor-pointer">
-                  All ({{ keepers().length }})
-                </button>
-                <button
-                  (click)="filterStatus.set('Active')"
-                  [class.bg-white]="filterStatus() === 'Active'"
-                  [class.shadow-sm]="filterStatus() === 'Active'"
-                  class="px-3 py-1.5 rounded-lg transition-all text-emerald-700 hover:text-emerald-900 cursor-pointer">
-                  Active
-                </button>
-                <button
-                  (click)="filterStatus.set('Scheduled')"
-                  [class.bg-white]="filterStatus() === 'Scheduled'"
-                  [class.shadow-sm]="filterStatus() === 'Scheduled'"
-                  class="px-3 py-1.5 rounded-lg transition-all text-blue-700 hover:text-blue-900 cursor-pointer">
-                  Scheduled
+                  (click)="loadKeepers()"
+                  [disabled]="isLoading()"
+                  title="Refresh Keepers"
+                  class="p-2 rounded-xl bg-[#f8faf9] hover:bg-white text-[#004343] border border-[#dde3eb] transition-all cursor-pointer disabled:opacity-50">
+                  <span class="material-symbols-outlined text-base block" [class.animate-spin]="isLoading()">refresh</span>
                 </button>
               </div>
             </div>
@@ -199,7 +210,16 @@ const API_BASE = `${environment.apiUrl}/admin/knowledge-keepers`;
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-[#f2f4f3] text-[#191c1c]">
-                  @if (filteredKeepers().length === 0) {
+                  @if (isLoading()) {
+                    <tr>
+                      <td colspan="7" class="py-16 text-center text-[#6e7978]">
+                        <div class="flex flex-col items-center justify-center gap-3">
+                          <div class="w-8 h-8 border-3 border-[#004343] border-t-transparent rounded-full animate-spin"></div>
+                          <p class="text-xs font-semibold text-[#004343]">Loading knowledge keepers...</p>
+                        </div>
+                      </td>
+                    </tr>
+                  } @else if (filteredKeepers().length === 0) {
                     <tr>
                       <td colspan="7" class="py-12 text-center text-[#6e7978]">
                         <span class="material-symbols-outlined text-4xl block text-gray-300 mb-2">psychology_alt</span>
@@ -214,11 +234,17 @@ const API_BASE = `${environment.apiUrl}/admin/knowledge-keepers`;
                       <!-- Keeper Column -->
                       <td class="py-3.5 px-5">
                         <div class="flex items-center gap-3">
-                          <img
-                            [src]="k.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200'"
-                            [alt]="k.name"
-                            class="w-10 h-10 rounded-full object-cover border border-[#dde3eb]"
-                          />
+                          @if (isRealAvatar(k.avatarUrl)) {
+                            <img
+                              [src]="k.avatarUrl"
+                              [alt]="k.name"
+                              class="w-10 h-10 rounded-full object-cover border border-[#dde3eb]"
+                            />
+                          } @else {
+                            <div class="w-10 h-10 rounded-full bg-[#004343] text-white flex items-center justify-center font-bold text-xs shadow-xs border border-[#dde3eb] shrink-0">
+                              {{ getInitials(k.name) }}
+                            </div>
+                          }
                           <div>
                             <div class="font-bold text-[#191c1c]">{{ k.name }}</div>
                             <div class="text-[11px] text-[#6e7978]">{{ k.title }}</div>
@@ -521,6 +547,8 @@ export class KnowledgeKeeperComponent implements OnInit {
   publishedStories = signal<PublishedStoryOption[]>([]);
   searchQuery = '';
   filterStatus = signal<string>('ALL');
+  isLoading = signal<boolean>(true);
+  featuredTodayKeeper = signal<FeaturedKeeper | null>(null);
 
   // Modals state
   showAiModal = signal(false);
@@ -549,8 +577,28 @@ export class KnowledgeKeeperComponent implements OnInit {
 
   // Computeds
   todayKeeper = computed(() => {
+    // 1. If backend featured-keeper returned an explicit keeper
+    const explicitFeatured = this.featuredTodayKeeper();
+    if (explicitFeatured && explicitFeatured.name) {
+      return explicitFeatured;
+    }
+
+    const list = this.keepers();
+    if (list.length === 0) return null;
+
+    // 2. Check if any keeper in the list is marked Active
+    const explicitActive = list.find(k => k.status === 'Active');
+    if (explicitActive) return explicitActive;
+
+    // 3. Check if any keeper has today's activeDate
     const todayStr = new Date().toISOString().substring(0, 10);
-    return this.keepers().find(k => k.status === 'Active' || k.activeDate === todayStr);
+    const dateMatch = list.find(k => k.activeDate === todayStr);
+    if (dateMatch) return dateMatch;
+
+    // 4. Fallback to deterministic daily rotation matching backend algorithm
+    const epochDays = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+    const dayIndex = Math.abs(epochDays) % list.length;
+    return list[dayIndex] || list[0];
   });
 
   aiGeneratedCount = computed(() => {
@@ -580,6 +628,7 @@ export class KnowledgeKeeperComponent implements OnInit {
 
   ngOnInit() {
     this.loadKeepers();
+    this.loadFeaturedToday();
     this.loadPublishedStories();
   }
 
@@ -591,17 +640,36 @@ export class KnowledgeKeeperComponent implements OnInit {
     });
   }
 
+  loadFeaturedToday() {
+    this.http.get<{ success?: boolean; data?: FeaturedKeeper }>(`${environment.apiUrl}/home/featured-keeper`, { headers: this.getAuthHeaders() })
+      .subscribe({
+        next: (res) => {
+          const data = res?.data ?? (res as any);
+          if (data && data.name) {
+            this.featuredTodayKeeper.set(data);
+          }
+        },
+        error: (err) => {
+          console.warn('Could not load featured keeper from home endpoint:', err);
+        }
+      });
+  }
+
   loadKeepers() {
+    this.isLoading.set(true);
     this.http.get<{ success: boolean; data: FeaturedKeeper[] }>(API_BASE, { headers: this.getAuthHeaders() })
       .subscribe({
         next: (res) => {
           if (res?.data) {
             this.keepers.set(res.data);
           }
+          this.isLoading.set(false);
+          this.loadFeaturedToday();
         },
         error: (err) => {
           console.error('Failed to load knowledge keepers:', err);
           this.showToast('Could not load knowledge keepers.', true);
+          this.isLoading.set(false);
         }
       });
   }
@@ -655,7 +723,7 @@ export class KnowledgeKeeperComponent implements OnInit {
       title: '',
       tag: '',
       quote: '',
-      avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200',
+      avatarUrl: '',
       activeDate: new Date().toISOString().substring(0, 10),
       status: 'Scheduled',
     };
@@ -700,11 +768,16 @@ export class KnowledgeKeeperComponent implements OnInit {
 
   setActiveToday(keeper: FeaturedKeeper) {
     if (!keeper.id) return;
+    this.featuredTodayKeeper.set(keeper);
     this.http.post<{ success: boolean; data: FeaturedKeeper }>(`${API_BASE}/${keeper.id}/activate-today`, {}, { headers: this.getAuthHeaders() })
       .subscribe({
-        next: () => {
+        next: (res) => {
+          if (res?.data) {
+            this.featuredTodayKeeper.set(res.data);
+          }
           this.showToast(`${keeper.name} is now featured as today's Knowledge Keeper!`);
           this.loadKeepers();
+          this.loadFeaturedToday();
         },
         error: (err) => {
           console.error('Activate failed:', err);
@@ -727,6 +800,19 @@ export class KnowledgeKeeperComponent implements OnInit {
           this.showToast('Failed to delete Knowledge Keeper.', true);
         }
       });
+  }
+
+  isRealAvatar(url?: string): boolean {
+    if (!url) return false;
+    return !url.includes('unsplash.com') && !url.includes('pravatar.cc') && (url.startsWith('http') || url.startsWith('/uploads'));
+  }
+
+  getInitials(name?: string): string {
+    if (!name) return 'KK';
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'KK';
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
   private showToast(msg: string, isError = false) {

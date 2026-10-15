@@ -8,14 +8,18 @@ import {
   Image,
   Share,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Typography } from '../../../theme';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { CommentModal } from '../../../components/common/CommentModal';
 import { homeApi, FeedItemResponse } from '../../../services/api/homeApi';
 import { discoveryApi } from '../../../services/api/discoveryApi';
 import { styles } from './VideoDetailScreen.styles';
+import { AvatarPlaceholder } from '../../../components/common/AvatarPlaceholder';
+import { getMediaUrl } from '../../../constants/api';
 import { useRecordStoryView } from '../../../hooks/useRecordStoryView';
 import { useTranslatedTexts } from '../../../hooks/useTranslatedTexts';
 import { TranslationToggle } from '../../../components/common/TranslationToggle';
@@ -95,10 +99,26 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
   useEffect(() => {
     if (post) {
       setCurrentPost(post);
-      setLikesCount(post.likesCount ?? 1248);
+      setLikesCount(post.likesCount ?? 0);
       setSelectedAnswer(null);
     }
   }, [post]);
+
+  useEffect(() => {
+    if (currentPost?.id && !currentPost?.videoUrl && !currentPost?.mediaUrl) {
+      homeApi
+        .getFeedItems()
+        .then(items => {
+          const found = items.find(i => String(i.id) === String(currentPost.id));
+          if (found && (found.videoUrl || (found as any).mediaUrl)) {
+            setCurrentPost((prev: any) => ({ ...found, ...prev }));
+          }
+        })
+        .catch(err => {
+          console.log('Notice: could not load feed item for video detail:', err);
+        });
+    }
+  }, [currentPost?.id]);
 
   useEffect(() => {
     if (currentPost?.id) {
@@ -212,19 +232,146 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
     }
   };
 
-  const originalTitle = currentPost?.title || currentPost?.name || 'The Last Traditional Mask Maker of Ambalangoda';
-  const location = currentPost?.location || 'Ambalangoda, Southern Sri Lanka';
-  const duration = currentPost?.duration || '14m 32s';
-  const author = currentPost?.author || currentPost?.name || 'Somapala Perera';
+  const rawVideo = currentPost?.videoUrl || currentPost?.mediaUrl;
+  const resolvedVideoUri = rawVideo && !rawVideo.startsWith('http')
+    ? getMediaUrl(rawVideo.startsWith('/uploads/') ? rawVideo : (rawVideo.startsWith('uploads/') ? `/${rawVideo}` : `/uploads/${rawVideo.replace(/^\/+/, '')}`))
+    : (rawVideo || '');
+  const hasVideo = Boolean(resolvedVideoUri && resolvedVideoUri.trim().length > 0);
+
+  const rawThumb = currentPost?.thumbnail || currentPost?.imageUrl;
+  const thumbnail = rawThumb && !rawThumb.startsWith('http')
+    ? getMediaUrl(rawThumb.startsWith('/uploads/') ? rawThumb : (rawThumb.startsWith('uploads/') ? `/${rawThumb}` : `/uploads/${rawThumb.replace(/^\/+/, '')}`))
+    : (rawThumb || DEFAULT_THUMBNAIL);
+
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTimeSec, setCurrentTimeSec] = useState(0);
+  const [durationSec, setDurationSec] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [progressBarWidth, setProgressBarWidth] = useState(0);
+
+  const source = hasVideo ? { uri: resolvedVideoUri } : null;
+  const player = useVideoPlayer(source, (p: any) => {
+    p.loop = false;
+    p.timeUpdateEventInterval = 0.5;
+  });
+
+  useEffect(() => {
+    if (!player || !hasVideo) return;
+    const subscription = player.addListener('playingChange', (event: any) => {
+      setIsPlaying(event.isPlaying);
+    });
+    const timeSubscription = player.addListener('timeUpdate', (event: any) => {
+      setCurrentTimeSec(Math.floor(event.currentTime || 0));
+      if (player.duration && player.duration > 0) {
+        setDurationSec(Math.floor(player.duration));
+      }
+    });
+    const endSubscription = player.addListener('playToEnd', () => {
+      setIsPlaying(false);
+      setShowControls(true);
+    });
+    return () => {
+      subscription.remove();
+      timeSubscription.remove();
+      endSubscription.remove();
+    };
+  }, [player, hasVideo]);
+
+  useEffect(() => {
+    if (!player) return;
+    player.muted = isMuted;
+  }, [isMuted, player]);
+
+  // When source changes, replace player source
+  useEffect(() => {
+    if (!player || !hasVideo) return;
+    try {
+      if (typeof player.replace === 'function' && source) {
+        player.replace(source);
+      }
+    } catch (e) {
+      // Ignored
+    }
+  }, [player, resolvedVideoUri]);
+
+  // Auto-hide controls when video is playing
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isPlaying && showControls) {
+      timer = setTimeout(() => {
+        setShowControls(false);
+      }, 3500);
+    }
+    return () => clearTimeout(timer);
+  }, [isPlaying, showControls]);
+
+  // Pause playback on screen exit
+  useEffect(() => {
+    return () => {
+      if (player) {
+        try {
+          player.pause();
+        } catch (e) {}
+      }
+    };
+  }, [player]);
+
+  const togglePlayback = () => {
+    if (!player || !hasVideo) return;
+    if (isPlaying) {
+      player.pause();
+    } else {
+      player.play();
+    }
+  };
+
+  const skipForward = () => {
+    if (!player || !hasVideo) return;
+    player.seekBy(10);
+  };
+
+  const skipBackward = () => {
+    if (!player || !hasVideo) return;
+    player.seekBy(-10);
+  };
+
+  const handleSeek = (evt: any) => {
+    if (!player || !durationSec || progressBarWidth <= 0) return;
+    const clickX = evt.nativeEvent.locationX;
+    const percentage = Math.max(0, Math.min(1, clickX / progressBarWidth));
+    const targetSec = percentage * durationSec;
+    player.currentTime = targetSec;
+    setCurrentTimeSec(Math.floor(targetSec));
+  };
+
+  const handleBack = () => {
+    if (player) {
+      try {
+        player.pause();
+      } catch (e) {}
+    }
+    onBack?.();
+  };
+
+  const formatSeconds = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const originalTitle = currentPost?.title || currentPost?.name || 'Traditional Cultural Story';
+  const location = currentPost?.location || 'Western Sri Lanka';
+  const duration = durationSec > 0 ? formatSeconds(durationSec) : (currentPost?.duration || '10:00');
+  const author = currentPost?.author || currentPost?.name || 'Gurunnanse Yohan Helitha';
   const avatar = currentPost?.avatar || DEFAULT_AVATAR;
-  const thumbnail = currentPost?.thumbnail || DEFAULT_THUMBNAIL;
   const tags: string[] =
     currentPost?.tags && currentPost.tags.length > 0 ? currentPost.tags : DEFAULT_TAGS;
   const originalDescription =
     currentPost?.description ||
     currentPost?.excerpt ||
     currentPost?.content ||
-    "Ambalangoda is the historic heartland of Sri Lankan traditional mask making. These aren't merely decorative items; they are essential ritual implements used in Sanni Yakuma (healing rituals) and Kolam (comedic folk plays). The craft relies on specific timber (Kaduru wood) and strict proportional guidelines passed down orally across generations.";
+    "Traditional cultural practices passed down across generations of Sri Lankan heritage.";
   // Title and description are user-written: show them in the reader's language (original one tap away).
   const { texts: shownTexts, translated, showOriginal, toggleOriginal } = useTranslatedTexts([originalTitle, originalDescription]);
   const [title, description] = shownTexts;
@@ -241,7 +388,7 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
       {/* Top App Bar Overlay */}
       <SafeAreaView style={styles.headerOverlay} edges={['top']}>
         <View style={styles.headerRow}>
-          <TouchableOpacity style={styles.iconBtn} onPress={onBack}>
+          <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
             <MaterialIcons name="arrow-back" size={24} color={Colors.white} />
           </TouchableOpacity>
         </View>
@@ -262,39 +409,132 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
         >
           {/* Hero Media Player */}
           <View style={styles.heroVideo}>
-            <ImageBackground source={{ uri: thumbnail }} style={styles.heroImg}>
-              <View style={styles.videoOverlay}>
-                <View style={{ flex: 1 }} />
-                <View style={[styles.centerPlayBtnBox, { flexDirection: 'row', gap: 32 }]}>
-                  <TouchableOpacity
-                    style={{ padding: 12, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 24 }}
-                  >
-                    <MaterialIcons name="replay-10" size={28} color={Colors.white} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.playBtnLarge}>
-                    <MaterialIcons name="play-arrow" size={40} color={Colors.white} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{ padding: 12, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 24 }}
-                  >
-                    <MaterialIcons name="forward-10" size={28} color={Colors.white} />
-                  </TouchableOpacity>
-                </View>
-                <View style={{ flex: 1 }} />
+            {/* Cultural thumbnail rendered underneath */}
+            <Image
+              source={{ uri: thumbnail }}
+              style={[
+                StyleSheet.absoluteFill,
+                { opacity: isPlaying ? 0 : 0.85 }
+              ]}
+              resizeMode="cover"
+            />
 
-                <View style={styles.bottomControls}>
-                  <View style={styles.progressBarBg}>
-                    <View style={styles.progressBarFill}>
-                      <View style={styles.progressHandle} />
-                    </View>
+            {/* Real video player when video exists in DB */}
+            {hasVideo && (
+              <VideoView
+                player={player}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                nativeControls={false}
+              />
+            )}
+
+            {/* Tap area to toggle overlay controls */}
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => setShowControls(prev => !prev)}
+              style={[
+                styles.videoOverlay,
+                {
+                  opacity: showControls ? 1 : 0,
+                }
+              ]}
+            >
+              {/* Top Controls: Mute button */}
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
+                {hasVideo && (
+                  <TouchableOpacity
+                    style={styles.smallIconBtn}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setIsMuted(prev => !prev);
+                    }}
+                  >
+                    <MaterialIcons
+                      name={isMuted ? 'volume-off' : 'volume-up'}
+                      size={20}
+                      color={Colors.white}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={{ flex: 1 }} />
+
+              {/* Center Controls: Skip -10s, Play/Pause, Skip +10s */}
+              <View style={[styles.centerPlayBtnBox, { flexDirection: 'row', gap: 32 }]}>
+                <TouchableOpacity
+                  style={{ padding: 12, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 28 }}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    skipBackward();
+                  }}
+                  disabled={!hasVideo}
+                >
+                  <MaterialIcons name="replay-10" size={28} color={Colors.white} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.playBtnLarge}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    togglePlayback();
+                  }}
+                  disabled={!hasVideo}
+                >
+                  <MaterialIcons
+                    name={isPlaying ? 'pause' : 'play-arrow'}
+                    size={40}
+                    color={Colors.white}
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{ padding: 12, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 28 }}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    skipForward();
+                  }}
+                  disabled={!hasVideo}
+                >
+                  <MaterialIcons name="forward-10" size={28} color={Colors.white} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ flex: 1 }} />
+
+              {/* Bottom Controls: Progress Bar & Duration */}
+              <View style={styles.bottomControls}>
+                <TouchableOpacity
+                  activeOpacity={1}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleSeek(e);
+                  }}
+                  onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
+                  style={styles.progressBarBg}
+                >
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: durationSec > 0
+                          ? `${Math.min(100, Math.max(0, (currentTimeSec / durationSec) * 100))}%`
+                          : '0%'
+                      }
+                    ]}
+                  >
+                    <View style={styles.progressHandle} />
                   </View>
-                  <View style={styles.timeRow}>
-                    <Text style={styles.timeText}>00:00</Text>
-                    <Text style={styles.timeText}>{duration}</Text>
-                  </View>
+                </TouchableOpacity>
+                <View style={styles.timeRow}>
+                  <Text style={styles.timeText}>{formatSeconds(currentTimeSec)}</Text>
+                  <Text style={styles.timeText}>
+                    {durationSec > 0 ? formatSeconds(durationSec) : duration}
+                  </Text>
                 </View>
               </View>
-            </ImageBackground>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.contentBody}>
@@ -316,7 +556,12 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
 
               {/* Author Info */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 }}>
-                <Image source={{ uri: avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                <AvatarPlaceholder
+                  name={author}
+                  avatarUrl={currentPost?.avatar}
+                  size={40}
+                  theme="light"
+                />
                 <View>
                   <Text style={{ fontFamily: Typography.fontBodyMed, fontSize: 14, fontWeight: '700', color: Colors.text }}>
                     {author}
@@ -377,48 +622,7 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
                 <Text style={styles.actionBtnText}>Share</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Chapter Navigator */}
-            <View style={styles.section}>
-              <Text style={styles.sectionSubhead}>Jump into the Story</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScroll}
-              >
-                <TouchableOpacity style={styles.chapterCardActive}>
-                  <View style={styles.chapterProgressBg}>
-                    <View style={styles.chapterProgressFill} />
-                  </View>
-                  <Text style={styles.chapterTitleActive} numberOfLines={1}>
-                    The Village
-                  </Text>
-                  <Text style={styles.chapterTimeActive}>0:00</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.chapterCard}>
-                  <View style={styles.chapterProgressBg} />
-                  <Text style={styles.chapterTitle} numberOfLines={1}>
-                    The Craftsman
-                  </Text>
-                  <Text style={styles.chapterTime}>2:15</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.chapterCard}>
-                  <View style={styles.chapterProgressBg} />
-                  <Text style={styles.chapterTitle} numberOfLines={1}>
-                    The Craft
-                  </Text>
-                  <Text style={styles.chapterTime}>5:42</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.chapterCard}>
-                  <View style={styles.chapterProgressBg} />
-                  <Text style={styles.chapterTitle} numberOfLines={1}>
-                    The Meaning
-                  </Text>
-                  <Text style={styles.chapterTime}>9:10</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-
+            
             {/* Knowledge Keeper Profile */}
             <View style={styles.section}>
               <View style={styles.profileCard}>
@@ -428,9 +632,12 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
                   <Text style={styles.profileHeadText}>KNOWLEDGE KEEPER</Text>
                 </View>
                 <View style={styles.profileInfoRow}>
-                  <View style={styles.profileAvatarBox}>
-                    <Image source={{ uri: avatar }} style={styles.fullImg} />
-                  </View>
+                  <AvatarPlaceholder
+                    name={author}
+                    avatarUrl={currentPost?.avatar}
+                    size={52}
+                    theme="teal"
+                  />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.profileName}>{author}</Text>
                     <Text style={styles.profileRole}>{keeperRole}</Text>
@@ -493,114 +700,7 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
               </View>
             </View>
 
-            {/* Quiz: 4 options with 1 correct and 3 wrong with rich descriptions */}
-            <View style={styles.section}>
-              <View style={styles.quizCard}>
-                <View style={styles.quizDeco} />
-                <View style={styles.quizHeader}>
-                  <View style={styles.rowCenter}>
-                    <MaterialIcons name="psychology" size={24} color={Colors.accent} />
-                    <Text style={styles.quizTitle}>Knowledge Check</Text>
-                  </View>
-                </View>
-                <Text style={styles.quizQuestion}>
-                  {quizData.question}
-                </Text>
-
-                <View style={styles.quizOptions}>
-                  {quizData.options.map(opt => {
-                    const isSelected = selectedAnswer === opt.id;
-                    const showResult = selectedAnswer !== null;
-
-                    let bgColor = 'rgba(255,255,255,0.05)';
-                    let borderColor = 'rgba(255,255,255,0.1)';
-                    if (showResult) {
-                      if (opt.isCorrect) {
-                        bgColor = 'rgba(76, 175, 80, 0.2)';
-                        borderColor = '#4CAF50';
-                      } else if (isSelected) {
-                        bgColor = 'rgba(244, 67, 54, 0.2)';
-                        borderColor = '#F44336';
-                      }
-                    } else if (isSelected) {
-                      borderColor = Colors.accent;
-                    }
-
-                    return (
-                      <TouchableOpacity
-                        key={opt.id}
-                        style={[
-                          styles.quizOptionBtn,
-                          {
-                            backgroundColor: bgColor,
-                            borderColor,
-                            flexDirection: 'column',
-                            alignItems: 'flex-start',
-                            paddingVertical: 12,
-                          },
-                        ]}
-                        onPress={() => !showResult && setSelectedAnswer(opt.id)}
-                        disabled={showResult}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                          <Text
-                            style={[
-                              styles.quizOptionText,
-                              showResult && opt.isCorrect && { color: '#4CAF50', fontWeight: 'bold' },
-                              showResult && isSelected && !opt.isCorrect && { color: '#F44336', fontWeight: 'bold' },
-                            ]}
-                          >
-                            {opt.text}
-                          </Text>
-                          {showResult && opt.isCorrect && (
-                            <MaterialIcons name="check-circle" size={20} color="#4CAF50" />
-                          )}
-                          {showResult && isSelected && !opt.isCorrect && (
-                            <MaterialIcons name="cancel" size={20} color="#F44336" />
-                          )}
-                          {!showResult && (
-                            <View
-                              style={[
-                                styles.quizRadio,
-                                isSelected && { backgroundColor: Colors.accent },
-                              ]}
-                            />
-                          )}
-                        </View>
-                        {!!opt.desc && (
-                          <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
-                            {opt.desc}
-                          </Text>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                {!!selectedAnswer && (
-                  <View style={styles.quizExplanationBox}>
-                    <Text style={styles.quizExplanationText}>
-                      <Text
-                        style={{
-                          color:
-                            quizData.options.find(o => o.id === selectedAnswer)?.isCorrect
-                              ? '#4CAF50'
-                              : '#F44336',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        {quizData.options.find(o => o.id === selectedAnswer)?.isCorrect
-                          ? 'Correct! '
-                          : 'Incorrect. '}
-                      </Text>
-                      <Text>
-                        {quizData.explanation}
-                      </Text>
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-
+            
             {/* Related Videos */}
             <View style={styles.section}>
               <Text style={styles.sectionSubhead}>Related Cultural Stories</Text>

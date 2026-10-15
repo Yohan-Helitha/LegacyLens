@@ -17,6 +17,7 @@ import { Colors } from '../../theme';
 import { styles } from './CommentModal.styles';
 import { homeApi, CommentResponse } from '../../services/api/homeApi';
 import { useAuthStore } from '../../store/authStore';
+import { AvatarPlaceholder } from './AvatarPlaceholder';
 import { useTranslatedTexts } from '../../hooks/useTranslatedTexts';
 import { TranslationToggle } from './TranslationToggle';
 
@@ -101,7 +102,7 @@ export const CommentModal: React.FC<CommentModalProps> = ({
       setSubmitting(true);
 
       const authorName = currentUser?.fullName || 'You (Community Learner)';
-      const avatarUrl = 'https://i.pravatar.cc/150?img=1';
+      const avatarUrl = (currentUser as any)?.profilePhotoUrl || (currentUser as any)?.avatar || '';
       const userId = currentUser?.userId;
 
       const newComment = await homeApi.addComment(postId, trimmed, authorName, avatarUrl, userId);
@@ -207,9 +208,11 @@ export const CommentModal: React.FC<CommentModalProps> = ({
 
     return (
       <View style={styles.commentRow}>
-        <Image
-          source={{ uri: item.avatar || 'https://i.pravatar.cc/150?img=1' }}
-          style={styles.commentAvatar}
+        <AvatarPlaceholder
+          name={item.author}
+          avatarUrl={item.avatar}
+          size={38}
+          theme="light"
         />
         <View style={styles.commentBubble}>
           <View style={styles.commentHeader}>
@@ -301,9 +304,11 @@ export const CommentModal: React.FC<CommentModalProps> = ({
 
           {/* Comment Typing Area at TOP (Never obscured by keyboard) */}
           <View style={styles.inputSection}>
-            <Image
-              source={{ uri: (currentUser as any)?.avatar || 'https://i.pravatar.cc/150?img=1' }}
-              style={styles.currentUserAvatar}
+            <AvatarPlaceholder
+              name={currentUser?.fullName || 'You'}
+              avatarUrl={(currentUser as any)?.profilePhotoUrl || (currentUser as any)?.avatar}
+              size={36}
+              theme="light"
             />
             <View style={styles.inputWrapper}>
               <TextInput

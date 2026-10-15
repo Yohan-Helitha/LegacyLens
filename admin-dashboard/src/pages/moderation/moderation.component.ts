@@ -1,4 +1,4 @@
-import { Component, signal, computed, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -6,6 +6,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AuthService } from '../../app/core/services/auth.service';
 import { ModerationService } from '../../app/core/services/moderation.service';
+import { environment } from '../../environments/environment';
 import { ModerationQueueItemResponse, StoryQuizDTO, RegionDTO, TagDTO, TagAliasDTO, TagRelationshipDTO } from '../../app/core/models/moderation.model';
 import { SidebarComponent } from '../../components/common/sidebar/sidebar.component';
 import { HeaderComponent } from '../../components/common/header/header.component';
@@ -41,8 +42,11 @@ export interface ModerationItem {
   dialect?: string;
   nlpConfidence?: number;
   excerpt: string;
+  description?: string;
   bodyContent?: string;
   imageUrl?: string;
+  mediaUrl?: string;
+  videoUrl?: string;
   tags: string[];
   rejectionReason?: string;
   rejectionNotes?: string;
@@ -665,52 +669,84 @@ export interface ModerationItem {
                       }
                       @if (item.type === 'video') {
                         <div class="rounded-xl bg-[#191c1c] overflow-hidden relative group aspect-video max-h-[380px] flex items-center justify-center shadow-inner">
-                          @if (item.imageUrl) {
-                            <div class="absolute inset-0 bg-cover bg-center opacity-40" [style.backgroundImage]="'url(' + item.imageUrl + ')'"></div>
+                          @if (item.videoUrl) {
+                            <video [src]="item.videoUrl" controls class="w-full h-full object-contain" [poster]="item.imageUrl || ''" preload="metadata">
+                              Your browser does not support the video tag.
+                            </video>
                           } @else {
-                            <div class="absolute inset-0 bg-[#121414]"></div>
+                            @if (item.imageUrl) {
+                              <div class="absolute inset-0 bg-cover bg-center opacity-40" [style.backgroundImage]="'url(' + item.imageUrl + ')'"></div>
+                            } @else {
+                              <div class="absolute inset-0 bg-[#121414]"></div>
+                            }
+                            <div class="relative z-10 text-center text-white space-y-3 p-4">
+                              <span class="material-symbols-outlined text-4xl text-amber-400">videocam_off</span>
+                              <div class="text-xs font-mono bg-black/70 px-4 py-1.5 rounded-full backdrop-blur-sm">No video stream attached in database</div>
+                            </div>
                           }
-                          <div class="relative z-10 text-center text-white space-y-3">
-                            <button (click)="toggleVideoPlayback()" class="w-16 h-16 rounded-full bg-white/20 hover:bg-[#fe893e] backdrop-blur-md flex items-center justify-center text-white hover:scale-105 transition-all shadow-xl cursor-pointer">
-                              <span class="material-symbols-outlined text-3xl">{{ isPlayingVideo ? 'pause' : 'play_arrow' }}</span>
-                            </button>
-                            <div class="text-xs font-mono bg-black/70 px-4 py-1.5 rounded-full backdrop-blur-sm">Length: {{ item.durationOrSize }} &bull; HD 1080p 60fps &bull; 48kHz Stereo Master</div>
+                        </div>
+
+                        <!-- Video Description from DB stories table -->
+                        <div class="p-4 bg-white rounded-xl border border-[#dde3eb] space-y-2">
+                          <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[#004343] text-sm">description</span>
+                            <span class="text-xs font-bold text-[#191c1c] uppercase tracking-wider">Video Overview &amp; Description</span>
                           </div>
-                          <div class="absolute bottom-0 inset-x-0 bg-black/60 p-2 flex items-center gap-3 text-[11px] text-white font-mono">
-                            <span>06:12</span>
-                            <div class="flex-1 bg-white/30 h-1.5 rounded-full overflow-hidden"><div class="bg-[#fe893e] h-full" [style.width.%]="videoProgress"></div></div>
-                            <span>{{ item.durationOrSize }}</span>
-                          </div>
+                          <p class="text-xs text-[#3e4948] font-serif leading-relaxed whitespace-pre-line">{{ item.description || item.bodyContent || item.excerpt || 'No description recorded in database.' }}</p>
                         </div>
                       } @else if (item.type === 'audio') {
                         <div class="p-5 rounded-xl bg-[#f8faf9] border border-[#dde3eb] space-y-4">
                           <div class="flex items-center justify-between">
                             <div class="flex items-center gap-3">
-                              <button (click)="toggleVideoPlayback()" class="w-10 h-10 rounded-full bg-[#004343] hover:bg-[#fe893e] text-white flex items-center justify-center transition-colors shadow-md cursor-pointer">
-                                <span class="material-symbols-outlined text-xl">{{ isPlayingVideo ? 'pause' : 'play_arrow' }}</span>
+                              <button (click)="toggleAudioPlayback()" 
+                                      [disabled]="!item.mediaUrl"
+                                      class="w-11 h-11 rounded-full bg-[#004343] hover:bg-[#fe893e] text-white flex items-center justify-center transition-colors shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span class="material-symbols-outlined text-2xl">{{ isPlayingAudio ? 'pause' : 'play_arrow' }}</span>
                               </button>
                               <div>
-                                <div class="text-xs font-bold text-[#191c1c]">Audio Recording</div>
-                                <div class="text-[10px] text-[#6e7978]">AI Transcription Enabled</div>
+                                <div class="text-xs font-bold text-[#191c1c]">Oral Testimony &amp; Audio Recording</div>
+                                <div class="text-[10px] text-[#6e7978]">
+                                  {{ item.mediaUrl ? 'Audio stream available' : 'No audio file recorded' }}
+                                  &bull; Audio Content from stories table
+                                </div>
                               </div>
                             </div>
-                            <span class="text-[10px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">High Confidence</span>
+                            <span class="text-[10px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                              {{ item.mediaUrl ? 'Audio Stream Ready' : 'No Media Attached' }}
+                            </span>
                           </div>
                           
                           <div class="bg-white rounded-xl border border-[#dde3eb] overflow-hidden shadow-sm">
                             <div class="flex items-center gap-3 px-4 py-2.5 border-b border-[#dde3eb] bg-[#f8faf9]">
-                               <span class="text-[10px] font-mono text-[#6e7978] w-8 text-right">00:45</span>
-                               <div class="flex-1 bg-[#dde3eb] h-1.5 rounded-full overflow-hidden relative cursor-pointer">
-                                 <div class="bg-[#fe893e] h-full absolute left-0 top-0" [style.width.%]="videoProgress"></div>
+                               <span class="text-[10px] font-mono text-[#6e7978] w-10 text-right">{{ audioCurrentTime }}</span>
+                               <div (click)="seekAudio($event)" 
+                                    class="flex-1 bg-[#dde3eb] h-2 rounded-full overflow-hidden relative cursor-pointer group"
+                                    title="Click to seek">
+                                 <div class="bg-[#fe893e] h-full absolute left-0 top-0 transition-all duration-100" [style.width.%]="audioProgress"></div>
                                </div>
-                               <span class="text-[10px] font-mono text-[#6e7978] w-8">{{ item.durationOrSize || '04:12' }}</span>
+                               <span class="text-[10px] font-mono text-[#6e7978] w-10">{{ audioDuration !== '00:00' ? audioDuration : (item.durationOrSize || '02:30') }}</span>
                             </div>
-                            <div class="h-10 flex items-end gap-[2px] px-4 py-1">
-                              @for (bar of waveBars; track $index) { <div class="flex-1 bg-[#004343]/30 rounded-t transition-all duration-300" [ngClass]="{'bg-[#fe893e]': isPlayingVideo && $index < (videoProgress / 100) * waveBars.length}" [style.height.%]="bar"></div> }
+                            <!-- Dynamic Waveform Visualizer -->
+                            <div class="h-12 flex items-end gap-[3px] px-4 py-1.5 bg-gradient-to-b from-white to-[#f8faf9]">
+                              @for (bar of waveBars; track $index) { 
+                                <div class="flex-1 rounded-t transition-all duration-200" 
+                                     [ngClass]="isPlayingAudio && $index < (audioProgress / 100) * waveBars.length ? 'bg-[#fe893e] shadow-xs' : 'bg-[#004343]/20'" 
+                                     [style.height.%]="isPlayingAudio ? (bar * (0.6 + ($index % 3) * 0.2)) : bar"></div> 
+                              }
                             </div>
                           </div>
+
+                          @if (item.mediaUrl) {
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-[#dde3eb]">
+                              <div class="flex items-center gap-1.5 text-[11px] text-[#004343] font-mono truncate max-w-sm">
+                                <span class="material-symbols-outlined text-sm">graphic_eq</span>
+                                <span class="truncate">{{ item.mediaUrl }}</span>
+                              </div>
+                              <audio [src]="item.mediaUrl" controls preload="metadata" class="h-8 max-w-xs rounded"></audio>
+                            </div>
+                          }
                           
-                          <div class="p-3 bg-white rounded-xl border border-[#dde3eb] text-xs text-[#3e4948] italic font-serif leading-relaxed max-h-[120px] overflow-y-auto pr-2 custom-scrollbar">"{{ item.bodyContent || item.excerpt }}"</div>
+                          <div class="p-3 bg-white rounded-xl border border-[#dde3eb] text-xs text-[#3e4948] italic font-serif leading-relaxed max-h-[120px] overflow-y-auto pr-2 custom-scrollbar">"{{ item.bodyContent || item.description || item.excerpt }}"</div>
                         </div>
                       } @else {
                         <div class="p-5 rounded-xl bg-white border border-[#dde3eb] space-y-4">
@@ -926,7 +962,7 @@ export interface ModerationItem {
                         <span class="material-symbols-outlined text-[#004343] text-xl">label</span>
                         <div class="text-left">
                           <h3 class="text-sm font-serif font-bold text-[#191c1c]">Cultural Taxonomy &amp; Category Alignment</h3>
-                          <p class="text-[10px] text-[#6e7978]">Metadata classification â€” {{ item.tags.length }} tag{{ item.tags.length !== 1 ? 's' : '' }} applied</p>
+                          <p class="text-[10px] text-[#6e7978]">Metadata classification {{ item.tags.length }} tag{{ item.tags.length !== 1 ? 's' : '' }} applied</p>
                         </div>
                       </div>
                       <span class="material-symbols-outlined text-[#6e7978] text-xl transition-transform duration-200" [ngClass]="sectionTaxonomyOpen() ? 'rotate-180' : ''">expand_more</span>
@@ -1278,7 +1314,7 @@ export interface ModerationItem {
     </div>
   `
 })
-export class ModerationComponent implements OnInit {
+export class ModerationComponent implements OnInit, OnDestroy {
   // Toast notifications
   toastMessage = signal<string | null>(null);
 
@@ -1432,14 +1468,10 @@ export class ModerationComponent implements OnInit {
       reader.onload = (e) => {
         const preview = (e.target?.result as string) || '';
         this.coverImagePreview.set(preview);
-        this.coverImageUrl.set('');
-        const item = this.selectedItem();
-        if (item) {
-          item.imageUrl = preview;
-          this.items.update(list => list.map(i => i.id === item.id ? { ...i, imageUrl: preview } : i));
-        }
       };
       reader.readAsDataURL(file);
+
+      this.uploadSelectedCoverImage(file);
     }
   }
 
@@ -1453,15 +1485,46 @@ export class ModerationComponent implements OnInit {
       reader.onload = (e) => {
         const preview = (e.target?.result as string) || '';
         this.coverImagePreview.set(preview);
-        this.coverImageUrl.set('');
-        const item = this.selectedItem();
-        if (item) {
-          item.imageUrl = preview;
-          this.items.update(list => list.map(i => i.id === item.id ? { ...i, imageUrl: preview } : i));
-        }
       };
       reader.readAsDataURL(file);
+
+      this.uploadSelectedCoverImage(file);
     }
+  }
+
+  uploadSelectedCoverImage(file: File): void {
+    this.showToast('Uploading cover image to cultural vault...');
+    this.moderationService.uploadCoverImage(file).subscribe({
+      next: (res) => {
+        if (res && res.imageUrl) {
+          const finalUrl = res.imageUrl.startsWith('http') || res.imageUrl.startsWith('/uploads')
+            ? res.imageUrl
+            : `/uploads/${res.imageUrl}`;
+          this.coverImageUrl.set(finalUrl);
+          const item = this.selectedItem();
+          if (item) {
+            item.imageUrl = finalUrl;
+            this.selectedItem.set({ ...item });
+            this.items.update(list => list.map(i => i.id === item.id ? { ...i, imageUrl: finalUrl } : i));
+            if (item.id && item.id.includes('-')) {
+              this.moderationService.updateItemStatus(item.id, {
+                status: item.status || 'PENDING',
+                imageUrl: finalUrl
+              }).subscribe({
+                next: () => this.showToast('✨ Cover image uploaded and saved to stories table!'),
+                error: (err) => console.warn('Could not auto-save cover image:', err)
+              });
+            } else {
+              this.showToast('✨ Cover image uploaded successfully!');
+            }
+          }
+        }
+      },
+      error: (err) => {
+        console.error('Error uploading cover image:', err);
+        this.showToast('❌ Cover image upload failed. Please try again or paste image URL.');
+      }
+    });
   }
 
   onCoverDragOver(event: DragEvent): void {
@@ -1481,6 +1544,14 @@ export class ModerationComponent implements OnInit {
     if (item) {
       item.imageUrl = '';
       this.items.update(list => list.map(i => i.id === item.id ? { ...i, imageUrl: '' } : i));
+      if (item.id && item.id.includes('-')) {
+        this.moderationService.updateItemStatus(item.id, {
+          imageUrl: ''
+        }).subscribe({
+          next: () => this.showToast('Cover image removed from stories table.'),
+          error: (err) => console.warn('Failed to clear image URL:', err)
+        });
+      }
     }
   }
 
@@ -1492,13 +1563,28 @@ export class ModerationComponent implements OnInit {
     if (item) {
       item.imageUrl = url;
       this.items.update(list => list.map(i => i.id === item.id ? { ...i, imageUrl: url } : i));
+      if (item.id && item.id.includes('-')) {
+        this.moderationService.updateItemStatus(item.id, {
+          imageUrl: url
+        }).subscribe({
+          next: () => this.showToast('Story cover image URL updated!'),
+          error: (err) => console.warn('Failed to sync image URL:', err)
+        });
+      }
     }
   }
 
-  // Media Simulation
+  // Media Simulation & Audio Playback
   isPlayingVideo = false;
   videoProgress = 33;
   waveBars = [20, 35, 60, 45, 80, 95, 65, 40, 75, 85, 90, 50, 70, 40, 60, 85, 90, 70, 45, 30];
+
+  // Real Audio Playback for Moderation Queue
+  isPlayingAudio = false;
+  audioProgress = 0; // 0 to 100
+  audioCurrentTime = '00:00';
+  audioDuration = '00:00';
+  private audioObj: HTMLAudioElement | null = null;
 
   // Knowledge Check Quiz State
   quizQuestion = '';
@@ -1688,6 +1774,10 @@ export class ModerationComponent implements OnInit {
     this.loadQueueFromBackend(true);
   }
 
+  ngOnDestroy(): void {
+    this.stopAudio();
+  }
+
   loadRegionsFromBackend(): void {
     this.moderationService.getRegions().subscribe({
       next: (data: RegionDTO[]) => {
@@ -1764,6 +1854,31 @@ export class ModerationComponent implements OnInit {
       if (match) category = match;
     }
 
+    const rawVideo = res.videoUrl || res.mediaUrl;
+    let resolvedVideoUrl: string | undefined = undefined;
+    if (rawVideo && rawVideo.trim()) {
+      if (rawVideo.startsWith('http://') || rawVideo.startsWith('https://')) {
+        resolvedVideoUrl = rawVideo;
+      } else {
+        const base = environment.apiUrl.replace(/\/api\/?$/, '');
+        resolvedVideoUrl = `${base}${rawVideo.startsWith('/') ? '' : '/'}${rawVideo}`;
+      }
+    }
+
+    let resolvedImageUrl = res.imageUrl;
+    if (resolvedImageUrl && !resolvedImageUrl.startsWith('http://') && !resolvedImageUrl.startsWith('https://') && !resolvedImageUrl.startsWith('data:')) {
+      const base = environment.apiUrl.replace(/\/api\/?$/, '');
+      resolvedImageUrl = `${base}${resolvedImageUrl.startsWith('/') ? '' : '/'}${resolvedImageUrl}`;
+    }
+
+    const videoDuration = res.mediaDurationMillis && res.mediaDurationMillis > 0
+      ? `${Math.floor(res.mediaDurationMillis / 60000)}m ${Math.floor((res.mediaDurationMillis % 60000) / 1000)}s`
+      : '18m 42s';
+
+    const audioDuration = res.mediaDurationMillis && res.mediaDurationMillis > 0
+      ? `${Math.floor(res.mediaDurationMillis / 60000)}m ${Math.floor((res.mediaDurationMillis % 60000) / 1000)}s`
+      : '02:30';
+
     return {
       id: res.id,
       code,
@@ -1777,13 +1892,16 @@ export class ModerationComponent implements OnInit {
       region: res.region || '',
       district: res.district || '',
       submittedAt: res.createdAt || 'Recent',
-      durationOrSize: type === 'video' ? '18m 42s' : (type === 'audio' ? '12m 30s' : '1,500 words'),
+      durationOrSize: type === 'video' ? videoDuration : (type === 'audio' ? audioDuration : '1,500 words'),
       isElder: res.elder,
       dialect: 'Regional Heritage Dialect',
       nlpConfidence: 96.5,
       excerpt: res.description || '',
+      description: res.description || res.bodyContent || '',
       bodyContent: res.bodyContent || res.description || '',
-      imageUrl: res.imageUrl,
+      imageUrl: resolvedImageUrl,
+      mediaUrl: resolvedVideoUrl,
+      videoUrl: resolvedVideoUrl,
       tags: res.tags || [],
       rejectionReason: res.rejectionReason,
       rejectionNotes: res.rejectionNotes
@@ -1813,6 +1931,7 @@ export class ModerationComponent implements OnInit {
   }
 
   selectItem(item: ModerationItem): void {
+    this.stopAudio();
     this.selectedItem.set(item);
     this.isPlayingVideo = false;
     this.videoProgress = 33;
@@ -1872,6 +1991,7 @@ export class ModerationComponent implements OnInit {
   }
 
   resetFilters(): void {
+    this.stopAudio();
     this.typeFilter.set('all');
     this.categoryFilter = 'all';
     this.regionFilter.set('all');
@@ -1886,6 +2006,117 @@ export class ModerationComponent implements OnInit {
     if (this.isPlayingVideo) {
       this.showToast('Simulating HD video playback stream...');
     }
+  }
+
+  // Real Audio Playback Methods for Moderation Queue
+  toggleAudioPlayback(): void {
+    const item = this.selectedItem();
+    if (!item || !item.mediaUrl) {
+      this.showToast('No audio recording found for this item.');
+      return;
+    }
+
+    if (this.isPlayingAudio) {
+      this.pauseAudio();
+    } else {
+      this.playAudio(item.mediaUrl);
+    }
+  }
+
+  playAudio(url: string): void {
+    if (!this.audioObj || this.audioObj.src !== url) {
+      if (this.audioObj) {
+        this.audioObj.pause();
+        this.audioObj = null;
+      }
+      this.audioObj = new Audio(url);
+
+      this.audioObj.addEventListener('timeupdate', () => {
+        if (!this.audioObj) return;
+        const current = this.audioObj.currentTime;
+        const duration = this.audioObj.duration;
+        this.audioCurrentTime = this.formatSeconds(current);
+        if (duration && !isNaN(duration) && duration > 0) {
+          this.audioProgress = (current / duration) * 100;
+          this.audioDuration = this.formatSeconds(duration);
+        }
+      });
+
+      this.audioObj.addEventListener('loadedmetadata', () => {
+        if (!this.audioObj) return;
+        const duration = this.audioObj.duration;
+        if (duration && !isNaN(duration)) {
+          this.audioDuration = this.formatSeconds(duration);
+        }
+      });
+
+      this.audioObj.addEventListener('ended', () => {
+        this.isPlayingAudio = false;
+        this.audioProgress = 0;
+        this.audioCurrentTime = '00:00';
+      });
+
+      this.audioObj.addEventListener('error', (e) => {
+        console.error('Audio playback error', e);
+        this.isPlayingAudio = false;
+        this.showToast('Unable to stream oral audio recording.');
+      });
+    }
+
+    this.audioObj.play().then(() => {
+      this.isPlayingAudio = true;
+    }).catch(err => {
+      console.warn('Audio play was prevented or failed:', err);
+      this.isPlayingAudio = false;
+    });
+  }
+
+  pauseAudio(): void {
+    if (this.audioObj) {
+      this.audioObj.pause();
+    }
+    this.isPlayingAudio = false;
+  }
+
+  stopAudio(): void {
+    if (this.audioObj) {
+      this.audioObj.pause();
+      this.audioObj.currentTime = 0;
+      this.audioObj = null;
+    }
+    this.isPlayingAudio = false;
+    this.audioProgress = 0;
+    this.audioCurrentTime = '00:00';
+    this.audioDuration = '00:00';
+  }
+
+  seekAudio(event: MouseEvent): void {
+    const item = this.selectedItem();
+    if (!item || !item.mediaUrl) return;
+
+    if (!this.audioObj) {
+      this.playAudio(item.mediaUrl);
+    }
+
+    const container = event.currentTarget as HTMLElement;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const width = rect.width;
+    const percentage = Math.max(0, Math.min(1, clickX / width));
+
+    if (this.audioObj && this.audioObj.duration && !isNaN(this.audioObj.duration)) {
+      this.audioObj.currentTime = percentage * this.audioObj.duration;
+      this.audioProgress = percentage * 100;
+      this.audioCurrentTime = this.formatSeconds(this.audioObj.currentTime);
+    }
+  }
+
+  formatSeconds(sec: number): string {
+    if (isNaN(sec) || sec < 0) return '00:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   }
 
   // Quiz Management
@@ -2286,12 +2517,14 @@ export class ModerationComponent implements OnInit {
     const updated = this.items().find(i => i.id === item.id) || null;
     if (updated) this.selectedItem.set(updated);
 
+    const finalCover = item.imageUrl || this.coverImageUrl() || undefined;
     if (item.id && item.id.includes('-')) {
       this.moderationService.updateItemStatus(item.id, {
         status: 'PUBLISHED',
         region: item.region,
         district: item.district,
-        tags: item.tags
+        tags: item.tags,
+        imageUrl: finalCover
       }).subscribe({
         next: () => console.log(`[Backend] Moderation item ${item.id} published with region ${item.region}`),
         error: (err) => console.warn(`[Backend] Error publishing item ${item.id}:`, err)

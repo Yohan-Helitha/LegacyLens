@@ -11,19 +11,27 @@ export interface ModerationQueueItemResponse {
   authorUserId: string;
   elder: boolean;
   tags: string[];
+  region?: string;
+  district?: string;
   status: string;
   rejectionReason?: string;
   rejectionNotes?: string;
   createdAt: string;
   updatedAt: string;
+  mediaUrl?: string;
+  videoUrl?: string;
 }
 
 export interface UpdateModerationStatusRequest {
   status: string;
+  region?: string;
+  district?: string;
+  tags?: string[];
   reason?: string;
   notes?: string;
   rejectionReason?: string;
   rejectionNotes?: string;
+  imageUrl?: string;
 }
 
 export interface StoryQuizOptionResponse {
@@ -62,5 +70,8 @@ export const moderationApi = {
     apiPost<StoryQuizResponse, StoryQuizResponse>(`/moderation/stories/${storyId}/quiz`, quiz),
 
   generateAiQuiz: (storyId: string, context?: { title?: string; description?: string; bodyContent?: string; tags?: string[] }) =>
-    apiPost<StoryQuizResponse, any>(`/moderation/stories/${storyId}/quiz/ai-generate`, context || {})
+    apiPost<StoryQuizResponse, any>(`/moderation/stories/${storyId}/quiz/ai-generate`, context || {}),
+
+  generateAiTags: (storyId: string) =>
+    apiPost<{ tags: string[] }>(`/v1/moderation/stories/${storyId}/ai-tags`, {})
 };

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Share, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Share, Animated } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
 import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
@@ -39,11 +39,7 @@ export const WordOfTheDay = () => {
   const sharePlayer = useAudioPlayer({ uri: 'https://www.soundjay.com/buttons/sounds/button-10.mp3' });
 
   if (!wordData) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', minHeight: 200 }]}>
-        <ActivityIndicator size="large" color={Colors.secondary} />
-      </View>
-    );
+    return null;
   }
 
   const { word, transliteration, definition } = wordData;

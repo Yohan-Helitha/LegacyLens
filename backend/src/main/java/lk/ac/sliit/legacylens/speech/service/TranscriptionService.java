@@ -72,6 +72,7 @@ public class TranscriptionService {
                 .firstPhraseOffsetMs(result.getFirstPhraseOffsetMs())
                 .phraseCount(result.getPhraseCount())
                 .qualityHint(qualityHint)
+                .phrases(result.getPhrases())
                 .build();
     }
 

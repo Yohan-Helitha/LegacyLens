@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.admin.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,6 +19,7 @@ public class AdminNotificationResponse {
     private String body;
     private LocalDateTime createdAt;
     private String type; // "opportunity" or "moderation"
+    @JsonProperty("read")
     private boolean isRead;
 }
 

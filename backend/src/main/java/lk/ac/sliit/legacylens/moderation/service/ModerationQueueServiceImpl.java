@@ -78,11 +78,13 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
         ModerationQueueItem item = moderationQueueRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Moderation item not found"));
 
-        StoryStatus newStatus;
-        try {
-            newStatus = StoryStatus.valueOf(request.getStatus().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            newStatus = StoryStatus.PENDING;
+        StoryStatus newStatus = item.getStatus();
+        if (request.getStatus() != null && !request.getStatus().isBlank()) {
+            try {
+                newStatus = StoryStatus.valueOf(request.getStatus().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid status '{}', defaulting to current status {}", request.getStatus(), newStatus);
+            }
         }
         item.setStatus(newStatus);
 
@@ -102,6 +104,9 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
         if (request.getDistrict() != null) {
             item.setDistrict(request.getDistrict());
         }
+        if (request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+            item.setImageUrl(request.getImageUrl());
+        }
 
         if (request.getTags() != null) {
             item.setTags(request.getTags());
@@ -120,8 +125,13 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
             }
         }
 
-        if (newStatus == StoryStatus.PUBLISHED && item.getPublishedAt() == null) {
-            item.setPublishedAt(LocalDateTime.now());
+        if (newStatus == StoryStatus.PUBLISHED) {
+            if (item.getPublishedAt() == null) {
+                item.setPublishedAt(LocalDateTime.now());
+            }
+            if ("WRITTEN".equalsIgnoreCase(item.getMethod()) || (item.getType() == null && item.getBodyContent() != null)) {
+                item.setType("BLOG");
+            }
         }
 
         ModerationQueueItem saved = moderationQueueRepository.save(item);
@@ -204,13 +214,46 @@ public class ModerationQueueServiceImpl implements ModerationQueueService {
         String authorId = item.getAuthorId() != null ? item.getAuthorId().toString()
                 : (item.getAuthorUserId() != null ? item.getAuthorUserId().toString() : null);
 
+        String rawMedia = item.getMediaFilePath();
+        String rawMime = item.getMediaMimeType() != null ? item.getMediaMimeType().toLowerCase() : "";
+        String rawPathCheck = rawMedia != null ? rawMedia.toLowerCase() : "";
+
+        String itemType = item.getType();
+        if (itemType == null || itemType.isBlank()) {
+            if ("WRITTEN".equalsIgnoreCase(item.getMethod()) || item.getBodyContent() != null) {
+                itemType = "BLOG";
+            } else if ("RECORDED".equalsIgnoreCase(item.getMethod()) || rawMime.startsWith("audio/") || rawPathCheck.endsWith(".mp3") || rawPathCheck.endsWith(".m4a") || rawPathCheck.endsWith(".wav")) {
+                itemType = "AUDIO";
+            } else {
+                itemType = item.getMethod();
+            }
+        } else if ("AUDIO".equalsIgnoreCase(itemType) || rawMime.startsWith("audio/") || rawPathCheck.endsWith(".mp3") || rawPathCheck.endsWith(".m4a") || rawPathCheck.endsWith(".wav")) {
+            itemType = "AUDIO";
+        }
+
+        String resolvedMediaUrl = null;
+        if (rawMedia != null && !rawMedia.isBlank()) {
+            if (rawMedia.startsWith("http://") || rawMedia.startsWith("https://")) {
+                resolvedMediaUrl = rawMedia;
+            } else if (rawMedia.startsWith("/uploads/")) {
+                resolvedMediaUrl = rawMedia;
+            } else if (rawMedia.startsWith("uploads/")) {
+                resolvedMediaUrl = "/" + rawMedia;
+            } else {
+                resolvedMediaUrl = "/uploads/" + (rawMedia.startsWith("/") ? rawMedia.substring(1) : rawMedia);
+            }
+        }
+
         return ModerationQueueItemResponse.builder()
                 .id(item.getId())
                 .title(item.getTitle())
                 .description(item.getDescription())
                 .bodyContent(item.getBodyContent())
                 .imageUrl(item.getImageUrl())
-                .type(item.getType() != null ? item.getType() : item.getMethod())
+                .mediaUrl(resolvedMediaUrl)
+                .videoUrl(resolvedMediaUrl)
+                .mediaDurationMillis(item.getMediaDurationMillis())
+                .type(itemType)
                 .authorName(authorName)
                 .authorUserId(authorId)
                 .elder(item.isElder())

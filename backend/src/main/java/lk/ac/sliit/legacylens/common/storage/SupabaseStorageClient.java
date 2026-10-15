@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -73,9 +74,18 @@ public class SupabaseStorageClient {
                     .toBodilessEntity();
         } catch (IOException ex) {
             throw new FileStorageException("Could not read the uploaded file", ex);
+        } catch (RestClientResponseException ex) {
+            log.error("Supabase Storage error (status {}): {}", ex.getStatusCode(), ex.getResponseBodyAsString());
+            if (ex.getStatusCode().value() == 413 || (ex.getResponseBodyAsString() != null && ex.getResponseBodyAsString().contains("EntityTooLarge"))) {
+                throw new FileStorageException("File exceeds Supabase's 50MB upload limit. Please optimize or compress the 3D model.");
+            }
+            if (ex.getStatusCode().value() == 415 || (ex.getResponseBodyAsString() != null && ex.getResponseBodyAsString().contains("InvalidMimeType"))) {
+                throw new FileStorageException("Unsupported file type for bucket " + bucket + ".");
+            }
+            throw new FileStorageException("Could not upload to storage: " + ex.getStatusText());
         } catch (Exception ex) {
-            // Never surface the response body — Supabase error payloads can echo request details.
-            throw new FileStorageException("Could not upload the file to storage", ex);
+            log.error("Storage upload failure: {}", ex.getMessage(), ex);
+            throw new FileStorageException("Could not upload the file to storage: " + ex.getMessage(), ex);
         }
 
         return publicUrl(bucket, objectPath);
@@ -125,6 +135,16 @@ public class SupabaseStorageClient {
     }
 
     private MediaType resolveContentType(MultipartFile file) {
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        if (filename.endsWith(".glb")) {
+            return MediaType.parseMediaType("model/gltf-binary");
+        }
+        if (filename.endsWith(".gltf")) {
+            return MediaType.parseMediaType("model/gltf+json");
+        }
+        if (filename.endsWith(".usdz")) {
+            return MediaType.parseMediaType("model/vnd.usdz+zip");
+        }
         if (file.getContentType() == null || file.getContentType().isBlank()) {
             return MediaType.APPLICATION_OCTET_STREAM;
         }

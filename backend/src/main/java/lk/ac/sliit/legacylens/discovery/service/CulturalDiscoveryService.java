@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class CulturalDiscoveryService {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -45,6 +44,25 @@ public class CulturalDiscoveryService {
     private final JdbcTemplate jdbcTemplate;
     private final FeedItemRepository feedItemRepository;
     private final lk.ac.sliit.legacylens.home.repository.FeedItemCommentRepository commentRepository;
+
+    public CulturalDiscoveryService(
+            ModerationQueueRepository moderationQueueRepository,
+            StoryTagRepository storyTagRepository,
+            TagRepository tagRepository,
+            TagAliasRepository tagAliasRepository,
+            TagNormalizationService tagNormalizationService,
+            JdbcTemplate jdbcTemplate,
+            FeedItemRepository feedItemRepository,
+            lk.ac.sliit.legacylens.home.repository.FeedItemCommentRepository commentRepository) {
+        this.moderationQueueRepository = moderationQueueRepository;
+        this.storyTagRepository = storyTagRepository;
+        this.tagRepository = tagRepository;
+        this.tagAliasRepository = tagAliasRepository;
+        this.tagNormalizationService = tagNormalizationService;
+        this.jdbcTemplate = jdbcTemplate;
+        this.feedItemRepository = feedItemRepository;
+        this.commentRepository = commentRepository;
+    }
 
     /**
      * Tag-aware cultural search and filtering.
@@ -613,48 +631,6 @@ public class CulturalDiscoveryService {
             candidateResponses.add(mapStoryToDiscoveryResponse(candidate, tagNames, homeScore, matchReason));
         }
 
-        // 6. Also score AudioItems from feed_items (Home page content audios) against tag affinities
-        if (feedItemRepository != null && (type == null || type.isBlank() || "audio".equalsIgnoreCase(type) || "all".equalsIgnoreCase(type))) {
-            List<FeedItem> allFeedItems = Collections.emptyList();
-            try {
-                allFeedItems = feedItemRepository.findAll();
-            } catch (Exception e) {
-                log.warn("[Discovery] Could not load feed_items for recommendations: {}", e.getMessage());
-            }
-
-            for (FeedItem fi : allFeedItems) {
-                if (!(fi instanceof AudioItem ai)) continue;
-
-                List<String> aiTags = ai.getTags() != null ? ai.getTags() : Collections.emptyList();
-                double userTagScore = 0.0;
-                double relatedTagScore = 0.0;
-                List<String> matchedConcepts = new ArrayList<>();
-
-                for (String t : aiTags) {
-                    Optional<Tag> resolved = tagNormalizationService.resolveCanonicalTag(t);
-                    if (resolved.isPresent()) {
-                        UUID tid = resolved.get().getId();
-                        if (tagAffinities.containsKey(tid)) {
-                            userTagScore += tagAffinities.get(tid);
-                            matchedConcepts.add(resolved.get().getCanonicalName());
-                        } else if (relatedAffinities.containsKey(tid)) {
-                            relatedTagScore += relatedAffinities.get(tid);
-                            matchedConcepts.add("Related to " + resolved.get().getCanonicalName());
-                        }
-                    }
-                }
-
-                double normTagAffinity = Math.min(1.0, userTagScore / 3.0);
-                double normRelatedAffinity = Math.min(1.0, relatedTagScore / 2.0);
-                double engagement = Math.min(1.0, ((ai.getLikesCount() != null ? ai.getLikesCount() : 0) * 0.05));
-                double homeScore = 0.45 * normTagAffinity + 0.25 * normRelatedAffinity + 0.20 * engagement + 0.10 * 0.8;
-
-                String matchReason = matchedConcepts.isEmpty() ? "Featured Cultural Audio"
-                        : "Recommended for you: " + String.join(", ", matchedConcepts.stream().limit(2).toList());
-
-                candidateResponses.add(mapAudioItemToDiscovery(ai, homeScore, matchReason));
-            }
-        }
 
         // Sort by homeScore descending
         candidateResponses.sort((a, b) -> Double.compare(b.getScore(), a.getScore()));
@@ -738,20 +714,6 @@ public class CulturalDiscoveryService {
             results.add(mapStoryToDiscoveryResponse(s, tagNames, 1.0, "Featured Cultural Heritage"));
         }
 
-        // Add AudioItems if type is audio or not filtered
-        if (feedItemRepository != null && (type == null || type.isBlank() || "audio".equalsIgnoreCase(type) || "all".equalsIgnoreCase(type))) {
-            try {
-                List<FeedItem> allFeed = feedItemRepository.findAll();
-                for (FeedItem fi : allFeed) {
-                    if (fi instanceof AudioItem ai) {
-                        results.add(mapAudioItemToDiscovery(ai, 1.0, "Featured Cultural Audio"));
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("[Discovery] Could not load fallback AudioItems: {}", e.getMessage());
-            }
-        }
-
         return results.stream()
                 .sorted((a, b) -> Integer.compare(b.getLikesCount(), a.getLikesCount()))
                 .limit(maxResults)
@@ -760,17 +722,49 @@ public class CulturalDiscoveryService {
 
     private boolean isAudio(ModerationQueueItem story) {
         if (story == null) return false;
-        String t = story.getType();
-        String m = story.getMethod();
-        return (t != null && t.equalsIgnoreCase("audio")) ||
-               (m != null && m.equalsIgnoreCase("recorded") && (t == null || !t.equalsIgnoreCase("video")));
+        String t = story.getType() != null ? story.getType().trim().toLowerCase() : "";
+        String m = story.getMethod() != null ? story.getMethod().trim().toLowerCase() : "";
+        String mime = story.getMediaMimeType() != null ? story.getMediaMimeType().trim().toLowerCase() : "";
+        String path = story.getMediaFilePath() != null ? story.getMediaFilePath().trim().toLowerCase() : "";
+
+        if ("written".equals(m)) return false;
+        if ("blog".equals(t) || "video".equals(t)) return false;
+        if ("audio".equals(t)) return true;
+        if (mime.startsWith("audio/")) return true;
+        if (path.endsWith(".mp3") || path.endsWith(".m4a") || path.endsWith(".wav") || path.endsWith(".aac") || path.endsWith(".ogg")) return true;
+        return "recorded".equals(m);
     }
 
     private DiscoveryStoryResponse mapStoryToDiscoveryResponse(ModerationQueueItem story, List<String> tagNames, double score, String matchReason) {
         boolean audio = isAudio(story);
-        String typeStr = audio ? "audio" : (story.getType() != null ? story.getType() : story.getMethod());
-        String durationStr = audio ? (story.getMediaDurationMillis() != null && story.getMediaDurationMillis() > 0 ? (story.getMediaDurationMillis() / 60000 + " mins") : "12 mins") : null;
-        List<Integer> bars = audio ? List.of(2, 4, 3, 5, 2, 6, 4, 2, 3, 5, 2) : Collections.emptyList();
+        String typeStr;
+        if (audio) {
+            typeStr = "audio";
+        } else if ("video".equalsIgnoreCase(story.getType())) {
+            typeStr = "video";
+        } else {
+            typeStr = "blog";
+        }
+
+        String rawMedia = story.getMediaFilePath();
+        String resolvedMediaUrl = null;
+        if (rawMedia != null && !rawMedia.isBlank()) {
+            if (rawMedia.startsWith("http://") || rawMedia.startsWith("https://")) {
+                resolvedMediaUrl = rawMedia;
+            } else if (rawMedia.startsWith("/uploads/")) {
+                resolvedMediaUrl = rawMedia;
+            } else if (rawMedia.startsWith("uploads/")) {
+                resolvedMediaUrl = "/" + rawMedia;
+            } else {
+                resolvedMediaUrl = "/uploads/" + (rawMedia.startsWith("/") ? rawMedia.substring(1) : rawMedia);
+            }
+        }
+
+        long durationMs = story.getMediaDurationMillis() != null ? story.getMediaDurationMillis() : 0;
+        String durationStr = audio 
+                ? (durationMs > 0 ? String.format("%d:%02d", durationMs / 60000, (durationMs % 60000) / 1000) : "02:30")
+                : null;
+        List<Integer> bars = audio ? List.of(20, 35, 50, 75, 40, 60, 85, 30, 45, 70, 55, 40, 65, 80, 50, 35, 60, 75, 45, 30) : Collections.emptyList();
 
         return DiscoveryStoryResponse.builder()
                 .id(story.getId())
@@ -778,8 +772,8 @@ public class CulturalDiscoveryService {
                 .description(story.getDescription())
                 .bodyContent(story.getBodyContent())
                 .imageUrl(story.getImageUrl())
-                .type(typeStr != null ? typeStr.toLowerCase() : "blog")
-                .authorName(story.getAuthorName())
+                .type(typeStr)
+                .authorName(story.getAuthorName() != null ? story.getAuthorName() : "Elder Storyteller")
                 .district(story.getDistrict())
                 .region(story.getRegion())
                 .tags(tagNames)
@@ -792,7 +786,7 @@ public class CulturalDiscoveryService {
                 .matchReason(matchReason)
                 .duration(durationStr)
                 .topic(story.getDescription() != null && !story.getDescription().isBlank() ? story.getDescription() : story.getTitle())
-                .mediaUrl(story.getMediaFilePath())
+                .mediaUrl(resolvedMediaUrl)
                 .audioBars(bars)
                 .build();
     }

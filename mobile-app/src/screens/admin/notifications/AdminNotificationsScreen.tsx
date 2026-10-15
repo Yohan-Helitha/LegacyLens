@@ -6,6 +6,7 @@ import { styles } from './AdminNotificationsScreen.styles';
 import { useOpportunity } from '../../../context/OpportunityContext';
 import { Colors, Typography, Spacing } from '../../../theme';
 import { adminNotificationApi, AdminNotificationResponse } from '../../../services/api/adminNotificationApi';
+import { moderationApi } from '../../../services/api/moderationApi';
 
 type AppNotification = {
   id: string;
@@ -29,50 +30,114 @@ export const AdminNotificationsScreen = ({ onBack, onNavigate }: { onBack?: () =
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [loading, setLoading] = useState<boolean>(true);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const { refreshAll } = useOpportunity();
+  const { audioSubmissions, refreshAll } = useOpportunity();
   
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         await refreshAll();
-        const adminNotifs = await adminNotificationApi.getNotifications();
-        
+
+        let adminNotifs: any[] = [];
+        try {
+          adminNotifs = await adminNotificationApi.getNotifications();
+        } catch (apiErr) {
+          console.warn('Backend notifications endpoint error, using state fallback:', apiErr);
+        }
+
         const generatedNotifications: AppNotification[] = [];
-        
-        const adminNotificationItems: AppNotification[] = adminNotifs
+        const seenIds = new Set<string>();
+
+        // 1. Existing backend notifications
+        (adminNotifs || [])
           .filter((n: any) => n.type === 'opportunity' || n.type === 'moderation')
-          .map((n: any) => {
-          const isOpp = n.type === 'opportunity';
-          return {
-            id: `${n.type}-${n.id}`,
-            originalId: n.id,
-            title: n.title,
-            subtitle: n.subtitle,
-            body: n.body,
-            time: new Date(n.createdAt).toLocaleDateString(),
-            timeMs: new Date(n.createdAt).getTime(),
-            icon: isOpp ? 'mic' : 'flag',
-            iconColor: isOpp ? '#004343' : '#9b4600',
-            iconBg: isOpp ? 'rgba(0,67,67,0.1)' : 'rgba(254,137,62,0.2)',
-            leftBorderColor: isOpp ? '#004343' : '#9b4600',
-            actionText: isOpp ? 'Listen & Review' : 'View Details',
-            actionType: isOpp ? 'primary' : 'secondary',
-            read: n.read,
-            type: n.type as 'opportunity' | 'moderation'
-          };
+          .forEach((n: any) => {
+            const isOpp = n.type === 'opportunity';
+            seenIds.add(n.id);
+            seenIds.add(`${n.type}-${n.id}`);
+            generatedNotifications.push({
+              id: `${n.type}-${n.id}`,
+              originalId: n.id,
+              title: n.title,
+              subtitle: n.subtitle,
+              body: n.body,
+              time: n.createdAt ? new Date(n.createdAt).toLocaleDateString() : 'Recent',
+              timeMs: n.createdAt ? new Date(n.createdAt).getTime() : Date.now(),
+              icon: isOpp ? 'mic' : 'flag',
+              iconColor: isOpp ? '#004343' : '#9b4600',
+              iconBg: isOpp ? 'rgba(0,67,67,0.1)' : 'rgba(254,137,62,0.2)',
+              leftBorderColor: isOpp ? '#004343' : '#9b4600',
+              actionText: isOpp ? 'Listen & Review' : 'View Details',
+              actionType: isOpp ? 'primary' : 'secondary',
+              read: Boolean(n.read),
+              type: n.type as 'opportunity' | 'moderation',
+            });
+          });
+
+        // 2. Audio Submissions for Opportunities (Opportunity Intake Queue)
+        (audioSubmissions || []).forEach((audio) => {
+          if (!seenIds.has(audio.id) && !seenIds.has(`opportunity-${audio.id}`)) {
+            seenIds.add(audio.id);
+            const isFullyListened = audio.status === 'FULLY_LISTENED';
+            generatedNotifications.push({
+              id: `opportunity-${audio.id}`,
+              originalId: audio.id,
+              title: `Audio Submission: ${audio.elderName || 'Cultural Custodian'}`,
+              subtitle: `Opportunity Intake • ${audio.topic || 'Cultural Practice'}`,
+              body: `New audio recording awaiting transcription and review from ${audio.location || 'Sri Lanka'}.`,
+              time: audio.recordedAt ? audio.recordedAt.split(' ')[0] : 'Recent',
+              timeMs: audio.recordedAt ? new Date(audio.recordedAt.replace(' ', 'T')).getTime() || Date.now() : Date.now(),
+              icon: 'mic',
+              iconColor: '#004343',
+              iconBg: 'rgba(0,67,67,0.1)',
+              leftBorderColor: '#004343',
+              actionText: 'Listen & Review',
+              actionType: 'primary',
+              read: isFullyListened,
+              type: 'opportunity',
+            });
+          }
         });
-        generatedNotifications.push(...adminNotificationItems);
-        
+
+        // 3. Moderation Queue items (Stories pending approval or flagged)
+        try {
+          const modItems = await moderationApi.getQueueItems('ALL');
+          (modItems || []).forEach((m) => {
+            if (!seenIds.has(m.id) && !seenIds.has(`moderation-${m.id}`)) {
+              seenIds.add(m.id);
+              const isPending = m.status === 'PENDING' || m.status === 'REPORTED';
+              generatedNotifications.push({
+                id: `moderation-${m.id}`,
+                originalId: m.id,
+                title: m.title || 'Reported Cultural Content',
+                subtitle: `Moderation Queue • ${m.authorName || 'Contributor'}`,
+                body: m.description || 'Community story submitted for cultural authenticity review and verification.',
+                time: m.createdAt ? new Date(m.createdAt).toLocaleDateString() : 'Recent',
+                timeMs: m.createdAt ? new Date(m.createdAt).getTime() : Date.now(),
+                icon: 'flag',
+                iconColor: '#9b4600',
+                iconBg: 'rgba(254,137,62,0.2)',
+                leftBorderColor: '#9b4600',
+                actionText: 'Review Story',
+                actionType: 'secondary',
+                read: !isPending,
+                type: 'moderation',
+              });
+            }
+          });
+        } catch (modErr) {
+          console.warn('Could not fetch moderation items for notifications:', modErr);
+        }
+
         setNotifications(generatedNotifications.sort((a, b) => b.timeMs - a.timeMs));
       } catch (err) {
-        console.error(err);
+        console.error('Failed to load admin notifications:', err);
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [audioSubmissions]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
   
