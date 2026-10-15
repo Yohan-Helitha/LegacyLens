@@ -60,22 +60,17 @@ public class FeedItemService {
         } catch (Exception ignored) {
         }
 
-        items.addAll(repository.findAll().stream()
-                .map(item -> {
-                    FeedItemResponse resp = mapToResponse(item);
-                    resp.setLiked(likedIds.contains(resp.getId()));
-                    return resp;
-                })
-                .collect(Collectors.toList()));
-
         return items;
     }
 
     private FeedItemResponse mapStoryToFeedResponse(ModerationQueueItem story) {
         FeedItemResponse res = new FeedItemResponse();
         res.setId(story.getId() != null ? story.getId().toString() : UUID.randomUUID().toString());
-        res.setAuthor(story.getAuthorName());
-        res.setLocation("Sri Lanka");
+        res.setAuthor(story.getAuthorName() != null ? story.getAuthorName() : "Elder Storyteller");
+        String location = (story.getDistrict() != null && !story.getDistrict().isBlank())
+                ? (story.getDistrict() + ", " + (story.getRegion() != null ? story.getRegion() : "Sri Lanka"))
+                : (story.getRegion() != null && !story.getRegion().isBlank() ? story.getRegion() : "Sri Lanka");
+        res.setLocation(location);
         res.setTags(story.getTags() != null ? Arrays.asList(story.getTags()) : List.of());
         res.setLikesCount(story.getLikesCount() != null ? story.getLikesCount() : 0);
         long realComments = story.getId() != null ? commentRepository.countByStoryId(story.getId()) : 0;
@@ -83,11 +78,24 @@ public class FeedItemService {
 
         String mediaType = story.getType() != null ? story.getType().toLowerCase() : "";
         String method = story.getMethod() != null ? story.getMethod().toLowerCase() : "";
+        String mediaMime = story.getMediaMimeType() != null ? story.getMediaMimeType().toLowerCase() : "";
+        String rawPath = story.getMediaFilePath() != null ? story.getMediaFilePath() : "";
 
-        String mediaPath = story.getMediaFilePath();
+        String mediaPath = rawPath;
         if (mediaPath != null && !mediaPath.isBlank() && !mediaPath.startsWith("http")) {
-            mediaPath = "/uploads/" + (mediaPath.startsWith("/") ? mediaPath.substring(1) : mediaPath);
+            if (mediaPath.startsWith("/uploads/")) {
+                // already starts with /uploads/
+            } else if (mediaPath.startsWith("uploads/")) {
+                mediaPath = "/" + mediaPath;
+            } else {
+                mediaPath = "/uploads/" + (mediaPath.startsWith("/") ? mediaPath.substring(1) : mediaPath);
+            }
         }
+
+        boolean isAudio = "audio".equals(mediaType)
+                || mediaMime.startsWith("audio/")
+                || rawPath.endsWith(".mp3") || rawPath.endsWith(".m4a") || rawPath.endsWith(".wav")
+                || ("recorded".equals(method) && !"video".equals(mediaType) && !"blog".equals(mediaType));
 
         if ("video".equals(mediaType)) {
             res.setType("video");
@@ -97,21 +105,24 @@ public class FeedItemService {
                     : "https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=600");
             res.setVideoUrl(mediaPath != null && !mediaPath.isBlank() ? mediaPath : null);
             res.setDuration(story.getMediaDurationMillis() != null && story.getMediaDurationMillis() > 0
-                    ? (story.getMediaDurationMillis() / 60000 + " mins")
+                    ? String.format("%d:%02d", story.getMediaDurationMillis() / 60000, (story.getMediaDurationMillis() % 60000) / 1000)
                     : "10:00");
-        } else if ("audio".equals(mediaType) || "recorded".equals(method)) {
+        } else if (isAudio) {
             res.setType("audio");
-            res.setName(story.getTitle());
+            res.setName(story.getAuthorName() != null ? story.getAuthorName() : "Elder Storyteller");
             res.setTitle(story.getTitle());
-            res.setTopic(story.getDescription());
+            res.setTopic(story.getDescription() != null && !story.getDescription().isBlank() ? story.getDescription() : story.getTitle());
             res.setMediaUrl(mediaPath);
             res.setAvatar(story.getImageUrl() != null && !story.getImageUrl().isBlank()
                     ? story.getImageUrl()
                     : "https://i.pravatar.cc/150?img=1");
-            res.setDuration(story.getMediaDurationMillis() != null && story.getMediaDurationMillis() > 0
-                    ? (story.getMediaDurationMillis() / 60000 + " mins")
-                    : "12 mins");
-            res.setBars(List.of(2, 4, 3, 5, 2, 6, 4, 2, 3, 5, 2));
+            res.setThumbnail(story.getImageUrl());
+            long durationMs = story.getMediaDurationMillis() != null ? story.getMediaDurationMillis() : 0;
+            String durationText = durationMs > 0
+                    ? String.format("%d:%02d", durationMs / 60000, (durationMs % 60000) / 1000)
+                    : "02:30";
+            res.setDuration(durationText);
+            res.setBars(List.of(20, 35, 50, 75, 40, 60, 85, 30, 45, 70, 55, 40, 65, 80, 50, 35, 60, 75, 45, 30));
         } else {
             res.setType("blog");
             res.setTitle(story.getTitle());
