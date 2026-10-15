@@ -302,7 +302,7 @@ const FALLBACK_CANONICAL_TAGS: TagDTO[] = [
                 <div>
                   <label class="block text-[11px] font-bold text-[#004343] uppercase mb-1">Cultural Category</label>
                   <select [(ngModel)]="newTagCategory" class="w-full px-3 py-2 bg-white border border-[#c2c8c7] rounded-xl text-xs text-[#191c1c] focus:outline-none focus:border-[#004343]">
-                    @for (cat of tagCategoryOptions; track cat) { <option [value]="cat">{{ cat }}</option> }
+                    @for (cat of tagCategoryOptions(); track cat) { <option [value]="cat">{{ cat }}</option> }
                   </select>
                 </div>
                 <div>
@@ -394,7 +394,7 @@ const FALLBACK_CANONICAL_TAGS: TagDTO[] = [
                   <select [ngModel]="tagCategoryFilter()" (ngModelChange)="onCategoryFilterChange($event)"
                           class="w-full px-3 py-2 bg-[#f8faf9] border border-[#dde3eb] rounded-xl text-xs text-[#3e4948] focus:outline-none focus:border-[#004343] focus:bg-white cursor-pointer">
                     <option value="all">All Cultural Categories ({{ canonicalTagsList().length }})</option>
-                    @for (cat of tagCategoryOptions; track cat) { <option [value]="cat">{{ cat }}</option> }
+                    @for (cat of tagCategoryOptions(); track cat) { <option [value]="cat">{{ cat }}</option> }
                   </select>
                 </div>
               </div>
@@ -681,18 +681,28 @@ export class TaxonomyComponent implements OnInit {
   // Merge inputs
   mergeTargetTagId = '';
 
-  tagCategoryOptions: string[] = [
-    'Rituals & Ceremonies',
-    'Traditional Knowledge',
-    'Indigenous Medicine & Ayurveda',
-    'Crafts & Material Culture',
-    'Folklore & Oral Traditions',
-    'Architecture & Sacred Spaces',
-    'Performing Arts & Music',
-    'Culinary Heritage',
-    'Dialects & Indigenous Languages',
-    'Social Practices & Festivities'
-  ];
+  tagCategoryOptions = computed(() => {
+    const defaultCats = [
+      'heritage',
+      'Rituals & Ceremonies',
+      'Traditional Knowledge',
+      'Indigenous Medicine & Ayurveda',
+      'Crafts & Material Culture',
+      'Folklore & Oral Traditions',
+      'Architecture & Sacred Spaces',
+      'Performing Arts & Music',
+      'Culinary Heritage',
+      'Dialects & Indigenous Languages',
+      'Social Practices & Festivities'
+    ];
+    const catSet = new Set<string>(defaultCats);
+    for (const t of this.canonicalTagsList()) {
+      if (t.category && t.category.trim()) {
+        catSet.add(t.category.trim());
+      }
+    }
+    return Array.from(catSet);
+  });
 
   approvedTagsCount = computed(() => {
     return this.canonicalTagsList().filter(t => t.isApproved).length;
@@ -832,18 +842,36 @@ export class TaxonomyComponent implements OnInit {
   }
 
   handleApproveTag(tag: TagDTO): void {
-    this.moderationService.updateTag(tag.id, { isApproved: true }).subscribe({
-      next: (updated) => {
+    const payload = {
+      canonicalName: tag.canonicalName,
+      category: tag.category,
+      languageCode: tag.languageCode,
+      description: tag.description,
+      isApproved: true
+    };
+    this.moderationService.updateTag(tag.id, payload).subscribe({
+      next: () => {
         this.showToast(`✨ Concept "${tag.canonicalName}" approved!`);
-        tag.isApproved = true;
+        this.canonicalTagsList.update(list =>
+          list.map(t => t.id === tag.id ? { ...t, isApproved: true } : t)
+        );
         this.selectedTagForDetail.set({ ...tag, isApproved: true });
-        this.loadCanonicalTags();
       },
-      error: () => {
-        // Optimistic local update
-        tag.isApproved = true;
-        this.selectedTagForDetail.set({ ...tag, isApproved: true });
-        this.showToast(`✨ Concept "${tag.canonicalName}" approved locally.`);
+      error: (err) => {
+        console.warn('Update failed, trying dedicated approve endpoint:', err);
+        this.moderationService.approveTag(tag.id).subscribe({
+          next: () => {
+            this.showToast(`✨ Concept "${tag.canonicalName}" approved!`);
+            this.canonicalTagsList.update(list =>
+              list.map(t => t.id === tag.id ? { ...t, isApproved: true } : t)
+            );
+            this.selectedTagForDetail.set({ ...tag, isApproved: true });
+          },
+          error: (e) => {
+            console.error('Failed to approve tag:', e);
+            this.showToast(`⚠️ Could not save approval to database.`);
+          }
+        });
       }
     });
   }
