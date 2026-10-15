@@ -24,6 +24,7 @@ export interface StoryResponse {
   mediaType: StoryMediaType | null;
   /** Root-relative — prefix with the API host to get a playable URL. */
   mediaUrl: string | null;
+  imageUrl?: string | null;
   mediaDurationMillis: number | null;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +44,7 @@ export interface CreateStoryPayload {
   method: StoryMethod;
   mediaDurationMillis?: number;
   media?: StoryMediaFile | null;
+  thumbnail?: StoryMediaFile | null;
 }
 
 /** Title/description only — there's no re-upload endpoint, media isn't editable. */
