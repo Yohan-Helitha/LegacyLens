@@ -22,4 +22,5 @@ public class OpportunityAudioResponse {
     private String tags;
     private String status;
     private String createdAt;
+    private String transcript;
 }
