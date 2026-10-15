@@ -9,6 +9,12 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -65,7 +71,7 @@ public class SupabaseStorageClient {
 
         try {
             restClient.post()
-                    .uri(uploadUrl)
+                    .uri(URI.create(uploadUrl))
                     .header("Authorization", "Bearer " + properties.getServiceKey())
                     .contentType(resolveContentType(file))
                     .body(file.getBytes())
@@ -94,12 +100,13 @@ public class SupabaseStorageClient {
 
         Matcher matcher = PUBLIC_URL_PATTERN.matcher(publicUrl);
         if (!matcher.find()) return;
-        String bucket = matcher.group(1);
-        String objectPath = matcher.group(2);
+        // The URL carries the bucket and path percent-encoded (e.g. "Legacy%20Lens"); work with the plain names.
+        String bucket = URLDecoder.decode(matcher.group(1), StandardCharsets.UTF_8);
+        String objectPath = URLDecoder.decode(matcher.group(2).replace("+", "%2B"), StandardCharsets.UTF_8);
 
         try {
             restClient.delete()
-                    .uri(objectUrl(bucket, objectPath))
+                    .uri(URI.create(objectUrl(bucket, objectPath)))
                     .header("Authorization", "Bearer " + properties.getServiceKey())
                     .retrieve()
                     .toBodilessEntity();
@@ -109,11 +116,20 @@ public class SupabaseStorageClient {
     }
 
     private String objectUrl(String bucket, String objectPath) {
-        return normalizedBaseUrl() + "/storage/v1/object/" + bucket + "/" + objectPath;
+        return normalizedBaseUrl() + "/storage/v1/object/" + encodeSegment(bucket) + "/" + encodePath(objectPath);
     }
 
     private String publicUrl(String bucket, String objectPath) {
-        return normalizedBaseUrl() + "/storage/v1/object/public/" + bucket + "/" + objectPath;
+        return normalizedBaseUrl() + "/storage/v1/object/public/" + encodeSegment(bucket) + "/" + encodePath(objectPath);
+    }
+
+    /** Bucket names may contain spaces (e.g. "Legacy Lens"), which a URL has to carry as %20. */
+    private static String encodeSegment(String segment) {
+        return URLEncoder.encode(segment, StandardCharsets.UTF_8).replace("+", "%20");
+    }
+
+    private static String encodePath(String path) {
+        return Arrays.stream(path.split("/")).map(SupabaseStorageClient::encodeSegment).collect(Collectors.joining("/"));
     }
 
     private String normalizedBaseUrl() {
