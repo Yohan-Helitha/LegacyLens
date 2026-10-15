@@ -93,6 +93,12 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   // here the creator side decides what a tap opens, and refreshes the red number when one arrives
   // while the app is open. On a build without notification support this does nothing.
   const openFromNotification = useCallback((data: Record<string, unknown>) => {
+    // A new-message notification opens that very chat.
+    if (data.type === 'new-message' && typeof data.conversationId === 'string') {
+      setSelectedConversationId(data.conversationId);
+      setScreen('conversation');
+      return;
+    }
     const target = creatorScreenForNotification(data);
     if (target) setScreen(target);
   }, []);

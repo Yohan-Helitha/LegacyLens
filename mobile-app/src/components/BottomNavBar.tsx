@@ -8,6 +8,8 @@ import {
   View,
 } from 'react-native';
 import { Typography, Spacing, Radii } from '../theme';
+import { useProfilePhoto } from '../store/profilePhotoStore';
+import { useInboxUnread } from '../store/inboxUnreadStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design tokens — shared across all creator screens
@@ -105,13 +107,18 @@ const TABS: { key: NavTab; label: string }[] = [
   { key: 'profile', label: 'Profile' },
 ];
 
-const PROFILE_AVATAR = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBdmWxeiutm8VuCuwb8B-bcbY4uwLEOEIZpHad16sSCOnOCn176-8moOj3W6uDPAciix85yHVNmpAd1RTzDZNIib4AVMq68gwoQfyYec-CiNygpv3Rti52MfEWixskGSi9K2HzQJc1XhIg649C9xWHdmBqgXNA5LsR-CP4PfF7fUKsBLElU0twICuF7-ZcI9Vlnj9GgnzoL4Bqj9ilpxA4BZs3oFt_0h7PcPdk4HDm4JKWKr6S3bofO2g';
-
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   activeTab,
   onNavigate,
-  profileAvatarUri = PROFILE_AVATAR,
+  profileAvatarUri,
 }) => {
+  // The signed-in person's real profile picture - the same one the dashboard and the profile page show.
+  // With none, the plain silhouette shows. A screen can still pass its own picture to override it.
+  const myPhoto = useProfilePhoto();
+  const avatarUri = profileAvatarUri ?? myPhoto ?? undefined;
+  // How many messages are waiting - the red number on the Inbox tab.
+  const unread = useInboxUnread();
+
   return (
     <View style={s.navBar}>
       {TABS.map((tab) => {
@@ -125,15 +132,20 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             style={({ pressed }) => [s.navItem, pressed && s.pressed]}
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
-            accessibilityLabel={tab.label}
+            accessibilityLabel={tab.key === 'inbox' && unread > 0 ? `${tab.label}, ${unread} unread` : tab.label}
           >
             {/* Icon */}
             <View style={s.iconWrap}>
               {tab.key === 'home'    && <HomeIcon    color={iconColor} />}
               {tab.key === 'market'  && <MarketIcon  color={iconColor} />}
               {tab.key === 'inbox'   && <InboxIcon   color={iconColor} />}
+              {tab.key === 'inbox' && unread > 0 && (
+                <View style={s.unreadBadge}>
+                  <Text style={s.unreadBadgeText}>{unread > 99 ? '99+' : unread}</Text>
+                </View>
+              )}
               {tab.key === 'profile' && (
-                <ProfileIcon color={iconColor} avatarUri={profileAvatarUri} />
+                <ProfileIcon color={iconColor} avatarUri={avatarUri} />
               )}
             </View>
 
@@ -186,6 +198,20 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // The red number on the Inbox tab, at the icon's top right.
+  unreadBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -8,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: '#B3261E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadBadgeText: { fontFamily: Typography.fontBodySemi, fontSize: 10, color: '#ffffff' },
   navLabel: {
     fontFamily: Typography.fontBodyMed,
     fontSize: 10,

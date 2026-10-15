@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { messagingApi } from '../services/api/messagingApi';
+import { usePushNotificationEvents } from './usePushNotifications';
 import type { ConversationFilter, ConversationSummary } from '../types/messaging';
 
 /** Wait this long after the last keystroke before searching, so typing doesn't fire a request per letter. */
@@ -58,6 +59,9 @@ export function useConversations(filter: ConversationFilter, search: string) {
       mountedRef.current = false;
     };
   }, [load]);
+
+  // A notification arriving while the Inbox is open is almost always a new message: update the list quietly.
+  usePushNotificationEvents({ onReceived: refresh });
 
   const totalUnread = conversations.reduce((sum, conversation) => sum + conversation.unreadCount, 0);
 
