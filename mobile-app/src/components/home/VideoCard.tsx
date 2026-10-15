@@ -32,7 +32,7 @@ export const VideoCard = ({
   const rawThumb = v?.thumbnail || item?.thumbnail || item?.imageUrl;
   const resolvedThumbnail = rawThumb && !rawThumb.startsWith('http')
     ? getMediaUrl(rawThumb.startsWith('/uploads/') ? rawThumb : (rawThumb.startsWith('uploads/') ? `/${rawThumb}` : `/uploads/${rawThumb.replace(/^\/+/, '')}`))
-    : (rawThumb || 'https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=600');
+    : (rawThumb || null);
 
   const source = hasVideo ? { uri: resolvedVideoUri } : null;
   // Only the card that is actually playing gets a source. Every card in the feed used to open its video
@@ -80,8 +80,16 @@ export const VideoCard = ({
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={() => onNavigate?.('video', item || v)} style={styles.premiumCard}>
       <View style={styles.premiumHeroBox}>
-        {/* Cultural thumbnail image rendered underneath */}
-        <Image source={{ uri: resolvedThumbnail }} style={styles.premiumHeroImg} resizeMode="cover" />
+        {/* Cultural thumbnail image rendered underneath only when available */}
+        {resolvedThumbnail ? (
+          <Image source={{ uri: resolvedThumbnail }} style={styles.premiumHeroImg} resizeMode="cover" />
+        ) : (
+          !hasVideo && (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <MaterialIcons name="videocam" size={48} color="rgba(255,255,255,0.25)" />
+            </View>
+          )
+        )}
 
         {/* Real video player only active if video exists in DB */}
         {hasVideo && (
