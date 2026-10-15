@@ -114,61 +114,6 @@ export interface ModerationItem {
         </div>
       }
 
-      <!-- Rejection Modal -->
-      @if (showRejectModal()) {
-        <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div class="bg-white rounded-2xl border border-[#dde3eb] shadow-2xl max-w-lg w-full p-6 space-y-4">
-            <div class="flex items-center justify-between pb-3 border-b border-[#dde3eb]">
-              <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-[#ba1a1a] text-2xl">cancel</span>
-                <div>
-                  <h3 class="text-base font-serif font-bold text-[#191c1c]">Reject Submission</h3>
-                  <p class="text-[11px] text-[#6e7978]">Specify the curatorial feedback for the contributor</p>
-                </div>
-              </div>
-              <button (click)="showRejectModal.set(false)" class="text-[#6e7978] hover:text-[#191c1c] text-lg font-bold">✕</button>
-            </div>
-
-            <div class="space-y-3">
-              <div>
-                <label class="block text-xs font-bold text-[#191c1c] mb-1">Primary Rejection Reason</label>
-                <div class="space-y-1.5">
-                  @for (reason of rejectionReasons; track reason) {
-                    <label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-[#dde3eb] hover:bg-[#f8faf9] cursor-pointer text-xs transition-colors"
-                           [ngClass]="selectedRejectionReason() === reason ? 'border-[#ba1a1a] bg-[#ba1a1a]/5 font-semibold text-[#ba1a1a]' : 'text-[#3e4948]'">
-                      <input type="radio" name="rejectionReason" [value]="reason" 
-                             [checked]="selectedRejectionReason() === reason"
-                             (change)="selectedRejectionReason.set(reason)"
-                             class="text-[#ba1a1a] focus:ring-[#ba1a1a]" />
-                      <span>{{ reason }}</span>
-                    </label>
-                  }
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-xs font-bold text-[#191c1c] mb-1">Curator Guidance & Revision Notes</label>
-                <textarea [(ngModel)]="rejectionNotesText" rows="3" 
-                          placeholder="Provide clear historical or technical guidance on what needs amendment before re-submission..."
-                          class="w-full p-3 bg-[#f8faf9] border border-[#c2c8c7] rounded-xl text-xs focus:outline-none focus:border-[#ba1a1a] focus:bg-white text-[#191c1c] transition-all"></textarea>
-              </div>
-            </div>
-
-            <div class="flex items-center justify-end gap-2 pt-3 border-t border-[#dde3eb]">
-              <button (click)="showRejectModal.set(false)" 
-                      class="px-4 py-2 border border-[#dde3eb] text-[#3e4948] hover:bg-[#f2f4f3] rounded-xl text-xs font-semibold transition-colors">
-                Cancel
-              </button>
-              <button (click)="confirmRejection()" 
-                      class="px-5 py-2 bg-[#ba1a1a] hover:bg-[#93000a] text-white rounded-xl text-xs font-bold shadow-md shadow-[#ba1a1a]/20 transition-all flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-sm">block</span>
-                Confirm Rejection
-              </button>
-            </div>
-          </div>
-        </div>
-      }
-
       <!-- Archive New Story Modal -->
       @if (showArchiveNewModal()) {
         <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
