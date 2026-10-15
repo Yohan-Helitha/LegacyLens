@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing } from '../../theme';
+import { useAuthStore } from '../../store/authStore';
 
 interface HeaderProps {
   title?: string;
@@ -29,6 +30,9 @@ export const Header: React.FC<HeaderProps> = ({
   notificationLabel = 'Notifications',
 }) => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const user = useAuthStore((state) => state.user);
+  const roles = user?.roles ?? [];
+  const isAdmin = roles.some((r) => String(r).toUpperCase() === 'ADMIN');
 
   const handleMenuPress = () => {
     if (onMenuPress) {
@@ -77,10 +81,19 @@ export const Header: React.FC<HeaderProps> = ({
             </View>
             
             <View style={styles.sidebarMenu}>
-              <TouchableOpacity style={styles.sidebarLink} onPress={() => { setSidebarVisible(false); onNavigate?.('admin_home'); }}>
-                <MaterialIcons name="admin-panel-settings" size={20} color={Colors.secondary} />
-                <Text style={styles.sidebarLinkText}>Admin Dashboard</Text>
-              </TouchableOpacity>
+              {isAdmin && (
+                <TouchableOpacity
+                  style={styles.sidebarLink}
+                  onPress={() => {
+                    setSidebarVisible(false);
+                    onNavigate?.('admin_home');
+                  }}
+                  testID="admin-dashboard-link"
+                >
+                  <MaterialIcons name="admin-panel-settings" size={20} color={Colors.secondary} />
+                  <Text style={styles.sidebarLinkText}>Admin Dashboard</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
           <TouchableOpacity style={styles.sidebarCloseArea} onPress={() => setSidebarVisible(false)} />
