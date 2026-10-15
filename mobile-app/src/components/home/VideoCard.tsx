@@ -35,7 +35,10 @@ export const VideoCard = ({
     : (rawThumb || 'https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=600');
 
   const source = hasVideo ? { uri: resolvedVideoUri } : null;
-  const player = useVideoPlayer(source, (p: any) => {
+  // Only the card that is actually playing gets a source. Every card in the feed used to open its video
+  // straight away, so a few screens of videos were all downloaded and buffered at once, which ran the app out
+  // of memory (java.lang.OutOfMemoryError inside okhttp's HTTP/2 reader). A null source loads nothing.
+  const player = useVideoPlayer(isPlaying ? source : null, (p: any) => {
     p.loop = true;
     p.muted = isMuted;
   });
@@ -84,7 +87,7 @@ export const VideoCard = ({
         {hasVideo && (
           <VideoView
             player={player}
-            style={[styles.premiumHeroImg, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, !isReady && { opacity: 0 }]}
+            style={[styles.premiumHeroImg, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, (!isReady || !isPlaying) && { opacity: 0 }]}
             contentFit="cover"
             nativeControls={false}
           />

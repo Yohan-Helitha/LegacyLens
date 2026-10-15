@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { BackHandler } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ElderDashboard } from '../screens/content-capture/elder_dashboard';
@@ -10,7 +10,13 @@ import { ContentFormScreen } from '../screens/content-capture/ContentFormScreen'
 import { PostHireRequestScreen } from '../screens/content-capture/PostHireRequestScreen';
 import { MyHireRequestsScreen } from '../screens/content-capture/MyHireRequestsScreen';
 import { ApplicantReviewScreen } from '../screens/content-capture/ApplicantReviewScreen';
-import { HireConversationScreen } from '../screens/content-capture/HireConversationScreen';
+import { InApp, InboxMessage } from '../screens/messaging';
+import { ApplicationDetailScreen } from '../screens/content-capture/ApplicationDetailScreen';
+import { SubmittedWorkScreen } from '../screens/content-capture/SubmittedWorkScreen';
+import { WorkDetailScreen } from '../screens/content-capture/WorkDetailScreen';
+import { usePushNotificationEvents } from '../hooks/usePushNotifications';
+import { Header, UserFooter } from '../components/common';
+import { useTranslation } from 'react-i18next';
 import { CreatorRecommendationsScreen } from '../screens/content-capture/CreatorRecommendationsScreen';
 import { YourStories } from '../screens/content-capture/your_stories';
 import type { StoriesTab } from '../screens/content-capture/your_stories';
@@ -41,7 +47,11 @@ type Step =
   | 'hireRequests'
   | 'hireApplicants'
   | 'hireRecommendations'
-  | 'hireConversation';
+  | 'inbox'
+  | 'chat'
+  | 'applicationDetail'
+  | 'submittedWork'
+  | 'workDetail';
 
 /** Which step "back"/"deleted" from the story form, or a cancelled create, should return to. */
 type ReturnOrigin = 'dashboard' | 'stories';
@@ -89,7 +99,12 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
   /** The "I understand the 1-hour deletion window" checkbox — lifted for the same reason as title/voiceNote above. */
   const [hirePostAcknowledged, setHirePostAcknowledged] = useState(false);
   const [applicantsRequest, setApplicantsRequest] = useState<{ id: string; title: string } | null>(null);
-  const [conversation, setConversation] = useState<{ creatorName: string; jobTitle: string } | null>(null);
+  /** Messaging with creators: which chat is open, and the step "back" from it returns to. */
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [chatReturn, setChatReturn] = useState<Step>('inbox');
+  /** The creator application / submitted job the elder is looking at (each has its own screen). */
+  const [applicationId, setApplicationId] = useState<string | null>(null);
+  const [workJobId, setWorkJobId] = useState<string | null>(null);
 
   /** A fresh visit to Screen 8 starts a clean request — a title/clip left over from an abandoned one shouldn't silently reappear. */
   const startFreshHireRequest = () => {
@@ -99,7 +114,31 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
     setStep('hirePost');
   };
 
+  const { t: tc } = useTranslation('contentCapture');
   const { startNewDraft, setMediaUri, setTranscript } = useStoryDraft();
+
+  const openChat = (conversationId: string, origin: Step) => {
+    setChatId(conversationId);
+    setChatReturn(origin);
+    setStep('chat');
+  };
+
+  // What a tapped notification opens: a new message opens that chat, a new application opens it for review,
+  // and newly submitted work opens its review screen. Anything else just opens the app where it is.
+  const openFromNotification = useCallback((data: Record<string, unknown>) => {
+    if (data.type === 'new-message' && typeof data.conversationId === 'string') {
+      setChatId(data.conversationId);
+      setChatReturn('inbox');
+      setStep('chat');
+    } else if (data.type === 'application-received' && typeof data.applicationId === 'string') {
+      setApplicationId(data.applicationId);
+      setStep('applicationDetail');
+    } else if (data.type === 'work-submitted' && typeof data.jobId === 'string') {
+      setWorkJobId(data.jobId);
+      setStep('workDetail');
+    }
+  }, []);
+  usePushNotificationEvents({ onTapped: openFromNotification });
 
   // Hardware back inside the hire flow steps back through it instead of leaving the whole module.
   useEffect(() => {
@@ -110,7 +149,11 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
       hireRequests: 'dashboard',
       hireApplicants: 'hireRequests',
       hireRecommendations: 'dashboard',
-      hireConversation: 'hireRequests',
+      inbox: 'dashboard',
+      chat: chatReturn,
+      applicationDetail: 'hireRequests',
+      submittedWork: 'dashboard',
+      workDetail: 'submittedWork',
     };
     const previous = target[step];
     if (!previous) return;
@@ -119,7 +162,7 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
       return true;
     });
     return () => subscription.remove();
-  }, [step]);
+  }, [step, chatReturn]);
 
   /** Every existing story opens in the shared form — it locks itself read-only for PUBLISHED/ARCHIVED. */
   const openStory = (storyId: string, origin: ReturnOrigin) => {
@@ -158,7 +201,10 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
       setHireJustPosted(false);
       setStep('hireRequests');
     }
-    // 'requests' (incoming), 'voiceHelp' and 'settings' have no screen yet.
+    if (item === 'submittedWork') setStep('submittedWork');
+    // "Requests" is the elder's messages with creators.
+    if (item === 'requests') setStep('inbox');
+    // 'voiceHelp' and 'settings' have no screen yet.
   };
 
   const handleLogout = () => {
@@ -195,6 +241,9 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
             setStep('storyAnalytics');
           }}
           onOpenTrustScore={() => setStep('trustScore')}
+          onOpenChat={(conversationId) => openChat(conversationId, 'dashboard')}
+          onOpenMessages={() => setStep('inbox')}
+          onOpenSubmittedWork={() => setStep('submittedWork')}
           onDrawerNavigate={handleDrawerNavigate}
           onTabPress={handleTabPress}
           onLogout={handleLogout}
@@ -329,12 +378,10 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
             setApplicantsRequest({ id: request.id, title: request.title });
             setStep('hireApplicants');
           }}
-          onMessageCreator={(request: HireRequestItem) => {
-            setConversation({
-              creatorName: request.assignedCreator?.name ?? '',
-              jobTitle: request.title,
-            });
-            setStep('hireConversation');
+          onMessageCreator={() => setStep('inbox')}
+          onOpenApplication={(id) => {
+            setApplicationId(id);
+            setStep('applicationDetail');
           }}
           onDrawerNavigate={handleDrawerNavigate}
           onTabPress={handleTabPress}
@@ -362,11 +409,46 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
         />
       )}
 
-      {step === 'hireConversation' && conversation && (
-        <HireConversationScreen
-          creatorName={conversation.creatorName}
-          jobTitle={conversation.jobTitle}
+      {step === 'inbox' && (
+        <InApp
+          header={<Header title={tc('inbox.headerTitle')} showBack onBackPress={() => setStep('dashboard')} />}
+          footer={<UserFooter activeTab="home" onTabSelect={handleTabPress} />}
+          onOpenConversation={(conversationId) => openChat(conversationId, 'inbox')}
+        />
+      )}
+
+      {step === 'chat' && !!chatId && (
+        <InboxMessage
+          conversationId={chatId}
+          onBack={() => setStep(chatReturn)}
+          header={<Header title={tc('inbox.headerTitle')} showBack onBackPress={() => setStep(chatReturn)} />}
+        />
+      )}
+      {step === 'applicationDetail' && !!applicationId && (
+        <ApplicationDetailScreen
+          applicationId={applicationId}
           onBack={() => setStep('hireRequests')}
+          onOpenChat={(conversationId) => openChat(conversationId, 'applicationDetail')}
+        />
+      )}
+
+      {step === 'submittedWork' && (
+        <SubmittedWorkScreen
+          onOpenWork={(jobId) => {
+            setWorkJobId(jobId);
+            setStep('workDetail');
+          }}
+          onDrawerNavigate={handleDrawerNavigate}
+          onTabPress={handleTabPress}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {step === 'workDetail' && !!workJobId && (
+        <WorkDetailScreen
+          jobId={workJobId}
+          onBack={() => setStep('submittedWork')}
+          onOpenChat={(conversationId) => openChat(conversationId, 'workDetail')}
         />
       )}
     </>

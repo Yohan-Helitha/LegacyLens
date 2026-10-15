@@ -216,7 +216,6 @@ export const YourStories: React.FC<YourStoriesProps> = ({
         visible={drawerVisible}
         onClose={() => setDrawerVisible(false)}
         activeItem="stories"
-        requestsCount={1}
         onNavigate={onDrawerNavigate}
         onLogout={onLogout}
       />

@@ -19,6 +19,7 @@ import {
   BadgeCheck,
   UserSearch,
   ClipboardList,
+  ClipboardCheck,
   Star,
   Mic,
   Settings,
@@ -29,6 +30,9 @@ import type { LucideIcon } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { ContentCaptureColors as D } from './tokens';
+import { useAuthStore } from '../../../store/authStore';
+import { useInboxUnread } from '../../../store/inboxUnreadStore';
+import { useAwaitingWorkCount } from '../../../hooks/useAwaitingWorkCount';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -41,6 +45,7 @@ export type ElderDrawerItem =
   | 'reviews'
   | 'hire'
   | 'myRequests'
+  | 'submittedWork'
   | 'voiceHelp'
   | 'settings';
 
@@ -53,7 +58,7 @@ interface ElderNavDrawerProps {
   userRole?: string;
   userLevel?: string;
   avatarUri?: string;
-  /** Badge count shown on "Requests"; omitted when 0/undefined */
+  /** Badge count shown on "Requests" (messages); defaults to the elder's own unread-message count. */
   requestsCount?: number;
   /** Fired for any item other than the currently active one, right before the drawer closes */
   onNavigate?: (item: ElderDrawerItem) => void;
@@ -72,6 +77,8 @@ const NAV_ITEMS: { key: ElderDrawerItem; labelKey: string; icon: LucideIcon }[] 
   // lives under My Requests (or the floating "Ask for help" button).
   { key: 'hire', labelKey: 'drawer.hire', icon: UserSearch },
   { key: 'myRequests', labelKey: 'drawer.myRequests', icon: ClipboardList },
+  // Work creators have finished for the elder - approve it or send it back with a reason.
+  { key: 'submittedWork', labelKey: 'drawer.submittedWork', icon: ClipboardCheck },
 ];
 
 const HELP_ITEMS: { key: ElderDrawerItem; labelKey: string; icon: LucideIcon }[] = [
@@ -89,15 +96,22 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
   visible,
   onClose,
   activeItem = 'home',
-  userName = 'Anura Bandara',
+  userName: userNameProp,
   userRole,
   userLevel,
   avatarUri,
-  requestsCount,
+  requestsCount: requestsCountProp,
   onNavigate,
   onLogout,
 }) => {
   const { t } = useTranslation('contentCapture');
+  const signedInName = useAuthStore((state) => state.user?.fullName);
+  const userName = userNameProp ?? signedInName ?? '';
+  // The red number on "Requests": unread chat messages, from the one shared copy the whole app uses.
+  const unreadCount = useInboxUnread();
+  const requestsCount = requestsCountProp ?? unreadCount;
+  // Submitted work waiting for the elder's review; reloaded each time the drawer opens.
+  const awaitingWork = useAwaitingWorkCount(visible);
   const insets = useSafeAreaInsets();
   const progress = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
@@ -165,7 +179,7 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
               {avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={s.avatarImage} />
               ) : (
-                <Text style={s.avatarInitial}>{userName.charAt(0)}</Text>
+                <Text style={s.avatarInitial}>{userName.charAt(0).toUpperCase()}</Text>
               )}
             </View>
 
@@ -203,6 +217,11 @@ export const ElderNavDrawer: React.FC<ElderNavDrawerProps> = ({
                   {key === 'requests' && !!requestsCount && (
                     <View style={s.badge}>
                       <Text style={s.badgeText}>{requestsCount}</Text>
+                    </View>
+                  )}
+                  {key === 'submittedWork' && awaitingWork > 0 && (
+                    <View style={s.badge}>
+                      <Text style={s.badgeText}>{awaitingWork}</Text>
                     </View>
                   )}
                 </Pressable>

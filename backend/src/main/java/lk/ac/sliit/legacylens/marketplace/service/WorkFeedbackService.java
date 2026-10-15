@@ -31,4 +31,10 @@ public interface WorkFeedbackService {
 
     /** The admin publishes work both reviewers have approved. */
     WorkFeedbackResponse publish(UUID jobId);
+
+    /**
+     * Publishes every piece of approved work that is not in the users' feed yet - work approved before publishing
+     * was automatic. Safe to run any number of times. Returns how many were published.
+     */
+    int publishBacklog();
 }

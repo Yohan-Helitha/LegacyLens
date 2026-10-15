@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Image,
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,7 +10,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { Award, Mic, ChevronDown } from 'lucide-react-native';
 import { Typography, Spacing, Radii } from '../../theme';
-import { Header, UserFooter } from '../../components/common';
+import { Avatar, Header, UserFooter } from '../../components/common';
 import type { UserTabKey } from '../../components/common';
 import {
   AnalyticsSummaryCard,
@@ -22,6 +22,10 @@ import {
 import type { ElderDrawerItem } from '../../components/module-specific/content-capture';
 import { useAnalyticsSummary } from '../../hooks/useAnalyticsSummary';
 import { useRecentStories } from '../../hooks/useRecentStories';
+import { useConversations } from '../../hooks/useConversations';
+import { useAwaitingWorkCount } from '../../hooks/useAwaitingWorkCount';
+import { resolveImageUrl } from '../../constants/api';
+import type { ConversationSummary } from '../../types/messaging';
 import type { StoryStatus, StorySummary } from '../../types/story';
 import { useTranslation } from 'react-i18next';
 
@@ -73,38 +77,116 @@ const PrimaryActionSection: React.FC<{ onPress?: () => void }> = ({ onPress }) =
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RequestsSection — "Requests for you"
+// WorkToReviewCard - shown only while creators' submitted work is waiting for this elder
 // ─────────────────────────────────────────────────────────────────────────────
-const RequestsSection: React.FC<{ onReplyPress?: () => void }> = ({ onReplyPress }) => {
+const WorkToReviewCard: React.FC<{ onPress?: () => void }> = ({ onPress }) => {
   const { t } = useTranslation('contentCapture');
+  const waiting = useAwaitingWorkCount();
+  if (waiting === 0) return null;
+  const text = t('dashboard.workWaiting', { count: waiting });
   return (
-  <View style={s.section}>
-    <Text style={s.sectionTitle}>{t('dashboard.requestsTitle')}</Text>
-
-    <View style={s.requestCard}>
-      <View style={s.requestHeader}>
-        <Image
-          source={{
-            uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAItitEXnnv_2DgR2DwDVvYzkRdZv9-QSxy4hMdVrlpwl6huv6zdhPonX7oPm0NhibhZFbpMTIhY8_GkuOd31zmS_nqz0Ia7-zroTgbyI1inmxrx25UqKbSmFVDhYyN9ZiczHDRsij2vY6gPjHZEOvMZncArHmdtLpFDx6w3CYmYnrzzbB1MpRh3hqtnAGlj94hDY9PaoukZrL6ruFN02jFNH4sRDyhR8XHbFzyVTuEVMXEAbKcdwWwLA',
-          }}
-          style={s.requestAvatar}
-          accessibilityLabel={t('dashboard.requestAvatarAria', { name: 'Sarah Jenkins' })}
-        />
-        <View style={{ flex: 1 }}>
-          <Text style={s.requestName}>Sarah Jenkins</Text>
-          <Text style={s.requestDesc}>{t('dashboard.requestAsked', { topic: t('dashboard.requestTopic') })}</Text>
-        </View>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [s.workCard, pressed && s.pressedLight]}
+      accessibilityRole="button"
+      accessibilityLabel={`${text}. ${t('dashboard.reviewWork')}`}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={s.workCardText}>{text}</Text>
+        <Text style={s.workCardCta}>{t('dashboard.reviewWork')}</Text>
       </View>
+    </Pressable>
+  );
+};
 
-      <Pressable
-        onPress={onReplyPress}
-        style={({ pressed }) => [s.replyBtn, pressed && s.pressedLight]}
-        accessibilityRole="button"
-      >
-        <Text style={s.replyBtnText}>{t('dashboard.reply')}</Text>
-      </Pressable>
+// ─────────────────────────────────────────────────────────────────────────────
+// RequestsSection — "Requests for you": the creators who have messaged the elder
+// ─────────────────────────────────────────────────────────────────────────────
+/** How many conversations the dashboard shows before "See all messages". */
+const DASHBOARD_MESSAGE_PREVIEW_COUNT = 3;
+
+interface RequestsSectionProps {
+  onOpenChat?: (conversationId: string) => void;
+  onViewAll?: () => void;
+}
+
+const RequestsSection: React.FC<RequestsSectionProps> = ({ onOpenChat, onViewAll }) => {
+  const { t } = useTranslation('contentCapture');
+  const { conversations, loading, loadError } = useConversations('ALL', '');
+  const preview = conversations.slice(0, DASHBOARD_MESSAGE_PREVIEW_COUNT);
+
+  const previewText = (item: ConversationSummary) => {
+    if (item.lastMessageType === 'VOICE_NOTE') return t('dashboardMessages.voiceMessage');
+    return item.lastMessagePreview?.trim() || t('dashboardMessages.noMessagesYet');
+  };
+
+  return (
+    <View style={s.section}>
+      <Text style={s.sectionTitle}>{t('dashboard.requestsTitle')}</Text>
+
+      {loading && conversations.length === 0 && <ActivityIndicator color={D.primary} />}
+
+      {loadError && conversations.length === 0 && (
+        <Text style={s.emptyStoriesText}>{t('dashboardMessages.loadError')}</Text>
+      )}
+
+      {!loading && !loadError && conversations.length === 0 && (
+        <Text style={s.emptyStoriesText}>{t('dashboardMessages.empty')}</Text>
+      )}
+
+      {preview.map((item) => {
+        const name = item.otherParticipant.name;
+        return (
+          <View key={item.id} style={s.requestCard}>
+            <View style={s.requestHeader}>
+              <Avatar size={56} uri={resolveImageUrl(item.otherParticipant.avatarUrl)} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.requestName} numberOfLines={1}>
+                  {name}
+                </Text>
+                {!!item.context?.title && (
+                  <Text style={s.requestDesc} numberOfLines={1}>
+                    {t('dashboardMessages.about', { title: item.context.title })}
+                  </Text>
+                )}
+                <Text style={s.requestPreview} numberOfLines={2}>
+                  {item.lastMessageFromMe ? t('dashboardMessages.you') : ''}
+                  {previewText(item)}
+                </Text>
+              </View>
+              {item.unreadCount > 0 && (
+                <View
+                  style={s.unreadBadge}
+                  accessible
+                  accessibilityLabel={t('dashboardMessages.unreadAria', { count: item.unreadCount })}
+                >
+                  <Text style={s.unreadBadgeText}>{item.unreadCount}</Text>
+                </View>
+              )}
+            </View>
+
+            <Pressable
+              onPress={() => onOpenChat?.(item.id)}
+              style={({ pressed }) => [s.replyBtn, pressed && s.pressedLight]}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('dashboardMessages.openChat')}: ${name}`}
+            >
+              <Text style={s.replyBtnText}>{t('dashboardMessages.openChat')}</Text>
+            </Pressable>
+          </View>
+        );
+      })}
+
+      {conversations.length > 0 && (
+        <Pressable
+          onPress={onViewAll}
+          style={({ pressed }) => [s.viewAllBtn, pressed && s.pressed]}
+          accessibilityRole="button"
+        >
+          <Text style={s.viewAllText}>{t('dashboardMessages.viewAll')}</Text>
+        </Pressable>
+      )}
     </View>
-  </View>
   );
 };
 
@@ -168,7 +250,12 @@ interface ElderDashboardProps {
   onTabPress?: (tab: UserTabKey) => void;
   onOpenTrustScore?: () => void;
   onRecordStory?: () => void;
-  onReplyToRequest?: () => void;
+  /** Opens the chat with a creator who messaged the elder. */
+  onOpenChat?: (conversationId: string) => void;
+  /** Opens the full messages inbox. */
+  onOpenMessages?: () => void;
+  /** Opens Submitted Work, where creators' finished work is approved or declined. */
+  onOpenSubmittedWork?: () => void;
   onViewAllStories?: () => void;
   /** Opens My Stories on its Published tab — where the analytics for each story live. */
   onOpenAnalytics?: () => void;
@@ -185,7 +272,9 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
   onTabPress,
   onOpenTrustScore,
   onRecordStory,
-  onReplyToRequest,
+  onOpenChat,
+  onOpenMessages,
+  onOpenSubmittedWork,
   onViewAllStories,
   onOpenAnalytics,
   onOpenStory,
@@ -215,7 +304,8 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
         />
         <TrustBadgeSection onPress={onOpenTrustScore} />
         <PrimaryActionSection onPress={onRecordStory} />
-        <RequestsSection onReplyPress={onReplyToRequest} />
+        <WorkToReviewCard onPress={onOpenSubmittedWork} />
+        <RequestsSection onOpenChat={onOpenChat} onViewAll={onOpenMessages} />
         <YourStoriesSection
           stories={stories}
           totalCount={totalCount}
@@ -234,7 +324,6 @@ export const ElderDashboard: React.FC<ElderDashboardProps> = ({
         visible={drawerVisible}
         onClose={() => setDrawerVisible(false)}
         activeItem="home"
-        requestsCount={1}
         onNavigate={onDrawerNavigate}
         onLogout={onLogout}
       />
@@ -310,8 +399,19 @@ const s = StyleSheet.create({
     shadowOpacity: 0.04, shadowRadius: 3, elevation: 1, gap: Spacing.md,
   },
   requestHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  requestAvatar: { width: 56, height: 56, borderRadius: 28 },
   requestName:   { fontFamily: Typography.fontDisplay, fontSize: Typography.sizeLG, color: D.onSurface, marginBottom: 2 },
+  workCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: D.secondaryContainer, borderRadius: Radii.xl, padding: Spacing.md, minHeight: 72,
+  },
+  workCardText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeLG, lineHeight: 26, color: D.onSecondaryContainer },
+  workCardCta: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onSecondaryContainer, textDecorationLine: 'underline', marginTop: 2 },
+  requestPreview: { fontFamily: Typography.fontBody, fontSize: Typography.sizeSM, lineHeight: 20, color: D.onSurfaceVariant, marginTop: 2 },
+  unreadBadge: {
+    minWidth: 28, height: 28, borderRadius: 14, paddingHorizontal: 8,
+    backgroundColor: D.secondary, alignItems: 'center', justifyContent: 'center',
+  },
+  unreadBadgeText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.onPrimary },
   requestDesc:   { fontFamily: Typography.fontBody, fontSize: Typography.sizeMD, color: D.onSurfaceVariant },
   replyBtn: {
     backgroundColor: D.secondaryContainer, borderRadius: Radii.lg,

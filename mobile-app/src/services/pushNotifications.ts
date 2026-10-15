@@ -4,6 +4,7 @@ import { requireOptionalNativeModule } from 'expo-modules-core';
 import { pushDeviceApi } from './api/pushDeviceApi';
 import { useAuthStore } from '../store/authStore';
 import { isForUser } from '../utils/notificationOwner';
+import { isNotificationsEnabledFor, useNotificationPrefStore } from '../store/notificationPrefStore';
 
 /**
  * Phone notifications (the ones in the notification bar) for the creator side.
@@ -69,8 +70,13 @@ export async function unregisterThisPhone(sessionToken: string): Promise<void> {
   }
 }
 
-/** Asks permission, gets this phone's push token and tells the server about it. Returns the token, or null if it could not be set up. */
-export async function registerForPushNotifications(): Promise<string | null> {
+/**
+ * Asks permission, gets this phone's push token and tells the server about it. Returns the token, or null if it
+ * could not be set up - or if the person switched notifications off in Notification settings (`force` is for
+ * the moment they switch them back on).
+ */
+export async function registerForPushNotifications(force = false): Promise<string | null> {
+  if (!force && !isNotificationsEnabledFor(useAuthStore.getState().user?.userId)) return null;
   const native = loadNative();
   if (!native) return null;
   const { Notifications, Device } = native;
@@ -84,10 +90,11 @@ export async function registerForPushNotifications(): Promise<string | null> {
     // shared by two people, or after a log-out, someone else's notification is dropped silently.
     Notifications.setNotificationHandler({
       handleNotification: async (notification) => {
-        const mine = isForUser(
-          notification.request.content.data as Record<string, unknown>,
-          useAuthStore.getState().user?.userId,
-        );
+        const userId = useAuthStore.getState().user?.userId;
+        // Only the person it is for, and only if they have not turned notifications off in the app.
+        const mine =
+          isForUser(notification.request.content.data as Record<string, unknown>, userId) &&
+          isNotificationsEnabledFor(userId);
         return {
           shouldShowBanner: mine,
           shouldShowList: mine,
@@ -121,6 +128,93 @@ export async function registerForPushNotifications(): Promise<string | null> {
     console.log('Phone notifications are not available on this build yet:', error instanceof Error ? error.message : error);
     return null;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notification settings (Profile) - allow or block notifications on this phone
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** What the phone itself says about this app's notifications (Android/iOS settings), plus whether the build can do them at all. */
+export interface PushStatus {
+  /** False on an emulator, or a build made without the notification module - nothing can be switched on there. */
+  supported: boolean;
+  permission: 'granted' | 'denied' | 'undetermined';
+  /** False once the person has refused and the phone will not ask again: only the phone's own Settings can change it. */
+  canAskAgain: boolean;
+}
+
+export type EnableResult = 'enabled' | 'blocked' | 'unsupported' | 'failed';
+
+export async function getPushStatus(): Promise<PushStatus> {
+  const native = loadNative();
+  if (!native || !native.Device.isDevice) return { supported: false, permission: 'undetermined', canAskAgain: false };
+  try {
+    const { status, canAskAgain } = await native.Notifications.getPermissionsAsync();
+    return {
+      supported: true,
+      permission: status === 'granted' ? 'granted' : status === 'denied' ? 'denied' : 'undetermined',
+      canAskAgain: canAskAgain ?? true,
+    };
+  } catch {
+    return { supported: false, permission: 'undetermined', canAskAgain: false };
+  }
+}
+
+/**
+ * Switches notifications on: asks the phone for permission if it still can, registers this phone with the
+ * server, and only then records the choice - so the setting never says "on" when nothing was set up.
+ * 'blocked' means the phone itself refuses them (the person must change that in the phone's Settings).
+ */
+export async function enablePushNotifications(): Promise<EnableResult> {
+  const status = await getPushStatus();
+  if (!status.supported) return 'unsupported';
+
+  let permission = status.permission;
+  if (permission !== 'granted') {
+    if (!status.canAskAgain) return 'blocked';
+    try {
+      const asked = await loadNative()?.Notifications.requestPermissionsAsync();
+      permission = asked?.status === 'granted' ? 'granted' : 'denied';
+    } catch {
+      return 'failed';
+    }
+    if (permission !== 'granted') return 'blocked';
+  }
+
+  const token = await registerForPushNotifications(true);
+  if (!token) return 'failed';
+
+  const userId = useAuthStore.getState().user?.userId;
+  if (userId) useNotificationPrefStore.getState().setEnabled(userId, true);
+  return 'enabled';
+}
+
+/**
+ * Switches notifications off: removes this phone from the server so nothing more is sent to it, and only then
+ * records the choice. Returns false (and leaves the setting on) if the server could not be reached.
+ */
+export async function disablePushNotifications(): Promise<boolean> {
+  const { user, token: sessionToken } = useAuthStore.getState();
+  if (!user || !sessionToken) return false;
+
+  try {
+    let pushToken = registeredPushToken;
+    if (!pushToken) {
+      // After an app restart the token is not held in memory; ask for it again (it is the same one).
+      const native = loadNative();
+      if (native && native.Device.isDevice) {
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+        pushToken = (await native.Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
+      }
+    }
+    if (pushToken) await pushDeviceApi.unregister(pushToken, sessionToken);
+    registeredPushToken = null;
+  } catch {
+    return false;
+  }
+
+  useNotificationPrefStore.getState().setEnabled(user.userId, false);
+  return true;
 }
 
 type Listener = (data: Record<string, unknown>) => void;

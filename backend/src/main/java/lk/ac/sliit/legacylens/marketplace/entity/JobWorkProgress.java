@@ -128,6 +128,13 @@ public class JobWorkProgress {
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
 
+    /**
+     * The post this work became in the users' feed. Null until it really is in the feed - which is how work that
+     * was only flagged as published (before publishing created a post) is found and fixed.
+     */
+    @Column(name = "published_story_id")
+    private java.util.UUID publishedStoryId;
+
     /** When the creator first opened this job to work on it; null until then - what the "New" tag on My Work follows. */
     @Column(name = "opened_at")
     private LocalDateTime openedAt;

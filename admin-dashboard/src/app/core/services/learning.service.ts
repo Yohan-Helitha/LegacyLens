@@ -64,6 +64,8 @@ export interface AdminGeneratedFlashcardDto {
   word: string;
   meaning: string;
   culturalNote?: string;
+  /** Pronunciation audio (mp3/mp4) uploaded to the Legacy Lens bucket; saved onto the flashcard on publish. */
+  audioUrl?: string;
 }
 
 export interface AdminGeneratedQuizDto {

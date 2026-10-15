@@ -6,6 +6,7 @@ import { CircleAlert, HandHeart, Plus, Sparkles, X } from 'lucide-react-native';
 import { ConfirmDialog, Header, UserFooter } from '../../components/common';
 import type { UserTabKey } from '../../components/common';
 import {
+  CreatorApplicationCard,
   ElderNavDrawer,
   HireActionButton,
   HireRequestCard,
@@ -15,6 +16,8 @@ import type { ElderDrawerItem } from '../../components/module-specific/content-c
 import { useHireRequests } from '../../hooks/useHireRequests';
 import type { HireRequestItem } from '../../hooks/useHireRequests';
 import { useHireStrings } from '../../hooks/useHireStrings';
+import { useElderApplications } from '../../hooks/useElderApplications';
+import { useTranslation } from 'react-i18next';
 import { Typography, Spacing, Radii } from '../../theme';
 
 interface MyHireRequestsScreenProps {
@@ -23,6 +26,8 @@ interface MyHireRequestsScreenProps {
   onPostRequest?: () => void;
   onViewApplicants?: (request: HireRequestItem) => void;
   onMessageCreator?: (request: HireRequestItem) => void;
+  /** Opens one creator's application, where the elder approves or rejects it and can message them. */
+  onOpenApplication?: (applicationId: string) => void;
   onTabPress?: (tab: UserTabKey) => void;
   onDrawerNavigate?: (item: ElderDrawerItem) => void;
   onLogout?: () => void;
@@ -38,6 +43,7 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
   onPostRequest,
   onViewApplicants,
   onMessageCreator,
+  onOpenApplication,
   onTabPress,
   onDrawerNavigate,
   onLogout,
@@ -47,8 +53,18 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const { t } = useHireStrings();
+  const { t: tc } = useTranslation('contentCapture');
+  const creatorApps = useElderApplications();
   const { requests, loading, refreshing, loadError, deletingId, deleteError, refresh, reload, removeRequest } =
     useHireRequests();
+
+  const pendingApps = creatorApps.applications.filter((item) => item.status === 'PENDING');
+  const decidedApps = creatorApps.applications.filter((item) => item.status !== 'PENDING');
+
+  const refreshAll = () => {
+    refresh();
+    creatorApps.refresh();
+  };
 
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
@@ -78,8 +94,8 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={refresh}
+            refreshing={refreshing || creatorApps.refreshing}
+            onRefresh={refreshAll}
             tintColor={D.primary}
             colors={[D.primary]}
           />
@@ -165,6 +181,47 @@ export const MyHireRequestsScreen: React.FC<MyHireRequestsScreenProps> = ({
             />
           </View>
         )}
+
+        {/* Creators who applied to this elder's marketplace opportunities — accept one, then chat. */}
+        <View style={s.applicantsSection}>
+          <Text style={s.sectionTitle} accessibilityRole="header">
+            {tc('creatorApps.title')}
+          </Text>
+          <Text style={s.sectionSubtitle}>{tc('creatorApps.subtitle')}</Text>
+
+          {creatorApps.loading && creatorApps.applications.length === 0 && (
+            <ActivityIndicator size="small" color={D.primary} accessibilityLabel={t('common.loading')} />
+          )}
+
+          {creatorApps.loadError && creatorApps.applications.length === 0 && (
+            <View style={s.inlineState}>
+              <Text style={s.stateBody}>{tc('creatorApps.loadError')}</Text>
+              <HireActionButton label={t('common.retry')} variant="neutral" onPress={creatorApps.reload} />
+            </View>
+          )}
+
+          {!creatorApps.loading && !creatorApps.loadError && creatorApps.applications.length === 0 && (
+            <Text style={s.stateBody}>{tc('creatorApps.empty')}</Text>
+          )}
+
+          {pendingApps.length > 0 && (
+            <>
+              <Text style={s.groupTitle}>{tc('creatorApps.waitingTitle')}</Text>
+              {pendingApps.map((application) => (
+                <CreatorApplicationCard key={application.id} application={application} onPress={(item) => onOpenApplication?.(item.id)} />
+              ))}
+            </>
+          )}
+
+          {decidedApps.length > 0 && (
+            <>
+              <Text style={s.groupTitle}>{tc('creatorApps.decidedTitle')}</Text>
+              {decidedApps.map((application) => (
+                <CreatorApplicationCard key={application.id} application={application} onPress={(item) => onOpenApplication?.(item.id)} />
+              ))}
+            </>
+          )}
+        </View>
       </ScrollView>
 
       {/* Persistent shortcut to post a new request — the drawer no longer has
@@ -221,7 +278,8 @@ const s = StyleSheet.create({
     flexGrow: 1,
     paddingTop: Spacing.lg,
     paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xl,
+    // Clears the floating "Ask for help" button so the last card's actions stay tappable.
+    paddingBottom: 160,
     gap: Spacing.md,
   },
   title: {
@@ -252,6 +310,28 @@ const s = StyleSheet.create({
   noticeClose: { width: 44, height: 44, margin: -10, alignItems: 'center', justifyContent: 'center' },
 
   list: { gap: Spacing.md },
+
+  applicantsSection: { gap: Spacing.sm, marginTop: Spacing.sm },
+  sectionTitle: {
+    fontFamily: Typography.fontDisplay,
+    fontSize: Typography.sizeXL,
+    lineHeight: 34,
+    color: D.onSurface,
+  },
+  groupTitle: {
+    fontFamily: Typography.fontBodySemi,
+    fontSize: Typography.sizeMD,
+    lineHeight: 24,
+    color: D.onSurface,
+    marginTop: Spacing.sm,
+  },
+  sectionSubtitle: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    lineHeight: 21,
+    color: D.onSurfaceVariant,
+  },
+  inlineState: { gap: Spacing.sm },
 
   centered: {
     alignItems: 'center',
