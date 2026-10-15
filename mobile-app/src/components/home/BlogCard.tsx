@@ -11,17 +11,26 @@ export const BlogCard = ({ b, item, setActivePostId, setCommentModalVisible, onN
   const rawThumb = b.thumbnail || item?.thumbnail || item?.imageUrl;
   const resolvedThumbnail = rawThumb && !rawThumb.startsWith('http')
     ? getMediaUrl(rawThumb.startsWith('/uploads/') ? rawThumb : (rawThumb.startsWith('uploads/') ? `/${rawThumb}` : `/uploads/${rawThumb.replace(/^\/+/, '')}`))
-    : (rawThumb || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=600');
+    : (rawThumb || null);
 
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={() => onNavigate?.('blog', item || b)} style={styles.premiumCard}>
-      <View style={styles.premiumHeroBox}>
-        <Image source={{ uri: resolvedThumbnail }} style={styles.premiumHeroImg} resizeMode="cover" />
-        <View style={styles.premiumBadge}>
-          <MaterialIcons name="menu-book" size={14} color="#fff" />
-          <Text style={styles.premiumBadgeText}>READ STORY</Text>
+      {resolvedThumbnail ? (
+        <View style={styles.premiumHeroBox}>
+          <Image source={{ uri: resolvedThumbnail }} style={styles.premiumHeroImg} resizeMode="cover" />
+          <View style={styles.premiumBadge}>
+            <MaterialIcons name="menu-book" size={14} color="#fff" />
+            <Text style={styles.premiumBadgeText}>READ STORY</Text>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={[styles.premiumHeroBox, { height: 64, backgroundColor: '#004343' }]}>
+          <View style={[styles.premiumBadge, { top: 14, left: 16 }]}>
+            <MaterialIcons name="menu-book" size={14} color="#fff" />
+            <Text style={styles.premiumBadgeText}>READ STORY</Text>
+          </View>
+        </View>
+      )}
 
       <View style={styles.premiumContent}>
         <Text style={styles.premiumTitle} numberOfLines={2}>{b.title}</Text>
