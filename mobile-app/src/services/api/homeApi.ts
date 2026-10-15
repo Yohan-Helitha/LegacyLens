@@ -38,6 +38,7 @@ export interface FeedItemResponse {
   topic?: string;
   avatar?: string;
   bars?: number[];
+  mediaUrl?: string;
 }
 
 export interface FeaturedKeeperResponse {
