@@ -7,5 +7,6 @@ package lk.ac.sliit.legacylens.stories.entity;
  */
 public enum MediaType {
     AUDIO,
-    VIDEO
+    VIDEO,
+    BLOG
 }
