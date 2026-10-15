@@ -1,23 +1,20 @@
 package lk.ac.sliit.legacylens.admin.dto;
 
-
-
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Data
 public class CreateOpportunityRequest {
-    @Size(max = 200)
+    @Size(max = 500)
     private String title;
 
     private String description;
 
-    @Size(max = 500)
+    /** No Size limit: heroImageUrl can be a base64 Data URL or remote image URL */
     private String heroImageUrl;
 
     @Size(max = 150)
@@ -59,7 +56,7 @@ public class CreateOpportunityRequest {
     @Size(max = 20)
     private String status;
 
-    private UUID elderId;
+    private String elderId;
 
     @Size(max = 150)
     private String elderName;

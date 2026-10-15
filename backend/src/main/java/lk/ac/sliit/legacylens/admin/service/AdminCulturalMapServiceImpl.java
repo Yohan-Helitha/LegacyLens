@@ -13,11 +13,15 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class AdminCulturalMapServiceImpl implements AdminCulturalMapService {
 
         private final MapService mapService;
         private final AdminAuditService auditService;
+
+        public AdminCulturalMapServiceImpl(MapService mapService, AdminAuditService auditService) {
+                this.mapService = mapService;
+                this.auditService = auditService;
+        }
 
         @Override
         public List<MapLandmarkResponse> getAllLandmarks() {

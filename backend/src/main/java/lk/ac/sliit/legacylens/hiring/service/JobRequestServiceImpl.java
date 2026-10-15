@@ -1,5 +1,8 @@
 package lk.ac.sliit.legacylens.hiring.service;
 
+import lk.ac.sliit.legacylens.admin.entity.AudioReviewStatus;
+import lk.ac.sliit.legacylens.admin.entity.OpportunityAudio;
+import lk.ac.sliit.legacylens.admin.repository.OpportunityAudioRepository;
 import lk.ac.sliit.legacylens.common.exception.InvalidRequestException;
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
 import lk.ac.sliit.legacylens.common.exception.StateTransitionException;
@@ -11,6 +14,8 @@ import lk.ac.sliit.legacylens.hiring.entity.JobRequestStatus;
 import lk.ac.sliit.legacylens.hiring.repository.JobRequestRepository;
 import lk.ac.sliit.legacylens.users.entity.User;
 import lk.ac.sliit.legacylens.users.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +27,8 @@ import java.util.UUID;
 
 @Service
 public class JobRequestServiceImpl implements JobRequestService {
+
+    private static final Logger log = LoggerFactory.getLogger(JobRequestServiceImpl.class);
 
     /** Subfolder under the storage root that job-request voice notes are saved into. */
     private static final String VOICE_NOTE_SUBFOLDER = "job-requests";
@@ -38,19 +45,22 @@ public class JobRequestServiceImpl implements JobRequestService {
     private final MediaStorageService mediaStorageService;
     private final JobRequestStateMachine jobRequestStateMachine;
     private final AdminNotificationPort adminNotificationPort;
+    private final OpportunityAudioRepository opportunityAudioRepository;
 
     public JobRequestServiceImpl(
             JobRequestRepository jobRequestRepository,
             UserRepository userRepository,
             MediaStorageService mediaStorageService,
             JobRequestStateMachine jobRequestStateMachine,
-            AdminNotificationPort adminNotificationPort) {
+            AdminNotificationPort adminNotificationPort,
+            OpportunityAudioRepository opportunityAudioRepository) {
 
         this.jobRequestRepository = jobRequestRepository;
         this.userRepository = userRepository;
         this.mediaStorageService = mediaStorageService;
         this.jobRequestStateMachine = jobRequestStateMachine;
         this.adminNotificationPort = adminNotificationPort;
+        this.opportunityAudioRepository = opportunityAudioRepository;
     }
 
     @Override
@@ -61,6 +71,9 @@ public class JobRequestServiceImpl implements JobRequestService {
         jobRequestRepository.save(jobRequest);
 
         adminNotificationPort.notify(jobRequest.getId());
+
+        // Automatically feed data into opportunity_audios table for the admin dashboard
+        syncToOpportunityAudio(jobRequest);
 
         return JobRequestResponse.from(jobRequest);
     }
@@ -91,6 +104,9 @@ public class JobRequestServiceImpl implements JobRequestService {
 
         adminNotificationPort.notify(jobRequest.getId());
 
+        // Automatically feed data into opportunity_audios table for the admin dashboard
+        syncToOpportunityAudio(jobRequest);
+
         return JobRequestResponse.from(jobRequest);
     }
 
@@ -110,7 +126,54 @@ public class JobRequestServiceImpl implements JobRequestService {
         }
 
         mediaStorageService.delete(jobRequest.getVoiceNoteUrl());
+        if (jobRequest.getVoiceNoteUrl() != null && !jobRequest.getVoiceNoteUrl().isBlank()) {
+            try {
+                opportunityAudioRepository.findByAudioUrl(jobRequest.getVoiceNoteUrl())
+                        .ifPresent(opportunityAudioRepository::delete);
+            } catch (Exception e) {
+                log.warn("Could not remove OpportunityAudio on job request delete: {}", e.getMessage());
+            }
+        }
         jobRequestRepository.delete(jobRequest);
+    }
+
+    private void syncToOpportunityAudio(JobRequest jr) {
+        if (jr == null || jr.getElder() == null) {
+            return;
+        }
+        try {
+            User elder = jr.getElder();
+            String audioUrl = jr.getVoiceNoteUrl();
+            if (audioUrl == null || audioUrl.isBlank()) {
+                audioUrl = "job-request://" + jr.getId();
+            }
+
+            OpportunityAudio audio = opportunityAudioRepository.findByAudioUrl(audioUrl)
+                    .orElseGet(OpportunityAudio::new);
+
+            audio.setKnowledgeHolder(elder);
+            audio.setElderName(elder.getFullName() != null ? elder.getFullName() : "Elder Knowledge Keeper");
+            audio.setElderAvatarUrl(elder.getProfilePhotoUrl());
+            audio.setVerified(elder.isPhoneVerified());
+
+            String location = "Sri Lanka";
+            if (elder.getCity() != null) {
+                location = elder.getCity().getName() + (elder.getCity().getRegion() != null ? ", " + elder.getCity().getRegion() : "");
+            }
+            audio.setLocation(location);
+            audio.setRecordedAt(jr.getCreatedAt() != null ? jr.getCreatedAt() : LocalDateTime.now());
+            audio.setDuration("02:45");
+            audio.setAudioUrl(audioUrl);
+            audio.setTopic(jr.getTitle());
+            audio.setTags("Oral History, Cultural Documentation, Traditional Heritage");
+            audio.setTranscript(jr.getDescription() != null && !jr.getDescription().isBlank() ? jr.getDescription() : jr.getTitle());
+            audio.setStatus(AudioReviewStatus.UNLISTENED);
+
+            opportunityAudioRepository.save(audio);
+            log.info("Auto-synced job_request {} to opportunity_audios (id: {})", jr.getId(), audio.getId());
+        } catch (Exception e) {
+            log.error("Failed to auto-sync job_request {} to opportunity_audios: {}", jr.getId(), e.getMessage());
+        }
     }
 
     private JobRequest buildJobRequest(UUID elderId, JobRequestSubmissionDto request) {

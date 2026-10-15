@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lk.ac.sliit.legacylens.admin.dto.AdminOpportunityResponse;
 import lk.ac.sliit.legacylens.admin.dto.CreateOpportunityRequest;
 import lk.ac.sliit.legacylens.admin.dto.OpportunityAudioResponse;
+import lk.ac.sliit.legacylens.admin.dto.OpportunityTranscriptionResponse;
 import lk.ac.sliit.legacylens.admin.dto.UpdateOpportunityStatusRequest;
 import lk.ac.sliit.legacylens.admin.service.AdminOpportunityService;
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
@@ -37,6 +38,21 @@ public class AdminOpportunityController {
                 adminOpportunityService.getAudioSubmission(id)));
     }
 
+    @PatchMapping("/audios/{id}/status")
+    public ResponseEntity<ApiResponse<OpportunityAudioResponse>> updateAudioStatus(
+            @PathVariable String id,
+            @RequestParam String status) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                adminOpportunityService.updateAudioStatus(id, status)));
+    }
+
+    @PostMapping("/audios/{id}/transcribe")
+    public ResponseEntity<ApiResponse<OpportunityTranscriptionResponse>> autoTranscribeAudio(
+            @PathVariable String id) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                adminOpportunityService.transcribeAudio(id)));
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<AdminOpportunityResponse>> createOpportunity(
             @AuthenticationPrincipal CustomUserDetails principal,
@@ -68,6 +84,16 @@ public class AdminOpportunityController {
     public ResponseEntity<ApiResponse<AdminOpportunityResponse>> getOpportunity(@PathVariable String id) {
         return ResponseEntity.ok(ApiResponse.ok(
                 adminOpportunityService.getOpportunity(id)));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<AdminOpportunityResponse>> updateOpportunity(
+            @PathVariable String id,
+            @Valid @RequestBody CreateOpportunityRequest request,
+            @RequestHeader(value = "X-Admin-Id", defaultValue = "unknown") String adminId,
+            @RequestHeader(value = "X-Admin-Name", defaultValue = "Admin") String adminName) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                adminOpportunityService.updateOpportunity(id, request, adminId, adminName)));
     }
 
     @PatchMapping("/{id}/status")

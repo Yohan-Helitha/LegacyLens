@@ -17,4 +17,6 @@ public class UpdateStoryRequest {
     private String title;
 
     private String description;
+
+    private String imageUrl;
 }

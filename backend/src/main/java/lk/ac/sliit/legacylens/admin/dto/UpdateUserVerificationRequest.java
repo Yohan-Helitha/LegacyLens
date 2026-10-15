@@ -30,4 +30,9 @@ public class UpdateUserVerificationRequest {
      * Optional audit or rejection note.
      */
     private String notes;
+
+    /**
+     * Optional admin phone verification override flag.
+     */
+    private Boolean phoneVerified;
 }

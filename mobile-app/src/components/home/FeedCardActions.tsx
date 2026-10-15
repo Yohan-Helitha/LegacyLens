@@ -13,6 +13,7 @@ interface FeedCardActionsProps {
   postId?: string;
   initialLikes: number;
   initialComments: number;
+  initialLiked?: boolean;
   onLikePress?: () => void;
   onLikeChange?: (postId: string, newLikesCount: number, liked: boolean) => void;
   onCommentPress: () => void;
@@ -23,22 +24,42 @@ export const FeedCardActions = ({
   postId,
   initialLikes,
   initialComments,
+  initialLiked,
   onLikePress,
   onLikeChange,
   onCommentPress,
   theme = 'light'
 }: FeedCardActionsProps) => {
-  const [liked, setLiked] = useState(() => (postId ? userLikesStorage.isLikedSync(postId) : false));
+  const [liked, setLiked] = useState(() => {
+    if (initialLiked !== undefined && initialLiked !== null) {
+      return Boolean(initialLiked);
+    }
+    return postId ? userLikesStorage.isLikedSync(postId) : false;
+  });
   const [saved, setSaved] = useState(false);
   const [likesCount, setLikesCount] = useState(initialLikes ?? 0);
   const [commentsCount, setCommentsCount] = useState(initialComments ?? 0);
+
+  useEffect(() => {
+    if (initialLiked !== undefined && initialLiked !== null) {
+      const isL = Boolean(initialLiked);
+      setLiked(isL);
+      if (postId && isL) {
+        userLikesStorage.setLiked(postId, true);
+      }
+    }
+  }, [initialLiked, postId]);
 
   useEffect(() => {
     if (!postId) return;
     let isMounted = true;
     userLikesStorage.isLiked(postId).then((isL) => {
       if (isMounted) {
-        setLiked(isL);
+        if (isL) {
+          setLiked(true);
+        } else if (initialLiked === undefined || initialLiked === null) {
+          setLiked(false);
+        }
       }
     });
     const unsubscribe = userLikesStorage.subscribe((id, isL) => {
@@ -50,7 +71,7 @@ export const FeedCardActions = ({
       isMounted = false;
       unsubscribe();
     };
-  }, [postId]);
+  }, [postId, initialLiked]);
 
   useEffect(() => {
     if (initialComments !== undefined && initialComments !== null) {

@@ -31,6 +31,9 @@ function toFormData(payload: CreateStoryPayload): FormData {
     // it isn't a real web File/Blob, so the DOM FormData typings don't cover it.
     formData.append('media', payload.media as unknown as Blob);
   }
+  if (payload.thumbnail) {
+    formData.append('thumbnail', payload.thumbnail as unknown as Blob);
+  }
   return formData;
 }
 

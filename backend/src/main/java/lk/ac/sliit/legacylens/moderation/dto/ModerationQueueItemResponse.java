@@ -3,12 +3,14 @@ package lk.ac.sliit.legacylens.moderation.dto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 
 import java.util.UUID;
 
 @Data
 @Builder
+@NoArgsConstructor
 @AllArgsConstructor
 public class ModerationQueueItemResponse {
     private UUID id;
@@ -28,4 +30,7 @@ public class ModerationQueueItemResponse {
     private String rejectionNotes;
     private String createdAt;
     private String updatedAt;
+    private String mediaUrl;
+    private String videoUrl;
+    private Long mediaDurationMillis;
 }

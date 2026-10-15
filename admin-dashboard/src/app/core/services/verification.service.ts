@@ -103,10 +103,13 @@ export class VerificationService {
    * Approve user verification
    * Endpoint: POST /api/admin/verifications/{userId}/approve
    */
-  approveUser(userId: string, note?: string): Observable<AdminUserVerificationResponse> {
+  approveUser(userId: string, note?: string, verifyPhone?: boolean): Observable<AdminUserVerificationResponse> {
     let params = new HttpParams();
     if (note) {
       params = params.set('note', note);
+    }
+    if (verifyPhone) {
+      params = params.set('verifyPhone', 'true');
     }
     return this.http.post<any>(
       `${environment.apiUrl}/admin/verifications/${userId}/approve`,

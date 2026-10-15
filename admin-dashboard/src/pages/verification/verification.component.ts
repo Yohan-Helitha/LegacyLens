@@ -22,10 +22,13 @@ export type VerificationTab = 'verification' | 'directory';
       <!-- Toast Alert Notification -->
       @if (toastMessage()) {
         <div
-          class="fixed top-5 right-6 z-50 flex items-center gap-3 bg-[#004343] text-white px-5 py-3.5 rounded-xl shadow-2xl border border-emerald-400/30 transition-all duration-300 animate-bounce">
-          <span class="material-symbols-outlined text-emerald-300 text-xl">verified_user</span>
-          <div class="text-xs font-semibold">{{ toastMessage() }}</div>
-          <button (click)="toastMessage.set(null)" class="text-white/70 hover:text-white ml-2 text-xs cursor-pointer">✕</button>
+          [class]="toastType() === 'error' ? 'bg-red-900 border-red-500/50 shadow-red-950/40 text-white' : 'bg-[#004343] border-emerald-400/30 text-white shadow-emerald-950/40'"
+          class="fixed top-5 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl border transition-all duration-300 max-w-xl animate-bounce">
+          <span class="material-symbols-outlined text-xl shrink-0" [class.text-red-300]="toastType() === 'error'" [class.text-emerald-300]="toastType() === 'success'">
+            {{ toastType() === 'error' ? 'error' : 'verified_user' }}
+          </span>
+          <div class="text-xs font-semibold leading-relaxed">{{ toastMessage() }}</div>
+          <button (click)="toastMessage.set(null)" class="text-white/70 hover:text-white ml-2 text-xs cursor-pointer shrink-0">✕</button>
         </div>
       }
     
@@ -626,7 +629,7 @@ export type VerificationTab = 'verification' | 'directory';
                                       </div>
                                       <!-- Action 2: Approve & Activate -->
                                       <div class="p-4 rounded-xl bg-[#004343]/5 border border-[#004343]/20 flex flex-col justify-between space-y-3">
-                                        <div class="space-y-1.5">
+                                        <div class="space-y-2">
                                           <div class="flex items-center gap-1.5 text-xs font-bold text-[#004343]">
                                             <span class="material-symbols-outlined text-sm">verified_user</span>
                                             <span>Approve & Activate Role</span>
@@ -634,6 +637,31 @@ export type VerificationTab = 'verification' | 'directory';
                                           <p class="text-xs text-[#3f4948]">
                                             Sets user role status to ACTIVE in database and assigns verified standing.
                                           </p>
+
+                                          @if (!u.phoneVerified) {
+                                            <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs flex flex-col gap-1.5">
+                                              <div class="flex items-start gap-2">
+                                                <span class="material-symbols-outlined text-amber-600 text-base shrink-0 mt-0.5">warning</span>
+                                                <div>
+                                                  <span class="font-bold">Unverified Phone Number</span>
+                                                  <p class="text-[11px] text-amber-800">
+                                                    User phone <span class="font-mono font-semibold">{{ u.phoneNumber }}</span> has not completed SMS OTP verification.
+                                                  </p>
+                                                </div>
+                                              </div>
+                                              <label class="flex items-center gap-2 pt-1 border-t border-amber-200 cursor-pointer select-none">
+                                                <input
+                                                  type="checkbox"
+                                                  [(ngModel)]="forceVerifyPhone"
+                                                  class="rounded text-[#004343] focus:ring-[#004343] cursor-pointer"
+                                                />
+                                                <span class="text-[11px] font-semibold text-[#004343]">
+                                                  Admin Override: Force verify phone number
+                                                </span>
+                                              </label>
+                                            </div>
+                                          }
+
                                           <input
                                             type="text"
                                             [(ngModel)]="auditNote"
@@ -995,6 +1023,18 @@ export class VerificationComponent implements OnInit {
 
   // Toast message
   toastMessage = signal<string | null>(null);
+  toastType = signal<'success' | 'error'>('success');
+  forceVerifyPhone = false;
+
+  showToast(message: string, type: 'success' | 'error' = 'success', duration = 5000): void {
+    this.toastMessage.set(message);
+    this.toastType.set(type);
+    setTimeout(() => {
+      if (this.toastMessage() === message) {
+        this.toastMessage.set(null);
+      }
+    }, duration);
+  }
 
   // Export PDF Modal
   showExportPdfModal = signal<boolean>(false);
@@ -1072,7 +1112,14 @@ export class VerificationComponent implements OnInit {
         if (data.length > 0) {
           const currentId = this.selectedUser()?.id;
           const found = data.find(u => u.id === currentId);
-          this.selectedUser.set(found || data[0]);
+          // If viewing verification queue under PENDING and current user was approved/no longer pending,
+          // advance selection to the next pending user in the list
+          if (this.currentTab() === 'verification' && this.activeStatusFilter() === 'PENDING' && found && found.verificationStatus === 'VERIFIED') {
+            const nextPending = data.find(u => u.verificationStatus === 'PENDING' || u.roleDetails?.some(r => r.status === 'INACTIVE' && r.roleType !== 'GENERAL_USER'));
+            this.selectedUser.set(nextPending || found);
+          } else {
+            this.selectedUser.set(found || data[0]);
+          }
         } else {
           this.selectedUser.set(null);
         }
@@ -1081,8 +1128,7 @@ export class VerificationComponent implements OnInit {
         this.hasError.set(true);
         this.isLoading.set(false);
         console.error('Failed to load user verifications from backend:', err);
-        this.toastMessage.set('Could not fetch user verifications from server.');
-        setTimeout(() => this.toastMessage.set(null), 4000);
+        this.showToast('Could not fetch user verifications from server.', 'error');
       }
     });
   }
@@ -1285,6 +1331,7 @@ export class VerificationComponent implements OnInit {
 
   selectUser(u: AdminUserVerificationResponse): void {
     this.selectedUser.set(u);
+    this.forceVerifyPhone = false;
   }
 
   hasRole(u: AdminUserVerificationResponse, role: string): boolean {
@@ -1305,18 +1352,34 @@ export class VerificationComponent implements OnInit {
     if (!current) return;
 
     this.isActionLoading.set(true);
-    this.verificationService.approveUser(current.id, this.auditNote).subscribe({
+    this.verificationService.approveUser(current.id, this.auditNote, this.forceVerifyPhone).subscribe({
       next: () => {
         this.isActionLoading.set(false);
-        this.toastMessage.set(`User "${current.fullName}" verified and roles activated successfully!`);
+        this.forceVerifyPhone = false;
+        this.showToast(`User "${current.fullName}" verified and roles activated successfully!`, 'success');
+
+        // Optimistically update memory so counts and status update immediately
+        const updatedUsers = this.users().map(u => {
+          if (u.id === current.id) {
+            return {
+              ...u,
+              verificationStatus: 'VERIFIED',
+              accountStatus: 'ACTIVE',
+              phoneVerified: this.forceVerifyPhone ? true : u.phoneVerified,
+              roleDetails: u.roleDetails ? u.roleDetails.map(r => ({ ...r, status: 'ACTIVE' })) : []
+            };
+          }
+          return u;
+        });
+        this.users.set(updatedUsers);
+
         this.loadVerifications();
-        setTimeout(() => this.toastMessage.set(null), 4500);
       },
       error: (err) => {
         this.isActionLoading.set(false);
         console.error('Failed to approve user:', err);
-        this.toastMessage.set(`Failed to approve "${current.fullName}". Please try again.`);
-        setTimeout(() => this.toastMessage.set(null), 4500);
+        const errMsg = err?.error?.message || err?.message || 'Verification could not be approved.';
+        this.showToast(`Approval Failed: ${errMsg}`, 'error', 7000);
       }
     });
   }
@@ -1329,15 +1392,14 @@ export class VerificationComponent implements OnInit {
     this.verificationService.rejectUser(current.id, this.rejectionReason || 'Rejected by Admin').subscribe({
       next: () => {
         this.isActionLoading.set(false);
-        this.toastMessage.set(`Verification rejected for "${current.fullName}".`);
+        this.showToast(`Verification rejected for "${current.fullName}".`, 'success');
         this.loadVerifications();
-        setTimeout(() => this.toastMessage.set(null), 4500);
       },
       error: (err) => {
         this.isActionLoading.set(false);
         console.error('Failed to reject user:', err);
-        this.toastMessage.set(`Failed to update status for "${current.fullName}". Please try again.`);
-        setTimeout(() => this.toastMessage.set(null), 4500);
+        const errMsg = err?.error?.message || err?.message || 'Could not reject user.';
+        this.showToast(`Failed: ${errMsg}`, 'error', 6000);
       }
     });
   }
@@ -1356,15 +1418,14 @@ export class VerificationComponent implements OnInit {
       next: () => {
         this.isActionLoading.set(false);
         this.userToSuspend.set(null);
-        this.toastMessage.set(`Account for "${u.fullName}" has been suspended.`);
+        this.showToast(`Account for "${u.fullName}" has been suspended.`, 'success');
         this.loadVerifications();
-        setTimeout(() => this.toastMessage.set(null), 4500);
       },
       error: (err) => {
         this.isActionLoading.set(false);
         console.error('Failed to suspend user:', err);
-        this.toastMessage.set(`Failed to suspend "${u.fullName}". Please try again.`);
-        setTimeout(() => this.toastMessage.set(null), 4500);
+        const errMsg = err?.error?.message || err?.message || 'Could not suspend user.';
+        this.showToast(`Failed: ${errMsg}`, 'error', 6000);
       }
     });
   }
@@ -1374,15 +1435,14 @@ export class VerificationComponent implements OnInit {
     this.verificationService.reactivateUser(u.id).subscribe({
       next: () => {
         this.isActionLoading.set(false);
-        this.toastMessage.set(`Account for "${u.fullName}" reactivated successfully.`);
+        this.showToast(`Account for "${u.fullName}" reactivated successfully.`, 'success');
         this.loadVerifications();
-        setTimeout(() => this.toastMessage.set(null), 4500);
       },
       error: (err) => {
         this.isActionLoading.set(false);
         console.error('Failed to reactivate user:', err);
-        this.toastMessage.set(`Failed to reactivate "${u.fullName}". Please try again.`);
-        setTimeout(() => this.toastMessage.set(null), 4500);
+        const errMsg = err?.error?.message || err?.message || 'Could not reactivate user.';
+        this.showToast(`Failed: ${errMsg}`, 'error', 6000);
       }
     });
   }
@@ -1400,15 +1460,14 @@ export class VerificationComponent implements OnInit {
       next: () => {
         this.isActionLoading.set(false);
         this.userToDelete.set(null);
-        this.toastMessage.set(`User "${u.fullName}" was permanently deleted.`);
+        this.showToast(`User "${u.fullName}" was permanently deleted.`, 'success');
         this.loadVerifications();
-        setTimeout(() => this.toastMessage.set(null), 4500);
       },
       error: (err) => {
         this.isActionLoading.set(false);
         console.error('Failed to delete user:', err);
-        this.toastMessage.set(`Failed to delete "${u.fullName}". Please try again.`);
-        setTimeout(() => this.toastMessage.set(null), 4500);
+        const errMsg = err?.error?.message || err?.message || 'Could not delete user.';
+        this.showToast(`Failed: ${errMsg}`, 'error', 6000);
       }
     });
   }

@@ -21,14 +21,17 @@ public interface TagRepository extends JpaRepository<Tag, UUID> {
 
     Page<Tag> findByIsApproved(boolean isApproved, Pageable pageable);
 
+    Page<Tag> findByCategory(String category, Pageable pageable);
+
+    Page<Tag> findByCategoryAndIsApproved(String category, boolean isApproved, Pageable pageable);
+
     @Query("SELECT t FROM Tag t WHERE (:category IS NULL OR t.category = :category) " +
            "AND (:isApproved IS NULL OR t.isApproved = :isApproved) " +
-           "AND (:query IS NULL OR LOWER(t.canonicalName) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "     OR LOWER(t.normalizedName) LIKE LOWER(CONCAT('%', :query, '%')))")
-    Page<Tag> searchTags(@Param("query") String query,
-                         @Param("category") String category,
-                         @Param("isApproved") Boolean isApproved,
-                         Pageable pageable);
+           "AND (LOWER(t.canonicalName) LIKE :pattern OR LOWER(t.normalizedName) LIKE :pattern)")
+    Page<Tag> searchWithPattern(@Param("pattern") String pattern,
+                                @Param("category") String category,
+                                @Param("isApproved") Boolean isApproved,
+                                Pageable pageable);
 
     @Query("SELECT t FROM Tag t WHERE t.normalizedName IN :names")
     List<Tag> findAllByNormalizedNameIn(@Param("names") List<String> names);

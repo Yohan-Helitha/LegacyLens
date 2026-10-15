@@ -84,6 +84,16 @@ public class StoryServiceImpl implements StoryService {
 
         if (media != null && !media.isEmpty()) {
             attachMedia(story, media, request.getMediaDurationMillis());
+        } else if (request.getMethod() == StoryMethod.WRITTEN) {
+            story.setMediaType(MediaType.BLOG);
+        }
+
+        MultipartFile thumbnail = request.getThumbnail();
+        if (thumbnail != null && !thumbnail.isEmpty()) {
+            String thumbUrl = mediaStorageService.storeBlogImage(thumbnail, "thumbnails");
+            story.setImageUrl(thumbUrl);
+        } else if (request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+            story.setImageUrl(request.getImageUrl());
         }
 
         storyRepository.save(story);
@@ -112,6 +122,9 @@ public class StoryServiceImpl implements StoryService {
 
         story.setTitle(request.getTitle());
         story.setDescription(request.getDescription());
+        if (request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+            story.setImageUrl(request.getImageUrl());
+        }
         storyRepository.save(story);
 
         return toResponse(story);
@@ -219,8 +232,8 @@ public class StoryServiceImpl implements StoryService {
                 .method(story.getMethod().name())
                 .mediaType(story.getMediaType() != null && story.getMediaType().isClip() ? story.getMediaType().name() : null)
                 .mediaUrl(mediaUrl)
-                .mediaDurationMillis(story.getMediaDurationMillis())
                 .imageUrl(story.getImageUrl())
+                .mediaDurationMillis(story.getMediaDurationMillis())
                 .createdAt(story.getCreatedAt())
                 .updatedAt(story.getUpdatedAt())
                 .publishedAt(story.getPublishedAt())
