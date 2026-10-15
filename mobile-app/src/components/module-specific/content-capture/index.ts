@@ -24,6 +24,7 @@ export { HireActionButton } from './HireActionButton';
 export { HireStatusPill } from './HireStatusPill';
 export { HireRequestCard } from './HireRequestCard';
 export { ApplicantCard } from './ApplicantCard';
+export { CreatorApplicationCard } from './CreatorApplicationCard';
 export { RatingStars } from './RatingStars';
 export { RecommendedCreatorCard } from './RecommendedCreatorCard';
 export { CreatorProfileSheet } from './CreatorProfileSheet';

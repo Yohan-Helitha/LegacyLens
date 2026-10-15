@@ -1,7 +1,8 @@
 package lk.ac.sliit.legacylens.learning.controller;
 
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
-import lk.ac.sliit.legacylens.common.storage.FileStorageService;
+import lk.ac.sliit.legacylens.common.exception.InvalidFileUploadException;
+import lk.ac.sliit.legacylens.common.storage.MediaStorageService;
 import lk.ac.sliit.legacylens.learning.dto.PronunciationResult;
 import lk.ac.sliit.legacylens.learning.entity.Flashcard;
 import lk.ac.sliit.legacylens.learning.service.FlashcardService;
@@ -13,20 +14,37 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/learning")
 public class FlashcardController {
 
+	/** The Supabase bucket flashcard audio lives in (created public, so the URL plays straight in the app). */
+	static final String AUDIO_BUCKET = "Legacy Lens";
+	static final String AUDIO_SUBFOLDER = "flashcard-audio";
+	private static final long MAX_AUDIO_BYTES = 10L * 1024 * 1024;
+	private static final List<String> ALLOWED_AUDIO_TYPES = Arrays.asList(
+			"audio/mpeg",
+			"audio/mp3",
+			"audio/mp4",
+			"video/mp4",
+			"audio/ogg",
+			"audio/wav",
+			"audio/x-wav",
+			"audio/x-m4a",
+			"audio/m4a",
+			"audio/aac");
+
 	private final FlashcardService flashcardService;
-	private final FileStorageService fileStorageService;
+	private final MediaStorageService mediaStorageService;
 
 	public FlashcardController(
 			FlashcardService flashcardService,
-			FileStorageService fileStorageService) {
+			MediaStorageService mediaStorageService) {
 		this.flashcardService = flashcardService;
-		this.fileStorageService = fileStorageService;
+		this.mediaStorageService = mediaStorageService;
 	}
 
 	@GetMapping("/lessons/{lessonId}/flashcards")
@@ -79,21 +97,18 @@ public class FlashcardController {
 	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<?> uploadAudio(@RequestParam("file") MultipartFile file) {
 		try {
-			String path = fileStorageService.store(
-					file,
-					"audios",
-					Arrays.asList(
-							"audio/mpeg",
-							"audio/mp4",
-							"video/mp4",
-							"audio/ogg",
-							"audio/wav",
-							"audio/x-wav",
-							"audio/x-m4a",
-							"audio/aac"
-					),
-					10 * 1024 * 1024
-			);
+			if (file == null || file.isEmpty()) {
+				throw new InvalidFileUploadException("An audio file is required");
+			}
+			if (file.getSize() > MAX_AUDIO_BYTES) {
+				throw new InvalidFileUploadException("Audio must not exceed " + (MAX_AUDIO_BYTES / (1024 * 1024)) + "MB");
+			}
+			String contentType = file.getContentType();
+			if (contentType == null || !ALLOWED_AUDIO_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+				throw new InvalidFileUploadException("Only MP3 or MP4 audio files are allowed");
+			}
+			// Full playable URL: Supabase public URL when app.storage.provider=supabase, otherwise /uploads/... on local disk.
+			String path = mediaStorageService.store(file, AUDIO_BUCKET, AUDIO_SUBFOLDER);
 			Map<String, String> response = new HashMap<>();
 			response.put("audioUrl", path);
 

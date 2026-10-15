@@ -238,7 +238,7 @@ export default function TrackDetailScreen() {
             </View>
 
             <View style={styles.heroCard}>
-              <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 60" preserveAspectRatio="xMidYMid slice">
+              <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" viewBox="0 0 100 60" preserveAspectRatio="none">
                 <Defs>
                   <LinearGradient id="heroGrad" x1="0" y1="0" x2="1" y2="1">
                     <Stop offset="0" stopColor={Colors.secondary} />
@@ -342,6 +342,9 @@ const styles = StyleSheet.create({
 
   heroCard: {
     overflow: 'hidden',
+    // Opaque base: on Android a transparent card with elevation draws its shadow through as a grey frame,
+    // and it also covers any part of the gradient that hasn't painted yet.
+    backgroundColor: Colors.secondaryDark,
     borderRadius: Radii.xl + 4,
     padding: Spacing.lg,
     marginBottom: Spacing.xl,
