@@ -3,6 +3,7 @@ import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-nat
 import { ChevronRight, LucideIcon } from 'lucide-react-native';
 import { usePressScale } from '../../hooks/usePressScale';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 interface RoleUpgradeCardProps {
   icon: LucideIcon;
@@ -23,9 +24,11 @@ export const RoleUpgradeCard: React.FC<RoleUpgradeCardProps> = ({
   title,
   description,
   hint,
-  ctaLabel = 'Get Started',
+  ctaLabel,
   onPress,
 }) => {
+  const { t } = useTranslation('common');
+  const ctaText = ctaLabel ?? t('getStarted');
   const { scale, onPressIn, onPressOut } = usePressScale();
 
   return (
@@ -42,10 +45,10 @@ export const RoleUpgradeCard: React.FC<RoleUpgradeCardProps> = ({
           onPressIn={onPressIn}
           onPressOut={onPressOut}
           accessibilityRole="button"
-          accessibilityLabel={ctaLabel}
+          accessibilityLabel={ctaText}
           style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
         >
-          <Text style={styles.ctaText}>{ctaLabel}</Text>
+          <Text style={styles.ctaText}>{ctaText}</Text>
           <ChevronRight size={18} color={Colors.accent} strokeWidth={2.4} />
         </Pressable>
       </Animated.View>

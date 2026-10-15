@@ -1,7 +1,13 @@
 package lk.ac.sliit.legacylens.admin.service;
 
 import lk.ac.sliit.legacylens.admin.dto.AdminNotificationResponse;
+import lk.ac.sliit.legacylens.marketplace.entity.CreatorApplication;
+import lk.ac.sliit.legacylens.marketplace.entity.JobStatus;
+import lk.ac.sliit.legacylens.marketplace.entity.JobWorkProgress;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
+import lk.ac.sliit.legacylens.marketplace.repository.CreatorApplicationRepository;
+import lk.ac.sliit.legacylens.marketplace.repository.JobWorkProgressRepository;
+import lk.ac.sliit.legacylens.users.entity.VerificationStatus;
 import lk.ac.sliit.legacylens.marketplace.repository.OpportunityRepository;
 import lk.ac.sliit.legacylens.moderation.entity.ModerationQueueItem;
 import lk.ac.sliit.legacylens.stories.entity.StoryStatus;
@@ -27,6 +33,8 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
     private final ModerationQueueRepository moderationQueueRepository;
     private final OpportunityAudioRepository opportunityAudioRepository;
     private final java.util.Set<String> readNotificationIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final CreatorApplicationRepository creatorApplicationRepository;
+    private final JobWorkProgressRepository workProgressRepository;
 
     @Override
     public List<AdminNotificationResponse> getAdminNotifications() {
@@ -77,6 +85,35 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
                     .createdAt(mod.getCreatedAt())
                     .type("moderation")
                     .isRead(read)
+                    .build());
+        }
+
+        // Creator applications waiting for a decision. These leave the list once decided, so they carry no read flag.
+        for (CreatorApplication application : creatorApplicationRepository.findByStatus(VerificationStatus.PENDING)) {
+            notifications.add(AdminNotificationResponse.builder()
+                    .id(application.getId().toString())
+                    .title(application.getFullName())
+                    .subtitle("Creator Application")
+                    .body("Applied to become a content creator.")
+                    .createdAt(application.getSubmittedAt())
+                    .type("creator-application")
+                    .isRead(false)
+                    .build());
+        }
+
+        // Submitted work still waiting for the admin's go-ahead (or sent back and not yet resubmitted is excluded).
+        for (JobWorkProgress progress : workProgressRepository.findBySubmittedAtIsNotNullAndDraftFalseOrderBySubmittedAtDesc()) {
+            if (progress.isRejected() || progress.isAdminApproved() || progress.getJob().getStatus() == JobStatus.COMPLETED) {
+                continue;
+            }
+            notifications.add(AdminNotificationResponse.builder()
+                    .id(progress.getJob().getId().toString())
+                    .title(progress.getJob().getTitle())
+                    .subtitle("Work Submission")
+                    .body(progress.getJob().getCreator().getFullName() + " submitted work for review.")
+                    .createdAt(progress.getSubmittedAt())
+                    .type("work-submission")
+                    .isRead(false)
                     .build());
         }
 

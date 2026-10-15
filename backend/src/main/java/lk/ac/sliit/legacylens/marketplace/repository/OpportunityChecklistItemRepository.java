@@ -11,4 +11,7 @@ import java.util.UUID;
 public interface OpportunityChecklistItemRepository extends JpaRepository<OpportunityChecklistItem, UUID> {
 
     List<OpportunityChecklistItem> findByOpportunityIdOrderBySortOrderAsc(UUID opportunityId);
+
+    /** The tasks of many opportunities in one query. */
+    List<OpportunityChecklistItem> findByOpportunityIdInOrderBySortOrderAsc(java.util.Collection<UUID> opportunityIds);
 }

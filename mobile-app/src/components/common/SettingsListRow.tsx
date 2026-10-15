@@ -9,6 +9,8 @@ const ERROR_COLOR = '#ba1a1a';
 interface SettingsListRowProps {
   icon: LucideIcon;
   label: string;
+  /** Secondary text shown before the chevron, e.g. the current language. */
+  value?: string;
   onPress?: () => void;
   /** 'danger' drops the chevron and colors the icon/label red — for Log out. */
   variant?: 'default' | 'danger';
@@ -18,6 +20,7 @@ interface SettingsListRowProps {
 export const SettingsListRow: React.FC<SettingsListRowProps> = ({
   icon: Icon,
   label,
+  value,
   onPress,
   variant = 'default',
 }) => {
@@ -35,7 +38,10 @@ export const SettingsListRow: React.FC<SettingsListRowProps> = ({
         <Icon size={20} color={tint} strokeWidth={2} />
         <Text style={[styles.label, isDanger && styles.labelDanger]}>{label}</Text>
       </View>
-      {!isDanger && <ChevronRight size={18} color={Colors.textMuted} strokeWidth={2} />}
+      <View style={styles.right}>
+        {!!value && <Text style={styles.value}>{value}</Text>}
+        {!isDanger && <ChevronRight size={18} color={Colors.textMuted} strokeWidth={2} />}
+      </View>
     </Pressable>
   );
 };
@@ -52,11 +58,25 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   left: {
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
+  right: {
+    flexShrink: 0,
+    marginLeft: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  value: {
+    fontFamily: Typography.fontBody,
+    fontSize: Typography.sizeSM,
+    color: Colors.textMuted,
+  },
   label: {
+    flexShrink: 1,
     fontFamily: Typography.fontBodyMed,
     fontSize: Typography.sizeMD,
     color: Colors.text,

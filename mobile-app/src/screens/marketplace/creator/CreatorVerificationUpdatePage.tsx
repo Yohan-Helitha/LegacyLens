@@ -5,6 +5,9 @@ import { StatusBar } from 'expo-status-bar';
 import { Typography, Spacing, Radii } from '../../../theme';
 import { CreatorTopAppBar } from '../../../components/CreatorTopAppBar';
 import { creatorApplicationApi } from '../../../services/api/creatorApplicationApi';
+import { profileApi } from '../../../services/api/profileApi';
+import { useAuthStore } from '../../../store/authStore';
+import { usePushNotificationEvents } from '../../../hooks/usePushNotifications';
 import type { CreatorApplicationStatus } from '../../../types/creatorApplication';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -86,18 +89,52 @@ export const CreatorVerificationUpdatePage: React.FC<{
   onOpenRejectedWork: () => void;
 }> = ({ onBackToHome, onReapply, onOpenMyWork, onOpenSavedApplications, onOpenRejectedWork }) => {
   const [state, setState] = useState<ViewState>('LOADING');
+  const [reviewNote, setReviewNote] = useState<string | null>(null);
+  const [deciding, setDeciding] = useState(false);
+
+  const applyApplication = useCallback((application: { status: CreatorApplicationStatus; reviewNote?: string | null }) => {
+    setReviewNote(application.reviewNote ?? null);
+    setState(application.status);
+    // Approved: the account now holds the creator role - bring this session in line so the app stops
+    // offering "Become a Freelancer" without needing a fresh login.
+    if (application.status === 'VERIFIED') {
+      profileApi
+        .getMe()
+        .then((profile) => {
+          const { token, user, setSession } = useAuthStore.getState();
+          if (token && user) setSession(token, { ...user, roles: profile.roles });
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   const fetchStatus = useCallback(() => {
     setState('LOADING');
     creatorApplicationApi
       .getMe()
-      .then((application) => setState(application.status))
+      .then(applyApplication)
       .catch(() => setState('NOT_FOUND'));
-  }, []);
+  }, [applyApplication]);
 
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
+
+  // The admin's decision arrives as a phone notification: show it without leaving and reopening the page.
+  const refreshQuietly = useCallback(() => {
+    creatorApplicationApi.getMe().then(applyApplication).catch(() => {});
+  }, [applyApplication]);
+  usePushNotificationEvents({ onReceived: refreshQuietly });
+
+  /** TEMPORARY - stands in for the admin until their screen exists. */
+  const testDecide = (action: 'approve' | 'reject') => {
+    setDeciding(true);
+    creatorApplicationApi
+      .testDecide(action)
+      .then(applyApplication)
+      .catch(() => {})
+      .finally(() => setDeciding(false));
+  };
 
   if (state === 'LOADING') {
     return (
@@ -163,11 +200,25 @@ export const CreatorVerificationUpdatePage: React.FC<{
             <View style={s.statusCardBody}>
               <Text style={s.statusCardTitle}>{content.cardTitle}</Text>
               <Text style={s.statusCardText}>{content.cardText}</Text>
+              {state === 'REJECTED' && !!reviewNote && (
+                <Text style={[s.statusCardText, s.reasonText]}>{`Reason from the reviewer: ${reviewNote}`}</Text>
+              )}
             </View>
           </View>
         </View>
 
         {/* ── Actions ───────────────────────────────────────────────────── */}
+        {state === 'PENDING' && (
+          <View style={s.testRow}>
+            <Pressable onPress={() => testDecide('approve')} disabled={deciding} style={({ pressed }) => [s.testBtn, pressed && s.secondaryBtnPressed, deciding && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel="Approve (test)">
+              <Text style={s.testBtnText}>Approve (Test)</Text>
+            </Pressable>
+            <Pressable onPress={() => testDecide('reject')} disabled={deciding} style={({ pressed }) => [s.testBtn, pressed && s.secondaryBtnPressed, deciding && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel="Decline (test)">
+              <Text style={s.testBtnText}>Decline (Test)</Text>
+            </Pressable>
+          </View>
+        )}
+
         {state === 'REJECTED' && (
           <Pressable
             onPress={onReapply}
@@ -201,6 +252,11 @@ export default CreatorVerificationUpdatePage;
 // ─────────────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: D.surface },
+
+  reasonText: { marginTop: 8, color: D.error },
+  testRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
+  testBtn: { flex: 1, minHeight: 44, borderRadius: Radii.full, borderWidth: 1, borderColor: D.primary, alignItems: 'center', justifyContent: 'center' },
+  testBtnText: { fontFamily: Typography.fontBodySemi, fontSize: Typography.sizeSM, color: D.primary },
 
   // ── App Bar ────────────────────────────────────────────────────────────────
   appBar: {

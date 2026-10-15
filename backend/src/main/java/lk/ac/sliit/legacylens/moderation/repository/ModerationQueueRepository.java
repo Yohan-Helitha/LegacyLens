@@ -14,6 +14,9 @@ public interface ModerationQueueRepository extends JpaRepository<ModerationQueue
 
     List<ModerationQueueItem> findByStatus(StoryStatus status);
 
+    /** One author's stories with a given status — backs the elder's analytics (likes/comments live on this entity). */
+    List<ModerationQueueItem> findByAuthorIdAndStatus(UUID authorId, StoryStatus status);
+
     List<ModerationQueueItem> findByStatusAndType(StoryStatus status, String type);
 
     Optional<ModerationQueueItem> findByIdAndStatus(UUID id, StoryStatus status);

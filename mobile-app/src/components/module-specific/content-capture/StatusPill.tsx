@@ -1,17 +1,13 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Archive, Check } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { Typography } from '../../../theme';
 import type { StoryStatus } from '../../../types/story';
 import { ContentCaptureColors as D } from './tokens';
 
-export const STORY_STATUS_LABELS: Record<StoryStatus, string> = {
-  DRAFT: 'Draft',
-  PENDING: 'Pending Review',
-  PUBLISHED: 'Published',
-  REJECTED: 'Needs changes',
-  ARCHIVED: 'Archived',
-};
+/** i18n key (contentCapture namespace) for a story status's label — e.g. 'status.pending'. */
+export const storyStatusKey = (status: StoryStatus): string => `status.${status.toLowerCase()}`;
 
 interface StatusPillProps {
   status: StoryStatus;
@@ -19,12 +15,13 @@ interface StatusPillProps {
 
 /** The five story-status pills used throughout My Stories (Screen 6). */
 export const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
-  const label = STORY_STATUS_LABELS[status];
+  const { t } = useTranslation('contentCapture');
+  const label = t(storyStatusKey(status));
 
   if (status === 'DRAFT') {
     return (
       <View style={[s.pill, s.draft]}>
-        <Text style={[s.text, s.draftText]}>{label}</Text>
+        <Text style={[s.text, s.draftText]} numberOfLines={2}>{label}</Text>
       </View>
     );
   }
@@ -33,7 +30,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
     return (
       <View style={[s.pill, s.published]}>
         <Check size={12} color={D.onPrimary} strokeWidth={3} />
-        <Text style={[s.text, s.publishedText]}>{label}</Text>
+        <Text style={[s.text, s.publishedText]} numberOfLines={2}>{label}</Text>
       </View>
     );
   }
@@ -41,7 +38,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
   if (status === 'REJECTED') {
     return (
       <View style={[s.pill, s.needsChanges]}>
-        <Text style={[s.text, s.needsChangesText]}>{label}</Text>
+        <Text style={[s.text, s.needsChangesText]} numberOfLines={2}>{label}</Text>
       </View>
     );
   }
@@ -50,7 +47,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
     return (
       <View style={[s.pill, s.archived]}>
         <Archive size={12} color={D.onSurfaceVariant} strokeWidth={2.5} />
-        <Text style={[s.text, s.archivedText]}>{label}</Text>
+        <Text style={[s.text, s.archivedText]} numberOfLines={2}>{label}</Text>
       </View>
     );
   }
@@ -58,7 +55,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status }) => {
   // PENDING
   return (
     <View style={[s.pill, s.pending]}>
-      <Text style={[s.text, s.pendingText]}>{label}</Text>
+      <Text style={[s.text, s.pendingText]} numberOfLines={2}>{label}</Text>
     </View>
   );
 };
@@ -72,8 +69,12 @@ const s = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 999,
     alignSelf: 'flex-start',
+    maxWidth: '100%',
+    flexShrink: 1,
   },
   text: {
+    flexShrink: 1,
+    lineHeight: 16,
     fontFamily: Typography.fontBodySemi,
     fontSize: Typography.sizeXS,
     letterSpacing: 0.2,

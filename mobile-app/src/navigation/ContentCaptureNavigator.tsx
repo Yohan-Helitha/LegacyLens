@@ -13,6 +13,8 @@ import { ApplicantReviewScreen } from '../screens/content-capture/ApplicantRevie
 import { HireConversationScreen } from '../screens/content-capture/HireConversationScreen';
 import { CreatorRecommendationsScreen } from '../screens/content-capture/CreatorRecommendationsScreen';
 import { YourStories } from '../screens/content-capture/your_stories';
+import type { StoriesTab } from '../screens/content-capture/your_stories';
+import { StoryAnalytics } from '../screens/content-capture/story_analytics';
 import { TrustScoreDetail } from '../screens/content-capture/trust_score_detail';
 import { ReviewsRatingsScreen } from '../screens/content-capture/ReviewsRatingsScreen';
 import { useStoryDraft } from '../hooks/useStoryDraft';
@@ -31,6 +33,7 @@ type Step =
   | 'voiceTyping'
   | 'form'
   | 'stories'
+  | 'storyAnalytics'
   | 'trustScore'
   | 'reviews'
   | 'hirePost'
@@ -65,6 +68,9 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [formStoryId, setFormStoryId] = useState<string | undefined>(undefined);
   const [formOrigin, setFormOrigin] = useState<ReturnOrigin>('dashboard');
+  /** My Stories' selected tab, kept here because opening a story's analytics unmounts that screen. */
+  const [storiesTab, setStoriesTab] = useState<StoriesTab>('inProgress');
+  const [analyticsStoryId, setAnalyticsStoryId] = useState<string | undefined>(undefined);
   /** Where the X/close on a recording screen should return to — 'form' when reached via "Re-record" on an in-progress draft, 'dashboard' when starting fresh. */
   const [recordingCloseTarget, setRecordingCloseTarget] = useState<Step>('dashboard');
 
@@ -98,6 +104,7 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
   // Hardware back inside the hire flow steps back through it instead of leaving the whole module.
   useEffect(() => {
     const target: Partial<Record<Step, Step>> = {
+      storyAnalytics: 'stories',
       hirePost: 'dashboard',
       hirePostRecording: 'hirePost',
       hireRequests: 'dashboard',
@@ -178,7 +185,15 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
         <ElderDashboard
           onRecordStory={() => beginNewStory('dashboard')}
           onViewAllStories={() => setStep('stories')}
-          onReviewStory={(story) => openStory(story.id, 'dashboard')}
+          onOpenAnalytics={() => {
+            setStoriesTab('published');
+            setStep('stories');
+          }}
+          onOpenStory={(storyId) => openStory(storyId, 'dashboard')}
+          onOpenPublishedStory={(storyId) => {
+            setAnalyticsStoryId(storyId);
+            setStep('storyAnalytics');
+          }}
           onOpenTrustScore={() => setStep('trustScore')}
           onDrawerNavigate={handleDrawerNavigate}
           onTabPress={handleTabPress}
@@ -189,10 +204,24 @@ export const ContentCaptureNavigator: React.FC<ContentCaptureNavigatorProps> = (
       {step === 'stories' && (
         <YourStories
           onOpenStory={(storyId) => openStory(storyId, 'stories')}
+          onOpenPublishedStory={(storyId) => {
+            setAnalyticsStoryId(storyId);
+            setStep('storyAnalytics');
+          }}
+          initialTab={storiesTab}
+          onTabChange={setStoriesTab}
           onNewStory={() => beginNewStory('stories')}
           onDrawerNavigate={handleDrawerNavigate}
           onTabPress={handleTabPress}
           onLogout={handleLogout}
+        />
+      )}
+
+      {step === 'storyAnalytics' && !!analyticsStoryId && (
+        <StoryAnalytics
+          storyId={analyticsStoryId}
+          onBack={() => setStep('stories')}
+          onTabPress={handleTabPress}
         />
       )}
 

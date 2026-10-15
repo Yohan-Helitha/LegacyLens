@@ -8,11 +8,14 @@ import { createContext, useContext } from 'react';
 export interface CreatorMenuValue {
   /** How many of the creator's applications have been rejected - the red number on the menu. */
   rejectedApplicationsCount: number;
+  /** How many rejected submissions are new to the creator - the red number beside "Rejected Submissions". */
+  rejectedWorkCount: number;
   onOpenRejectedApplications: (() => void) | null;
 }
 
 export const CreatorMenuContext = createContext<CreatorMenuValue>({
   rejectedApplicationsCount: 0,
+  rejectedWorkCount: 0,
   onOpenRejectedApplications: null,
 });
 

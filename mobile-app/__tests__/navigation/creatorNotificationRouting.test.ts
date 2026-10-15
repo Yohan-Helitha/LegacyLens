@@ -25,6 +25,11 @@ describe('creatorScreenForNotification', () => {
     expect(creatorScreenForNotification({ type: 'today-work' })).toBe('dashboard');
   });
 
+  it('opens the application status page for the admin decision on becoming a creator', () => {
+    expect(creatorScreenForNotification({ type: 'creator-application-approved' })).toBe('pending');
+    expect(creatorScreenForNotification({ type: 'creator-application-rejected' })).toBe('pending');
+  });
+
   it('just opens the app for anything else', () => {
     expect(creatorScreenForNotification({ type: 'something-new' })).toBeNull();
     expect(creatorScreenForNotification({})).toBeNull();

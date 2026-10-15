@@ -20,6 +20,9 @@ import { discoveryApi } from '../../../services/api/discoveryApi';
 import { styles } from './VideoDetailScreen.styles';
 import { AvatarPlaceholder } from '../../../components/common/AvatarPlaceholder';
 import { getMediaUrl } from '../../../constants/api';
+import { useRecordStoryView } from '../../../hooks/useRecordStoryView';
+import { useTranslatedTexts } from '../../../hooks/useTranslatedTexts';
+import { TranslationToggle } from '../../../components/common/TranslationToggle';
 
 export interface VideoDetailScreenProps {
   post?: any;
@@ -72,6 +75,8 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
   onSelectRelatedPost,
 }) => {
   const [currentPost, setCurrentPost] = useState<any>(post);
+  // Counts a view for the story being watched (re-runs when a related video is selected).
+  useRecordStoryView(currentPost?.id);
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [saved, setSaved] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -355,18 +360,21 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  const title = currentPost?.title || currentPost?.name || 'Traditional Cultural Story';
+  const originalTitle = currentPost?.title || currentPost?.name || 'Traditional Cultural Story';
   const location = currentPost?.location || 'Western Sri Lanka';
   const duration = durationSec > 0 ? formatSeconds(durationSec) : (currentPost?.duration || '10:00');
   const author = currentPost?.author || currentPost?.name || 'Gurunnanse Yohan Helitha';
   const avatar = currentPost?.avatar || DEFAULT_AVATAR;
   const tags: string[] =
     currentPost?.tags && currentPost.tags.length > 0 ? currentPost.tags : DEFAULT_TAGS;
-  const description =
+  const originalDescription =
     currentPost?.description ||
     currentPost?.excerpt ||
     currentPost?.content ||
     "Traditional cultural practices passed down across generations of Sri Lankan heritage.";
+  // Title and description are user-written: show them in the reader's language (original one tap away).
+  const { texts: shownTexts, translated, showOriginal, toggleOriginal } = useTranslatedTexts([originalTitle, originalDescription]);
+  const [title, description] = shownTexts;
   const keeperRole = currentPost?.elder ? 'Knowledge Keeper & Elder' : 'Traditional Master Craftsman';
 
   return (
@@ -533,6 +541,7 @@ export const VideoDetailScreen: React.FC<VideoDetailScreenProps> = ({
             {/* Title & Meta */}
             <View style={styles.titleSection}>
               <Text style={styles.mainTitle}>{title}</Text>
+              {translated && <TranslationToggle showOriginal={showOriginal} onPress={toggleOriginal} />}
 
               <View style={styles.metaRow}>
                 <View style={styles.metaItem}>

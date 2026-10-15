@@ -37,6 +37,14 @@ public class StoryServiceImpl implements StoryService {
     /** Subfolder under the storage root that story clips are saved into. */
     private static final String MEDIA_SUBFOLDER = "stories";
 
+    /**
+     * Supabase bucket for story cover images (must exist and be public). Only images stored in this bucket are ever
+     * deleted when replaced - never an image an admin set elsewhere.
+     */
+    private static final String THUMBNAIL_BUCKET = "story-thumbnail";
+    private static final String THUMBNAIL_SUBFOLDER = "covers";
+    private static final long MAX_THUMBNAIL_BYTES = 5L * 1024 * 1024;
+
     private final StoryRepository storyRepository;
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
@@ -134,6 +142,35 @@ public class StoryServiceImpl implements StoryService {
         storyRepository.delete(story);
     }
 
+    @Override
+    @Transactional
+    public StoryResponse setThumbnail(UUID userId, UUID storyId, MultipartFile thumbnail) {
+        Story story = getOwnedStory(userId, storyId);
+
+        if (story.getStatus() == StoryStatus.PUBLISHED || story.getStatus() == StoryStatus.ARCHIVED) {
+            throw new InvalidRequestException("The thumbnail of a published story can't be changed");
+        }
+        if (thumbnail == null || thumbnail.isEmpty()) {
+            throw new InvalidRequestException("A thumbnail image is required");
+        }
+        String contentType = thumbnail.getContentType();
+        if (contentType == null || !contentType.toLowerCase(java.util.Locale.ROOT).startsWith("image/")) {
+            throw new InvalidRequestException("The thumbnail must be an image");
+        }
+        if (thumbnail.getSize() > MAX_THUMBNAIL_BYTES) {
+            throw new InvalidRequestException("The thumbnail must be 5 MB or smaller");
+        }
+
+        String previous = story.getImageUrl();
+        story.setImageUrl(mediaStorageService.store(thumbnail, THUMBNAIL_BUCKET, THUMBNAIL_SUBFOLDER));
+        storyRepository.save(story);
+
+        if (previous != null && previous.contains("/" + THUMBNAIL_BUCKET + "/")) {
+            mediaStorageService.delete(previous);
+        }
+        return toResponse(story);
+    }
+
     private void attachMedia(Story story, MultipartFile media, Long durationMillis) {
         MediaType mediaType = resolveMediaType(media.getContentType());
         String mediaUrl = mediaStorageService.store(media, MEDIA_SUBFOLDER);
@@ -193,7 +230,7 @@ public class StoryServiceImpl implements StoryService {
                 .description(story.getDescription())
                 .status(story.getStatus().name())
                 .method(story.getMethod().name())
-                .mediaType(story.getMediaType() != null ? story.getMediaType().name() : null)
+                .mediaType(story.getMediaType() != null && story.getMediaType().isClip() ? story.getMediaType().name() : null)
                 .mediaUrl(mediaUrl)
                 .imageUrl(story.getImageUrl())
                 .mediaDurationMillis(story.getMediaDurationMillis())

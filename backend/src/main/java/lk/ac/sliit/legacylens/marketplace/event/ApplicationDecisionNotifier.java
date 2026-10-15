@@ -19,8 +19,8 @@ import java.util.Optional;
 @Component
 public class ApplicationDecisionNotifier {
 
-    /** An urgent opportunity's approval is headed differently so it stands out on the phone. */
-    static final String URGENT_APPROVED_TITLE = "\uD83D\uDCC4 Urgent Approved";
+    /** Every message about an urgent opportunity - approved or rejected - carries a fire mark so it stands out on the phone. */
+    static final String URGENT_MARK = "\uD83D\uDD25 Urgent ";
 
     private static final Logger log = LoggerFactory.getLogger(ApplicationDecisionNotifier.class);
 
@@ -51,17 +51,21 @@ public class ApplicationDecisionNotifier {
 
         if (event.decision() == OpportunityApplicationStatus.REJECTED) {
             return Optional.of(new PushMessage(
-                    "Application update",
+                    titleFor(event, "Rejected"),
                     "\"" + title + "\" was not accepted this time. You can apply to other opportunities.",
                     withType(data, "application-rejected")));
         }
         if (event.decision() == OpportunityApplicationStatus.APPROVED) {
             return Optional.of(new PushMessage(
-                    event.urgent() ? URGENT_APPROVED_TITLE : "Approved",
+                    titleFor(event, "Approved"),
                     "\"" + title + "\" with " + event.elderName() + " was approved. Confirm your booking.",
                     withType(data, "application-approved")));
         }
         return Optional.empty();
+    }
+
+    private static String titleFor(ApplicationDecidedEvent event, String outcome) {
+        return event.urgent() ? URGENT_MARK + outcome : outcome;
     }
 
     private static Map<String, String> withType(Map<String, String> data, String type) {

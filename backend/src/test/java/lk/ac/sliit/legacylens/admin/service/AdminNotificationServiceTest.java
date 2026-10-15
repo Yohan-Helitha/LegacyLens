@@ -17,6 +17,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import lk.ac.sliit.legacylens.marketplace.repository.CreatorApplicationRepository;
+import lk.ac.sliit.legacylens.marketplace.repository.JobWorkProgressRepository;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,6 +39,13 @@ class AdminNotificationServiceTest {
 
     @Mock
     private OpportunityAudioRepository opportunityAudioRepository;
+
+    // Not stubbed: the notifications service reads them too, and an empty result is what this test wants.
+    @Mock
+    private CreatorApplicationRepository creatorApplicationRepository;
+
+    @Mock
+    private JobWorkProgressRepository workProgressRepository;
 
     @InjectMocks
     private AdminNotificationServiceImpl adminNotificationService;

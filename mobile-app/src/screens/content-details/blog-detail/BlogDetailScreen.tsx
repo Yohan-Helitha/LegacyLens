@@ -17,6 +17,9 @@ import { Colors, Typography } from '../../../theme';
 import { styles } from './BlogDetailScreen.styles';
 import { AvatarPlaceholder } from '../../../components/common/AvatarPlaceholder';
 import { getMediaUrl } from '../../../constants/api';
+import { useRecordStoryView } from '../../../hooks/useRecordStoryView';
+import { useTranslatedTexts } from '../../../hooks/useTranslatedTexts';
+import { TranslationToggle } from '../../../components/common/TranslationToggle';
 
 export interface BlogDetailScreenProps {
   post?: any;
@@ -34,6 +37,8 @@ export const BlogDetailScreen: React.FC<BlogDetailScreenProps> = ({
   onBack,
   onNavigateSearch,
 }) => {
+  // Counts a view when a listener opens this story.
+  useRecordStoryView(post?.id);
   const [vocabOpen, setVocabOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [fontScale, setFontScale] = useState(1); // 1, 1.15, 1.3
@@ -57,7 +62,7 @@ export const BlogDetailScreen: React.FC<BlogDetailScreenProps> = ({
   const thumbnail = rawThumb && !rawThumb.startsWith('http')
     ? getMediaUrl(rawThumb.startsWith('/uploads/') ? rawThumb : (rawThumb.startsWith('uploads/') ? `/${rawThumb}` : `/uploads/${rawThumb.replace(/^\/+/, '')}`))
     : (rawThumb || null);
-  const title = post?.title || 'The Last Hands That Still Remember';
+  const originalTitle = post?.title || 'The Last Hands That Still Remember';
   const location = post?.location || 'Matara, Sri Lanka';
   const category = post?.category || (post?.tags && post.tags[0]) || 'Craft Tradition';
   const author = post?.author || 'Nadeesha Perera';
@@ -65,11 +70,15 @@ export const BlogDetailScreen: React.FC<BlogDetailScreenProps> = ({
   const readTime = post?.readTime || '8 min read';
   const tags: string[] = post?.tags && post.tags.length > 0 ? post.tags : DEFAULT_TAGS;
 
-  const contentText =
+  const originalContent =
     post?.content ||
     post?.description ||
     post?.excerpt ||
     "The scent of dried rush grass hangs heavy in the humid afternoon air of Matara. Here, in the shaded veranda of a colonial-era home, Somawathi's hands move with a rhythm born of seventy years of repetition. They are hands that map a fading history, tracing patterns in reed that were once the lifeblood of southern coastal villages.";
+
+  // Story text and title are user-written: show them in the reader's language (original one tap away).
+  const { texts: shownTexts, translated, showOriginal, toggleOriginal } = useTranslatedTexts([originalTitle, originalContent]);
+  const [title, contentText] = shownTexts;
 
   const firstChar = contentText.charAt(0) || 'T';
   const restOfFirstSentence = contentText.slice(1);
@@ -165,6 +174,11 @@ export const BlogDetailScreen: React.FC<BlogDetailScreenProps> = ({
 
         {/* Content Area */}
         <View style={styles.bodyContent}>
+          {translated && (
+            <View style={{ marginBottom: 12 }}>
+              <TranslationToggle showOriginal={showOriginal} onPress={toggleOriginal} />
+            </View>
+          )}
           <View style={[styles.paragraph, { marginBottom: 4 }]}>
             <Text style={styles.dropCap}>{firstChar}</Text>
             <Text

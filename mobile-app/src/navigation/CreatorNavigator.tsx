@@ -23,6 +23,7 @@ import { CreatorMenuContext } from './CreatorMenuContext';
 import { useMyApplications } from '../hooks/useMyApplications';
 import { groupApplications } from '../utils/applicationGroups';
 import { creatorScreenForNotification } from './creatorNotificationRouting';
+import { workProgressApi } from '../services/api/workProgressApi';
 import { usePushNotificationEvents } from '../hooks/usePushNotifications';
 import type { NavTab } from '../components/BottomNavBar';
 import type { WorkTab } from '../screens/marketplace/creator/MyWorkList';
@@ -82,8 +83,10 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const { applications: myApplications, reload: reloadApplications } = useMyApplications();
   // Only rejections the creator has not looked at yet - opening Rejected Applications clears them.
   const rejectedApplicationsCount = groupApplications(myApplications).unseenRejected.length;
+  // Refreshed a moment after the screen opens, so the screen's own data gets the connection first.
   useEffect(() => {
-    reloadApplications();
+    const timer = setTimeout(reloadApplications, 1200);
+    return () => clearTimeout(timer);
   }, [screen, reloadApplications]);
 
   // Phone notifications. The phone itself is registered once for everyone at the top of the app;
@@ -93,7 +96,20 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
     const target = creatorScreenForNotification(data);
     if (target) setScreen(target);
   }, []);
-  usePushNotificationEvents({ onTapped: openFromNotification, onReceived: reloadApplications });
+  // The red number beside Rejected Submissions: rejected work the creator has not opened the page to see.
+  const [rejectedWorkCount, setRejectedWorkCount] = useState(0);
+  const reloadRejectedWork = useCallback(() => {
+    workProgressApi.unseenRejectedCount().then(setRejectedWorkCount).catch(() => {});
+  }, []);
+  useEffect(() => {
+    const timer = setTimeout(reloadRejectedWork, 1200);
+    return () => clearTimeout(timer);
+  }, [screen, reloadRejectedWork]);
+  const reloadOnArrival = useCallback(() => {
+    reloadApplications();
+    reloadRejectedWork();
+  }, [reloadApplications, reloadRejectedWork]);
+  usePushNotificationEvents({ onTapped: openFromNotification, onReceived: reloadOnArrival });
 
   /**
    * Shared navigation handler passed to all screens.
@@ -155,7 +171,11 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handlePaymentSaved = () => setScreen('dashboard');
 
   /** Called when the "Schedule" tab is pressed on CreatorDashboard */
-  const handleOpenSchedule = () => setScreen('schedule');
+  const [scheduleFocusDate, setScheduleFocusDate] = useState<string | null>(null);
+  const handleOpenSchedule = (focusDateKey?: string) => {
+    setScheduleFocusDate(focusDateKey ?? null);
+    setScreen('schedule');
+  };
 
   /** Called when a job card is pressed on CreatorDashboard */
   const handleOpenMyWork = () => {
@@ -213,18 +233,10 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   const handleBackToDashboard = () => setScreen('dashboard');
 
   /**
-   * Called when the creator application is submitted.
-   *
-   * TEMPORARY: admin review isn't built yet, so there's no real way for a
-   * PENDING application to ever become VERIFIED/REJECTED — landing on the
-   * pending screen would strand testing here indefinitely. Skipping straight
-   * to the dashboard for now so the rest of the app remains reachable.
-   * Restore the commented line below once admin verification exists.
+   * Called when the creator application is submitted: the admin decides next, so the creator waits on
+   * the status page (which has temporary test buttons for the admin's decision until their screen exists).
    */
-  const handleApplicationSubmit = () => {
-    // setScreen('pending');
-    setScreen('dashboard');
-  };
+  const handleApplicationSubmit = () => setScreen('pending');
 
   /** Called when "Back to Home" is pressed on the verification pending screen */
   const handleBackToHome = () => setScreen('dashboard');
@@ -241,8 +253,8 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
   );
 
   const menuValue = useMemo(
-    () => ({ rejectedApplicationsCount, onOpenRejectedApplications: handleOpenRejectedApplications }),
-    [rejectedApplicationsCount],
+    () => ({ rejectedApplicationsCount, rejectedWorkCount, onOpenRejectedApplications: handleOpenRejectedApplications }),
+    [rejectedApplicationsCount, rejectedWorkCount],
   );
 
   return (
@@ -353,9 +365,10 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
       )}
       {screen === 'schedule' && (
         <OpportunitySchedulePage
+          focusDate={scheduleFocusDate}
           onNavigate={handleNavigate}
           onBack={handleBackToDashboard}
-          onViewOpportunity={handleViewOpportunityFromApplication}
+          onOpenMyWork={handleOpenMyWork}
         />
       )}
       {screen === 'my-work' && (
@@ -384,6 +397,7 @@ export const CreatorNavigator: React.FC<CreatorNavigatorProps> = ({
           onNavigate={handleNavigate}
           onBack={handleBackToDashboard}
           onEditWork={handleEditRejectedWork}
+          onSeen={reloadRejectedWork}
         />
       )}
       {screen === 'publication-preview' && previewJob && (

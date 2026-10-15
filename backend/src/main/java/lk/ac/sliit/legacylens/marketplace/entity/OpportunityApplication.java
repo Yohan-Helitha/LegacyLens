@@ -107,4 +107,8 @@ public class OpportunityApplication {
      */
     @Column(name = "rejection_seen_at")
     private LocalDateTime rejectionSeenAt;
+
+    /** When the knowledge holder approved or rejected it (the system clock at that moment); null while undecided. */
+    @Column(name = "decided_at")
+    private LocalDateTime decidedAt;
 }

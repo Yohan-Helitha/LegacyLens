@@ -30,4 +30,7 @@ public class CreatorApplicationResponse {
     private boolean proofUploaded;
     private String status;
     private LocalDateTime submittedAt;
+    /** The admin's reason when the application was rejected; null otherwise. */
+    private String reviewNote;
+    private LocalDateTime reviewedAt;
 }

@@ -26,6 +26,18 @@ import java.util.UUID;
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
+    /**
+     * How long a loaded user is reused. Every request used to ask the database who the caller is - a full
+     * round trip before any screen's own work began. A few seconds is long enough to cover the burst of calls a
+     * screen makes, and short enough that a suspension or a new role still takes effect almost at once.
+     */
+    private static final long CACHE_MS = 20_000;
+    private static final int CACHE_LIMIT = 500;
+
+    private record Cached(UserDetails details, long expiresAt) { }
+
+    private final java.util.concurrent.ConcurrentHashMap<UUID, Cached> cache = new java.util.concurrent.ConcurrentHashMap<>();
+
     private final UserRepository userRepository;
 
     public CustomUserDetailsService(UserRepository userRepository) {
@@ -37,9 +49,23 @@ public class CustomUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String userId) throws UsernameNotFoundException {
         UUID id = UUID.fromString(userId);
 
+        long now = System.currentTimeMillis();
+        Cached hit = cache.get(id);
+        if (hit != null && hit.expiresAt() > now) {
+            return hit.details();
+        }
+
         User user = userRepository.findByIdWithRoles(id)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userId));
 
-        return new CustomUserDetails(user);
+        UserDetails details = new CustomUserDetails(user);
+        if (cache.size() >= CACHE_LIMIT) {
+            cache.values().removeIf(entry -> entry.expiresAt() <= now);
+            if (cache.size() >= CACHE_LIMIT) {
+                cache.clear();
+            }
+        }
+        cache.put(id, new Cached(details, now + CACHE_MS));
+        return details;
     }
 }

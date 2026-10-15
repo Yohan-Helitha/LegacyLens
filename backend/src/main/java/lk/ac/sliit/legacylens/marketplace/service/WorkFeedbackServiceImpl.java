@@ -146,6 +146,7 @@ public class WorkFeedbackServiceImpl implements WorkFeedbackService {
     /** A note puts the submission on the creator's Rejected Submissions page until they resubmit. */
     private static void sendBack(JobWorkProgress progress) {
         progress.setRejected(true);
+        progress.setRejectionSeenAt(null);
         if (progress.getRejectedAt() == null) {
             progress.setRejectedAt(LocalDateTime.now());
         }

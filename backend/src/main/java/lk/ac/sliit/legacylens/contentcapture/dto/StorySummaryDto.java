@@ -19,7 +19,8 @@ public class StorySummaryDto {
     private String mediaType;
     /** Root-relative URL, e.g. "/uploads/stories/xxx.m4a". Null with no clip. */
     private String mediaUrl;
-    private String imageUrl;
     private long viewCount;
+    /** Cover image (complete URL), set by the storyteller or an admin. Null when there is none. */
+    private String imageUrl;
     private LocalDateTime createdAt;
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Trash2 } from 'lucide-react-native';
@@ -10,15 +10,17 @@ import {
   RecordingActionButtons,
   SubmitConfirmationModal,
   ThumbnailPicker,
-  STORY_STATUS_LABELS,
+  storyStatusKey,
   ContentCaptureColors as D,
 } from '../../components/module-specific/content-capture';
 import { useStoryDraft } from '../../hooks/useStoryDraft';
 import { storiesApi } from '../../services/api/storiesApi';
 import { getMediaUrl } from '../../constants/api';
 import { ApiError } from '../../services/api/client';
+import { isRemoteUri, thumbnailFileFromUri } from '../../utils/thumbnailFile';
 import { Typography, Spacing, Radii } from '../../theme';
 import type { StoryMediaType } from '../../types/story';
+import { useTranslation } from 'react-i18next';
 
 /**
  * PENDING is editable too: the backend has no way to hold a story at DRAFT
@@ -68,6 +70,7 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
   onDeleted,
   onRerecord,
 }) => {
+  const { t } = useTranslation('contentCapture');
   const { draft, loadExistingDraft, updateFields, setTranscript, setThumbnail, clearDraft } = useStoryDraft();
 
   const [loading, setLoading] = useState(mode === 'edit');
@@ -99,10 +102,11 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
           mediaDurationMillis: story.mediaDurationMillis ?? undefined,
           transcriptText: isWritten ? story.description ?? '' : undefined,
           status: story.status,
+          thumbnailUri: story.imageUrl ? getMediaUrl(story.imageUrl) : undefined,
         });
       })
       .catch(() => {
-        if (!cancelled) setLoadError("Couldn't load this story.");
+        if (!cancelled) setLoadError(t('form.loadError'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -139,7 +143,7 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
           <BackButton onPress={onBack} />
         </View>
         <View style={s.centerState}>
-          <Text style={s.errorText}>{loadError ?? "Couldn't load this story."}</Text>
+          <Text style={s.errorText}>{loadError ?? t('form.loadError')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -150,15 +154,15 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
 
   const validate = (forSubmit: boolean) => {
     const next: typeof errors = {};
-    if (!draft.title.trim()) next.title = 'this field is empty';
+    if (!draft.title.trim()) next.title = t('form.errors.empty');
     if (forSubmit) {
       const bodyText = isWritten ? draft.transcriptText : draft.description;
       if (!bodyText?.trim()) {
-        if (isWritten) next.media = 'add your story before submitting';
-        else next.description = 'this field is empty';
+        if (isWritten) next.media = t('form.errors.addStory');
+        else next.description = t('form.errors.empty');
       }
       if (!isWritten && !draft.mediaUri) {
-        next.media = 'a recording is required before submitting';
+        next.media = t('form.errors.recordingRequired');
       }
     }
     setErrors(next);
@@ -188,13 +192,24 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
   });
 
   const persist = async () => {
-    if (draft.id) {
-      await storiesApi.update(draft.id, {
+    let storyId = draft.id;
+    if (storyId) {
+      await storiesApi.update(storyId, {
         title: draft.title.trim(),
         description: (isWritten ? draft.transcriptText : draft.description)?.trim() || undefined,
       });
     } else {
-      await storiesApi.create(buildPayload());
+      storyId = (await storiesApi.create(buildPayload())).id;
+    }
+
+    // A cover picked on this phone still has to be uploaded; one that is already on the server is left alone.
+    if (storyId && draft.thumbnailUri && !isRemoteUri(draft.thumbnailUri)) {
+      try {
+        await storiesApi.uploadThumbnail(storyId, thumbnailFileFromUri(draft.thumbnailUri));
+      } catch {
+        // The story itself is saved - don't fail the whole save (and risk a duplicate on retry) over the picture.
+        Alert.alert(t('form.thumbnailFailedTitle'), t('form.thumbnailFailed'));
+      }
     }
   };
 
@@ -209,7 +224,7 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
       clearDraft();
       onSaved?.();
     } catch (err) {
-      setSaveError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      setSaveError(err instanceof ApiError ? err.message : t('form.genericError'));
     } finally {
       setSavingDraft(false);
     }
@@ -229,7 +244,7 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
       clearDraft();
       onSaved?.();
     } catch (err) {
-      setSaveError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      setSaveError(err instanceof ApiError ? err.message : t('form.genericError'));
       setConfirmVisible(false);
     } finally {
       setSubmitting(false);
@@ -246,7 +261,7 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
       clearDraft();
       onDeleted?.();
     } catch (err) {
-      setSaveError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
+      setSaveError(err instanceof ApiError ? err.message : t('form.genericError'));
       setDeleteVisible(false);
     } finally {
       setDeleting(false);
@@ -267,33 +282,33 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
         keyboardShouldPersistTaps="handled"
       >
         <View style={s.heading}>
-          <Text style={s.headline}>{mode === 'edit' ? 'Edit your story' : 'Review your story'}</Text>
-          <Text style={s.subheadline}>Give it a title and a little context</Text>
+          <Text style={s.headline}>{mode === 'edit' ? t('form.headlineEdit') : t('form.headlineReview')}</Text>
+          <Text style={s.subheadline}>{t('form.subheadline')}</Text>
         </View>
 
         {!editable && (
           <View style={s.readOnlyBanner}>
             <Text style={s.readOnlyText}>
-              This story is {STORY_STATUS_LABELS[draft.status]} and can't be edited.
+              {t('form.readOnly', { status: t(storyStatusKey(draft.status)) })}
             </Text>
           </View>
         )}
 
         <MicInputField
-          label="Title"
+          label={t('form.title')}
           value={draft.title}
           onChangeText={(text) => updateFields({ title: text })}
-          placeholder="Give your story a title"
+          placeholder={t('form.titlePlaceholder')}
           errorText={errors.title}
           editable={editable}
         />
 
         {!isWritten && (
           <MicInputField
-            label="Description"
+            label={t('form.description')}
             value={draft.description}
             onChangeText={(text) => updateFields({ description: text })}
-            placeholder="Add a little context for this story…"
+            placeholder={t('form.descriptionPlaceholder')}
             multiline
             errorText={errors.description}
             editable={editable}
@@ -301,14 +316,17 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
         )}
 
         <View style={s.section}>
-          <Text style={s.sectionLabel}>{isWritten ? 'Your story' : draft.mediaType === 'VIDEO' ? 'Video' : 'Voice recording'}</Text>
+          {/* Written stories: the text field below carries the "Your story" label itself, so a heading here would repeat it. */}
+          {!isWritten && (
+            <Text style={s.sectionLabel}>{draft.mediaType === 'VIDEO' ? t('form.video') : t('form.voice')}</Text>
+          )}
 
           {isWritten ? (
             <MicInputField
-              label="Your story"
+              label={t('form.yourStory')}
               value={draft.transcriptText ?? ''}
               onChangeText={setTranscript}
-              placeholder="Speak or type your story…"
+              placeholder={t('form.storyPlaceholder')}
               multiline
               errorText={errors.media}
               editable={editable}
@@ -325,12 +343,12 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
               {!!errors.media && <Text style={s.fieldErrorText}>{errors.media}</Text>}
             </>
           ) : (
-            <Text style={s.emptyMediaText}>No recording attached</Text>
+            <Text style={s.emptyMediaText}>{t('form.noRecording')}</Text>
           )}
         </View>
 
         <View style={s.section}>
-          <Text style={s.sectionLabel}>Thumbnail</Text>
+          <Text style={s.sectionLabel}>{t('form.thumbnail')}</Text>
           <ThumbnailPicker uri={draft.thumbnailUri} onChange={setThumbnail} editable={editable} />
         </View>
 
@@ -338,8 +356,8 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
 
         {editable && (
           <RecordingActionButtons
-            startOverLabel={savingDraft ? 'Saving…' : 'Save as Draft'}
-            finishLabel="Submit for Review"
+            startOverLabel={savingDraft ? t('form.saving') : t('form.saveDraft')}
+            finishLabel={t('form.submitForReview')}
             onStartOverPress={handleSaveAsDraft}
             onFinishPress={handleSubmitPress}
           />
@@ -352,27 +370,27 @@ export const ContentFormScreen: React.FC<ContentFormScreenProps> = ({
             accessibilityRole="button"
           >
             <Trash2 size={18} color="#ba1a1a" strokeWidth={2} />
-            <Text style={s.deleteBtnText}>Delete Content</Text>
+            <Text style={s.deleteBtnText}>{t('form.deleteContent')}</Text>
           </Pressable>
         )}
       </ScrollView>
 
       <ConfirmDialog
         visible={deleteVisible}
-        title="Delete this story?"
-        message="This can't be undone — the recording and details will be permanently removed."
-        confirmLabel={deleting ? 'Deleting…' : 'Delete'}
-        cancelLabel="Cancel"
+        title={t('form.deleteTitle')}
+        message={t('form.deleteMessage')}
+        confirmLabel={deleting ? t('form.deleting') : t('form.delete')}
+        cancelLabel={t('cancel', { ns: 'common' })}
         onCancel={() => !deleting && setDeleteVisible(false)}
         onConfirm={handleDelete}
       />
 
       <ConfirmDialog
         visible={discardVisible}
-        title="Discard this story?"
-        message="Your recording and anything you've written here will be lost."
-        confirmLabel="Discard"
-        cancelLabel="Keep editing"
+        title={t('form.discardTitle')}
+        message={t('form.discardMessage')}
+        confirmLabel={t('form.discard')}
+        cancelLabel={t('form.keepEditing')}
         onCancel={() => setDiscardVisible(false)}
         onConfirm={() => {
           setDiscardVisible(false);

@@ -1,5 +1,6 @@
 package lk.ac.sliit.legacylens.marketplace.repository;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import lk.ac.sliit.legacylens.marketplace.entity.PaymentRecord;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,6 +16,7 @@ import java.util.UUID;
 @Repository
 public interface PaymentRecordRepository extends JpaRepository<PaymentRecord, UUID> {
 
+    @EntityGraph(attributePaths = {"job", "job.elder"})
     List<PaymentRecord> findByCreatorIdOrderByCollectedAtDesc(UUID creatorId, Pageable pageable);
 
     @Query("SELECT COALESCE(SUM(p.amount + p.tipAmount), 0) FROM PaymentRecord p "

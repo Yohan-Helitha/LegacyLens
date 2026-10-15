@@ -1,6 +1,7 @@
 package lk.ac.sliit.legacylens.marketplace.service;
 
 import lk.ac.sliit.legacylens.common.exception.ResourceNotFoundException;
+import lk.ac.sliit.legacylens.marketplace.dto.OpportunityBrowseResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityCardResponse;
 import lk.ac.sliit.legacylens.marketplace.dto.OpportunityDetailResponse;
 import lk.ac.sliit.legacylens.marketplace.entity.Opportunity;
@@ -84,7 +85,30 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Override
     @Transactional(readOnly = true)
     public List<OpportunityCardResponse> getRecommended(int limit, UUID creatorId) {
+        return recommended(limit, creatorId, matcher.forCreator(creatorId), alreadyAppliedTo(creatorId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OpportunityBrowseResponse browse(UUID creatorId) {
+        // Worked out once for the whole page - the three lists used to each repeat it in their own request.
         CreatorMatching matching = matcher.forCreator(creatorId);
+        Set<UUID> applied = alreadyAppliedTo(creatorId);
+        List<OpportunityCardResponse> recommended = recommended(1, creatorId, matching, applied);
+        List<OpportunityCardResponse> urgent = urgent(1, matching, applied);
+        // A job already shown as Recommended or Urgent is not listed a second time under Recent Postings.
+        Set<UUID> alreadyShown = new java.util.HashSet<>(applied);
+        recommended.forEach(card -> alreadyShown.add(card.getId()));
+        urgent.forEach(card -> alreadyShown.add(card.getId()));
+        List<OpportunityCardResponse> recent = recent(10, matching, alreadyShown);
+        return OpportunityBrowseResponse.builder()
+                .recommended(recommended)
+                .urgent(urgent)
+                .recent(recent)
+                .build();
+    }
+
+    private List<OpportunityCardResponse> recommended(int limit, UUID creatorId, CreatorMatching matching, Set<UUID> applied) {
         if (!matching.isCreator()) {
             return List.of();
         }
@@ -98,8 +122,7 @@ public class OpportunityServiceImpl implements OpportunityService {
             log.warn("Recommendations only looked at the newest {} published opportunities; older ones were not considered",
                     RECOMMENDATION_POOL);
         }
-        Set<UUID> applied = alreadyAppliedTo(creatorId);
-        return pool.stream()
+        return cards(pool.stream()
                 .filter(opportunity -> !applied.contains(opportunity.getId()))
                 .filter(matching::isEligible)
                 .map(opportunity -> new Scored(opportunity, matching.score(opportunity)))
@@ -108,36 +131,45 @@ public class OpportunityServiceImpl implements OpportunityService {
                         .thenComparing(scored -> scored.opportunity().getCreatedAt(),
                                 Comparator.nullsLast(Comparator.reverseOrder())))
                 .limit(limit)
-                .map(scored -> mapCard(scored.opportunity(), scored.match()))
+                .collect(Collectors.toList()));
+    }
+
+    private List<OpportunityCardResponse> cards(List<Scored> scored) {
+        return scored.stream()
+                .map(s -> mapCard(s.opportunity(), s.match()))
                 .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OpportunityCardResponse> getUrgent(int limit, UUID creatorId) {
-        CreatorMatching matching = matcher.forCreator(creatorId);
-        Set<UUID> applied = alreadyAppliedTo(creatorId);
-        return opportunityRepository
+        return urgent(limit, matcher.forCreator(creatorId), alreadyAppliedTo(creatorId));
+    }
+
+    private List<OpportunityCardResponse> urgent(int limit, CreatorMatching matching, Set<UUID> applied) {
+        return cards(opportunityRepository
                 .findByStatusAndUrgentTrueOrderByDueAtAsc(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit + applied.size()))
                 .stream()
                 .filter(o -> !applied.contains(o.getId()))
                 .limit(limit)
-                .map(o -> mapCard(o, matching.score(o)))
-                .collect(Collectors.toList());
+                .map(o -> new Scored(o, matching.score(o)))
+                .collect(Collectors.toList()));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OpportunityCardResponse> getRecent(int limit, UUID creatorId) {
-        CreatorMatching matching = matcher.forCreator(creatorId);
-        Set<UUID> applied = alreadyAppliedTo(creatorId);
-        return opportunityRepository
+        return recent(limit, matcher.forCreator(creatorId), alreadyAppliedTo(creatorId));
+    }
+
+    private List<OpportunityCardResponse> recent(int limit, CreatorMatching matching, Set<UUID> applied) {
+        return cards(opportunityRepository
                 .findByStatusOrderByCreatedAtDesc(OpportunityStatus.PUBLISHED, PageRequest.of(0, limit + applied.size()))
                 .stream()
                 .filter(o -> !applied.contains(o.getId()))
                 .limit(limit)
-                .map(o -> mapCard(o, matching.score(o)))
-                .collect(Collectors.toList());
+                .map(o -> new Scored(o, matching.score(o)))
+                .collect(Collectors.toList()));
     }
 
     @Override
@@ -145,7 +177,8 @@ public class OpportunityServiceImpl implements OpportunityService {
     public List<OpportunityCardResponse> search(int limit, UUID creatorId, String category, boolean nearby, String text) {
         User creator = creatorId == null ? null : userRepository.findById(creatorId).orElse(null);
 
-        String location = null;
+        // "" means the filter is not in effect - see OpportunityRepository.search for why it is never null.
+        String location = "";
         if (nearby) {
             if (creator == null || creator.getCity() == null) {
                 return List.of();
@@ -155,14 +188,15 @@ public class OpportunityServiceImpl implements OpportunityService {
 
         CreatorMatching matching = matcher.forCreator(creatorId);
         Set<UUID> applied = alreadyAppliedTo(creatorId);
-        return opportunityRepository
-                .search(OpportunityStatus.PUBLISHED, category, location, text == null || text.isBlank() ? null : text.trim(),
+        return cards(opportunityRepository
+                .search(OpportunityStatus.PUBLISHED, category == null || category.isBlank() ? "" : category.trim(), location,
+                        text == null || text.isBlank() ? "" : text.trim(),
                         PageRequest.of(0, limit + applied.size()))
                 .stream()
                 .filter(o -> !applied.contains(o.getId()))
                 .limit(limit)
-                .map(o -> mapCard(o, matching.score(o)))
-                .collect(Collectors.toList());
+                .map(o -> new Scored(o, matching.score(o)))
+                .collect(Collectors.toList()));
     }
 
     @Override

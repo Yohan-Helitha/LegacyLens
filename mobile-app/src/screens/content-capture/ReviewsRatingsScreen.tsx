@@ -14,6 +14,7 @@ import {
 import type { ElderDrawerItem } from '../../components/module-specific/content-capture';
 import { useElderReviews } from '../../hooks/useElderReviews';
 import { Typography, Spacing, Radii } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 interface ReviewsRatingsScreenProps {
   onTabPress?: (tab: UserTabKey) => void;
@@ -34,6 +35,7 @@ export const ReviewsRatingsScreen: React.FC<ReviewsRatingsScreenProps> = ({
   onDrawerNavigate,
   onLogout,
 }) => {
+  const { t } = useTranslation('contentCapture');
   const [drawerVisible, setDrawerVisible] = useState(false);
   const { summary, reviews, loading, loadError, reload } = useElderReviews();
 
@@ -44,7 +46,7 @@ export const ReviewsRatingsScreen: React.FC<ReviewsRatingsScreenProps> = ({
     <View style={s.screen}>
       <StatusBar style="light" />
 
-      <Header title="Reviews & Ratings" onMenuPress={() => setDrawerVisible(true)} />
+      <Header title={t('reviews.title')} onMenuPress={() => setDrawerVisible(true)} />
 
       <ScrollView
         style={s.flex}
@@ -55,12 +57,12 @@ export const ReviewsRatingsScreen: React.FC<ReviewsRatingsScreenProps> = ({
         }
       >
         <Text style={s.title} accessibilityRole="header">
-          Reviews & Ratings
+          {t('reviews.title')}
         </Text>
 
         {loading && (
           <View style={s.centered}>
-            <ActivityIndicator size="large" color={D.primary} accessibilityLabel="Loading" />
+            <ActivityIndicator size="large" color={D.primary} accessibilityLabel={t('loading', { ns: 'common' })} />
           </View>
         )}
 
@@ -69,9 +71,9 @@ export const ReviewsRatingsScreen: React.FC<ReviewsRatingsScreenProps> = ({
             <View style={[s.iconWrap, s.iconWrapWarn]}>
               <CircleAlert size={32} color={D.onSecondaryContainer} strokeWidth={2} />
             </View>
-            <Text style={s.stateTitle}>Couldn't load your reviews</Text>
-            <Text style={s.stateBody}>Check your connection and try again.</Text>
-            <HireActionButton label="Try again" onPress={reload} style={s.stateBtn} />
+            <Text style={s.stateTitle}>{t('reviews.loadError')}</Text>
+            <Text style={s.stateBody}>{t('reviews.loadErrorHint')}</Text>
+            <HireActionButton label={t('tryAgain', { ns: 'common' })} onPress={reload} style={s.stateBtn} />
           </View>
         )}
 
@@ -80,22 +82,21 @@ export const ReviewsRatingsScreen: React.FC<ReviewsRatingsScreenProps> = ({
             <View
               style={s.summary}
               accessible
-              accessibilityLabel={`Average rating ${summary.averageRating.toFixed(1)} out of 5, based on ${summary.ratingCount} ${
-                summary.ratingCount === 1 ? 'review' : 'reviews'
-              }`}
+              accessibilityLabel={t('reviews.summaryAria', {
+                rating: summary.averageRating.toFixed(1),
+                count: summary.ratingCount,
+              })}
             >
-              <Text style={s.summaryCaption}>AVERAGE RATING</Text>
+              <Text style={s.summaryCaption}>{t('reviews.averageCaption')}</Text>
               <Text style={s.summaryNumber}>{summary.averageRating.toFixed(1)}</Text>
               <RatingStars
                 rating={summary.averageRating}
                 ratingText=""
                 emptyText=""
-                accessibilityLabel={`${summary.averageRating.toFixed(1)} out of 5 stars`}
+                accessibilityLabel={t('reviews.stars', { rating: summary.averageRating.toFixed(1) })}
                 size={30}
               />
-              <Text style={s.summaryCount}>
-                Based on {summary.ratingCount} {summary.ratingCount === 1 ? 'review' : 'reviews'}
-              </Text>
+              <Text style={s.summaryCount}>{t('reviews.basedOn', { count: summary.ratingCount })}</Text>
             </View>
 
             <View style={s.list}>
@@ -111,9 +112,7 @@ export const ReviewsRatingsScreen: React.FC<ReviewsRatingsScreenProps> = ({
             <View style={s.illustration} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
               <Star size={48} color={D.secondary} fill={D.secondaryContainer} strokeWidth={1.75} />
             </View>
-            <Text style={s.stateBody}>
-              Your reviews will appear here as people you've worked with share their feedback.
-            </Text>
+            <Text style={s.stateBody}>{t('reviews.empty')}</Text>
           </View>
         )}
       </ScrollView>
