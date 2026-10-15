@@ -1,10 +1,11 @@
-import { apiGet, apiPost, apiPatch } from './client';
+import { apiGet, apiPost, apiPatch, apiPut } from './client';
 import {
   OpportunityCardResponse,
   OpportunityDetailResponse,
   AdminOpportunityResponse,
   OpportunityAudioResponse,
   CreateOpportunityRequest,
+  OpportunityTranscriptionResponse,
 } from '../../types/opportunity';
 
 /** Creator-facing read endpoints. */
@@ -42,6 +43,9 @@ export const adminOpportunityApi = {
   createOpportunity: (body: CreateOpportunityRequest) =>
     apiPost<AdminOpportunityResponse, CreateOpportunityRequest>('/admin/opportunities', body),
 
+  updateOpportunity: (id: string, body: CreateOpportunityRequest) =>
+    apiPut<AdminOpportunityResponse, CreateOpportunityRequest>(`/admin/opportunities/${id}`, body),
+
   publishFromAudio: (audioId: string, body: CreateOpportunityRequest) =>
     apiPost<AdminOpportunityResponse, CreateOpportunityRequest>(`/admin/opportunities/audios/${audioId}/publish`, body),
 
@@ -53,4 +57,10 @@ export const adminOpportunityApi = {
 
   updateOpportunityStatus: (id: string, status: string) =>
     apiPatch<AdminOpportunityResponse, { status: string }>(`/admin/opportunities/${id}/status`, { status }),
+
+  updateAudioStatus: (id: string, status: string) =>
+    apiPatch<OpportunityAudioResponse, Record<string, never>>(`/admin/opportunities/audios/${id}/status?status=${encodeURIComponent(status)}`, {}),
+
+  autoTranscribeAudio: (audioId: string) =>
+    apiPost<OpportunityTranscriptionResponse, Record<string, never>>(`/admin/opportunities/audios/${audioId}/transcribe`, {}),
 };
