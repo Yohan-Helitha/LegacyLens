@@ -21,7 +21,7 @@ declare const mapboxgl: any;
 
 export type TopSection = 'intake' | 'opportunities';
 export type ViewState = 'intake_queue' | 'intake_review' | 'opp_hub' | 'opp_create';
-export type IntakeFilterType = 'All' | 'Fully Listened' | 'Partially Listened' | 'Unlistened' | 'Need Review';
+export type IntakeFilterType = 'All' | 'Fully Listened' | 'Partially Listened' | 'Unlistened';
 export type HubSubTab = 'drafts' | 'published' | 'removed';
 
 export interface AudioIntakeItem {
@@ -294,17 +294,6 @@ export interface OpportunityItem {
                     {{ intakeCounts().unlistened }}
                   </span>
                 </button>
-
-                <button 
-                  (click)="activeIntakeFilter.set('Need Review')"
-                  [class]="activeIntakeFilter() === 'Need Review' ? 'bg-[#3f4948] text-white font-bold' : 'bg-gray-100 text-[#3f4948] hover:bg-gray-200 font-semibold border border-gray-300'"
-                  class="px-3 py-1.5 rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0">
-                  <span class="material-symbols-outlined text-xs">priority_high</span>
-                  <span>Need Review</span>
-                  <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10">
-                    {{ intakeCounts().needReview }}
-                  </span>
-                </button>
               </div>
 
               <!-- Expanded Location & Sort Drawer -->
@@ -378,9 +367,17 @@ export interface OpportunityItem {
                         <span 
                           [style.backgroundColor]="item.statusColor + '18'" 
                           [style.color]="item.statusColor"
-                          class="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
-                          <span class="w-1.5 h-1.5 rounded-full" [style.backgroundColor]="item.statusColor"></span>
+                          class="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all">
+                          <span class="relative flex h-2 w-2">
+                            @if (isPlaying() && activePlayingItemId() === item.id) {
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" [style.backgroundColor]="item.statusColor"></span>
+                            }
+                            <span class="relative inline-flex rounded-full h-2 w-2" [style.backgroundColor]="item.statusColor"></span>
+                          </span>
                           <span>{{ item.statusLabel }}</span>
+                          @if (isPlaying() && activePlayingItemId() === item.id) {
+                            <span class="material-symbols-outlined text-[13px] animate-pulse">graphic_eq</span>
+                          }
                         </span>
 
                         <span class="text-[11px] font-mono text-[#6f7978]">ID: {{ item.id }}</span>
@@ -534,8 +531,12 @@ export interface OpportunityItem {
                     </button>
 
                     <div class="flex items-center gap-2">
-                      <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800">
-                        Audio Master Ingest
+                      <span 
+                        [style.backgroundColor]="current.statusColor + '18'" 
+                        [style.color]="current.statusColor"
+                        class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full" [style.backgroundColor]="current.statusColor"></span>
+                        <span>{{ current.statusLabel }}</span>
                       </span>
                       <span class="text-xs font-mono text-[#6f7978]">ID: {{ current.id }}</span>
                     </div>
@@ -545,8 +546,8 @@ export interface OpportunityItem {
                     {{ current.topic }}
                   </h2>
                   <p class="text-xs text-[#6f7978] flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-sm text-[#004343]">translate</span>
-                    Original {{ current.originalLanguage }} with AI-assisted contextual translation
+                    <span class="material-symbols-outlined text-sm text-[#004343]">mic</span>
+                    Original {{ current.originalLanguage }} Audio Recording
                   </p>
 
                   <!-- Advanced Waveform Visualizer & Scrubbing Player -->
@@ -608,13 +609,14 @@ export interface OpportunityItem {
                   </div>
                 </div>
 
-                <!-- Dual-Column Interactive Transcription Area -->
-                <div class="flex-1 overflow-y-auto p-4 md:p-6 bg-[#f8faf9] custom-scrollbar">
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
-                    
-                    <!-- Left Column: Original Audio Transcript -->
-                    <div class="flex flex-col gap-3 pr-0 md:pr-3 border-b md:border-b-0 md:border-r border-[#dde3eb]">
-                      <div class="sticky top-0 bg-[#f8faf9]/95 backdrop-blur-xs py-1.5 flex items-center justify-between border-b border-[#dde3eb]/60 z-10">
+                <!-- Interactive Transcription Area -->
+                <div class="flex-1 flex flex-col bg-[#f8faf9] overflow-hidden min-h-0">
+                  <!-- Fixed Top Column Header (Solid & Outside Scroll Area) -->
+                  <div class="bg-[#f8faf9] px-4 md:px-6 py-2.5 border-b border-[#dde3eb] shrink-0 z-10 shadow-xs">
+                    <div class="flex items-center justify-between">
+                      
+                      <!-- Header Title -->
+                      <div class="flex items-center gap-2">
                         <h4 class="text-xs font-bold text-[#191c1c] uppercase tracking-wider flex items-center gap-1.5">
                           <span class="material-symbols-outlined text-sm text-[#004343]">record_voice_over</span>
                           Original ({{ current.originalLanguage }})
@@ -622,7 +624,37 @@ export interface OpportunityItem {
                         <span class="text-[10px] text-[#6f7978]">Lossless Recording</span>
                       </div>
 
-                      <div class="space-y-2.5 pt-1">
+                      <div class="flex items-center gap-2">
+                        <button 
+                          (click)="autoTranscribe()" 
+                          [disabled]="isAutoTranscribing()"
+                          class="text-[11px] px-2.5 py-1 bg-[#004343]/10 text-[#004343] rounded-lg font-bold hover:bg-[#004343]/20 flex items-center gap-1 transition-colors cursor-pointer">
+                          <span class="material-symbols-outlined text-xs">auto_awesome</span>
+                          <span>{{ isAutoTranscribing() ? 'Transcribing...' : 'Auto Transcribe' }}</span>
+                        </button>
+
+                        <button 
+                          (click)="toggleEditTranslation()" 
+                          class="text-[11px] text-[#004343] font-bold hover:underline flex items-center gap-1 cursor-pointer">
+                          <span class="material-symbols-outlined text-xs">{{ isEditingTranslation() ? 'check' : 'edit' }}</span>
+                          <span>{{ isEditingTranslation() ? 'Done' : 'Edit' }}</span>
+                        </button>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <!-- Scrollable Transcript Body -->
+                  <div class="flex-1 overflow-y-auto px-4 md:px-6 py-4 bg-[#f8faf9] custom-scrollbar">
+                    @if (isAutoTranscribing()) {
+                      <!-- Active Neural Transcribing Loading State -->
+                      <div class="flex flex-col items-center justify-center p-12 text-[#004343] min-h-[240px]">
+                        <div class="w-10 h-10 border-3 border-[#004343]/20 border-t-[#004343] rounded-full animate-spin mb-3"></div>
+                        <p class="text-sm font-bold">Transcribing Sinhala Audio (si-LK)...</p>
+                        <p class="text-xs text-[#6f7978] mt-1">Extracting verbatim spoken words and generating timestamps</p>
+                      </div>
+                    } @else if (current.transcriptOriginal && current.transcriptOriginal.length > 0) {
+                      <div class="flex flex-col gap-2.5 max-w-4xl mx-auto">
                         @for (segment of current.transcriptOriginal; track segment.time; let idx = $index) {
                           <div 
                             (click)="jumpToTranscriptSegment(segment.time, idx)"
@@ -633,56 +665,11 @@ export interface OpportunityItem {
                             <span [class]="segment.active ? 'text-[#004343] font-bold' : 'text-[#6f7978]'" class="text-[11px] font-mono block mb-1">
                               {{ segment.time }}
                             </span>
-                            <p class="text-xs md:text-sm text-[#191c1c] leading-relaxed">
-                              {{ segment.text }}
-                            </p>
-                          </div>
-                        }
-                      </div>
-                    </div>
-
-                    <!-- Right Column: Contextual English Translation (Editable & Auto-transcribe) -->
-                    <div class="flex flex-col gap-3 pl-0 md:pl-2">
-                      <div class="sticky top-0 bg-[#f8faf9]/95 backdrop-blur-xs py-1.5 flex justify-between items-center border-b border-[#dde3eb]/60 z-10">
-                        <h4 class="text-xs font-bold text-[#004343] uppercase tracking-wider flex items-center gap-1.5">
-                          <span class="material-symbols-outlined text-sm">g_translate</span>
-                          English Translation
-                        </h4>
-                        
-                        <div class="flex items-center gap-2">
-                          <button 
-                            (click)="autoTranscribe()" 
-                            [disabled]="isAutoTranscribing()"
-                            class="text-[11px] px-2 py-0.5 bg-[#004343]/10 text-[#004343] rounded font-bold hover:bg-[#004343]/20 flex items-center gap-1 transition-colors cursor-pointer">
-                            <span class="material-symbols-outlined text-xs">auto_awesome</span>
-                            <span>{{ isAutoTranscribing() ? 'Transcribing...' : 'Auto Transcribe' }}</span>
-                          </button>
-
-                          <button 
-                            (click)="toggleEditTranslation()" 
-                            class="text-[11px] text-[#004343] font-bold hover:underline flex items-center gap-1 cursor-pointer">
-                            <span class="material-symbols-outlined text-xs">{{ isEditingTranslation() ? 'check' : 'edit' }}</span>
-                            <span>{{ isEditingTranslation() ? 'Done' : 'Edit' }}</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div class="space-y-2.5 pt-1">
-                        @for (segment of current.transcriptTranslation; track segment.time; let idx = $index) {
-                          <div 
-                            [class]="segment.active 
-                              ? 'bg-[#004343]/5 border-l-4 border-[#004343] shadow-xs' 
-                              : 'hover:bg-white border-l-4 border-transparent'"
-                            class="p-3 rounded-xl bg-white/70 border border-[#dde3eb] transition-all relative group">
-                            
-                            <span [class]="segment.active ? 'text-[#004343] font-bold' : 'text-[#6f7978]'" class="text-[11px] font-mono block mb-1">
-                              {{ segment.time }}
-                            </span>
-
                             @if (isEditingTranslation()) {
                               <textarea 
                                 [(ngModel)]="segment.text" 
                                 rows="2"
+                                placeholder="Enter Sinhala text..."
                                 class="w-full text-xs md:text-sm bg-white border border-[#c2c8c7] rounded-lg p-2 focus:ring-1 focus:ring-[#004343] focus:outline-none">
                               </textarea>
                             } @else {
@@ -692,9 +679,42 @@ export interface OpportunityItem {
                             }
                           </div>
                         }
-                      </div>
-                    </div>
 
+                        @if (isEditingTranslation()) {
+                          <button 
+                            (click)="addManualSegment()"
+                            class="w-full py-2 border-2 border-dashed border-[#004343]/30 rounded-xl text-xs font-bold text-[#004343] hover:bg-[#004343]/5 flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+                            <span class="material-symbols-outlined text-sm">add_circle</span>
+                            <span>Add Timestamp Segment</span>
+                          </button>
+                        }
+                      </div>
+                    } @else {
+                      <!-- Empty State: Don't show anything until auto transcribe finishes or user writes manually -->
+                      <div class="flex flex-col items-center justify-center p-12 text-center text-[#6f7978] min-h-[240px]">
+                        <div class="w-12 h-12 rounded-full bg-[#004343]/5 flex items-center justify-center text-[#004343] mb-3">
+                          <span class="material-symbols-outlined text-2xl">subtitles_off</span>
+                        </div>
+                        <p class="text-sm font-bold text-[#191c1c]">No Transcript Available</p>
+                        <p class="text-xs text-[#6f7978] max-w-sm mt-1 mb-4">
+                          This audio has not been transcribed yet. Click "Auto Transcribe" to transcribe all spoken speech from the audio, or write manually.
+                        </p>
+                        <div class="flex items-center gap-2.5">
+                          <button 
+                            (click)="autoTranscribe()" 
+                            class="px-3.5 py-1.5 bg-[#004343] text-white rounded-lg text-xs font-bold hover:bg-[#003131] flex items-center gap-1.5 shadow-xs cursor-pointer">
+                            <span class="material-symbols-outlined text-sm">auto_awesome</span>
+                            <span>Auto Transcribe</span>
+                          </button>
+                          <button 
+                            (click)="startManualTranscription()" 
+                            class="px-3.5 py-1.5 bg-white border border-[#dde3eb] text-[#004343] rounded-lg text-xs font-bold hover:bg-[#f2f4f3] flex items-center gap-1.5 shadow-xs cursor-pointer">
+                            <span class="material-symbols-outlined text-sm">edit_note</span>
+                            <span>Write Manually</span>
+                          </button>
+                        </div>
+                      </div>
+                    }
                   </div>
                 </div>
 
@@ -1029,8 +1049,15 @@ export interface OpportunityItem {
                         <div class="bg-white border-2 border-[#004343]/30 rounded-2xl overflow-hidden shadow-md grid grid-cols-1 md:grid-cols-[280px_1fr] transition-all">
                           
                           <!-- Draft Image Column -->
-                          <div class="relative bg-[#f2f4f3] h-48 md:h-full overflow-hidden">
-                            <img [src]="draft.heroImageUrl" [alt]="draft.title" class="w-full h-full object-cover" />
+                          <div class="relative bg-[#f2f4f3] h-48 md:h-full overflow-hidden flex items-center justify-center">
+                            @if (draft.heroImageUrl) {
+                              <img [src]="draft.heroImageUrl" [alt]="draft.title" class="w-full h-full object-cover" />
+                            } @else {
+                              <div class="flex flex-col items-center justify-center text-[#6f7978]">
+                                <span class="material-symbols-outlined text-4xl mb-1 text-[#6f7978]">image</span>
+                                <span class="text-xs font-medium text-[#6f7978]">No Cover Image</span>
+                              </div>
+                            }
                             <div class="absolute top-3 left-3 bg-white/90 backdrop-blur-xs px-2.5 py-1 rounded-full text-[11px] font-bold text-[#004343] flex items-center gap-1 shadow-xs">
                               <span class="material-symbols-outlined text-sm">edit_document</span>
                               <span>Draft</span>
@@ -1111,7 +1138,13 @@ export interface OpportunityItem {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                           @for (item of otherDrafts(); track item.id) {
                             <div class="bg-white border border-[#dde3eb] rounded-2xl p-3.5 flex gap-3 items-center justify-between hover:border-[#004343]/40 transition-colors shadow-xs">
-                              <img [src]="item.heroImageUrl" [alt]="item.title" class="w-16 h-16 rounded-xl object-cover shrink-0" />
+                              @if (item.heroImageUrl) {
+                                <img [src]="item.heroImageUrl" [alt]="item.title" class="w-16 h-16 rounded-xl object-cover shrink-0" />
+                              } @else {
+                                <div class="w-16 h-16 rounded-xl bg-[#dde3eb] flex items-center justify-center text-[#6f7978] shrink-0">
+                                  <span class="material-symbols-outlined text-2xl">image</span>
+                                </div>
+                              }
                               
                               <div class="min-w-0 flex-1">
                                 <h5 class="text-xs font-bold text-[#191c1c] truncate">{{ item.title }}</h5>
@@ -1157,8 +1190,15 @@ export interface OpportunityItem {
                     @for (opp of filteredPublishedOpportunities(); track opp.id) {
                       <div class="bg-white border border-[#dde3eb] rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
                         <div>
-                          <div class="relative h-44 bg-[#f2f4f3] overflow-hidden">
-                            <img [src]="opp.heroImageUrl" [alt]="opp.title" class="w-full h-full object-cover" />
+                          <div class="relative h-44 bg-[#f2f4f3] overflow-hidden flex items-center justify-center">
+                            @if (opp.heroImageUrl) {
+                              <img [src]="opp.heroImageUrl" [alt]="opp.title" class="w-full h-full object-cover" />
+                            } @else {
+                              <div class="flex flex-col items-center justify-center text-[#6f7978]">
+                                <span class="material-symbols-outlined text-4xl mb-1 text-[#6f7978]">image</span>
+                                <span class="text-xs font-medium text-[#6f7978]">No Cover Image</span>
+                              </div>
+                            }
                             
                             <div class="absolute top-3 left-3 bg-emerald-600 text-white px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 shadow-xs">
                               <span class="w-1.5 h-1.5 rounded-full bg-white pulse-dot"></span>
@@ -1818,8 +1858,15 @@ export interface OpportunityItem {
                       <span class="text-[10px] font-bold uppercase tracking-wider text-[#6f7978] block mb-2">Live Opportunity Card Preview</span>
                       
                       <div class="border-2 border-[#004343]/30 rounded-2xl overflow-hidden shadow-md bg-white max-w-md mx-auto">
-                        <div class="relative h-44 bg-[#f2f4f3]">
-                          <img [src]="oppCoverImage() || sampleCoverImages[0].url" alt="Opportunity cover image" class="w-full h-full object-cover" />
+                        <div class="relative h-44 bg-[#f2f4f3] flex items-center justify-center">
+                          @if (oppCoverImage()) {
+                            <img [src]="oppCoverImage()" alt="Opportunity cover image" class="w-full h-full object-cover" />
+                          } @else {
+                            <div class="flex flex-col items-center justify-center text-[#6f7978]">
+                              <span class="material-symbols-outlined text-4xl mb-1 text-[#6f7978]">image</span>
+                              <span class="text-xs font-medium text-[#6f7978]">No cover image uploaded</span>
+                            </div>
+                          }
                           <div class="absolute top-2.5 left-2.5 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                             PREVIEW
                           </div>
@@ -1904,7 +1951,18 @@ export interface OpportunityItem {
             
             <div class="flex items-start justify-between">
               <div>
-                <span class="text-[10px] font-bold tracking-widest uppercase text-emerald-300">PLAYING PREVIEW</span>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-[10px] font-bold tracking-widest uppercase text-emerald-300">PLAYING PREVIEW</span>
+                  @if (previewItem(); as pItem) {
+                    <span 
+                      [style.backgroundColor]="pItem.statusColor + '35'" 
+                      [style.color]="pItem.statusColor"
+                      class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border border-white/20">
+                      <span class="w-1.5 h-1.5 rounded-full" [style.backgroundColor]="pItem.statusColor"></span>
+                      <span>{{ pItem.statusLabel }}</span>
+                    </span>
+                  }
+                </div>
                 <h3 class="font-serif text-lg font-bold text-white mt-0.5">{{ previewItem()?.topic }}</h3>
                 <p class="text-xs text-white/70">{{ previewItem()?.elderName }} • {{ previewItem()?.location }}</p>
               </div>
@@ -2036,7 +2094,13 @@ export interface OpportunityItem {
             </div>
 
             <div class="bg-[#f8faf9] p-3 rounded-2xl border border-[#dde3eb] flex items-center gap-3 text-left">
-              <img [src]="oppCoverImage() || sampleCoverImages[0].url" alt="Opportunity cover image" class="w-14 h-14 rounded-xl object-cover" />
+              @if (oppCoverImage()) {
+                <img [src]="oppCoverImage()" alt="Opportunity cover image" class="w-14 h-14 rounded-xl object-cover shrink-0" />
+              } @else {
+                <div class="w-14 h-14 rounded-xl bg-[#dde3eb] flex items-center justify-center text-[#6f7978] shrink-0">
+                  <span class="material-symbols-outlined text-2xl">image</span>
+                </div>
+              }
               <div class="min-w-0 flex-1">
                 <span class="text-[10px] font-bold text-[#fe893e] uppercase">Preservation Task</span>
                 <h5 class="text-xs font-bold text-[#191c1c] truncate">{{ oppTitle() }}</h5>
@@ -2194,14 +2258,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     'Craft', 'Food', 'Language', 'Tradition', 'Music', 'Dance', 'Agriculture', 'Ritual', 'Folk Knowledge'
   ];
 
-  sampleCoverImages: { url: string; label: string }[] = [
-    { url: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=800&auto=format&fit=crop&q=80', label: 'Pottery & Ceramics' },
-    { url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=800&auto=format&fit=crop&q=80', label: 'Traditional Weaving' },
-    { url: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=800&auto=format&fit=crop&q=80', label: 'Temple Fresco Art' },
-    { url: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=800&auto=format&fit=crop&q=80', label: 'Agrarian Harvesting' },
-    { url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&auto=format&fit=crop&q=80', label: 'Traditional Mask Carving' },
-    { url: 'https://images.unsplash.com/photo-1528459801416-a9e53bbf4e17?w=800&auto=format&fit=crop&q=80', label: 'Spices & Herbal Medicine' }
-  ];
+  sampleCoverImages: { url: string; label: string }[] = [];
 
   availableSkillsList: string[] = [
     'Photography', 'Videography', 'Documentation', 'Translation (Sinhala/English)', 'Translation (Tamil/English)', 'Interviews', 'Field Sound Recording', 'Archival Scanning'
@@ -2267,8 +2324,6 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
       items = items.filter(i => i.status === 'PARTIALLY_LISTENED');
     } else if (filter === 'Unlistened') {
       items = items.filter(i => i.status === 'UNLISTENED');
-    } else if (filter === 'Need Review') {
-      items = items.filter(i => i.status === 'NEEDS_REVIEW');
     }
 
     if (loc !== 'all') {
@@ -2308,8 +2363,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
       all: list.length,
       fullyListened: list.filter(i => i.status === 'FULLY_LISTENED').length,
       partiallyListened: list.filter(i => i.status === 'PARTIALLY_LISTENED').length,
-      unlistened: list.filter(i => i.status === 'UNLISTENED').length,
-      needReview: list.filter(i => i.status === 'NEEDS_REVIEW').length
+      unlistened: list.filter(i => i.status === 'UNLISTENED').length
     };
   });
 
@@ -2520,7 +2574,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   });
 
   canContinueStep1 = computed(() => {
-    return Boolean(this.oppTitle().trim().length >= 3 && this.oppCoverImage() && this.oppCategory());
+    return Boolean(this.oppTitle().trim().length >= 3 && this.oppCategory());
   });
 
   canContinueStep2 = computed(() => {
@@ -2699,9 +2753,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   private mapBackendOpportunityToItem(res: AdminOpportunityResponse): OpportunityItem {
     let heroImageUrl = res.heroImageUrl || '';
     if (heroImageUrl.startsWith('local:')) {
-      heroImageUrl = 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=800&auto=format&fit=crop&q=80';
-    } else if (!heroImageUrl) {
-      heroImageUrl = 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=800&auto=format&fit=crop&q=80';
+      heroImageUrl = '';
     }
 
     const tasksList: string[] = res.tasks ? res.tasks.split('\n').map(t => t.trim()).filter(Boolean) : [];
@@ -2790,14 +2842,8 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
       originalLanguage: 'Sinhala',
       audioQuality: 'Excellent',
       recordedEra: 'Contemporary Archive (2026)',
-      transcriptOriginal: [
-        { time: '00:12', text: 'අපි හැමදාම මේ සම්ප්‍රදායික දැනුම ආරක්ෂා කරගන්න කැපවෙලා කටයුතු කරනවා.' },
-        { time: '01:45', text: 'අනාගත පරපුරට මේ දැනුම නිවැරදිව ලබාදීම අපේ යුතුකමක්.' }
-      ],
-      transcriptTranslation: [
-        { time: '00:12', text: 'We have dedicated our lives to preserving this indigenous tradition.' },
-        { time: '01:45', text: 'It is our collective duty to pass down this knowledge accurately to future generations.' }
-      ],
+      transcriptOriginal: (res.transcript && res.transcript.trim().length > 0) ? [{ time: '00:00', text: res.transcript.trim() }] : [],
+      transcriptTranslation: (res.transcript && res.transcript.trim().length > 0) ? [{ time: '00:00', text: res.transcript.trim() }] : [],
       reviewerNotes: 'Audio submission verified.',
       audioUrl: res.audioUrl
     };
@@ -2920,6 +2966,15 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   private startAudioEngine(audioUrl?: string, restartFromZero = false): void {
     this.isPlaying.set(true);
 
+    // Immediately mark item as PARTIALLY_LISTENED if currently UNLISTENED
+    const activeId = this.activePlayingItemId();
+    if (activeId) {
+      const currentItem = this.audioSubmissions().find(i => i.id === activeId);
+      if (currentItem && currentItem.status === 'UNLISTENED') {
+        this.updateAudioItemStatus(activeId, 'PARTIALLY_LISTENED');
+      }
+    }
+
     if (audioUrl && (audioUrl.startsWith('http://') || audioUrl.startsWith('https://'))) {
       try {
         const isDifferentSource = !this.activeAudioElement || this.activeAudioElement.src !== audioUrl;
@@ -2955,6 +3010,10 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
             this.isPlaying.set(false);
             if (this.audioTimer) clearInterval(this.audioTimer);
             this.resetPlaybackToBeginning();
+            const endedId = this.activePlayingItemId();
+            if (endedId) {
+              this.updateAudioItemStatus(endedId, 'FULLY_LISTENED');
+            }
           };
         }
 
@@ -2980,6 +3039,18 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
         this.currentPlaybackTime.set(`${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
         this.playbackProgress.set(Math.round(ratio * 100));
 
+        const playingId = this.activePlayingItemId();
+        if (playingId) {
+          const item = this.audioSubmissions().find(i => i.id === playingId);
+          if (item) {
+            if (ratio >= 0.98 && item.status !== 'FULLY_LISTENED') {
+              this.updateAudioItemStatus(playingId, 'FULLY_LISTENED');
+            } else if (ratio > 0.01 && item.status === 'UNLISTENED') {
+              this.updateAudioItemStatus(playingId, 'PARTIALLY_LISTENED');
+            }
+          }
+        }
+
         this.waveformBars.update(bars => {
           const currentBarIndex = Math.min(bars.length - 1, Math.floor(ratio * bars.length));
           return bars.map((b, idx) => ({
@@ -2997,6 +3068,10 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
           if (nextIdx >= bars.length) {
             this.isPlaying.set(false);
             clearInterval(this.audioTimer);
+            const playingId = this.activePlayingItemId();
+            if (playingId) {
+              this.updateAudioItemStatus(playingId, 'FULLY_LISTENED');
+            }
             return bars.map(b => ({ ...b, played: true, active: false }));
           }
 
@@ -3016,6 +3091,72 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     }, 200);
   }
 
+  updateAudioItemStatus(
+    itemId: string,
+    newStatus: 'FULLY_LISTENED' | 'PARTIALLY_LISTENED' | 'UNLISTENED' | 'NEEDS_REVIEW',
+    persistToBackend = true
+  ): void {
+    let label = 'Not Listened';
+    let color = '#ba1a1a';
+    let progress = 0;
+
+    if (newStatus === 'FULLY_LISTENED') {
+      label = 'Fully Listened';
+      color = '#10b981';
+      progress = 100;
+    } else if (newStatus === 'PARTIALLY_LISTENED') {
+      label = 'Partially Listened';
+      color = '#fe893e';
+      progress = 50;
+    } else if (newStatus === 'NEEDS_REVIEW') {
+      label = 'Need Review';
+      color = '#6f7978';
+      progress = 25;
+    }
+
+    this.audioSubmissions.update(items =>
+      items.map(it => {
+        if (it.id === itemId) {
+          return {
+            ...it,
+            status: newStatus,
+            statusLabel: label,
+            statusColor: color,
+            progressPercent: Math.max(it.progressPercent, progress)
+          };
+        }
+        return it;
+      })
+    );
+
+    if (this.selectedIntakeItem()?.id === itemId) {
+      this.selectedIntakeItem.update(it => it ? {
+        ...it,
+        status: newStatus,
+        statusLabel: label,
+        statusColor: color,
+        progressPercent: Math.max(it.progressPercent, progress)
+      } : null);
+    }
+
+    if (this.previewItem()?.id === itemId) {
+      this.previewItem.update(it => it ? {
+        ...it,
+        status: newStatus,
+        statusLabel: label,
+        statusColor: color,
+        progressPercent: Math.max(it.progressPercent, progress)
+      } : null);
+    }
+
+    if (persistToBackend && itemId && !itemId.startsWith('mock-')) {
+      this.opportunityService.updateAudioStatus(itemId, newStatus).subscribe({
+        next: () => {},
+        error: (err) => console.warn(`Could not persist audio status ${newStatus} to backend for ${itemId}:`, err)
+      });
+    }
+  }
+
   seekToBar(index: number): void {
     this.waveformBars.update(bars => 
       bars.map((b, idx) => ({
@@ -3032,6 +3173,18 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
         try {
           this.activeAudioElement.currentTime = (index / this.waveformBars().length) * this.activeAudioElement.duration;
         } catch (e) {}
+      }
+
+      const activeId = this.activePlayingItemId();
+      if (activeId) {
+        const item = this.audioSubmissions().find(i => i.id === activeId);
+        if (item) {
+          if (index >= this.waveformBars().length - 1 && item.status !== 'FULLY_LISTENED') {
+            this.updateAudioItemStatus(activeId, 'FULLY_LISTENED');
+          } else if (item.status === 'UNLISTENED') {
+            this.updateAudioItemStatus(activeId, 'PARTIALLY_LISTENED');
+          }
+        }
       }
     }
   }
@@ -3138,18 +3291,80 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   }
 
   autoTranscribe(): void {
+    const item = this.selectedIntakeItem();
+    if (!item) return;
+
     this.isAutoTranscribing.set(true);
-    this.showToastNotification('AI Neural Model transcribing audio stream...', 'info');
-    setTimeout(() => {
-      this.isAutoTranscribing.set(false);
-      this.showToastNotification('Transcript synchronized with bilingual glossaries.', 'success');
-    }, 1400);
+    this.showToastNotification('AI Neural Model transcribing Sinhala speech...', 'info');
+
+    this.opportunityService.autoTranscribeAudio(item.id).subscribe({
+      next: (res) => {
+        this.isAutoTranscribing.set(false);
+        if (res && res.transcriptOriginal && res.transcriptOriginal.length > 0) {
+          const original = res.transcriptOriginal;
+          const translation = res.transcriptTranslation || [];
+
+          // Update current selected item
+          this.selectedIntakeItem.update(curr => curr ? {
+            ...curr,
+            transcriptOriginal: original,
+            transcriptTranslation: translation
+          } : null);
+
+          // Also update in audioSubmissions signal so state persists
+          this.audioSubmissions.update(items =>
+            items.map(it => it.id === item.id ? {
+              ...it,
+              transcriptOriginal: original,
+              transcriptTranslation: translation
+            } : it)
+          );
+
+          this.showToastNotification('Sinhala speech transcribed successfully!', 'success');
+        } else {
+          this.showToastNotification('Transcription completed.', 'info');
+        }
+      },
+      error: (err) => {
+        this.isAutoTranscribing.set(false);
+        console.warn('Auto transcribe error:', err);
+        this.showToastNotification('Could not transcribe audio. Check connection or audio format.', 'warning');
+      }
+    });
   }
 
   toggleEditTranslation(): void {
-    this.isEditingTranslation.set(!this.isEditingTranslation());
-    if (!this.isEditingTranslation()) {
-      this.showToastNotification('English translation updates saved.', 'success');
+    const item = this.selectedIntakeItem();
+    const nextState = !this.isEditingTranslation();
+    this.isEditingTranslation.set(nextState);
+
+    if (nextState && item && (!item.transcriptOriginal || item.transcriptOriginal.length === 0)) {
+      item.transcriptOriginal = [{ time: '00:00', text: '' }];
+      item.transcriptTranslation = [{ time: '00:00', text: '' }];
+    }
+
+    if (!nextState) {
+      this.showToastNotification('Transcript updates saved.', 'success');
+    }
+  }
+
+  startManualTranscription(): void {
+    const item = this.selectedIntakeItem();
+    this.isEditingTranslation.set(true);
+    if (item && (!item.transcriptOriginal || item.transcriptOriginal.length === 0)) {
+      item.transcriptOriginal = [{ time: '00:00', text: '' }];
+      item.transcriptTranslation = [{ time: '00:00', text: '' }];
+    }
+  }
+
+  addManualSegment(): void {
+    const item = this.selectedIntakeItem();
+    if (item) {
+      const time = this.currentPlaybackTime() || '00:00';
+      if (!item.transcriptOriginal) item.transcriptOriginal = [];
+      if (!item.transcriptTranslation) item.transcriptTranslation = [];
+      item.transcriptOriginal.push({ time, text: '' });
+      item.transcriptTranslation.push({ time, text: '' });
     }
   }
 
@@ -3178,9 +3393,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   confirmReject(): void {
     const item = this.selectedIntakeItem();
     if (item) {
-      item.status = 'NEEDS_REVIEW';
-      item.statusLabel = 'Need Review';
-      item.statusColor = '#ba1a1a';
+      this.updateAudioItemStatus(item.id, 'NEEDS_REVIEW');
       this.showRejectModal.set(false);
       this.showToastNotification(`Submission "${item.id}" marked for re-recording with feedback.`, 'warning');
       this.currentViewState.set('intake_queue');
@@ -3204,14 +3417,12 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
     const item = this.selectedIntakeItem();
     if (!item) return;
 
-    item.status = 'FULLY_LISTENED';
-    item.statusLabel = 'Fully Listened';
-    item.statusColor = '#10b981';
+    this.updateAudioItemStatus(item.id, 'FULLY_LISTENED');
 
     // Populate Create Wizard with intake data
     this.editingDraftId.set(null);
     this.oppTitle.set(`Documenting ${item.topic}`);
-    this.oppCoverImage.set(this.sampleCoverImages[0].url);
+    this.oppCoverImage.set(null);
     this.oppCategory.set('Craft');
     
     // Find matching elder
@@ -3352,12 +3563,46 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
       const reader = new FileReader();
       reader.onload = (e: ProgressEvent<FileReader>) => {
         if (e.target?.result) {
-          this.oppCoverImage.set(e.target.result as string);
-          this.showToastNotification('Device cover image uploaded successfully!', 'success');
+          const rawBase64 = e.target.result as string;
+          this.compressImage(rawBase64, 1200, 0.85).then(compressed => {
+            this.oppCoverImage.set(compressed);
+            this.showToastNotification('Cover image uploaded successfully!', 'success');
+          }).catch(() => {
+            this.oppCoverImage.set(rawBase64);
+            this.showToastNotification('Cover image uploaded successfully!', 'success');
+          });
         }
       };
       reader.readAsDataURL(file);
     }
+  }
+
+  private compressImage(base64Str: string, maxWidth = 1200, quality = 0.85): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(base64Str);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = (err) => reject(err);
+    });
   }
 
   getMapboxAccessToken(): string {
@@ -3710,7 +3955,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   goToNextStep(): void {
     const cur = this.createStep();
     if (cur === 1 && !this.canContinueStep1()) {
-      this.showToastNotification('Please provide a Title, Cover Image, and Category.', 'warning');
+      this.showToastNotification('Please provide a Title and Category.', 'warning');
       return;
     }
     if (cur === 2 && !this.canContinueStep2()) {
@@ -3752,6 +3997,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
 
   saveDraftOnly(): void {
     const kh = this.selectedKnowledgeHolderObj();
+    const elderUuid = (kh?.id && kh.id.includes('-') && !kh.id.startsWith('mock-')) ? kh.id : undefined;
     const req: CreateOpportunityRequest = {
       title: this.oppTitle().trim() || 'Untitled Opportunity',
       description: this.oppPreservationDesc().trim(),
@@ -3768,42 +4014,41 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
       offeredAmount: this.oppOfferedAmount(),
       preservationGoal: this.oppPreservationDesc().trim(),
       tasks: this.oppTasks().filter(t => t.trim().length > 0).join('\n'),
+      requiredSkills: this.oppRequiredSkills().join(','),
       status: 'DRAFT',
-      elderId: kh?.id,
-      elderName: kh?.name
+      elderId: elderUuid,
+      elderName: kh?.name || 'Elder Knowledge Keeper'
     };
 
     const draftId = this.editingDraftId();
     if (draftId && draftId.includes('-') && !draftId.startsWith('OPP-')) {
-      this.opportunityService.updateOpportunityStatus(draftId, { status: 'DRAFT' }).subscribe({
+      this.opportunityService.updateOpportunity(draftId, req).subscribe({
         next: () => {
           this.loadOpportunitiesFromBackend(true);
-          this.showToastNotification(`Draft saved successfully!`, 'success');
+          this.showToastNotification(`Draft updated successfully!`, 'success');
           this.currentSection.set('opportunities');
           this.currentViewState.set('opp_hub');
           this.activeHubTab.set('drafts');
         },
-        error: () => {
-          this.showToastNotification(`Draft updated locally.`, 'info');
-          this.currentSection.set('opportunities');
-          this.currentViewState.set('opp_hub');
-          this.activeHubTab.set('drafts');
+        error: (err) => {
+          console.error('Failed to update draft:', err);
+          const errMsg = err?.error?.message || err?.message || 'Server error';
+          this.showToastNotification(`Failed to save draft: ${errMsg}`, 'error');
         }
       });
     } else {
       this.opportunityService.createOpportunity(req).subscribe({
-        next: () => {
+        next: (saved) => {
           this.loadOpportunitiesFromBackend(true);
           this.showToastNotification(`Draft saved to Central Archive!`, 'success');
           this.currentSection.set('opportunities');
           this.currentViewState.set('opp_hub');
           this.activeHubTab.set('drafts');
         },
-        error: () => {
-          this.showToastNotification(`Draft saved locally.`, 'info');
-          this.currentSection.set('opportunities');
-          this.currentViewState.set('opp_hub');
-          this.activeHubTab.set('drafts');
+        error: (err) => {
+          console.error('Failed to create draft:', err);
+          const errMsg = err?.error?.message || err?.message || 'Server error';
+          this.showToastNotification(`Failed to save draft: ${errMsg}`, 'error');
         }
       });
     }
@@ -3812,6 +4057,7 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
   publishOpportunity(): void {
     this.isPublishing.set(true);
     const kh = this.selectedKnowledgeHolderObj();
+    const elderUuid = (kh?.id && kh.id.includes('-') && !kh.id.startsWith('mock-')) ? kh.id : undefined;
     const req: CreateOpportunityRequest = {
       title: this.oppTitle().trim(),
       description: this.oppPreservationDesc().trim(),
@@ -3828,24 +4074,26 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
       offeredAmount: this.oppOfferedAmount(),
       preservationGoal: this.oppPreservationDesc().trim(),
       tasks: this.oppTasks().filter(t => t.trim().length > 0).join('\n'),
+      requiredSkills: this.oppRequiredSkills().join(','),
       status: 'PUBLISHED',
-      elderId: kh?.id,
-      elderName: kh?.name
+      elderId: elderUuid,
+      elderName: kh?.name || 'Elder Knowledge Keeper'
     };
 
     const draftId = this.editingDraftId();
     if (draftId && draftId.includes('-') && !draftId.startsWith('OPP-')) {
-      this.opportunityService.updateOpportunityStatus(draftId, { status: 'PUBLISHED' }).subscribe({
+      this.opportunityService.updateOpportunity(draftId, req).subscribe({
         next: () => {
           this.isPublishing.set(false);
           this.showSuccessModal.set(true);
           this.loadOpportunitiesFromBackend(true);
           this.showToastNotification('Opportunity published to public network!', 'success');
         },
-        error: () => {
+        error: (err) => {
           this.isPublishing.set(false);
-          this.showSuccessModal.set(true);
-          this.showToastNotification('Opportunity status updated.', 'success');
+          console.error('Failed to publish opportunity:', err);
+          const errMsg = err?.error?.message || err?.message || 'Server error';
+          this.showToastNotification(`Failed to publish: ${errMsg}`, 'error');
         }
       });
     } else {
@@ -3856,10 +4104,11 @@ export class OpportunityIntakeComponent implements OnInit, OnDestroy {
           this.loadOpportunitiesFromBackend(true);
           this.showToastNotification('Opportunity published to public network!', 'success');
         },
-        error: () => {
+        error: (err) => {
           this.isPublishing.set(false);
-          this.showSuccessModal.set(true);
-          this.showToastNotification('Opportunity created successfully.', 'success');
+          console.error('Failed to publish opportunity:', err);
+          const errMsg = err?.error?.message || err?.message || 'Server error';
+          this.showToastNotification(`Failed to publish: ${errMsg}`, 'error');
         }
       });
     }
