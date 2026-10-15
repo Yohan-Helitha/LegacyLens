@@ -5,10 +5,13 @@ import lk.ac.sliit.legacylens.common.dto.ApiResponse;
 import lk.ac.sliit.legacylens.moderation.dto.ModerationQueueItemResponse;
 import lk.ac.sliit.legacylens.moderation.dto.UpdateModerationStatusRequest;
 import lk.ac.sliit.legacylens.moderation.service.ModerationQueueService;
+import lk.ac.sliit.legacylens.common.storage.MediaStorageService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -16,9 +19,13 @@ import java.util.UUID;
 public class ModerationQueueController {
 
     private final ModerationQueueService moderationQueueService;
+    private final MediaStorageService mediaStorageService;
 
-    public ModerationQueueController(ModerationQueueService moderationQueueService) {
+    public ModerationQueueController(
+            ModerationQueueService moderationQueueService,
+            MediaStorageService mediaStorageService) {
         this.moderationQueueService = moderationQueueService;
+        this.mediaStorageService = mediaStorageService;
     }
 
     @GetMapping
@@ -30,6 +37,13 @@ public class ModerationQueueController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ModerationQueueItemResponse>> getItem(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.ok(moderationQueueService.getItem(id)));
+    }
+
+    @PostMapping("/upload-cover")
+    public ResponseEntity<ApiResponse<Map<String, String>>> uploadCoverImage(
+            @RequestParam("file") MultipartFile file) {
+        String url = mediaStorageService.storeBlogImage(file, "covers");
+        return ResponseEntity.ok(ApiResponse.ok("Cover image uploaded successfully", Map.of("imageUrl", url)));
     }
 
     @PatchMapping("/{id}/status")
