@@ -14,6 +14,8 @@ import { useAuthStore } from '../../store/authStore';
 import { LOCALE_NATIVE_NAMES, useLocaleStore } from '../../store/localeStore';
 import { LOCALE_DATE_TAG } from '../../constants/hireStrings';
 import { LanguagePickerSheet } from '../../components/common/LanguagePickerSheet';
+import { NotificationSettingsSheet } from '../../components/common/NotificationSettingsSheet';
+import { useNotificationSettings } from '../../hooks/useNotificationSettings';
 import { useTranslation } from 'react-i18next';
 import { UserProfile } from '../../types/profile';
 import { Colors, Typography, Spacing, Radii } from '../../theme';
@@ -73,6 +75,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [loading, setLoading] = useState(true);
   const [storytellerConfirmVisible, setStorytellerConfirmVisible] = useState(false);
   const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
+  const [notificationSheetVisible, setNotificationSheetVisible] = useState(false);
+  const notifications = useNotificationSettings();
   const { t } = useTranslation('profile');
   const { t: tCommon } = useTranslation('common');
   const locale = useLocaleStore((state) => state.locale);
@@ -181,7 +185,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             value={LOCALE_NATIVE_NAMES[locale]}
             onPress={() => setLanguageSheetVisible(true)}
           />
-          <SettingsListRow icon={Bell} label={t('settings.notifications')} />
+          <SettingsListRow
+            icon={Bell}
+            label={t('settings.notifications')}
+            value={
+              notifications.state === 'on'
+                ? t('notifications.statusOn')
+                : notifications.state === 'blocked'
+                  ? t('notifications.statusBlocked')
+                  : notifications.state === 'off'
+                    ? t('notifications.statusOff')
+                    : undefined
+            }
+            onPress={() => setNotificationSheetVisible(true)}
+          />
           <SettingsListRow icon={Lock} label={t('settings.privacy')} onPress={onOpenPrivacyData} />
           <SettingsListRow icon={HelpCircle} label={t('settings.help')} />
           <SettingsListRow icon={LogOut} label={t('settings.logOut')} variant="danger" onPress={onLogout} />
@@ -189,6 +206,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       </ScrollView>
 
       <LanguagePickerSheet visible={languageSheetVisible} onClose={() => setLanguageSheetVisible(false)} />
+
+      <NotificationSettingsSheet
+        visible={notificationSheetVisible}
+        onClose={() => setNotificationSheetVisible(false)}
+        state={notifications.state}
+        busy={notifications.busy}
+        problem={notifications.problem}
+        onToggle={notifications.toggle}
+      />
 
       <ConfirmDialog
         visible={storytellerConfirmVisible}
