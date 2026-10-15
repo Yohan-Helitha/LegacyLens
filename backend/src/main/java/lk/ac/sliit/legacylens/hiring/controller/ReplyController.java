@@ -2,7 +2,7 @@ package lk.ac.sliit.legacylens.hiring.controller;
 
 import lk.ac.sliit.legacylens.auth.security.CustomUserDetails;
 import lk.ac.sliit.legacylens.common.dto.ApiResponse;
-import lk.ac.sliit.legacylens.common.storage.FileStorageService;
+import lk.ac.sliit.legacylens.common.storage.MediaStorageService;
 import lk.ac.sliit.legacylens.hiring.service.ReplyService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,11 +24,11 @@ public class ReplyController {
     private static final String VOICE_REPLY_SUBFOLDER = "voice-replies";
 
     private final ReplyService replyService;
-    private final FileStorageService fileStorageService;
+    private final MediaStorageService mediaStorageService;
 
-    public ReplyController(ReplyService replyService, FileStorageService fileStorageService) {
+    public ReplyController(ReplyService replyService, MediaStorageService mediaStorageService) {
         this.replyService = replyService;
-        this.fileStorageService = fileStorageService;
+        this.mediaStorageService = mediaStorageService;
     }
 
     @PostMapping(value = "/{id}/reply-voice", consumes = "multipart/form-data")
@@ -37,8 +37,8 @@ public class ReplyController {
             @PathVariable("id") UUID conversationId,
             @RequestParam("media") MultipartFile media) {
 
-        String relativePath = fileStorageService.store(media, VOICE_REPLY_SUBFOLDER);
-        String mediaUrl = "/uploads/" + relativePath;
+        // Stored where the other person can play it too: shared storage, not only this computer's disk.
+        String mediaUrl = mediaStorageService.store(media, VOICE_REPLY_SUBFOLDER);
 
         replyService.replyWithVoice(conversationId, principal.getUser().getId(), mediaUrl);
 
