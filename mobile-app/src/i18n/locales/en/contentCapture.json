@@ -327,5 +327,40 @@
     "placeholder": "Search your stories…",
     "stopVoice": "Stop voice search",
     "speak": "Search by speaking"
+  },
+  "creatorApps": {
+    "title": "Creators who applied",
+    "subtitle": "Creators who want to help with your stories",
+    "empty": "No creators have applied yet. We'll let you know when they do.",
+    "loadError": "Couldn't load the creators. Check your connection and try again.",
+    "appliedTo": "Applied to: {{title}}",
+    "accept": "Accept",
+    "accepting": "Accepting…",
+    "decline": "Decline",
+    "acceptAria": "Accept {{name}} for this request",
+    "declineAria": "Decline {{name}}",
+    "statusPending": "Waiting for your reply",
+    "statusAccepted": "Accepted",
+    "statusBooked": "Booked",
+    "statusDeclined": "Not selected",
+    "chat": "Chat with {{name}}",
+    "chatAria": "Open a chat with {{name}}",
+    "chatError": "Couldn't open the chat. Please try again.",
+    "actionError": "That didn't work. Please try again.",
+    "creatorFallback": "Creator"
+  },
+  "inbox": {
+    "headerTitle": "Messages"
+  },
+  "dashboardMessages": {
+    "empty": "No creator has messaged you yet. When one does, you'll see them here.",
+    "loadError": "Couldn't load your messages. Check your connection and try again.",
+    "about": "About: {{title}}",
+    "openChat": "Open chat",
+    "unreadAria": "{{count}} new messages",
+    "viewAll": "See all messages",
+    "voiceMessage": "Voice message",
+    "noMessagesYet": "No messages yet — say hello!",
+    "you": "You: "
   }
 }

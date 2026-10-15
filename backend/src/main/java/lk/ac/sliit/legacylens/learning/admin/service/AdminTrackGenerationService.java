@@ -389,6 +389,9 @@ public class AdminTrackGenerationService {
 							fc.setWord(fcDto.getWord().trim());
 							fc.setMeaning(fcDto.getMeaning());
 							fc.setCulturalNote(fcDto.getCulturalNote());
+							if (fcDto.getAudioUrl() != null && !fcDto.getAudioUrl().isBlank()) {
+								fc.setAudioUrl(fcDto.getAudioUrl().trim());
+							}
 							flashcardRepository.save(fc);
 						}
 					}

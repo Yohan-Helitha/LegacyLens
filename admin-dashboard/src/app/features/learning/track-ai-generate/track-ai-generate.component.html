@@ -379,6 +379,16 @@
           <!-- TAB 3: FLASHCARDS -->
           @if (activePreviewTab === 'FLASHCARDS') {
             <div class="space-y-4">
+              <div class="flex items-center gap-2 text-xs font-semibold"
+                [class.text-green-700]="getFlashcardsWithoutAudioCount() === 0"
+                [class.text-amber-700]="getFlashcardsWithoutAudioCount() > 0">
+                <span class="material-symbols-outlined text-[16px]">graphic_eq</span>
+                @if (getFlashcardsWithoutAudioCount() === 0) {
+                  Every flashcard has audio.
+                } @else {
+                  {{ getFlashcardsWithoutAudioCount() }} of {{ getTotalFlashcardsCount() }} flashcards still need audio (MP3 or MP4, up to 10 MB). All flashcards need audio before you can publish.
+                }
+              </div>
               @for (lesson of preview.lessons; track lesson) {
                 <div class="space-y-3" [hidden]="!lesson.flashcards || lesson.flashcards.length === 0">
                   <h3 class="text-sm font-bold text-[#004343] flex items-center gap-2">
@@ -405,6 +415,29 @@
                           <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase">Cultural Context</label>
                             <input type="text" [(ngModel)]="card.culturalNote" class="input-control w-full p-2 rounded-lg border bg-white text-xs" />
+                          </div>
+                          <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase">Pronunciation Audio <span class="text-red-400">*</span></label>
+                            @if (card.audioUrl) {
+                              <div class="flex items-center gap-2 mt-1">
+                                <audio controls preload="none" [src]="getAudioPreviewUrl(card.audioUrl)" class="h-8 w-full max-w-[260px]"></audio>
+                                <button type="button" (click)="removeFlashcardAudio(card)" title="Remove audio"
+                                  class="text-gray-400 hover:text-red-500 transition-colors">
+                                  <span class="material-symbols-outlined text-[18px]">close</span>
+                                </button>
+                              </div>
+                            } @else {
+                              <input type="file" [attr.accept]="audioAccept"
+                                [disabled]="isAudioUploading(card)"
+                                (change)="onFlashcardAudioSelected(card, $event)"
+                                class="block w-full text-xs text-gray-600 mt-1 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-[#8b5cf6]/10 file:text-[#8b5cf6] file:font-semibold" />
+                            }
+                            @if (isAudioUploading(card)) {
+                              <div class="text-[11px] text-blue-500 mt-1">Uploading…</div>
+                            }
+                            @if (audioErrors.get(card); as audioError) {
+                              <div class="text-[11px] text-red-500 mt-1">{{ audioError }}</div>
+                            }
                           </div>
                         </div>
                       </div>
